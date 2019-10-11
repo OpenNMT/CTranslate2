@@ -1,4 +1,4 @@
-#include "ctranslate2/primitives/primitives_decl.h"
+#include "ctranslate2/primitives/primitives.h"
 
 #include <cuda_runtime.h>
 #include <cublas_v2.h>

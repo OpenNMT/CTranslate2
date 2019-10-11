@@ -45,7 +45,7 @@ set(SOURCES
   src/ops/split.cc
   src/ops/topk.cc
   src/ops/quantize.cc
-  src/primitives/cpu_generic.cc
+  src/primitives/cpu.cc
   src/storage_view.cc
   src/translation_result.cc
   src/translator.cc
@@ -180,7 +180,7 @@ if (WITH_CUDA)
   cuda_add_library(${PROJECT_NAME}
     ${SOURCES}
     src/cuda/utils.cc
-    src/primitives/gpu_cuda.cu
+    src/primitives/cuda.cu
     src/ops/concat_split_gpu.cu
     src/ops/gather_gpu.cu
     src/ops/layer_norm_gpu.cu
