@@ -3,7 +3,3 @@
 // Low-level (BLAS-like) primitives.
 
 #include "primitives_decl.h"
-
-#ifdef WITH_MKL
-#  include "cpu_mkl.h"
-#endif
