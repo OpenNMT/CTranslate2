@@ -1,5 +1,7 @@
 #include "ctranslate2/decoding.h"
 
+#include <cmath>
+
 #include "ctranslate2/ops/ops.h"
 
 namespace ctranslate2 {

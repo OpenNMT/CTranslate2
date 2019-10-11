@@ -1,6 +1,7 @@
 #pragma once
 
-#include <algorithm>
+#include <numeric>
+#include <stdexcept>
 
 #include "op.h"
 
