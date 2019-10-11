@@ -6,6 +6,15 @@
 
 namespace ctranslate2 {
 
+  template<>
+  void primitives<Device::CPU>::set_device(int) {
+  }
+
+  template<>
+  int primitives<Device::CPU>::get_device() {
+    return 0;
+  }
+
 #ifndef WITH_MKL
   template<>
   void* primitives<Device::CPU>::alloc_data(size_t size) {

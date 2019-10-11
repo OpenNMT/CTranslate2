@@ -7,12 +7,8 @@ namespace ctranslate2 {
   template <Device D = Device::CPU>
   struct primitives {
 
-    static void set_device(int) {
-    }
-
-    static int get_device() {
-      return 0;
-    }
+    static void set_device(int index);
+    static int get_device();
 
     static void* alloc_data(size_t size);
     static void free_data(void* data);
@@ -109,10 +105,7 @@ namespace ctranslate2 {
 
     template <typename T>
     static void mul_and_add_batch_broadcast(const T* x, const T* w, const T* b,
-                                            T* y, size_t x_size, size_t wb_size) {
-      mul_batch_broadcast(w, x, y, x_size, wb_size);
-      add_batch_broadcast(b, y, y, x_size, wb_size);
-    }
+                                            T* y, size_t x_size, size_t wb_size);
 
     template <typename T>
     static void mul(const T* a, const T* b, T* c, size_t size);
@@ -199,15 +192,7 @@ namespace ctranslate2 {
                            size_t batch_size,
                            size_t m, size_t n, size_t k,
                            float alpha, float beta,
-                           Out* c) {
-      for (size_t i = 0; i < batch_size; ++i) {
-        const In* a_i = a + (i * m * k);
-        const In* b_i = b + (i * k * n);
-        Out* c_i = c + (i * m * n);
-
-        gemm(a_i, b_i, transpose_a, transpose_b, m, n, k, alpha, beta, c_i);
-      }
-    }
+                           Out* c);
   };
 
   template <Device D1, Device D2>

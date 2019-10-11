@@ -7,7 +7,3 @@
 #ifdef WITH_MKL
 #  include "cpu_mkl.h"
 #endif
-
-#ifdef WITH_CUDA
-#  include "gpu_cuda.h"
-#endif
