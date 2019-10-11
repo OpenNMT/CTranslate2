@@ -1,6 +1,6 @@
 #pragma once
 
-#include "cpu_generic.h"
+#include "primitives_decl.h"
 
 namespace ctranslate2 {
 

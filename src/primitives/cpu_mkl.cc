@@ -1,5 +1,6 @@
 #include "ctranslate2/primitives/cpu_mkl.h"
 
+#include <cmath>
 #include <vector>
 
 #include <mkl.h>
