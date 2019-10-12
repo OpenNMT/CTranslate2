@@ -1,6 +1,6 @@
 #include "benchmark_utils.h"
 
-#include <algorithm>
+#include <numeric>
 
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/utils.h"
