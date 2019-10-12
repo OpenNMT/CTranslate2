@@ -1,5 +1,7 @@
 #include "benchmark_utils.h"
 
+#include <algorithm>
+
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/utils.h"
 
