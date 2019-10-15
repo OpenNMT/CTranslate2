@@ -94,7 +94,6 @@ endif()
 
 if(WITH_MKL)
   set(MKL_ROOT ${INTEL_ROOT}/mkl)
-  set(MKL_SMALL_LIBRARY_NAME mklml_intel)
 
   # Find MKL includes.
   find_path(MKL_INCLUDE_DIR mkl.h ${MKL_ROOT}/include/)
@@ -104,25 +103,24 @@ if(WITH_MKL)
     message(FATAL_ERROR "MKL include directory not found")
   endif()
 
-  # Generate custom MKL library.
-  execute_process(
-    COMMAND make
-    libintel64
-    name=${CMAKE_CURRENT_BINARY_DIR}/lib${MKL_SMALL_LIBRARY_NAME}
-    export=${CMAKE_CURRENT_SOURCE_DIR}/mkl_symbol_list
-    WORKING_DIRECTORY ${MKL_ROOT}/tools/builder
-    OUTPUT_QUIET
-    )
-
-  if(EXISTS ${CMAKE_CURRENT_BINARY_DIR}/lib${MKL_SMALL_LIBRARY_NAME}.so)
-    message(STATUS "Generated small MKL library lib${MKL_SMALL_LIBRARY_NAME}.so")
+  # Find MKL libraries.
+  find_path(MKL_LIBRARY_DIR libmkl_core.a ${MKL_ROOT}/lib/intel64)
+  if(MKL_LIBRARY_DIR)
+    message(STATUS "Found MKL library directory: ${MKL_LIBRARY_DIR}")
   else()
-    message(FATAL_ERROR "An error occured when generating the MKL small library")
+    message(FATAL_ERROR "MKL library directory not found")
   endif()
 
-  add_definitions(-DWITH_MKL)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64")
+  add_definitions(-DWITH_MKL -DMKL_ILP64)
   list(APPEND INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR})
-  list(APPEND LIBRARIES ${MKL_SMALL_LIBRARY_NAME})
+  list(APPEND LIBRARIES
+    -Wl,--start-group
+    ${MKL_LIBRARY_DIR}/libmkl_intel_ilp64.a
+    ${MKL_LIBRARY_DIR}/libmkl_intel_thread.a
+    ${MKL_LIBRARY_DIR}/libmkl_core.a
+    -Wl,--end-group
+    )
 
   if(WITH_MKLDNN)
     find_path(MKLDNN_INCLUDE_DIR mkldnn.hpp)
@@ -233,10 +231,6 @@ install(
   RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
   ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR}
   LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
-  )
-install(
-  FILES "${CMAKE_CURRENT_BINARY_DIR}/lib${MKL_SMALL_LIBRARY_NAME}.so"
-  DESTINATION ${CMAKE_INSTALL_LIBDIR}
   )
 install(
   DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/include/ctranslate2"
