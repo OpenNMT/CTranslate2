@@ -8,7 +8,7 @@ option(LIB_ONLY "Do not compile clients" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
 set(INTEL_ROOT /opt/intel CACHE FILEPATH "Path to Intel root directory")
-set(OPENMP_RUNTIME "INTEL" CACHE STRING "OpenMP runtime")
+set(OPENMP_RUNTIME "INTEL" CACHE STRING "OpenMP runtime (INTEL, COMP)")
 
 # Set Release build type by default to get sane performance.
 if(NOT CMAKE_BUILD_TYPE)
@@ -88,6 +88,13 @@ if(OPENMP_RUNTIME STREQUAL "INTEL")
   list(APPEND LINK_DIRECTORIES ${INTEL_LIBRARY_DIR})
   list(APPEND LIBRARIES iomp5)
   message(STATUS "Using OpenMP: ${INTEL_LIBRARY_DIR}/libiomp5.so")
+elseif(OPENMP_RUNTIME STREQUAL "COMP")
+  if(OpenMP_CXX_FOUND)
+    list(APPEND LIBRARIES ${OpenMP_CXX_LIBRARIES})
+    message(STATUS "Using OpenMP: ${OpenMP_CXX_LIBRARIES}")
+  else()
+    message(FATAL_ERROR "OpenMP not found")
+  endif()
 else()
   message(FATAL_ERROR "Invalid OpenMP runtime ${OPENMP_RUNTIME}")
 endif()
@@ -113,14 +120,17 @@ if(WITH_MKL)
 
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -m64")
   add_definitions(-DWITH_MKL -DMKL_ILP64)
-  list(APPEND INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR})
-  list(APPEND LIBRARIES
-    -Wl,--start-group
-    ${MKL_LIBRARY_DIR}/libmkl_intel_ilp64.a
-    ${MKL_LIBRARY_DIR}/libmkl_intel_thread.a
+  set(MKL_LIBRARIES
     ${MKL_LIBRARY_DIR}/libmkl_core.a
-    -Wl,--end-group
+    ${MKL_LIBRARY_DIR}/libmkl_intel_ilp64.a
     )
+  if(OPENMP_RUNTIME STREQUAL "INTEL")
+    list(APPEND MKL_LIBRARIES ${MKL_LIBRARY_DIR}/libmkl_intel_thread.a)
+  elseif(OPENMP_RUNTIME STREQUAL "COMP")
+    list(APPEND MKL_LIBRARIES ${MKL_LIBRARY_DIR}/libmkl_gnu_thread.a)
+  endif()
+  list(APPEND INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR})
+  list(APPEND LIBRARIES -Wl,--start-group ${MKL_LIBRARIES} -Wl,--end-group)
 
   if(WITH_MKLDNN)
     find_path(MKLDNN_INCLUDE_DIR mkldnn.hpp)
