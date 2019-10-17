@@ -29,6 +29,7 @@ build()
     fi
 }
 
-build ubuntu16
+build ubuntu18
+build ubuntu18-gpu
 build centos7
 build centos7-gpu
