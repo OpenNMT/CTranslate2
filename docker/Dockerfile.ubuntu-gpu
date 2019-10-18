@@ -1,4 +1,8 @@
-FROM nvidia/cuda:10.0-devel-ubuntu18.04 as builder
+ARG UBUNTU_VERSION=18.04
+FROM nvidia/cuda:10.0-cudnn7-devel-ubuntu${UBUNTU_VERSION} as builder
+
+ENV TENSORRT_MAJOR_VERSION=5
+ENV TENSORRT_VERSION=${TENSORRT_MAJOR_VERSION}.1.5
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -8,8 +12,10 @@ RUN apt-get update && \
         libboost-program-options-dev \
         libboost-python-dev \
         python-pip \
-        gnupg \
+        gnupg2 \
         curl \
+        libnvinfer${TENSORRT_MAJOR_VERSION}=${TENSORRT_VERSION}-1+cuda10.0 \
+        libnvinfer-dev=${TENSORRT_VERSION}-1+cuda10.0 \
         wget && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
@@ -45,19 +51,6 @@ RUN wget https://github.com/intel/mkl-dnn/archive/v$MKLDNN_VERSION.tar.gz && \
           -DWITH_TEST=OFF -DWITH_EXAMPLE=OFF .. && \
     make -j4 && make install && \
     cd ../.. && rm -r mkl-dnn-*
-
-ENV CUDNN_VERSION_SHORT=7.6.4
-ENV CUDNN_VERSION=${CUDNN_VERSION_SHORT}.38
-RUN curl -fsSL http://developer.download.nvidia.com/compute/redist/cudnn/v${CUDNN_VERSION_SHORT}/cudnn-10.0-linux-x64-v${CUDNN_VERSION}.tgz -O && \
-    tar --no-same-owner -xzf cudnn-10.0-linux-x64-v${CUDNN_VERSION}.tgz -C /usr/local && \
-    rm cudnn-10.0-linux-x64-v${CUDNN_VERSION}.tgz
-
-ENV TENSORRT_MAJOR_VERSION=5
-ENV TENSORRT_VERSION=${TENSORRT_MAJOR_VERSION}.1.5
-RUN curl -fsSL https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer-dev_${TENSORRT_VERSION}-1+cuda10.0_amd64.deb -O && \
-    curl -fsSL https://developer.download.nvidia.com/compute/machine-learning/repos/ubuntu1804/x86_64/libnvinfer${TENSORRT_MAJOR_VERSION}_${TENSORRT_VERSION}-1+cuda10.0_amd64.deb -O && \
-    dpkg -i --force-depends libnvinfer*.deb && \
-    rm libnvinfer*.deb
 
 ENV CUB_VERSION=1.8.0
 ENV CUB_ROOT=/root/cub
@@ -101,11 +94,11 @@ WORKDIR /root
 RUN cp /opt/intel/lib/intel64/libiomp5.so /root/ctranslate2/lib && \
     cp -P /root/mkl-dnn/lib/libmkldnn.so* /root/ctranslate2/lib && \
     cp -P /usr/lib/x86_64-linux-gnu/libboost_python*.so* /root/ctranslate2/lib && \
-    cp -P /usr/local/cuda/lib*/libcudnn.so* /root/ctranslate2/lib && \
+    cp -P /usr/lib/x86_64-linux-gnu/libcudnn.so* /root/ctranslate2/lib && \
     cp -P /usr/lib/x86_64-linux-gnu/libnvinfer.so* /root/ctranslate2/lib && \
     cp /root/ctranslate2-dev/python/dist/*whl /root/ctranslate2
 
-FROM nvidia/cuda:10.0-base-ubuntu18.04
+FROM nvidia/cuda:10.0-base-ubuntu${UBUNTU_VERSION}
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
