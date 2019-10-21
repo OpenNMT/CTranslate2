@@ -197,6 +197,12 @@ namespace ctranslate2 {
                            Out* c);
   };
 
+#ifdef WITH_MKL
+  template<>
+  template<>
+  void primitives<Device::CPU>::mul(float a, float* y, size_t size);
+#endif
+
   template <Device D1, Device D2>
   struct cross_device_primitives {
     template <typename T>
