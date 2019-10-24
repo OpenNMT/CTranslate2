@@ -12,8 +12,8 @@ namespace ctranslate2 {
 #  define PROFILE_FUN do {} while(0)
 #endif
 
-  void init_profiling();
-  void dump_profiling(std::ostream& os);
+  void init_profiling(size_t num_threads = 1);  // Not thread-safe.
+  void dump_profiling(std::ostream& os);  // Not thread-safe.
 
   // Times of profilers created in different threads with the same name are accumulated.
   class Profiler {

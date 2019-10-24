@@ -10,6 +10,7 @@ namespace ctranslate2 {
 
   static std::chrono::high_resolution_clock::time_point global_start;
   static std::unordered_map<std::string, std::chrono::microseconds> cumulated;
+  static size_t threads;
   static std::mutex mutex;
 
   static void assert_can_profile() {
@@ -18,8 +19,9 @@ namespace ctranslate2 {
 #endif
   }
 
-  void init_profiling() {
+  void init_profiling(size_t num_threads) {
     assert_can_profile();
+    threads = num_threads;
     global_start = std::chrono::high_resolution_clock::now();
   }
 
@@ -29,6 +31,7 @@ namespace ctranslate2 {
 
     auto total_time = std::chrono::duration_cast<std::chrono::microseconds>(
       std::chrono::high_resolution_clock::now() - global_start);
+    total_time *= threads;
 
     std::vector<std::pair<std::string, std::chrono::microseconds> > sorted_cumulated;
     auto measured_time = std::chrono::microseconds::zero();
