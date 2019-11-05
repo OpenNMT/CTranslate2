@@ -19,10 +19,6 @@ static std::string beam_to_test_name(::testing::TestParamInfo<size_t> param_info
     return "BeamSearch";
 }
 
-static bool endswith(const std::string& str, const std::string& part) {
-  return str.size() >= part.size() && str.substr(str.size() - part.size()) == part;
-}
-
 static void check_weights_dtype(const std::unordered_map<std::string, StorageView>& variables,
                                 DataType expected_dtype) {
   for (const auto& variable : variables) {
