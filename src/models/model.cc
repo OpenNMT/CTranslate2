@@ -235,7 +235,7 @@ namespace ctranslate2 {
         auto& variable = variable_pair.second;
 
         // Only process "weight" variables.
-        if (endswith(name, "weight")) {
+        if (ends_with(name, "weight")) {
           convert_data_if_need(support_int8,
                                support_int16,
                                name,

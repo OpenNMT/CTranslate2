@@ -24,7 +24,7 @@ static void check_weights_dtype(const std::unordered_map<std::string, StorageVie
   for (const auto& variable : variables) {
     const auto& name = variable.first;
     const auto& value = variable.second;
-    if (endswith(name, "weight")) {
+    if (ends_with(name, "weight")) {
       EXPECT_EQ(value.dtype(), expected_dtype) << "Expected type " << dtype_name(expected_dtype)
                                                << " for weight " << name << ", got "
                                                << dtype_name(value.dtype()) << " instead";
