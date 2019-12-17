@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <iomanip>
+#include <memory>
 #include <vector>
 
 #ifdef WITH_CUDA
