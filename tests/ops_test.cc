@@ -37,13 +37,13 @@ TEST(OpTest, SplitNoCopyInvalidArgument) {
 TEST(OpDeviceTest, SplitInvalidSize) {
   StorageView x({4, 2}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
   StorageView a, b;
-  ASSERT_RAISES(ops::Split(0, std::vector<int>{3, 2})(x, a, b), std::invalid_argument);
+  ASSERT_RAISES(ops::Split(0, {3, 2})(x, a, b), std::invalid_argument);
 }
 
 TEST(OpDeviceTest, SplitInvalidNumSplits) {
   StorageView x({4, 2}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
   StorageView a, b, c;
-  ASSERT_RAISES(ops::Split(0, std::vector<int>{3, 1})(x, a, b, c), std::invalid_argument);
+  ASSERT_RAISES(ops::Split(0, {3, 1})(x, a, b, c), std::invalid_argument);
 }
 
 TEST(OpDeviceTest, SplitInvalidNumOutputs) {
@@ -307,7 +307,7 @@ TEST_P(OpDeviceTest, SplitNoCopy) {
   StorageView x({4, 2}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8}, device);
   StorageView y(device);
   StorageView z(device);
-  ops::Split(0, std::vector<int>{3, 1}, /*no_copy=*/true)(x, y, z);
+  ops::Split(0, {3, 1}, /*no_copy=*/true)(x, y, z);
   assert_vector_eq(y.shape(), Shape{3, 2});
   assert_vector_eq(z.shape(), Shape{1, 2});
   EXPECT_EQ(y.data<float>(), x.data<float>());
@@ -438,10 +438,9 @@ TEST_P(OpDeviceTest, Gemm) {
 
 TEST_P(OpDeviceTest, GemmInt8) {
   Device device = GetParam();
-#ifndef WITH_MKLDNN
+  // TODO: This test do not pass on CPU (see https://github.com/intel/mkl-dnn/issues/476).
   if (device == Device::CPU)
     return;
-#endif
   StorageView a({3, 8}, std::vector<int8_t>{
       55, 114, 57, -86, 96, -70, -24, -59,
       -30, 50, 69, 74, 59, 9, -115, 10,
@@ -573,6 +572,15 @@ TEST_P(OpDeviceTest, QuantizeINT8) {
   ops::Quantize()(a, qa, scale);
   expect_storage_eq(scale, expected_scale);
   expect_storage_eq(qa, expected_qa);
+}
+
+TEST_P(OpDeviceTest, Multinomial) {
+  Device device = GetParam();
+  StorageView input({2, 4}, std::vector<float>{0, 0, 1, 0, 0, 0, 0, 1}, device);
+  StorageView output(DataType::DT_INT32, device);
+  StorageView expected({2, 2}, std::vector<int32_t>{2, 2, 3, 3}, device);
+  ops::Multinomial(2)(input, output);
+  expect_storage_eq(output, expected);
 }
 
 INSTANTIATE_TEST_CASE_P(CPU, OpDeviceTest, ::testing::Values(Device::CPU));

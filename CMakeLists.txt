@@ -12,6 +12,7 @@ option(WITH_MKLDNN "Compile with Intel MKL-DNN (requires MKL)" OFF)
 option(WITH_CUDA "Compile with CUDA backend" OFF)
 option(ENABLE_PROFILING "Compile with profiling support" OFF)
 option(LIB_ONLY "Do not compile clients" OFF)
+option(WITH_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 
 if(ENABLE_PROFILING)
@@ -55,10 +56,6 @@ else()
 endif()
 
 find_package(Threads)
-find_package(OpenMP)
-if(OpenMP_CXX_FOUND)
-  add_compile_options(${OpenMP_CXX_FLAGS})
-endif()
 
 set(INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}/include
@@ -83,6 +80,8 @@ set(SOURCES
   src/ops/layer_norm_cpu.cc
   src/ops/matmul.cc
   src/ops/mul.cc
+  src/ops/multinomial.cc
+  src/ops/multinomial_cpu.cc
   src/ops/relu.cc
   src/ops/softmax.cc
   src/ops/softmax_cpu.cc
@@ -96,6 +95,7 @@ set(SOURCES
   src/ops/quantize.cc
   src/primitives/cpu.cc
   src/profiler.cc
+  src/sampling.cc
   src/storage_view.cc
   src/translation_result.cc
   src/translator.cc
@@ -109,6 +109,13 @@ set(LIBRARIES
   ${CMAKE_DL_LIBS}
   ${CMAKE_THREAD_LIBS_INIT}
   )
+
+if(NOT WIN32)
+  find_package(OpenMP)
+  if(OpenMP_CXX_FOUND)
+    add_compile_options(${OpenMP_CXX_FLAGS})
+  endif()
+endif()
 
 if(OPENMP_RUNTIME STREQUAL "INTEL")
   # Find Intel libraries.
@@ -164,7 +171,7 @@ if(WITH_MKL)
       ${MKL_LIBRARY_DIR}/libmkl_intel_ilp64.a
       )
   endif()
-  
+
   if(OPENMP_RUNTIME STREQUAL "INTEL")
     if(WIN32)
       list(APPEND MKL_LIBRARIES ${MKL_LIBRARY_DIR}/mkl_intel_thread.lib)
@@ -179,7 +186,7 @@ if(WITH_MKL)
     endif()
   endif()
   list(APPEND INCLUDE_DIRECTORIES ${MKL_INCLUDE_DIR})
-  if(WIN32)
+  if(WIN32 OR APPLE)
     list(APPEND LIBRARIES ${MKL_LIBRARIES})
   else()
     list(APPEND LIBRARIES -Wl,--start-group ${MKL_LIBRARIES} -Wl,--end-group)
@@ -256,7 +263,7 @@ if (WITH_CUDA)
     set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -isystem ${TENSORRT_INCLUDE_DIR}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -isystem ${TENSORRT_INCLUDE_DIR}")
   endif()
-  
+
   message(STATUS "NVCC compilation flags: ${CUDA_NVCC_FLAGS}")
 
   find_path(CUB_INCLUDE_DIR NAMES cub/cub.cuh)
@@ -290,6 +297,7 @@ if (WITH_CUDA)
     src/ops/concat_split_gpu.cu
     src/ops/gather_gpu.cu
     src/ops/layer_norm_gpu.cu
+    src/ops/multinomial_gpu.cu
     src/ops/softmax_gpu.cu
     src/ops/topk_gpu.cu
     )
@@ -305,7 +313,9 @@ endif()
 target_link_libraries(${PROJECT_NAME} ${LIBRARIES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${INCLUDE_DIRECTORIES})
 
-add_subdirectory(tests)
+if(WITH_TESTS)
+  add_subdirectory(tests)
+endif()
 
 include(GNUInstallDirs)
 

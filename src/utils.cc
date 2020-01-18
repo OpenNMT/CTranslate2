@@ -1,5 +1,7 @@
 #include "ctranslate2/utils.h"
 
+#include <chrono>
+
 #ifdef WITH_MKL
 #  include <mkl.h>
 #endif
@@ -68,6 +70,30 @@ namespace ctranslate2 {
   bool starts_with(const std::string& str, const std::string& prefix) {
     return (str.size() >= prefix.size() &&
             str.compare(0, prefix.size(), prefix) == 0);
+  }
+
+  std::vector<std::string> split_string(const std::string& str, char delimiter) {
+    std::vector<std::string> parts;
+    std::string part;
+    for (const char c : str) {
+      if (c == delimiter) {
+        if (!part.empty()) {
+          parts.emplace_back(std::move(part));
+          part.clear();
+        }
+      } else {
+        part += c;
+      }
+    }
+    if (!part.empty())
+      parts.emplace_back(std::move(part));
+    return parts;
+  }
+
+  std::mt19937& get_random_generator() {
+    static thread_local std::mt19937 generator(
+      std::chrono::system_clock::now().time_since_epoch().count());
+    return generator;
   }
 
 }

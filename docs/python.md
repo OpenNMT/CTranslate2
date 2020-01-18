@@ -6,9 +6,10 @@
 import ctranslate2
 
 converter = ctranslate2.converters.OpenNMTTFConverter(
-    model_path: str,         # Path to a OpenNMT-tf checkpoint or SavedModel.
-    src_vocab=None,          # Path to the source vocabulary (required for checkpoints).
-    tgt_vocab=None)          # Path to the target vocabulary (required for checkpoints).
+    model_path=None, # Path to a OpenNMT-tf checkpoint or SavedModel (mutually exclusive with variables)
+    src_vocab=None,  # Path to the source vocabulary (required for checkpoints).
+    tgt_vocab=None,  # Path to the target vocabulary (required for checkpoints).
+    variables=None)  # Dict of variables name to value (mutually exclusive with model_path).
 
 converter = ctranslate2.converters.OpenNMTPyConverter(
     model_path: str)         # Path to the OpenNMT-py model.
@@ -47,9 +48,13 @@ output = translator.translate_batch(
     max_decoding_length=250, # Maximum prediction length.
     min_decoding_length=1,   # Minimum prediction length.
     use_vmap=False,          # Use the VMAP saved in this model.
-    return_attention=False)  # Also return the attention vectors.
+    return_attention=False,  # Also return the attention vectors.
+    sampling_topk=1,         # Randomly sample from the top K candidates.
+    sampling_temperature=1.) # Sampling temperature.
 
-translator.translate_file(
+# stats is a tuple of file statistics containing in order:
+# 1. the number of generated target tokens
+stats = translator.translate_file(
     input_path: str,         # Input file.
     output_path: str,        # Output file.
     max_batch_size: int,     # Maximum batch size to translate.
@@ -59,7 +64,9 @@ translator.translate_file(
     max_decoding_length=250, # Maximum prediction length.
     min_decoding_length=1,   # Minimum prediction length.
     use_vmap=False,          # Use the VMAP saved in this model.
-    with_scores=False)       # Also output predictions scores.
+    with_scores=False,       # Also output predictions scores.
+    sampling_topk=1,         # Randomly sample from the top K candidates.
+    sampling_temperature=1.) # Sampling temperature.
 
 del translator               # Release the translator resources.
 ```

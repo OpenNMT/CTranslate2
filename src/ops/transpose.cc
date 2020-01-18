@@ -5,28 +5,28 @@
 namespace ctranslate2 {
   namespace ops {
 
-    Transpose::Transpose(const std::vector<size_t>& perm)
+    Transpose::Transpose(const std::vector<dim_t>& perm)
       : _perm(perm) {
     }
 
     void Transpose::operator()(const StorageView& x, StorageView& y) const {
       PROFILE("Transpose");
-      if (x.rank() == 1) {
+      if (x.rank() <= 1) {
         y = x;
         return;
       }
 
-      std::vector<size_t> perm;
+      std::vector<dim_t> perm;
       bool identity = true;
       if (_perm.empty()) {
         perm.resize(x.rank());
-        for (size_t i = 0; i < x.rank(); ++i)
+        for (dim_t i = 0; i < x.rank(); ++i)
           perm[i] = x.rank() - i - 1;
         identity = false;
       } else {
         assert(_perm.size() == x.rank());
         perm = _perm;
-        for (size_t i = 0; i < x.rank(); ++i) {
+        for (dim_t i = 0; i < x.rank(); ++i) {
           if (perm[i] != i) {
             identity = false;
             break;

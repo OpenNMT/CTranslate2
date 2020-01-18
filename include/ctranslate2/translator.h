@@ -14,6 +14,8 @@ namespace ctranslate2 {
     size_t max_decoding_length = 250;
     size_t min_decoding_length = 1;
     float length_penalty = 0;
+    size_t sampling_topk = 1;
+    float sampling_temperature = 1;
     bool use_vmap = false;
     bool return_attention = false;
   };
@@ -24,7 +26,7 @@ namespace ctranslate2 {
   class Translator {
   public:
     Translator(const std::string& model_dir, Device device, int device_index = 0);
-    Translator(const std::shared_ptr<models::Model>& model);
+    Translator(const std::shared_ptr<const models::Model>& model);
     Translator(const Translator& other);
 
     TranslationResult
@@ -57,7 +59,7 @@ namespace ctranslate2 {
                     const std::vector<std::vector<std::string>>& target_prefix,
                     const TranslationOptions& options);
 
-    const std::shared_ptr<models::Model> _model;
+    const std::shared_ptr<const models::Model> _model;
     std::unique_ptr<layers::Encoder> _encoder;
     std::unique_ptr<layers::Decoder> _decoder;
   };

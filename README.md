@@ -32,6 +32,7 @@ Some of these features are difficult to achieve with standard deep learning fram
 The translation API supports several decoding options:
 
 * decoding with greedy or beam search
+* random sampling from the output distribution
 * translating with a known target prefix
 * constraining the decoding length
 * returning multiple translation hypotheses
@@ -211,7 +212,7 @@ apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
 sudo apt-key add GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
 sudo sh -c 'echo deb https://apt.repos.intel.com/mkl all main > /etc/apt/sources.list.d/intel-mkl.list'
 sudo apt-get update
-sudo apt-get install intel-mkl-64bit-2019.5-075
+sudo apt-get install intel-mkl-64bit-2020.0-088
 ```
 
 Go to https://software.intel.com/en-us/articles/installing-intel-free-libs-and-python-apt-repo for more details.
@@ -260,7 +261,7 @@ sudo ln -s  /usr/local/lib/libgtest.a /usr/lib/libgtest.a
 sudo ln -s  /usr/local/lib/libgtest_main.a /usr/lib/libgtest_main.a
 ```
 
-Then follow the CTranslate2 [build instructions](#building) again to produce the test executable `tests/ctranslate2_test`. The binary expects the path to the test data as argument:
+Then configure the project with `cmake -DWITH_TESTS=ON` to produce the test executable `tests/ctranslate2_test`. The binary expects the path to the test data as argument:
 
 ```bash
 ./tests/ctranslate2_test ../tests/data

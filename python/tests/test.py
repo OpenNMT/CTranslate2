@@ -8,6 +8,7 @@ import ctranslate2
 
 from ctranslate2.specs.model_spec import OPTIONAL, index_spec
 from ctranslate2.specs import transformer_spec
+from ctranslate2.converters import opennmt_tf
 
 
 _TEST_DATA_DIR = os.path.join(
@@ -46,11 +47,12 @@ def test_file_translation(tmpdir):
         input_file.write("آ ت ش ي س و ن")
         input_file.write("\n")
     translator = _get_transliterator()
-    translator.translate_file(input_path, output_path, max_batch_size=32)
+    stats = translator.translate_file(input_path, output_path, max_batch_size=32)
     with open(output_path) as output_file:
         lines = output_file.readlines()
         assert lines[0].strip() == "a t z m o n"
         assert lines[1].strip() == "a c h i s o n"
+    assert stats[0] == 13  # Number of generated target tokens.
 
 def test_empty_translation():
     translator = _get_transliterator()
@@ -91,8 +93,8 @@ def test_return_attention():
     reason="Data files are not available")
 @pytest.mark.parametrize(
     "model_path,src_vocab,tgt_vocab,model_spec",
-    [("v1/savedmodel", None, None, "TransformerBase"),
-     ("v1/savedmodel", None, None, ctranslate2.specs.TransformerSpec(num_layers=6, num_heads=8)),
+    [("v2/savedmodel", None, None, "TransformerBase"),
+     ("v2/savedmodel", None, None, ctranslate2.specs.TransformerSpec(num_layers=6, num_heads=8)),
      ("v1/checkpoint", "ar.vocab", "en.vocab", ctranslate2.specs.TransformerBase()),
      ("v2/checkpoint", "ar.vocab", "en.vocab", ctranslate2.specs.TransformerBase()),
     ])
@@ -111,6 +113,33 @@ def test_opennmt_tf_model_conversion(tmpdir, model_path, src_vocab, tgt_vocab, m
     output = translator.translate_batch([["آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"]])
     assert output[0][0]["tokens"] == ["a", "t", "z", "m", "o", "n"]
 
+def test_opennmt_tf_variables_conversion(tmpdir):
+    model_path = os.path.join(
+        _TEST_DATA_DIR, "models", "transliteration-aren-all", "opennmt_tf", "v2", "checkpoint")
+    _, variables, src_vocab, tgt_vocab = opennmt_tf.load_model(
+        model_path,
+        src_vocab=os.path.join(model_path, "ar.vocab"),
+        tgt_vocab=os.path.join(model_path, "en.vocab"))
+    converter = ctranslate2.converters.OpenNMTTFConverter(
+        src_vocab=src_vocab, tgt_vocab=tgt_vocab, variables=variables)
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    converter.convert(output_dir, ctranslate2.specs.TransformerBase())
+    translator = ctranslate2.Translator(output_dir)
+    output = translator.translate_batch([["آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"]])
+    assert output[0][0]["tokens"] == ["a", "t", "z", "m", "o", "n"]
+
+
+def test_opennmt_tf_model_conversion_invalid_vocab(tmpdir):
+    model_path = os.path.join(
+        _TEST_DATA_DIR, "models", "transliteration-aren-all", "opennmt_tf", "v2", "checkpoint")
+    # Swap source and target vocabularies.
+    converter = ctranslate2.converters.OpenNMTTFConverter(
+        model_path,
+        src_vocab=os.path.join(model_path, "en.vocab"),
+        tgt_vocab=os.path.join(model_path, "ar.vocab"))
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    with pytest.raises(ValueError):
+        converter.convert(output_dir, ctranslate2.specs.TransformerBase())
 
 try:
     import onmt

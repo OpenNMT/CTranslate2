@@ -62,26 +62,39 @@ public:
                                                         compute_type)) {
   }
 
-  void translate_file(const std::string& in_file,
-                      const std::string& out_file,
-                      size_t max_batch_size,
-                      size_t beam_size,
-                      size_t num_hypotheses,
-                      float length_penalty,
-                      size_t max_decoding_length,
-                      size_t min_decoding_length,
-                      bool use_vmap,
-                      bool with_scores) {
+  py::tuple translate_file(const std::string& in_file,
+                           const std::string& out_file,
+                           size_t max_batch_size,
+                           size_t beam_size,
+                           size_t num_hypotheses,
+                           float length_penalty,
+                           size_t max_decoding_length,
+                           size_t min_decoding_length,
+                           bool use_vmap,
+                           bool with_scores,
+                           size_t sampling_topk,
+                           float sampling_temperature) {
     auto options = ctranslate2::TranslationOptions();
     options.beam_size = beam_size;
     options.length_penalty = length_penalty;
+    options.sampling_topk = sampling_topk;
+    options.sampling_temperature = sampling_temperature;
     options.max_decoding_length = max_decoding_length;
     options.min_decoding_length = min_decoding_length;
     options.num_hypotheses = num_hypotheses;
     options.use_vmap = use_vmap;
 
-    py::gil_scoped_release release;
-    _translator_pool.consume_text_file(in_file, out_file, max_batch_size, options, with_scores);
+    size_t num_tokens = 0;
+    {
+      py::gil_scoped_release release;
+      num_tokens = _translator_pool.consume_text_file(in_file,
+                                                      out_file,
+                                                      max_batch_size,
+                                                      options,
+                                                      with_scores);
+    }
+
+    return py::make_tuple(num_tokens);
   }
 
   py::list translate_batch(const py::object& source,
@@ -92,13 +105,17 @@ public:
                            size_t max_decoding_length,
                            size_t min_decoding_length,
                            bool use_vmap,
-                           bool return_attention) {
+                           bool return_attention,
+                           size_t sampling_topk,
+                           float sampling_temperature) {
     if (source.is(py::none()) || py::len(source) == 0)
       return py::list();
 
     auto options = ctranslate2::TranslationOptions();
     options.beam_size = beam_size;
     options.length_penalty = length_penalty;
+    options.sampling_topk = sampling_topk;
+    options.sampling_temperature = sampling_temperature;
     options.max_decoding_length = max_decoding_length;
     options.min_decoding_length = min_decoding_length;
     options.num_hypotheses = num_hypotheses;
@@ -159,7 +176,9 @@ PYBIND11_MODULE(translator, m)
          py::arg("max_decoding_length")=250,
          py::arg("min_decoding_length")=1,
          py::arg("use_vmap")=false,
-         py::arg("return_attention")=false)
+         py::arg("return_attention")=false,
+         py::arg("sampling_topk")=1,
+         py::arg("sampling_temperature")=1)
     .def("translate_file", &TranslatorWrapper::translate_file,
          py::arg("input_path"),
          py::arg("output_path"),
@@ -170,6 +189,8 @@ PYBIND11_MODULE(translator, m)
          py::arg("max_decoding_length")=250,
          py::arg("min_decoding_length")=1,
          py::arg("use_vmap")=false,
-         py::arg("with_scores")=false)
+         py::arg("with_scores")=false,
+         py::arg("sampling_topk")=1,
+         py::arg("sampling_temperature")=1)
     ;
 }
