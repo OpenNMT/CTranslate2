@@ -56,11 +56,11 @@ namespace ctranslate2 {
 
     int Model::device_index() const
     {
-        return _device_index;
+      return _device_index;
     }
 
     ComputeType Model::compute_type() const {
-        return _compute_type;
+      return _compute_type;
     }
 
     void Model::set_device(Device type, int index) {
