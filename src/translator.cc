@@ -369,8 +369,6 @@ namespace ctranslate2 {
 
   void Translator::set_model(const std::shared_ptr<const models::Model>& model)
   {
-      if (_model == model)
-        return;
       _model = model;
       make_graph();
   }
