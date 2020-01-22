@@ -13,6 +13,9 @@ namespace ctranslate2 {
 
     static const size_t current_binary_version = 4;
 
+    // Checks whether the provided path could contain a CTranslate2 model.
+    bool contains_model(const std::string& path);
+
     // Base class for models.
     class Model {
     public:
@@ -29,6 +32,8 @@ namespace ctranslate2 {
       virtual size_t current_spec_revision() const;
 
       Device device() const;
+      int device_index() const;
+      ComputeType compute_type() const;
       ScopedDeviceSetter get_scoped_device_setter() const;
 
       const Vocabulary& get_source_vocabulary() const;

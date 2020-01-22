@@ -54,6 +54,15 @@ namespace ctranslate2 {
       return _device;
     }
 
+    int Model::device_index() const
+    {
+      return _device_index;
+    }
+
+    ComputeType Model::compute_type() const {
+      return _compute_type;
+    }
+
     void Model::set_device(Device type, int index) {
       _device = type;
       _device_index = index;
@@ -379,6 +388,14 @@ namespace ctranslate2 {
 
       model->finalize();
       return std::shared_ptr<Model>(model);
+    }
+
+    bool contains_model(const std::string& path) {
+      return (
+        file_exists(path + "/model.bin")
+        && ((file_exists(path + "/source_vocabulary.txt")
+             && file_exists(path + "/target_vocabulary.txt"))
+            || file_exists(path + "/shared_vocabulary.txt")));
     }
 
   }
