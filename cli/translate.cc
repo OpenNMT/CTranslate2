@@ -54,60 +54,60 @@ int main(int argc, char* argv[]) {
         cxxopts::value<int>()->default_value("0"))
     ;
 
-  auto result = cmd_options.parse(argc, argv);
+  auto args = cmd_options.parse(argc, argv);
 
-  if (result.count("help")) {
+  if (args.count("help")) {
     std::cerr << cmd_options.help() << std::endl;
     return 1;
   }
-  if (!result.count("model")) {
+  if (!args.count("model")) {
     std::cerr << "missing model" << std::endl;
     return 1;
   }
 
-  size_t inter_threads = result["inter_threads"].as<size_t>();
-  size_t intra_threads = result["intra_threads"].as<size_t>();
+  size_t inter_threads = args["inter_threads"].as<size_t>();
+  size_t intra_threads = args["intra_threads"].as<size_t>();
 
   auto model = ctranslate2::models::Model::load(
-    result["model"].as<std::string>(),
-    result["device"].as<std::string>(),
-    result["device_index"].as<int>(),
-    result["compute_type"].as<std::string>());
+    args["model"].as<std::string>(),
+    args["device"].as<std::string>(),
+    args["device_index"].as<int>(),
+    args["compute_type"].as<std::string>());
 
   ctranslate2::TranslatorPool translator_pool(inter_threads, intra_threads, model);
 
   auto options = ctranslate2::TranslationOptions();
-  options.beam_size = result["beam_size"].as<size_t>();
-  options.length_penalty = result["length_penalty"].as<float>();
-  options.sampling_topk = result["sampling_topk"].as<size_t>();
-  options.sampling_temperature = result["sampling_temperature"].as<float>();
-  options.max_decoding_length = result["max_sent_length"].as<size_t>();
-  options.min_decoding_length = result["min_sent_length"].as<size_t>();
-  options.num_hypotheses = result["n_best"].as<size_t>();
-  options.use_vmap = result["use_vmap"].as<bool>();
+  options.beam_size = args["beam_size"].as<size_t>();
+  options.length_penalty = args["length_penalty"].as<float>();
+  options.sampling_topk = args["sampling_topk"].as<size_t>();
+  options.sampling_temperature = args["sampling_temperature"].as<float>();
+  options.max_decoding_length = args["max_sent_length"].as<size_t>();
+  options.min_decoding_length = args["min_sent_length"].as<size_t>();
+  options.num_hypotheses = args["n_best"].as<size_t>();
+  options.use_vmap = args["use_vmap"].as<bool>();
 
   std::istream* in = &std::cin;
   std::ostream* out = &std::cout;
-  if (result.count("src")) {
-    auto path = result["src"].as<std::string>();
+  if (args.count("src")) {
+    auto path = args["src"].as<std::string>();
     auto src_file = new std::ifstream(path);
     if (!src_file->is_open())
       throw std::runtime_error("Unable to open input file " + path);
     in = src_file;
   }
-  if (result.count("tgt")) {
-    out = new std::ofstream(result["tgt"].as<std::string>());
+  if (args.count("tgt")) {
+    out = new std::ofstream(args["tgt"].as<std::string>());
   }
 
-  auto log_profiling = result["log_profiling"].as<bool>();
+  auto log_profiling = args["log_profiling"].as<bool>();
   auto t1 = std::chrono::high_resolution_clock::now();
   if (log_profiling)
     ctranslate2::init_profiling(model->device(), inter_threads);
   auto num_tokens = translator_pool.consume_text_file(*in,
                                                       *out,
-                                                      result["batch_size"].as<size_t>(),
+                                                      args["batch_size"].as<size_t>(),
                                                       options,
-                                                      result["with_score"].as<bool>());
+                                                      args["with_score"].as<bool>());
   if (log_profiling)
     ctranslate2::dump_profiling(std::cerr);
   auto t2 = std::chrono::high_resolution_clock::now();
@@ -117,7 +117,7 @@ int main(int argc, char* argv[]) {
   if (out != &std::cout)
     delete out;
 
-  if (result["log_throughput"].as<bool>()) {
+  if (args["log_throughput"].as<bool>()) {
     auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();
     std::cerr << static_cast<double>(num_tokens) / static_cast<double>(duration / 1000) << std::endl;
   }
