@@ -12,7 +12,7 @@
 int main(int argc, char* argv[]) {
   cxxopts::Options cmd_options("translate", "CTranslate2 translation client");
   cmd_options.add_options()
-    ("h,help", "Display available options.")
+    ("help", "Display available options.")
     ("model", "Path to the CTranslate2 model directory.", cxxopts::value<std::string>())
     ("compute_type", "Force the model type as \"float\", \"int16\" or \"int8\"",
         cxxopts::value<std::string>()->default_value("default"))
@@ -52,7 +52,6 @@ int main(int argc, char* argv[]) {
         cxxopts::value<std::string>()->default_value("cpu"))
     ("device_index", "Index of the device to use.",
         cxxopts::value<int>()->default_value("0"))
-        
     ;
 
   auto result = cmd_options.parse(argc, argv);
