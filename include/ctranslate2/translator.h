@@ -9,6 +9,7 @@
 namespace ctranslate2 {
 
   struct TranslationOptions {
+    size_t max_batch_size = 0;
     size_t beam_size = 2;
     size_t num_hypotheses = 1;
     size_t max_decoding_length = 250;
@@ -61,6 +62,10 @@ namespace ctranslate2 {
   private:
     void make_graph();
 
+    std::vector<TranslationResult>
+    translate_tokens(const std::vector<std::vector<std::string>>& source,
+                     const std::vector<std::vector<std::string>>& target_prefix,
+                     const TranslationOptions& options);
     std::vector<TranslationResult>
     run_translation(const std::vector<std::vector<std::string>>& source,
                     const std::vector<std::vector<std::string>>& target_prefix,
