@@ -471,7 +471,8 @@ namespace ctranslate2 {
                                      bool transpose_a, bool transpose_b,
                                      dim_t m, dim_t n, dim_t k,
                                      float alpha, float beta,
-                                     float* c) {
+                                     float* c,
+                                     const float*) {
 #ifdef WITH_MKL
     MKL_INT lda = transpose_a ? m : k;
     MKL_INT ldb = transpose_b ? k : n;
@@ -497,7 +498,8 @@ namespace ctranslate2 {
                                      bool transpose_a, bool transpose_b,
                                      dim_t m, dim_t n, dim_t k,
                                      float alpha, float beta,
-                                     int32_t* c) {
+                                     int32_t* c,
+                                     const int32_t*) {
 #ifdef WITH_MKL
     MKL_INT lda = transpose_a ? m : k;
     MKL_INT ldb = transpose_b ? k : n;
@@ -528,12 +530,13 @@ namespace ctranslate2 {
     unary_transform(x, ux, size, [](int8_t v) { return static_cast<uint8_t>(v + 128); });
   }
 
-  static void compute_compensation(const int8_t* b,
-                                   bool transpose_b,
-                                   dim_t k,
-                                   dim_t n,
-                                   float alpha,
-                                   int32_t* compensation) {
+  template<>
+  void primitives<Device::CPU>::compute_u8_compensation(const int8_t* b,
+                                                        bool transpose_b,
+                                                        dim_t k,
+                                                        dim_t n,
+                                                        float alpha,
+                                                        int32_t* compensation) {
     #pragma omp parallel for
     for (dim_t i = 0; i < n; ++i) {
       int32_t val = 0;
@@ -558,32 +561,50 @@ namespace ctranslate2 {
   }
 
   template<>
+  bool primitives<Device::CPU>::prefer_u8s8s32_gemm() {
+#ifdef WITH_MKL
+    return true;
+#else
+    return false;
+#endif
+  }
+
+
+  template<>
   template<>
   void primitives<Device::CPU>::gemm(const int8_t* a, const int8_t* b,
                                      bool transpose_a, bool transpose_b,
                                      dim_t m, dim_t n, dim_t k,
                                      float alpha, float beta,
-                                     int32_t* c) {
+                                     int32_t* c,
+                                     const int32_t* a_shift_compensation) {
 #ifdef WITH_MKL
-    const MKL_INT lda = transpose_a ? m : k;
-    const MKL_INT ldb = transpose_b ? k : n;
-    const MKL_INT ldc = n;
-
     // We are implementing s8s8s32 GEMM with cblas_gemm_s8u8s32. In row major mode,
     // it expects a to be unsigned and b to be signed. So we need to shift a to the
     // uint8 domain and add a compensation term. For more details, see
     // https://intel.github.io/mkl-dnn/dev_guide_int8_computations.html
 
-    // TODO: we could apply the shift during quantization to avoid this allocation
-    // and transformation.
-    const dim_t a_size = m * k;
-    auto* ua = static_cast<uint8_t*>(alloc_data(a_size));
-    shift_to_u8(a, ua, a_size);
+    const uint8_t* ua = nullptr;
+    uint8_t* tmp_ua = nullptr;
+    int32_t* tmp_a_shift_compensation = nullptr;
 
-    // TODO: b is usually a fixed model weight, so we could compute the compensation once
-    // and reuse it.
-    auto* compensation = static_cast<int32_t*>(alloc_data(n * sizeof (int32_t)));
-    compute_compensation(b, transpose_b, k, n, alpha, compensation);
+    if (a_shift_compensation) {
+      // If the compensation term is passed as argument, we assume a is already shifted.
+      ua = reinterpret_cast<const uint8_t*>(a);
+    } else {
+      const dim_t a_size = m * k;
+      tmp_ua = static_cast<uint8_t*>(alloc_data(a_size));
+      shift_to_u8(a, tmp_ua, a_size);
+      ua = tmp_ua;
+
+      tmp_a_shift_compensation = static_cast<int32_t*>(alloc_data(n * sizeof (int32_t)));
+      compute_u8_compensation(b, transpose_b, k, n, alpha, tmp_a_shift_compensation);
+      a_shift_compensation = tmp_a_shift_compensation;
+    }
+
+    const MKL_INT lda = transpose_a ? m : k;
+    const MKL_INT ldb = transpose_b ? k : n;
+    const MKL_INT ldc = n;
 
     cblas_gemm_s8u8s32(CblasRowMajor,
                        transpose_a ? CblasTrans : CblasNoTrans,
@@ -594,10 +615,12 @@ namespace ctranslate2 {
                        ua, lda, 0,
                        b, ldb, 0,
                        beta,
-                       c, ldc, compensation);
+                       c, ldc, a_shift_compensation);
 
-    free_data(ua);
-    free_data(compensation);
+    if (tmp_ua)
+      free_data(tmp_ua);
+    if (tmp_a_shift_compensation)
+      free_data(tmp_a_shift_compensation);
 #else
     throw std::runtime_error("INT8 GEMM not available for CPU");
 #endif

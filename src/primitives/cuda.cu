@@ -437,7 +437,8 @@ namespace ctranslate2 {
                                       bool transpose_a, bool transpose_b,
                                       dim_t m, dim_t n, dim_t k,
                                       float alpha, float beta,
-                                      float* c) {
+                                      float* c,
+                                      const float*) {
     // Memo: cuBLAS assumes column-major storage.
 
     const int lda = transpose_a ? m : k;
@@ -463,7 +464,8 @@ namespace ctranslate2 {
                                       bool transpose_a, bool transpose_b,
                                       dim_t m, dim_t n, dim_t k,
                                       float alpha, float beta,
-                                      int32_t* c) {
+                                      int32_t* c,
+                                      const int32_t*) {
     const int lda = transpose_a ? m : k;
     const int ldb = transpose_b ? k : n;
     const int ldc = n;

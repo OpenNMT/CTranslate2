@@ -153,12 +153,21 @@ namespace ctranslate2 {
     static void relu(const float* x, float* y, dim_t size);
     static void gelu(const float* x, float* y, dim_t size);
 
+    static void compute_u8_compensation(const int8_t* b,
+                                        bool transpose_b,
+                                        dim_t k,
+                                        dim_t n,
+                                        float alpha,
+                                        int32_t* compensation);
+    static bool prefer_u8s8s32_gemm();
+
     template <typename In, typename Out>
     static void gemm(const In* a, const In* b,
                      bool transpose_a, bool transpose_b,
                      dim_t m, dim_t n, dim_t k,
                      float alpha, float beta,
-                     Out* c);
+                     Out* c,
+                     const Out* a_shift_compensation = nullptr);
 
     template <typename In, typename Out>
     static void gemm_batch(const In* a, const In* b,
