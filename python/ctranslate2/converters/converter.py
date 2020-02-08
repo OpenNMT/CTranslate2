@@ -6,6 +6,7 @@ import shutil
 import six
 
 from ctranslate2.specs import catalog
+from ctranslate2.specs.model_spec import ModelSpec
 
 
 def _list_specs():
@@ -39,6 +40,8 @@ class Converter(object):
             force=args.force)
 
     def convert(self, output_dir, model_spec, vmap=None, quantization=None, force=False):
+        if not isinstance(model_spec, ModelSpec):
+            raise TypeError("model_spec should extend ctranslate2.specs.ModelSpec")
         if os.path.exists(output_dir):
             if not force:
                 raise RuntimeError(
