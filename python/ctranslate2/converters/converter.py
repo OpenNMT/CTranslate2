@@ -40,8 +40,6 @@ class Converter(object):
             force=args.force)
 
     def convert(self, output_dir, model_spec, vmap=None, quantization=None, force=False):
-        if not isinstance(model_spec, ModelSpec):
-            raise TypeError("model_spec should extend ctranslate2.specs.ModelSpec")
         if os.path.exists(output_dir):
             if not force:
                 raise RuntimeError(
@@ -52,6 +50,8 @@ class Converter(object):
         if isinstance(model_spec, six.string_types):
           spec_class = _list_specs()[model_spec]
           model_spec = spec_class()
+        if not isinstance(model_spec, ModelSpec):
+            raise TypeError("model_spec should extend ctranslate2.specs.ModelSpec")
         try:
             src_vocab, tgt_vocab = self._load(model_spec)
         except NotImplementedError:
