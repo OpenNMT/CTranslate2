@@ -32,11 +32,18 @@ namespace ctranslate2 {
     job.options = options;
 
     {
-      std::lock_guard<std::mutex> lock(_mutex);
+      std::unique_lock<std::mutex> lock(_mutex);
+      _wait_more_work.wait(lock, [this](){ return _work.size() < 16; });
+
+      // locked again here
+
       _work.emplace(std::piecewise_construct,
                     std::forward_as_tuple(std::move(job)),
                     std::forward_as_tuple());
+
       future = _work.back().second.get_future();
+
+      lock.unlock();
     }
 
     _cv.notify_one();
@@ -65,6 +72,8 @@ namespace ctranslate2 {
       auto work_def = std::move(work_queue.front());
       work_queue.pop();
       lock.unlock();
+
+      _wait_more_work.notify_one();
 
       auto& job = work_def.first;
       auto& promise = work_def.second;
