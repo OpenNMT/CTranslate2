@@ -54,16 +54,16 @@ namespace ctranslate2 {
                         const TranslationOptions& options,
                         Reader& reader,
                         Writer& writer) {
-      std::queue<std::future<TranslationOutput>> futures;
+      std::queue<std::future<TranslationOutput>> results;
 
-      auto pop_results = [&futures, &out, &writer](bool blocking) {
+      auto pop_results = [&results, &out, &writer](bool blocking) {
         static const auto zero_sec = std::chrono::seconds(0);
-        while (!futures.empty()
+        while (!results.empty()
                && (blocking
-                   || futures.front().wait_for(zero_sec) == std::future_status::ready)) {
-          for (const auto& result : futures.front().get())
+                   || results.front().wait_for(zero_sec) == std::future_status::ready)) {
+          for (const auto& result : results.front().get())
             writer(out, result);
-          futures.pop();
+          results.pop();
         }
       };
 
@@ -74,14 +74,14 @@ namespace ctranslate2 {
         batch_tokens.push_back(tokens);
         tokens.clear();
         if (batch_tokens.size() == max_batch_size) {
-          futures.emplace(post(batch_tokens, options));
+          results.emplace(post(batch_tokens, options));
           batch_tokens.clear();
         }
         pop_results(false /* blocking */);
       }
 
       if (!batch_tokens.empty())
-        futures.emplace(post(batch_tokens, options));
+        results.emplace(post(batch_tokens, options));
 
       pop_results(true /* blocking */);
     }
@@ -94,7 +94,7 @@ namespace ctranslate2 {
                              size_t max_batch_size,
                              const TranslationOptions& options,
                              bool with_scores = false);
-    
+
     size_t consume_text_file(std::istream& in,
                              std::ostream& out,
                              size_t max_batch_size,
