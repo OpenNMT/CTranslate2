@@ -34,6 +34,7 @@ namespace ctranslate2 {
                               std::ref(translator),
                               num_threads_per_replica);
     }
+
     ~TranslatorPool();
 
     // Run a translation job asynchronously.
@@ -81,6 +82,7 @@ namespace ctranslate2 {
 
       if (!batch_tokens.empty())
         futures.emplace(post(batch_tokens, options));
+
       pop_results(true /* blocking */);
     }
 
@@ -92,6 +94,7 @@ namespace ctranslate2 {
                              size_t max_batch_size,
                              const TranslationOptions& options,
                              bool with_scores = false);
+    
     size_t consume_text_file(std::istream& in,
                              std::ostream& out,
                              size_t max_batch_size,
@@ -106,6 +109,7 @@ namespace ctranslate2 {
     };
 
     void work_loop(Translator& translator, size_t intra_threads);
+
 
     std::queue<std::pair<TranslationJob, std::promise<TranslationOutput>>> _work;
     std::vector<std::thread> _workers;
