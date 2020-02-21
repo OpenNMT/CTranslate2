@@ -110,7 +110,7 @@ namespace ctranslate2 {
 
     void work_loop(Translator& translator, size_t intra_threads);
 
-    std::condition_variable _wait_more_work;
+    std::condition_variable _can_add_more_work;
     std::queue<std::pair<TranslationJob, std::promise<TranslationOutput>>> _work;
     std::vector<std::thread> _workers;
     std::vector<Translator> _translator_pool;
