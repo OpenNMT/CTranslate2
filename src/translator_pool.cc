@@ -51,26 +51,21 @@ namespace ctranslate2 {
   }
 
   void TranslatorPool::work_loop(Translator& translator, size_t intra_threads) {
-    auto& work_queue = _work;
-    auto& end_requested = _request_end;
-
     // set_num_threads is called here because it sets the number of OpenMP threads for
     // the current thread.
     set_num_threads(intra_threads);
 
     while (true) {
       std::unique_lock<std::mutex> lock(_mutex);
-      _cv.wait(lock, [&work_queue, &end_requested]{
-        return !work_queue.empty() || end_requested;
-      });
+      _cv.wait(lock, [this]{ return !_work.empty() || _request_end; });
 
-      if (end_requested) {
+      if (_request_end) {
         lock.unlock();
         break;
       }
 
-      auto work_def = std::move(work_queue.front());
-      work_queue.pop();
+      auto work_def = std::move(_work.front());
+      _work.pop();
       lock.unlock();
 
       _can_add_more_work.notify_one();
