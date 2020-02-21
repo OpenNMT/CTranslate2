@@ -33,7 +33,7 @@ namespace ctranslate2 {
 
     {
       std::unique_lock<std::mutex> lock(_mutex);
-      _can_add_more_work.wait(lock, [this](){ return _work.size() < 2 * _workers.size(); });
+      _can_add_more_work.wait(lock, [this]{ return _work.size() < 2 * _workers.size(); });
 
       // locked again here
 
