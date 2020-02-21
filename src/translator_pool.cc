@@ -17,14 +17,16 @@ namespace ctranslate2 {
   }
 
   std::future<TranslationOutput> TranslatorPool::post(const TranslationInput& source,
-                                                      const TranslationOptions& options) {
+                                                      const TranslationOptions& options,
+                                                      bool blocking) {
     TranslationInput target_prefix;
-    return post(source, target_prefix, options);
+    return post(source, target_prefix, options, blocking);
   }
 
   std::future<TranslationOutput> TranslatorPool::post(const TranslationInput& source,
                                                       const TranslationInput& target_prefix,
-                                                      const TranslationOptions& options) {
+                                                      const TranslationOptions& options,
+                                                      bool blocking) {
     std::future<TranslationOutput> future;
     TranslationJob job;
     job.source = source;
@@ -33,7 +35,8 @@ namespace ctranslate2 {
 
     {
       std::unique_lock<std::mutex> lock(_mutex);
-      _can_add_more_work.wait(lock, [this]{ return _work.size() < 2 * _workers.size(); });
+      if (blocking)
+        _can_add_more_work.wait(lock, [this]{ return _work.size() < 2 * _workers.size(); });
 
       // locked again here
 

@@ -38,11 +38,14 @@ namespace ctranslate2 {
     ~TranslatorPool();
 
     // Run a translation job asynchronously.
+    // With blocking=true it will block if there is already too much work pending.
     std::future<TranslationOutput> post(const TranslationInput& source,
-                                        const TranslationOptions& options);
+                                        const TranslationOptions& options,
+                                        bool blocking=false);
     std::future<TranslationOutput> post(const TranslationInput& source,
                                         const TranslationInput& target_prefix,
-                                        const TranslationOptions& options);
+                                        const TranslationOptions& options,
+                                        bool blocking=false);
 
     // Translate a stream in parallel.
     // Results will be written in order as they are available so the stream content is
@@ -74,14 +77,14 @@ namespace ctranslate2 {
         batch_tokens.push_back(tokens);
         tokens.clear();
         if (batch_tokens.size() == max_batch_size) {
-          results.emplace(post(batch_tokens, options));
+          results.emplace(post(batch_tokens, options, true));
           batch_tokens.clear();
         }
         pop_results(false /* blocking */);
       }
 
       if (!batch_tokens.empty())
-        results.emplace(post(batch_tokens, options));
+        results.emplace(post(batch_tokens, options, true));
 
       pop_results(true /* blocking */);
     }
