@@ -8,8 +8,8 @@ import argparse
 def eprint(*args, **kwargs):
     print(*args, file=sys.stderr, **kwargs)
 
-def csv_print(*kwargs):
-    print(*kwargs, sep=',')
+def csv_print(*args):
+    print(*args, sep=',')
 
 N_PHYSICAL_CORES = multiprocessing.cpu_count() // 2
 eprint("Optimizing for up to:", N_PHYSICAL_CORES, "cores")
@@ -73,5 +73,3 @@ try:
         csv_print(inter_threads, intra_threads, tokens_per_seconds, memory_used//1024)
 except KeyboardInterrupt:
     eprint()
-
-csv_print() # terminate csv with a newline
