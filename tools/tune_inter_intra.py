@@ -73,3 +73,5 @@ try:
         csv_print(inter_threads, intra_threads, tokens_per_seconds, memory_used//1024)
 except KeyboardInterrupt:
     eprint()
+
+csv_print() # terminate csv with a newline
