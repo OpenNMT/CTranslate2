@@ -157,9 +157,25 @@ echo "▁H ello ▁world !" | nvidia-docker run -i --rm -v $PWD:/data \
 docker run -it --rm -v $PWD:/data --entrypoint python opennmt/ctranslate2:latest-ubuntu18
 ```
 ```python
->>> import ctranslate2
->>> translator = ctranslate2.Translator("/data/ende_ctranslate2/", device="cpu")
->>> translator.translate_batch([["▁H", "ello", "▁world", "!"]])
+#please install sentencepiece for subword tokenization.
+#pip install sentencepiece 
+
+import ctranslate2
+import sentencepiece as spm
+
+translator = ctranslate2.Translator("/data/ende_ctranslate2/", device="cpu")
+
+sp = spm.SentencePieceProcessor()
+sp.Load("sentencepiece.model") #Loading Sentencepiece Model
+
+sents=["Hello world!","Hi my name is park","My major is natural language processing"] #Example Sentences
+
+for sent in sents:
+  pieces = sp.EncodeAsPieces(sent) #Subword Tokenization
+  outputs = translator.translate_batch([pieces])#Translate
+  final_output=" ".join(outputs[0][0]['tokens']).replace("▁","") #Post Processing
+  print(final_output)
+  
 ```
 
 *See the [Python reference](docs/python.md) for more advanced usage.*
