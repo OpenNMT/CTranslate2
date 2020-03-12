@@ -197,10 +197,10 @@ namespace ctranslate2 {
     }
 
     void
-    Model::convert_to_compute_type(const bool support_int8,
-                                   const bool support_int16,
-                                   const std::string& name,
+    Model::convert_to_compute_type(const std::string& name,
                                    StorageView& variable,
+                                   const bool support_int8,
+                                   const bool support_int16,
                                    std::vector<std::pair<std::string, StorageView>>& variables_to_add,
                                    std::vector<std::string>& variables_to_remove) {
       const bool is_int8 = variable.dtype() == DataType::INT8;
@@ -269,10 +269,10 @@ namespace ctranslate2 {
 
         // Convert "weight" variables to the expected compute type.
         if (ends_with(name, "weight")) {
-          convert_to_compute_type(support_int8,
-                                  support_int16,
-                                  name,
+          convert_to_compute_type(name,
                                   variable,
+                                  support_int8,
+                                  support_int16,
                                   variables_to_add,
                                   variables_to_remove);
         }

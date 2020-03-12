@@ -88,10 +88,10 @@ namespace ctranslate2 {
 
     private:
       void set_compute_type(ComputeType type);
-      void convert_to_compute_type(const bool support_int8,
-                                   const bool support_int16,
-                                   const std::string& name,
+      void convert_to_compute_type(const std::string& name,
                                    StorageView& variable,
+                                   const bool support_int8,
+                                   const bool support_int16,
                                    std::vector<std::pair<std::string, StorageView>>& variables_to_add,
                                    std::vector<std::string>& variables_to_remove);
     };
