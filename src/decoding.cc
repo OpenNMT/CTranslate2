@@ -1,10 +1,11 @@
 #include "ctranslate2/decoding.h"
-
 #include <cmath>
 #include <limits>
 #include <map>
 
 #include "ctranslate2/ops/ops.h"
+#include "ctranslate2/ops/min_max.h"
+#include "ctranslate2/ops/log.h"
 #include "./device_dispatch.h"
 
 namespace ctranslate2 {
@@ -64,9 +65,9 @@ namespace ctranslate2 {
   }
 
 
-  BeamSearch::BeamSearch(const dim_t beam_size, const float length_penalty)
+  BeamSearch::BeamSearch(const dim_t beam_size, const float length_penalty, const float coverage_penalty)
     : _beam_size(beam_size)
-    , _length_penalty(length_penalty) {
+    , _length_penalty(length_penalty), _coverage_penalty(coverage_penalty) {
   }
 
   void
@@ -133,15 +134,16 @@ namespace ctranslate2 {
     StorageView attention_step;
     StorageView attention_step_device(device);
 
+    StorageView coverage;
+
     for (dim_t step = start_step; step < max_step; ++step) {
       // Compute log probs for the current step.
       decoder(step,
               topk_ids.to(device),
               state,
               &logits,
-              attention ? &attention_step_device : nullptr);
+              (attention || _coverage_penalty != 0) ? &attention_step_device : nullptr);
       ops::LogSoftMax()(logits, log_probs);
-
       const dim_t vocabulary_size = log_probs.dim(-1);
 
       // Multiply by the current beam log probs.
@@ -167,7 +169,7 @@ namespace ctranslate2 {
 
       // TopK candidates.
       sampler(log_probs, topk_ids, topk_scores, _beam_size);
-      if (attention)
+      if (attention || _coverage_penalty != 0)
         attention_step.copy_from(attention_step_device);
 
       topk_log_probs = topk_scores;
@@ -197,9 +199,31 @@ namespace ctranslate2 {
       topk_log_probs.reshape({cur_batch_size, _beam_size});
       topk_scores.reshape({cur_batch_size, _beam_size});
       topk_ids.reshape({cur_batch_size, _beam_size});
+
+      if(_coverage_penalty != 0){
+        if(step == 0){
+          coverage = attention_step;
+        }else{
+          gather(coverage, gather_indices);
+          ops::Add()(attention_step, coverage, coverage );
+        }
+
+        auto penalty = StorageView({cur_batch_size * _beam_size, 1}, coverage.dtype(), coverage.device());
+        auto tmp = StorageView(coverage.shape(), coverage.dtype(), coverage.device());
+        ops::Min()(coverage, 1.0f, tmp);
+        ops::Log()(tmp, tmp);
+        int row = std::accumulate(tmp.shape().begin(), tmp.shape().end()-1,	1,std::multiplies<int>());
+        int col = tmp.shape().back();
+        tmp.reshape({row, col});
+        ops::MatMul()(tmp, StorageView({col, 1}, 1.0f, coverage.device()), penalty);
+        ops::Mul()(penalty, StorageView(_coverage_penalty), penalty);
+        ops::Add()(penalty,topk_scores,topk_scores);
+      }
+
       if (attention) {
-        if (alive_attention.empty())
+        if (alive_attention.empty()){
           alive_attention = attention_step;
+        }
         else {
           gather(alive_attention, gather_indices);
           StorageView cur_alive_attention(std::move(alive_attention));

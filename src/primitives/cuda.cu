@@ -219,6 +219,30 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CUDA>::min(T a, const T* x, T* y, dim_t size) {
+    unary_transform(x, y, size, thrust::placeholders::_1 > a ? a : thrust::placeholders::_1);
+  }
+
+  template<>
+  template <typename T>
+  void primitives<Device::CUDA>::min(const T* a, const T* b, T* c, dim_t size) {
+    binary_transform(a, b, c, size, thrust::min<T>());
+  }
+
+ template<>
+  template <typename T>
+  void primitives<Device::CUDA>::max(T a, const T* x, T* y, dim_t size) {
+    unary_transform(x, y, size, thrust::placeholders::_1 > a ? thrust::placeholders::_1 : a);
+  }
+
+  template<>
+  template <typename T>
+  void primitives<Device::CUDA>::max(const T* a, const T* b, T* c, dim_t size) {
+    binary_transform(a, b, c, size, thrust::max<T>());
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CUDA>::mul(T a, const T* x, T* y, dim_t size) {
     unary_transform(x, y, size, thrust::placeholders::_1 * a);
   }
