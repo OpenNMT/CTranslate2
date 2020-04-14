@@ -596,7 +596,7 @@ TEST_P(OpDeviceTest, ReLU) {
 TEST_P(OpDeviceTest, Log) {
   Device device = GetParam();
   float abs_diff = 1e-6;
-  std::vector<float > input_vec({0, 1, 1.5, 2, 2.5, 3, 3.5, 4});
+  std::vector<float > input_vec({0.5, 1, 1.5, 2, 2.5, 3, 3.5, 4});
   std::vector<float > output_vec;
   output_vec.reserve(input_vec.size());
   std::transform(input_vec.begin(), input_vec.end(), std::back_inserter(output_vec),
