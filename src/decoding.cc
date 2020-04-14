@@ -175,7 +175,7 @@ namespace ctranslate2 {
       topk_log_probs = topk_scores;
       // Recover the true log probs if length penalty was applied.
       if (_length_penalty != 0)
-        ops::Mul()(topk_log_probs, StorageView(length_penalty_weight, topk_log_probs.device()), topk_log_probs);
+        ops::Mul()(topk_log_probs, StorageView(length_penalty_weight), topk_log_probs);
 
       // Unflatten the ids.
       gather_indices.resize({cur_batch_size * _beam_size});
@@ -211,8 +211,8 @@ namespace ctranslate2 {
         auto tmp = StorageView(coverage.shape(), coverage.dtype(), coverage.device());
         ops::Min()(coverage, 1.0f, tmp);
         ops::Log()(tmp, tmp);
-        int row = std::accumulate(tmp.shape().begin(), tmp.shape().end()-1,	1,std::multiplies<int>());
-        int col = tmp.shape().back();
+        const dim_t col = tmp.dim(-1);
+        const dim_t row = tmp.size() / col;
         tmp.reshape({row, col});
         ops::MatMul()(tmp, StorageView({col, 1}, 1.0f), penalty);
         ops::Mul()(penalty, StorageView(_coverage_penalty), penalty);
