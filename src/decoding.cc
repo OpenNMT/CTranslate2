@@ -157,7 +157,7 @@ namespace ctranslate2 {
       float length_penalty_weight = 1.0;
       if (_length_penalty != 0) {
         length_penalty_weight = std::pow((5.0 + static_cast<float>(step + 1)) / 6.0, _length_penalty);
-        ops::Mul()(log_probs, StorageView(1.f / length_penalty_weight, log_probs.device()), log_probs);
+        ops::Mul()(log_probs, StorageView(1.f / length_penalty_weight), log_probs);
       }
 
       // Penalize end_id, if configured.
@@ -214,8 +214,8 @@ namespace ctranslate2 {
         int row = std::accumulate(tmp.shape().begin(), tmp.shape().end()-1,	1,std::multiplies<int>());
         int col = tmp.shape().back();
         tmp.reshape({row, col});
-        ops::MatMul()(tmp, StorageView({col, 1}, 1.0f, coverage.device()), penalty);
-        ops::Mul()(penalty, StorageView(_coverage_penalty, penalty.device()), penalty);
+        ops::MatMul()(tmp, StorageView({col, 1}, 1.0f), penalty);
+        ops::Mul()(penalty, StorageView(_coverage_penalty), penalty);
         ops::Add()(penalty, topk_scores, topk_scores);
       }
 
