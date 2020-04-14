@@ -318,8 +318,6 @@ namespace ctranslate2 {
         gather(topk_ids, keep_batches);
         gather(topk_log_probs, keep_batches);
         gather(alive_seq, keep_batches);
-       
-        alive_seq.reshape({cur_batch_size * _beam_size, alive_seq.dim(-1)});
         if (attention)
           gather(alive_attention, keep_batches);
 
@@ -342,7 +340,6 @@ namespace ctranslate2 {
           gather(coverage, keep_batches);
           coverage.reshape({cur_batch_size * _beam_size, coverage.dim(2), coverage.dim(3)});
         }
-
       } else {
         decoder.gather_state(state, gather_indices.to(device));
       }

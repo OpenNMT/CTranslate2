@@ -661,6 +661,14 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CUDA>::sub(const T* a, const T* b, T* c, dim_t size); \
   template void                                                         \
+  primitives<Device::CUDA>::min(T a, const T* x, T* y, dim_t size);      \
+  template void                                                         \
+  primitives<Device::CUDA>::min(const T* a, const T* b, T* c, dim_t size); \
+  template void                                                         \
+  primitives<Device::CUDA>::max(T a, const T* x, T* y, dim_t size);     \
+  template void                                                         \
+  primitives<Device::CUDA>::max(const T* a, const T* b, T* c, dim_t size); \
+  template void                                                         \
   primitives<Device::CUDA>::mul(T a, const T* x, T* y, dim_t size);     \
   template void                                                         \
   primitives<Device::CUDA>::mul(const T* a, const T* b, T* c, dim_t size); \
