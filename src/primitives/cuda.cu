@@ -217,28 +217,46 @@ namespace ctranslate2 {
     binary_transform(a, b, c, size, thrust::minus<T>());
   }
 
+  template<typename T>
+  struct min_func : public thrust::unary_function<T, T> {
+    T a_;
+    __host__ __device__
+    min_func(T a):a_(a){}
+    __host__ __device__
+    T operator()(T x) {return x > a_ ? a_ : x;}
+  };
+
   template<>
   template <typename T>
   void primitives<Device::CUDA>::min(T a, const T* x, T* y, dim_t size) {
-    unary_transform(x, y, size, thrust::placeholders::_1 > a ? a : thrust::placeholders::_1);
+    unary_transform(x, y, size, min_func<T>(a));
   }
 
   template<>
   template <typename T>
   void primitives<Device::CUDA>::min(const T* a, const T* b, T* c, dim_t size) {
-    binary_transform(a, b, c, size, thrust::min<T>());
+    binary_transform(a, b, c, size, thrust::minimum<T>());
   }
 
- template<>
+  template<typename T>
+  struct max_func : public thrust::unary_function<T, T> {
+    T a_;
+    __host__ __device__
+    max_func(T a):a_(a){}
+    __host__ __device__
+    T operator()(T x) {return x > a_ ? x : a_;}
+  };
+
+  template<>
   template <typename T>
   void primitives<Device::CUDA>::max(T a, const T* x, T* y, dim_t size) {
-    unary_transform(x, y, size, thrust::placeholders::_1 > a ? thrust::placeholders::_1 : a);
+    unary_transform(x, y, size, max_func<T>(a));
   }
 
   template<>
   template <typename T>
   void primitives<Device::CUDA>::max(const T* a, const T* b, T* c, dim_t size) {
-    binary_transform(a, b, c, size, thrust::max<T>());
+    binary_transform(a, b, c, size, thrust::maximum<T>());
   }
 
   template<>
@@ -697,3 +715,4 @@ namespace ctranslate2 {
   DECLARE_ALL_TYPES(DECLARE_IMPL)
 
 }
+
