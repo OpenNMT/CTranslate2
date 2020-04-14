@@ -1,11 +1,10 @@
 #include "ctranslate2/decoding.h"
+
 #include <cmath>
 #include <limits>
 #include <map>
 
 #include "ctranslate2/ops/ops.h"
-#include "ctranslate2/ops/min_max.h"
-#include "ctranslate2/ops/log.h"
 #include "./device_dispatch.h"
 
 namespace ctranslate2 {
@@ -67,7 +66,8 @@ namespace ctranslate2 {
 
   BeamSearch::BeamSearch(const dim_t beam_size, const float length_penalty, const float coverage_penalty)
     : _beam_size(beam_size)
-    , _length_penalty(length_penalty), _coverage_penalty(coverage_penalty) {
+    , _length_penalty(length_penalty)
+    , _coverage_penalty(coverage_penalty) {
   }
 
   void
@@ -205,7 +205,7 @@ namespace ctranslate2 {
           coverage = attention_step;
         }else{
           gather(coverage, gather_indices);
-          ops::Add()(attention_step, coverage, coverage );
+          ops::Add()(attention_step, coverage, coverage);
         }
 
         auto penalty = StorageView({cur_batch_size * _beam_size, 1}, coverage.dtype(), coverage.device());
@@ -217,7 +217,7 @@ namespace ctranslate2 {
         tmp.reshape({row, col});
         ops::MatMul()(tmp, StorageView({col, 1}, 1.0f, coverage.device()), penalty);
         ops::Mul()(penalty, StorageView(_coverage_penalty), penalty);
-        ops::Add()(penalty,topk_scores,topk_scores);
+        ops::Add()(penalty, topk_scores, topk_scores);
       }
 
       if (attention) {
