@@ -595,6 +595,13 @@ TEST_P(OpDeviceTest, ReLU) {
 
 TEST_P(OpDeviceTest, Log) {
   Device device = GetParam();
+  float abs_diff = 0;
+#ifdef WITH_MKL
+  // the result of Log between vmsLn(WITH_MKL) and std::log has a bit different.
+  if(device == Device::CPU) {
+    abs_diff = 1e-6;
+  };
+#endif
   std::vector<float > input_vec({0, 1, 1.5, 2, 2.5, 3, 3.5, 4});
   std::vector<float > output_vec;
   output_vec.reserve(input_vec.size());
@@ -604,7 +611,7 @@ TEST_P(OpDeviceTest, Log) {
   StorageView expected({2, 4}, output_vec, device);
   StorageView output(device);
   ops::Log()(input, output);
-  expect_storage_eq(output, expected);
+  expect_storage_eq(output, expected, abs_diff);
 }
 
 template <typename T, typename Ops, typename Func>
