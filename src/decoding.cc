@@ -157,7 +157,7 @@ namespace ctranslate2 {
       float length_penalty_weight = 1.0;
       if (_length_penalty != 0) {
         length_penalty_weight = std::pow((5.0 + static_cast<float>(step + 1)) / 6.0, _length_penalty);
-        ops::Mul()(log_probs, StorageView(1.f / length_penalty_weight), log_probs);
+        ops::Mul()(log_probs, StorageView(1.f / length_penalty_weight, log_probs.device()), log_probs);
       }
 
       // Penalize end_id, if configured.
@@ -175,7 +175,7 @@ namespace ctranslate2 {
       topk_log_probs = topk_scores;
       // Recover the true log probs if length penalty was applied.
       if (_length_penalty != 0)
-        ops::Mul()(topk_log_probs, StorageView(length_penalty_weight), topk_log_probs);
+        ops::Mul()(topk_log_probs, StorageView(length_penalty_weight, topk_log_probs.device()), topk_log_probs);
 
       // Unflatten the ids.
       gather_indices.resize({cur_batch_size * _beam_size});
@@ -207,7 +207,6 @@ namespace ctranslate2 {
           gather(coverage, gather_indices);
           ops::Add()(attention_step, coverage, coverage);
         }
-
         auto penalty = StorageView({cur_batch_size * _beam_size, 1}, coverage.dtype(), coverage.device());
         auto tmp = StorageView(coverage.shape(), coverage.dtype(), coverage.device());
         ops::Min()(coverage, 1.0f, tmp);
@@ -216,7 +215,7 @@ namespace ctranslate2 {
         int col = tmp.shape().back();
         tmp.reshape({row, col});
         ops::MatMul()(tmp, StorageView({col, 1}, 1.0f, coverage.device()), penalty);
-        ops::Mul()(penalty, StorageView(_coverage_penalty), penalty);
+        ops::Mul()(penalty, StorageView(_coverage_penalty, penalty.device()), penalty);
         ops::Add()(penalty, topk_scores, topk_scores);
       }
 
@@ -303,6 +302,7 @@ namespace ctranslate2 {
 
       // If some sentences finished on this step, ignore them for the next step.
       if (finished_count > 0) {
+        auto old_batch_size = cur_batch_size;
         cur_batch_size -= finished_count;
         StorageView keep_batches({cur_batch_size}, DataType::INT32);
         size_t write_index = 0;
@@ -318,6 +318,8 @@ namespace ctranslate2 {
         gather(topk_ids, keep_batches);
         gather(topk_log_probs, keep_batches);
         gather(alive_seq, keep_batches);
+       
+        alive_seq.reshape({cur_batch_size * _beam_size, alive_seq.dim(-1)});
         if (attention)
           gather(alive_attention, keep_batches);
 
@@ -333,6 +335,12 @@ namespace ctranslate2 {
         } else {
           gather_batch(gather_indices, keep_batches, _beam_size);
           decoder.gather_state(state, gather_indices.to(device));
+        }
+
+        if(_coverage_penalty != 0){
+          coverage.reshape({old_batch_size, _beam_size, coverage.dim(1), coverage.dim(2)});
+          gather(coverage, keep_batches);
+          coverage.reshape({cur_batch_size * _beam_size, coverage.dim(2), coverage.dim(3)});
         }
 
       } else {

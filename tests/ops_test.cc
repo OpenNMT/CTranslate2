@@ -1,3 +1,4 @@
+#include <algorithm>
 #include "test_utils.h"
 #include "ctranslate2/ops/ops.h"
 
@@ -597,8 +598,8 @@ TEST_P(OpDeviceTest, Log) {
   std::vector<float > input_vec({0, 1, 1.5, 2, 2.5, 3, 3.5, 4});
   std::vector<float > output_vec;
   output_vec.reserve(input_vec.size());
-  std::transforme(input_vec.begin(), input_vec.end(), std::back_inserter(output_vec),
-          [](const float& i){return std::log(i)});
+  std::transform(input_vec.begin(), input_vec.end(), std::back_inserter(output_vec),
+          [](const float& i){return std::log(i);});
   StorageView input({2, 4}, input_vec, device);
   StorageView expected({2, 4}, output_vec, device);
   StorageView output(device);
@@ -607,14 +608,13 @@ TEST_P(OpDeviceTest, Log) {
 }
 
 template <typename T, typename Ops, typename Func>
-void TestMinMax(const Ops& ops, const Func& func){
-  Device device = GetParam();
+void TestMinMax(Device device, const Ops& ops, const Func& func){
   {
     std::vector<T > input_vec1({0, 1, 1.5, 2, 2.5, 3, 3.5, 4});
     std::vector<T > input_vec2({0, -1, 1.5, -2, 2.5, -3, -3.5, 4});
     std::vector<T > output_vec;
-    output_vec.reserve(input_vec.size());
-    std::transforme(input_vec1.begin(), input_vec1.end(), input_vec2.begin(),std::back_inserter(output_vec),
+    output_vec.reserve(input_vec1.size());
+    std::transform(input_vec1.begin(), input_vec1.end(), input_vec2.begin(),std::back_inserter(output_vec),
             [&func](const T& left, const T& right){return func(left, right);});
     StorageView input1({2, 4}, input_vec1, device);
     StorageView input2({2, 4}, input_vec2, device);
@@ -628,26 +628,28 @@ void TestMinMax(const Ops& ops, const Func& func){
     T compare_val = 3;
     std::vector<T > output_vec;
     output_vec.reserve(input_vec.size());
-    std::transforme(input_vec.begin(), input_vec.end(), std::back_inserter(output_vec),
-            [&compare_val, &func](const T& i){return func(left, right);});
+    std::transform(input_vec.begin(), input_vec.end(), std::back_inserter(output_vec),
+            [&compare_val, &func](const T& left){return func(left, compare_val);});
     StorageView input({2, 4}, input_vec, device);
     StorageView expected({2, 4}, output_vec, device);
     StorageView output(device);
-    ops(input, StorageView(compare_val), output);
+    ops(input, StorageView(compare_val, device), output);
     expect_storage_eq(output, expected);
   }
 }
 
 TEST_P(OpDeviceTest, Min) {
+  Device device = GetParam();
   auto ops = ops::Min();
-  TestMinMax<float>(ops, [](float left, float right){
+  TestMinMax<float>(device, ops, [](float left, float right){
     return left > right? right : left;
   });
 }
 
 TEST_P(OpDeviceTest, Max) {
+  Device device = GetParam();
   auto ops = ops::Max();
-  TestMinMax<float>(ops, [](float left, float right){
+  TestMinMax<float>(device, ops, [](float left, float right){
     return left > right? left : right;
   });
 }
