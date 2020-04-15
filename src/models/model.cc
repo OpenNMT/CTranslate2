@@ -141,9 +141,7 @@ namespace ctranslate2 {
     }
 
     const StorageView* Model::get_variable_if_exists(const std::string& name) const {
-      auto alias_it = _variable_alias.find(name);
-      const auto variable_name = alias_it != _variable_alias.end() ? alias_it->second : name;
-      auto it = _variable_index.find(variable_name);
+      auto it = _variable_index.find(name);
       if (it == _variable_index.end())
         return nullptr;
       return &it->second;
@@ -172,9 +170,13 @@ namespace ctranslate2 {
 
     void Model::register_variable_alias(const std::string& alias,
                                         const std::string& variable_name) {
-      _variable_alias.emplace(alias, variable_name);
-      // Also alias the quantization scale that could be associated to variable_name.
-      _variable_alias.emplace(alias + "_scale", variable_name + "_scale");
+      auto it = _variable_index.find(variable_name);
+      if (it == _variable_index.end())
+        return;
+      StorageView& variable = it->second;
+      StorageView view(variable.dtype(), variable.device());
+      view.shallow_copy(variable);
+      register_variable(alias, view);
     }
 
     void
@@ -381,19 +383,19 @@ namespace ctranslate2 {
         delete [] dimensions;
       }
 
+      model->finalize();
+
       if (binary_version >= 3) {
         const auto num_aliases = consume<uint32_t>(model_file);
-        // We reserve double the size because we alias both the variable name and
-        // its possible quantization scale name.
-        model->_variable_alias.reserve(num_aliases * 2);
         for (uint32_t i = 0; i < num_aliases; ++i) {
           const auto alias = consume<std::string>(model_file);
           const auto variable_name = consume<std::string>(model_file);
           model->register_variable_alias(alias, variable_name);
+          // Also alias the quantization scale that could be associated to variable_name.
+          model->register_variable_alias(alias + "_scale", variable_name + "_scale");
         }
       }
 
-      model->finalize();
       return std::shared_ptr<Model>(model);
     }
 

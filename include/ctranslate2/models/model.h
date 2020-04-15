@@ -65,7 +65,6 @@ namespace ctranslate2 {
       Device _device;
       int _device_index;
       std::unordered_map<std::string, StorageView> _variable_index;
-      std::unordered_map<std::string, std::string> _variable_alias;
       size_t _spec_revision;
       ComputeType _compute_type = ComputeType::DEFAULT;
 
