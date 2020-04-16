@@ -61,7 +61,12 @@ namespace ctranslate2 {
       , _partial_bias(_weight.device(), DataType::FLOAT)
       , _partial_qscale(_weight.device(), DataType::FLOAT)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
-      , _gemm_op(1, 0, false, true, false, _packed_weight) {
+      , _gemm_op(/*alpha=*/1,
+                 /*beta=*/0,
+                 /*trans_a=*/false,
+                 /*trans_b=*/true,
+                 /*a_is_packed=*/false,
+                 _packed_weight) {
     }
 
     void Dense::mask_weights(const StorageView& index) {
