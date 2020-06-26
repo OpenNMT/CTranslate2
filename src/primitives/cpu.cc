@@ -360,12 +360,13 @@ namespace ctranslate2 {
                                          dim_t size,
                                          float scale,
                                          float shift) {
-    constexpr float max = std::numeric_limits<T>::max();
-    constexpr float min = std::numeric_limits<T>::lowest();
     parallel_unary_transform(x, y, size, /*work_size=*/5,
                              [scale, shift](float v) {
                                return static_cast<T>(
-                                 std::max(std::min(v * scale + shift, max), min));
+                                 std::max(
+                                   std::min(v * scale + shift,
+                                            static_cast<float>(std::numeric_limits<T>::max())),
+                                   static_cast<float>(std::numeric_limits<T>::lowest())));
                              });
   }
 
