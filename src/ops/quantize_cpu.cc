@@ -8,8 +8,7 @@ namespace ctranslate2 {
     template<>
     void Quantize::quantize<Device::CPU, int8_t>(const StorageView& input,
                                                  StorageView& output,
-                                                 StorageView& scale,
-                                                 float shift) const {
+                                                 StorageView& scale) const {
       // INT8 quantization rescales based on the per batch absolute maximum.
 
       const dim_t batch_size = scale.size();
@@ -18,6 +17,10 @@ namespace ctranslate2 {
       const auto* input_data = input.data<float>();
       auto* output_data = output.data<int8_t>();
       auto* scale_data = scale.data<float>();
+
+      const float shift = (_shift_to_uint8
+                           ? -static_cast<float>(std::numeric_limits<int8_t>::min())
+                           : 0);
 
       #pragma omp parallel for
       for (dim_t i = 0; i < batch_size; ++i) {
@@ -37,8 +40,7 @@ namespace ctranslate2 {
     template<>
     void Quantize::quantize<Device::CPU, int16_t>(const StorageView& input,
                                                   StorageView& output,
-                                                  StorageView& scale,
-                                                  float shift) const {
+                                                  StorageView& scale) const {
       // INT16 quantization simply rescales by a constant.
 
       const dim_t size = input.size();
@@ -57,10 +59,10 @@ namespace ctranslate2 {
 
       cpu::parallel_unary_transform(
         input_data, output_data, size, /*work_size=*/5,
-        [scale_value, shift](float v) {
+        [scale_value](float v) {
           return static_cast<int16_t>(
             std::max(
-              std::min(v * scale_value + shift,
+              std::min(v * scale_value,
                        static_cast<float>(std::numeric_limits<int16_t>::max())),
               static_cast<float>(std::numeric_limits<int16_t>::lowest())));
         });

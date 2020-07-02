@@ -15,20 +15,21 @@ namespace ctranslate2 {
 
       static const float global_int16_scale;
 
-      Quantize(ScaleType int16_scale_type = ScaleType::GLOBAL);
+      Quantize(const ScaleType int16_scale_type = ScaleType::GLOBAL,
+               const bool shift_to_uint8 = false);
+
       void operator()(const StorageView& input,
                       StorageView& output,
-                      StorageView& scale,
-                      float shift = 0) const;
+                      StorageView& scale) const;
 
     private:
       template <Device D, typename T>
       void quantize(const StorageView& input,
                     StorageView& output,
-                    StorageView& scale,
-                    float shift) const;
+                    StorageView& scale) const;
 
-      ScaleType _int16_scale_type;
+      const ScaleType _int16_scale_type;
+      const bool _shift_to_uint8;
     };
 
   }
