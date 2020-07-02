@@ -16,12 +16,18 @@ namespace ctranslate2 {
       static const StorageView default_int16_scale;
 
       Quantize(ScaleType int16_scale_type = ScaleType::GLOBAL);
-      void operator()(const StorageView& x,
-                      StorageView& y,
+      void operator()(const StorageView& input,
+                      StorageView& output,
                       StorageView& scale,
                       float shift = 0) const;
 
     private:
+      template <Device D, typename T>
+      void quantize(const StorageView& input,
+                    StorageView& output,
+                    StorageView& scale,
+                    float shift) const;
+
       ScaleType _int16_scale_type;
     };
 
