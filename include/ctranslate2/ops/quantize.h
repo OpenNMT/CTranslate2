@@ -13,7 +13,7 @@ namespace ctranslate2 {
         PER_ROW
       };
 
-      static const StorageView default_int16_scale;
+      static const float global_int16_scale;
 
       Quantize(ScaleType int16_scale_type = ScaleType::GLOBAL);
       void operator()(const StorageView& input,

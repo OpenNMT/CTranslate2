@@ -45,16 +45,15 @@ namespace ctranslate2 {
       const auto* input_data = input.data<float>();
       auto* output_data = output.data<int16_t>();
 
-      if (_int16_scale_type == ScaleType::GLOBAL)
-        scale = default_int16_scale;
-      else if (_int16_scale_type == ScaleType::PER_LAYER) {
+      float scale_value = global_int16_scale;
+      if (_int16_scale_type == ScaleType::PER_LAYER) {
         // The idea is to use 10 bits for the input so that the multiplication is 20
         // bits which gives 12 bits left for accumulation.
         const float amax = primitives<Device::CPU>::amax(input_data, size);
-        scale = StorageView(static_cast<float>(1 << 10) / amax);
+        scale_value = static_cast<float>(1 << 10) / amax;
       }
 
-      const auto scale_value = scale.as_scalar<float>();
+      scale = StorageView(scale_value);
 
       cpu::parallel_unary_transform(
         input_data, output_data, size, /*work_size=*/5,

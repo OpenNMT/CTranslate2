@@ -5,7 +5,7 @@
 namespace ctranslate2 {
   namespace ops {
 
-    const StorageView Quantize::default_int16_scale(static_cast<float>(1000));
+    const float Quantize::global_int16_scale = 1000;
 
     Quantize::Quantize(ScaleType int16_scale_type)
       : _int16_scale_type(int16_scale_type) {
