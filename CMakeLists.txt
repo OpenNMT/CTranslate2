@@ -298,7 +298,7 @@ if (WITH_CUDA)
     endif()
 
     add_definitions(-DCT2_WITH_TENSORRT)
-    include_directories(
+    list(APPEND PRIVATE_INCLUDE_DIRECTORIES
       ${TENSORRT_INCLUDE_DIR}
       )
     list(APPEND LIBRARIES
