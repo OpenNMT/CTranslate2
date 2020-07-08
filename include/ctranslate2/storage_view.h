@@ -83,6 +83,10 @@ namespace ctranslate2 {
 
     StorageView to(Device D) const;
 
+    StorageView to_dtype(DataType dtype) const;
+    StorageView to_half() const;
+    StorageView to_float() const;
+
     // Actual storage type.
     DataType dtype() const {
       return _dtype;

@@ -152,21 +152,25 @@ Models can also be converted directly from the supported training frameworks. Se
 * [OpenNMT-py](https://github.com/OpenNMT/OpenNMT-py/blob/master/onmt/bin/release_model.py)
 * [OpenNMT-tf](https://opennmt.net/OpenNMT-tf/serving.html#ctranslate2)
 
-### Quantization
+### Reduced precision
 
-The converters support model quantization which is a way to reduce the model size and accelerate its execution. The `--quantization` option accepts the following values:
+The converters support reducing the model precision to save on space and possibly accelerate the execution. The `--quantization` option accepts the following values:
 
 * `int8`
 * `int16`
+* `float16`
 
-However, some execution settings are not (yet) optimized for all quantization types. The following table documents the actual types used during the computation:
+However, some execution settings are not (yet) optimized for all computation types. The following table documents the actual type used during the computation depending on the model type:
 
-| Model type | GPU   | CPU (Intel) | CPU (AMD) |
-| ---------- | ----- | ----------- | --------- |
-| int16      | float | int16       | int8      |
-| int8       | int8  | int8        | int8      |
+| Model type | GPU (NVIDIA) | CPU (Intel) | CPU (AMD) |
+| ---------- | ------------ | ----------- | --------- |
+| float16    | float16 (\*) | float       | float     |
+| int16      | float        | int16       | int8      |
+| int8       | int8 (\*\*)  | int8        | int8      |
 
-Quantization can also be configured later when starting a translation instance. See the `compute_type` argument on translation clients.
+*(\*) for Compute Capability >= 7.0, (\*\*) for Compute Capability >= 7 or == 6.1.*
+
+The computation type can also be configured later, when starting a translation instance. See the `compute_type` argument on translation clients.
 
 **Notes:**
 
@@ -224,6 +228,7 @@ int main() {
 
 Some environment variables can be configured to customize the execution:
 
+* `CT2_CUDA_ALLOW_FLOAT16`: Allow using FP16 computation on GPU even if the device does not have efficient FP16 support.
 * `CT2_CUDA_CACHING_ALLOCATOR_CONFIG`: Tune the CUDA caching allocator (see [Performance](docs/performance.md)).
 * `CT2_FORCE_CPU_ISA`: Force CTranslate2 to select a specific instruction set architecture (ISA). Possible values are: `GENERIC`, `AVX`, `AVX2`. Note: this does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.
 * `CT2_USE_EXPERIMENTAL_PACKED_GEMM`: Enable the packed GEMM API for Intel MKL (see [Performance](docs/performance.md)).

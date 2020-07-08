@@ -6,6 +6,7 @@ namespace ctranslate2 {
   namespace ops {
 
 #ifdef CT2_WITH_TENSORRT
+    template <typename T>
     class TopKLayer : public cuda::TensorRTLayer {
     public:
       TopKLayer(dim_t k)
@@ -21,8 +22,8 @@ namespace ctranslate2 {
           _first_depth = depth;
 
         void* bindings[3] = {
-          const_cast<float*>(x.data<float>()),
-          values.data<float>(),
+          const_cast<T*>(x.data<T>()),
+          values.data<T>(),
           indices.data<int32_t>()
         };
 
@@ -32,7 +33,7 @@ namespace ctranslate2 {
     protected:
       void build_network(nvinfer1::INetworkDefinition* network) override {
         nvinfer1::ITensor* input = network->addInput("x",
-                                                     nvinfer1::DataType::kFLOAT,
+                                                     cuda::TensorRTType<T>::type,
                                                      nvinfer1::Dims2(-1, -1));
         nvinfer1::ITopKLayer* topk = network->addTopK(*input, nvinfer1::TopKOperation::kMAX, _k, 2);
         nvinfer1::ITensor* values_t = topk->getOutput(0);
@@ -40,6 +41,7 @@ namespace ctranslate2 {
         network->markOutput(*values_t);
         network->markOutput(*indices_t);
         values_t->setName("values");
+        values_t->setType(cuda::TensorRTType<T>::type);
         indices_t->setName("indices");
         indices_t->setType(nvinfer1::DataType::kINT32);
       }
@@ -69,7 +71,7 @@ namespace ctranslate2 {
                        StorageView& values,
                        StorageView& indices) const {
 #ifdef CT2_WITH_TENSORRT
-      static thread_local TopKLayer topk_layer(_k);
+      static thread_local TopKLayer<DataType> topk_layer(_k);
       topk_layer(x, values, indices);
 #else
       if (_k > 1)
@@ -91,6 +93,7 @@ namespace ctranslate2 {
                                             StorageView& indices) const;
 
     DECLARE_IMPL(float)
+    DECLARE_IMPL(float16_t)
 
   }
 }
