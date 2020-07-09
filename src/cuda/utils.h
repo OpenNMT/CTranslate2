@@ -79,6 +79,7 @@ namespace ctranslate2 {
 
       // These methods are called on the first call to run().
       virtual void build_network(nvinfer1::INetworkDefinition* network) = 0;
+      virtual void set_builder_config(nvinfer1::IBuilderConfig*) {};
       virtual void set_optimization_profile(nvinfer1::IOptimizationProfile* profile) = 0;
 
     private:

@@ -46,6 +46,13 @@ namespace ctranslate2 {
         indices_t->setType(nvinfer1::DataType::kINT32);
       }
 
+      void set_builder_config(nvinfer1::IBuilderConfig* config) override {
+        config->setMaxWorkspaceSize(1 << 30);
+        if (std::is_same<T, float16_t>::value) {
+          config->setFlag(nvinfer1::BuilderFlag::kFP16);
+        }
+      }
+
       void set_optimization_profile(nvinfer1::IOptimizationProfile* profile) override {
         // Optimize for the first seen depth which covers the standard use case
         // of running TopK over a static vocabulary size.

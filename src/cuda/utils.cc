@@ -199,9 +199,8 @@ namespace ctranslate2 {
       auto profile = builder->createOptimizationProfile();
       set_optimization_profile(profile);
       auto builder_config = builder->createBuilderConfig();
-      builder_config->setMaxWorkspaceSize(1 << 30);
       builder_config->addOptimizationProfile(profile);
-      builder_config->setFlag(nvinfer1::BuilderFlag::kSTRICT_TYPES);
+      set_builder_config(builder_config);
       _engine = builder->buildEngineWithConfig(*network, *builder_config);
       _execution_context = _engine->createExecutionContext();
       network->destroy();
