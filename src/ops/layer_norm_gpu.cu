@@ -50,18 +50,18 @@ namespace ctranslate2 {
         <<<batch_size, CUDA_BLOCK_REDUCE_NUM_THREADS, 0, stream>>>(
           depth,
           cuda::device_type<T>(epsilon),
-          cuda::cast(input_data),
-          cuda::cast(mean_data),
-          cuda::cast(rstd_data));
+          cuda::device_cast(input_data),
+          cuda::device_cast(mean_data),
+          cuda::device_cast(rstd_data));
       at::native::LayerNormForwardCUDAKernel<cuda::device_type<T>>
         <<<batch_size, CUDA_NUM_THREADS, 0, stream>>>(
           depth,
-          cuda::cast(input_data),
-          cuda::cast(mean_data),
-          cuda::cast(rstd_data),
-          cuda::cast(gamma.data<T>()),
-          cuda::cast(beta.data<T>()),
-          cuda::cast(output.data<T>()));
+          cuda::device_cast(input_data),
+          cuda::device_cast(mean_data),
+          cuda::device_cast(rstd_data),
+          cuda::device_cast(gamma.data<T>()),
+          cuda::device_cast(beta.data<T>()),
+          cuda::device_cast(output.data<T>()));
     }
 
 #define DECLARE_IMPL(T)                                                 \

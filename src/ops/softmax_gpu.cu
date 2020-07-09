@@ -399,10 +399,10 @@ namespace ctranslate2 {
                                T* y) {
       if (log_softmax)
         softmax_kernel_impl<cuda::device_type<T>, at::native::LogSoftMaxForwardEpilogue>(
-          stream, cuda::cast(x), rows, cols, cuda::cast(y));
+          stream, cuda::device_cast(x), rows, cols, cuda::device_cast(y));
       else
         softmax_kernel_impl<cuda::device_type<T>, at::native::SoftMaxForwardEpilogue>(
-          stream, cuda::cast(x), rows, cols, cuda::cast(y));
+          stream, cuda::device_cast(x), rows, cols, cuda::device_cast(y));
     }
 
   }

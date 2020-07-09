@@ -83,7 +83,8 @@ namespace ctranslate2 {
   template<>
   template <typename U, typename V>
   void primitives<Device::CUDA>::convert(const U* x, V* y, dim_t size) {
-    THRUST_CALL(thrust::copy, cuda::cast(x), cuda::cast(x) + size, cuda::cast(y));
+    THRUST_CALL(thrust::copy,
+                cuda::device_cast(x), cuda::device_cast(x) + size, cuda::device_cast(y));
   }
 
   template void primitives<Device::CUDA>::convert(const float*, float16_t*, dim_t);
@@ -92,14 +93,14 @@ namespace ctranslate2 {
   template<>
   template <typename T>
   T primitives<Device::CUDA>::sum(const T* array, dim_t size) {
-    const auto* x = cuda::cast(array);
+    const auto* x = cuda::device_cast(array);
     return T(THRUST_CALL(thrust::reduce, x, x + size));
   }
 
   template<>
   template <typename T>
   dim_t primitives<Device::CUDA>::max_element(const T* array, dim_t size) {
-    const auto* x = cuda::cast(array);
+    const auto* x = cuda::device_cast(array);
     const auto* max = THRUST_CALL(thrust::max_element, x, x + size);
     return static_cast<dim_t>(max - x);
   }
@@ -136,9 +137,9 @@ namespace ctranslate2 {
 
     THRUST_CALL(thrust::reduce_by_key,
                 keys_it, keys_it + (rows * cols),
-                thrust::make_zip_iterator(thrust::make_tuple(cuda::cast(x), ids_it)),
+                thrust::make_zip_iterator(thrust::make_tuple(cuda::device_cast(x), ids_it)),
                 thrust::make_discard_iterator(),
-                thrust::make_zip_iterator(thrust::make_tuple(cuda::cast(values), indices)),
+                thrust::make_zip_iterator(thrust::make_tuple(cuda::device_cast(values), indices)),
                 thrust::equal_to<int32_t>(),
                 greater_tuple<cuda::device_type<T>, int32_t>());
   }
