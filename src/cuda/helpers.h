@@ -6,6 +6,12 @@
 
 #include "utils.h"
 
+#if !defined(__CUDACC__) || !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 530
+#  define CUDA_COMPILE_FP16 1
+#else
+#  define CUDA_COMPILE_FP16 0
+#endif
+
 namespace ctranslate2 {
   namespace cuda {
 
@@ -94,6 +100,94 @@ namespace ctranslate2 {
         return i / _size;
       }
     };
+
+    // Some functional operators, similar to the ones from Thrust.
+
+    template <typename Functor, typename T>
+    class bind {
+    private:
+      T _y;
+      Functor _func;
+    public:
+      bind(const T& y)
+        : _y(y) {
+      }
+      __host__ __device__ T operator()(const T& x) const {
+        return _func(x, _y);
+      }
+    };
+
+    template <typename T>
+    struct plus {
+      __host__ __device__ T operator()(const T& lhs, const T& rhs) const {
+        return lhs + rhs;
+      }
+    };
+
+    template <typename T>
+    struct minus {
+      __host__ __device__ T operator()(const T& lhs, const T& rhs) const {
+        return lhs - rhs;
+      }
+    };
+
+    template <typename T>
+    struct multiplies {
+      __host__ __device__ T operator()(const T& lhs, const T& rhs) const {
+        return lhs * rhs;
+      }
+    };
+
+    template <typename T>
+    struct maximum {
+      __host__ __device__ T operator()(const T& lhs, const T& rhs) const {
+        return lhs < rhs ? rhs : lhs;
+      }
+    };
+
+    template <typename T>
+    struct minimum {
+      __host__ __device__ T operator()(const T& lhs, const T& rhs) const {
+        return lhs < rhs ? lhs : rhs;
+      }
+    };
+
+#if !CUDA_COMPILE_FP16
+    template<>
+    struct plus<__half> {
+      __host__ __device__ __half operator()(const __half& lhs, const __half& rhs) const {
+        return __half(float(lhs) + float(rhs));
+      }
+    };
+
+    template<>
+    struct minus<__half> {
+      __host__ __device__ __half operator()(const __half& lhs, const __half& rhs) const {
+        return __half(float(lhs) - float(rhs));
+      }
+    };
+
+    template<>
+    struct multiplies<__half> {
+      __host__ __device__ __half operator()(const __half& lhs, const __half& rhs) const {
+        return __half(float(lhs) * float(rhs));
+      }
+    };
+
+    template<>
+    struct maximum<__half> {
+      __host__ __device__ __half operator()(const __half& lhs, const __half& rhs) const {
+        return float(lhs) < float(rhs) ? rhs : lhs;
+      }
+    };
+
+    template<>
+    struct minimum<__half> {
+      __host__ __device__ __half operator()(const __half& lhs, const __half& rhs) const {
+        return float(lhs) < float(rhs) ? lhs : rhs;
+      }
+    };
+#endif
 
 
   }
