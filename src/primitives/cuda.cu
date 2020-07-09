@@ -160,7 +160,7 @@ namespace ctranslate2 {
   template <typename T>
   void primitives<Device::CUDA>::add(T a, const T* x, T* y, dim_t size) {
     using DeviceT = cuda::device_type<T>;
-    cuda::unary_transform(x, y, size, cuda::bind<cuda::plus<DeviceT>, DeviceT>(DeviceT(a)));
+    cuda::unary_transform(x, y, size, cuda::bind_right<cuda::plus, DeviceT>(DeviceT(a)));
   }
 
   template<>
@@ -197,7 +197,7 @@ namespace ctranslate2 {
   template <typename T>
   void primitives<Device::CUDA>::min(T a, const T* x, T* y, dim_t size) {
     using DeviceT = cuda::device_type<T>;
-    cuda::unary_transform(x, y, size, cuda::bind<cuda::minimum<DeviceT>, DeviceT>(DeviceT(a)));
+    cuda::unary_transform(x, y, size, cuda::bind_right<cuda::minimum, DeviceT>(DeviceT(a)));
   }
 
   template<>
@@ -210,7 +210,7 @@ namespace ctranslate2 {
   template <typename T>
   void primitives<Device::CUDA>::max(T a, const T* x, T* y, dim_t size) {
     using DeviceT = cuda::device_type<T>;
-    cuda::unary_transform(x, y, size, cuda::bind<cuda::maximum<DeviceT>, DeviceT>(DeviceT(a)));
+    cuda::unary_transform(x, y, size, cuda::bind_right<cuda::maximum, DeviceT>(DeviceT(a)));
   }
 
   template<>
@@ -223,7 +223,7 @@ namespace ctranslate2 {
   template <typename T>
   void primitives<Device::CUDA>::mul(T a, const T* x, T* y, dim_t size) {
     using DeviceT = cuda::device_type<T>;
-    cuda::unary_transform(x, y, size, cuda::bind<cuda::multiplies<DeviceT>, DeviceT>(DeviceT(a)));
+    cuda::unary_transform(x, y, size, cuda::bind_right<cuda::multiplies, DeviceT>(DeviceT(a)));
   }
 
   template<>

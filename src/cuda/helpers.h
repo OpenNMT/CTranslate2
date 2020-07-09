@@ -102,21 +102,22 @@ namespace ctranslate2 {
       }
     };
 
-    // Some functional operators, similar to the ones from Thrust.
-
-    template <typename Functor, typename T>
-    class bind {
+    // Bind the right argument of a binary operator.
+    template <template <typename> class BinaryFunctor, typename T>
+    class bind_right {
     private:
-      T _y;
-      Functor _func;
+      const T _y;
+      BinaryFunctor<T> _op;
     public:
-      bind(const T& y)
+      bind_right(const T& y)
         : _y(y) {
       }
       __host__ __device__ T operator()(const T& x) const {
-        return _func(x, _y);
+        return _op(x, _y);
       }
     };
+
+    // Some functional operators, similar to the ones from Thrust.
 
     template <typename T>
     struct plus {
