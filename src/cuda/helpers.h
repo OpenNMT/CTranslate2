@@ -7,9 +7,9 @@
 #include "utils.h"
 
 #if !defined(__CUDACC__) || !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 530
-#  define CUDA_COMPILE_FP16 1
+#  define CUDA_CAN_USE_HALF 1
 #else
-#  define CUDA_COMPILE_FP16 0
+#  define CUDA_CAN_USE_HALF 0
 #endif
 
 namespace ctranslate2 {
@@ -152,7 +152,7 @@ namespace ctranslate2 {
       }
     };
 
-#if !CUDA_COMPILE_FP16
+#if !CUDA_CAN_USE_HALF
     template<>
     struct plus<__half> {
       __host__ __device__ __half operator()(const __half& lhs, const __half& rhs) const {

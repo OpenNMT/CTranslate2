@@ -116,7 +116,7 @@ namespace ctranslate2 {
     return deref(array, max_element(array, size));
   }
 
-#if !CUDA_COMPILE_FP16
+#if !CUDA_CAN_USE_HALF
   namespace cuda {
     template<>
     struct maximum<thrust::tuple<__half, int32_t>> {
