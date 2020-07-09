@@ -77,8 +77,6 @@ namespace ctranslate2 {
     const DataType dtype = scores.dtype();
     const StorageView* final_scores = nullptr;
 
-    // TODO FP16
-
     // Maybe restrict scores to the best K candidates.
     StorageView top_ids(DataType::INT32, device);
     StorageView top_scores(dtype, device);
