@@ -439,7 +439,7 @@ TEST_P(OpDeviceFPTest, Gemm) {
   StorageView expected(
     {4, 4}, std::vector<float>{3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 3}, device);
   ops::Gemm op(1.0, 1.0, false, false);
-  op(a.to_dtype(dtype), b.to_dtype(dtype), c.to_dtype(dtype), y);
+  op(a.to(dtype), b.to(dtype), c.to(dtype), y);
   expect_storage_eq(y.to_float(), expected);
 };
 
@@ -480,7 +480,7 @@ TEST_P(OpDeviceFPTest, TopK) {
   StorageView values(dtype, device);
   StorageView indices(expected_indices.dtype(), device);
   ops::TopK op(k);
-  op(input.to_dtype(dtype), values, indices);
+  op(input.to(dtype), values, indices);
   expect_storage_eq(values.to_float(), expected_values, 1e-3);
   expect_storage_eq(indices, expected_indices);
 }
@@ -515,7 +515,7 @@ TEST_P(OpDeviceFPTest, SoftMax) {
       0.032035, 0.785904, 0.129909, 0.013025, 0.039128,
       0.760941, 0.207381, 0.009342, 0.001544, 0.020792}, device);
   StorageView y(dtype, device);
-  ops::SoftMax()(x.to_dtype(dtype), y);
+  ops::SoftMax()(x.to(dtype), y);
   expect_storage_eq(y.to_float(), expected, 1e-3);
 }
 
@@ -529,7 +529,7 @@ TEST_P(OpDeviceFPTest, LogSoftMax) {
       -3.440921, -0.240921, -2.040921, -4.340921, -3.240921,
       -0.273199, -1.573199, -4.673199, -6.473199, -3.873199}, device);
   StorageView y(dtype, device);
-  ops::LogSoftMax()(x.to_dtype(dtype), y);
+  ops::LogSoftMax()(x.to(dtype), y);
   expect_storage_eq(y.to_float(), expected, 1e-2);
 }
 
@@ -544,7 +544,7 @@ TEST_P(OpDeviceFPTest, MaskedSoftMax) {
       0.033797, 0.829145, 0.137056,        0, 0,
       0.777098, 0.211783, 0.009540, 0.001577, 0}, device);
   StorageView y(dtype, device);
-  ops::SoftMax()(x.to_dtype(dtype), lengths, y);
+  ops::SoftMax()(x.to(dtype), lengths, y);
   expect_storage_eq(y.to_float(), expected, 1e-3);
 }
 
@@ -560,7 +560,7 @@ TEST_P(OpDeviceFPTest, LayerNorm) {
       -6.710264, -2.107929, 0.492053, 2.712477, -0.286970,
       -6.319339, -3.988876, -0.637330, 2.841982, -0.158437}, device);
   StorageView y(dtype, device);
-  ops::LayerNorm()(beta.to_dtype(dtype), gamma.to_dtype(dtype), x.to_dtype(dtype), y);
+  ops::LayerNorm()(beta.to(dtype), gamma.to(dtype), x.to(dtype), y);
   expect_storage_eq(y.to_float(), expected, 1e-3);
 }
 
@@ -590,7 +590,7 @@ TEST_P(OpDeviceFPTest, Multinomial) {
   StorageView input({2, 4}, std::vector<float>{0, 0, 1, 0, 0, 0, 0, 1}, device);
   StorageView output(DataType::INT32, device);
   StorageView expected({2, 2}, std::vector<int32_t>{2, 2, 3, 3}, device);
-  ops::Multinomial(2)(input.to_dtype(dtype), output);
+  ops::Multinomial(2)(input.to(dtype), output);
   expect_storage_eq(output, expected);
 }
 
@@ -600,7 +600,7 @@ TEST_P(OpDeviceFPTest, ReLU) {
   StorageView input({2, 5}, std::vector<float>{-1, 1, 2, -2, 2, 4, -3, 0, -1, -3}, device);
   StorageView expected({2, 5}, std::vector<float>{0, 1, 2, 0, 2, 4, 0, 0, 0, 0}, device);
   StorageView output(dtype, device);
-  ops::ReLU()(input.to_dtype(dtype), output);
+  ops::ReLU()(input.to(dtype), output);
   expect_storage_eq(output.to_float(), expected);
 }
 

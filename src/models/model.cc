@@ -306,14 +306,14 @@ namespace ctranslate2 {
         if (is_float16) {
           target_variable = variable.to_float();
         } else if (is_float) {
-          target_variable = variable.to_half();
+          target_variable = variable.to_float16();
         } else {
           // Dequantize int8 or int16 back to float32.
           StorageView dequantized;
           dequantize_op(variable, *saved_scale, dequantized);
           variables_to_remove.emplace_back(scale_name);  // The scale is no longer needed.
           if (target_dtype == DataType::FLOAT16) {
-            target_variable = dequantized.to_half();
+            target_variable = dequantized.to_float16();
           } else {
             target_variable = std::move(dequantized);
           }
@@ -370,7 +370,7 @@ namespace ctranslate2 {
         } else if (!variable.is_scalar()) {
           // Other parameters may be converted from or to float16 (e.g. bias).
           if (variable.dtype() == DataType::FLOAT && target_dtype == DataType::FLOAT16) {
-            StorageView half_variable = variable.to_half();
+            StorageView half_variable = variable.to_float16();
             swap(variable, half_variable);
           } else if (variable.dtype() == DataType::FLOAT16 && target_dtype == DataType::FLOAT) {
             StorageView float_variable = variable.to_float();

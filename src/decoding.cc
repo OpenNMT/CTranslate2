@@ -174,7 +174,7 @@ namespace ctranslate2 {
       if (_length_penalty != 0) {
         length_penalty_weight = std::pow((5.0 + static_cast<float>(step + 1)) / 6.0, _length_penalty);
         ops::Mul()(log_probs,
-                   StorageView(1.f / length_penalty_weight).to_dtype(log_probs.dtype()),
+                   StorageView(1.f / length_penalty_weight).to(log_probs.dtype()),
                    log_probs);
       }
 
@@ -194,7 +194,7 @@ namespace ctranslate2 {
       // Recover the true log probs if length penalty was applied.
       if (_length_penalty != 0)
         ops::Mul()(topk_log_probs,
-                   StorageView(length_penalty_weight).to_dtype(topk_log_probs.dtype()),
+                   StorageView(length_penalty_weight).to(topk_log_probs.dtype()),
                    topk_log_probs);
 
       // Unflatten the ids.
@@ -236,7 +236,7 @@ namespace ctranslate2 {
         tmp.reshape({row, col});
         ops::MatMul()(tmp, StorageView({col, 1}, 1.0f), penalty);
         ops::Mul()(penalty, StorageView(_coverage_penalty), penalty);
-        ops::Add()(penalty.to_dtype(topk_scores.dtype()), topk_scores, topk_scores);
+        ops::Add()(penalty.to(topk_scores.dtype()), topk_scores, topk_scores);
       }
 
       if (attention) {

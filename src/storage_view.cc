@@ -80,7 +80,7 @@ namespace ctranslate2 {
     return device_copy.copy_from(*this);
   }
 
-  StorageView StorageView::to_dtype(DataType dtype) const {
+  StorageView StorageView::to(DataType dtype) const {
     if (_dtype == dtype)
       return *this;
     StorageView converted(_shape, dtype, _device);
@@ -98,12 +98,12 @@ namespace ctranslate2 {
     return converted;
   }
 
-  StorageView StorageView::to_half() const {
-    return to_dtype(DataType::FLOAT16);
+  StorageView StorageView::to_float16() const {
+    return to(DataType::FLOAT16);
   }
 
   StorageView StorageView::to_float() const {
-    return to_dtype(DataType::FLOAT);
+    return to(DataType::FLOAT);
   }
 
   dim_t StorageView::reserved_memory() const {

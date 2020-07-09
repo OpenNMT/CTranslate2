@@ -150,7 +150,7 @@ namespace ctranslate2 {
 
         StorageView cache;
         ops::Concat(-1)({&sin_encoding, &cos_encoding}, cache);
-        *_generated_encoding = (dtype == DataType::FLOAT16 ? cache.to_half() : cache).to(device);
+        *_generated_encoding = cache.to(dtype).to(device);
       }
 
       return *_generated_encoding;

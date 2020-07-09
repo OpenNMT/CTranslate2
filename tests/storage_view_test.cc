@@ -53,7 +53,7 @@ TEST_P(StorageViewDeviceTest, HalfConversion) {
   const Device device = GetParam();
   const StorageView a({4}, std::vector<float>{1, 2, 3, 4}, device);
   EXPECT_EQ(a.reserved_memory(), 4 * 4);
-  const StorageView b = a.to_half();
+  const StorageView b = a.to_float16();
   EXPECT_EQ(b.dtype(), DataType::FLOAT16);
   EXPECT_EQ(b.reserved_memory(), 4 * 2);
   expect_storage_eq(b.to_float(), a);

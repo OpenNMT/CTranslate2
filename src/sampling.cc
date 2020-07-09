@@ -91,7 +91,7 @@ namespace ctranslate2 {
     // Divide scores by the temperature constant.
     StorageView scaled_scores(dtype, device);
     if (_temperature != 1) {
-      ops::Mul()(*final_scores, StorageView(float(1) / _temperature).to_dtype(dtype), scaled_scores);
+      ops::Mul()(*final_scores, StorageView(float(1) / _temperature).to(dtype), scaled_scores);
       final_scores = &scaled_scores;
     }
 
