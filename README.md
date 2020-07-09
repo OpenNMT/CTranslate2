@@ -21,7 +21,7 @@ CTranslate2 is an optimized inference engine for [OpenNMT-py](https://github.com
 
 * **Efficient runtime**<br/>The runtime aims to be faster and lighter than a general-purpose deep learning framework: it is [up to 4x faster](#benchmarks) than OpenNMT-py on standard translation tasks.
 * **Interactive decoding**<br/>[Advanced decoding features](docs/decoding.md) allow autocompleting a partial translation and returning alternatives at a specific location in the translation.
-* **Model quantization**<br/>Support for 16-bit and 8-bit integer quantization to reduce memory and computation requirements.
+* **Quantization and reduced precision**<br/>The model serialization and computation support weights with reduced precision: 16-bit floating points (FP16), 16-bit integers, and 8-bit integers.
 * **Parallel translations**<br/>Translations can be run efficiently in parallel without duplicating the model data in memory.
 * **Dynamic memory usage**<br/>The memory usage changes dynamically depending on the request size while still meeting performance requirements thanks to caching allocators on both CPU and GPU.
 * **Automatic instruction set architecture dispatch**<br/>The latest instruction set architecture (ISA) is automatically detected and selected at runtime.
@@ -152,9 +152,9 @@ Models can also be converted directly from the supported training frameworks. Se
 * [OpenNMT-py](https://github.com/OpenNMT/OpenNMT-py/blob/master/onmt/bin/release_model.py)
 * [OpenNMT-tf](https://opennmt.net/OpenNMT-tf/serving.html#ctranslate2)
 
-### Reduced precision
+### Quantization and reduced precision
 
-The converters support reducing the model precision to save on space and possibly accelerate the execution. The `--quantization` option accepts the following values:
+The converters support reducing the weights precision to save on space and possibly accelerate the model execution. The `--quantization` option accepts the following values:
 
 * `int8`
 * `int16`
@@ -168,13 +168,13 @@ However, some execution settings are not (yet) optimized for all computation typ
 | int16      | float        | int16       | int8      |
 | int8       | int8 (\*\*)  | int8        | int8      |
 
-*(\*) for Compute Capability >= 7.0, (\*\*) for Compute Capability >= 7 or == 6.1.*
+*(\*) for Compute Capability >= 7.0, (\*\*) for Compute Capability >= 7.0 or == 6.1.*
 
 The computation type can also be configured later, when starting a translation instance. See the `compute_type` argument on translation clients.
 
 **Notes:**
 
-* only GEMM-based layers and embeddings are currently quantized
+* Integer quantization is only supported for GEMM-based layers and embeddings
 
 ### Adding converters
 
@@ -429,7 +429,9 @@ Optimized execution on ARM is a future work (contributions are welcome!).
 
 **GPU**
 
-CTranslate2 currently requires a NVIDIA GPU with a compute capability greater or equal to 3.0 (Kepler). The driver requirements depend on the CUDA version, see the [CUDA Compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) for more information.
+CTranslate2 currently requires a NVIDIA GPU with a Compute Capability greater or equal to 3.0 (Kepler). FP16 execution requires a Compute Capability greater or equal to 7.0.
+
+The driver requirement depends on the CUDA version, see the [CUDA Compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) for more information.
 
 ### What are the known limitations?
 
