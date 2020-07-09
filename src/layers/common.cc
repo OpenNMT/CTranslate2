@@ -71,7 +71,7 @@ namespace ctranslate2 {
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
       , _u8_shift_compensation(model.get_variable_if_exists(scope + "/weight_compensation"))
       , _partial_weight(_weight.device(), _weight.dtype())
-      , _partial_bias(_weight.device(), DataType::FLOAT)
+      , _partial_bias(_weight.device(), _bias ? _bias->dtype() : DataType::FLOAT)
       , _partial_qscale(_weight.device(), DataType::FLOAT)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
       , _gemm_op(/*alpha=*/1,
