@@ -221,7 +221,6 @@ namespace ctranslate2 {
       const float queries_scale = 1.0 / sqrt(dk);
 
       StorageView& context = queries_proj;  // Reuse storage.
-
       dot_product_attention(split_queries,
                             split_keys,
                             split_values,
