@@ -312,6 +312,18 @@ namespace ctranslate2 {
     std::vector<size_t> output_ids_map;
     if (options.use_vmap && _vocabulary_map && !_vocabulary_map->empty()) {
       output_ids_map = _vocabulary_map->get_candidates(source);
+    } else if (dtype == DataType::FLOAT16 && _target_vocabulary->size() % 8 != 0) {
+      // Pad vocabulary size to a multiple of 8 to enable Tensor Cores.
+      // Note that get_candidates above already returns a multiple of 8.
+      const size_t vocab_size = _target_vocabulary->size();
+      const size_t padded_size = vocab_size + (8 - vocab_size % 8);
+      output_ids_map.resize(padded_size);
+      for (size_t i = 0; i < padded_size; ++i) {
+        output_ids_map[i] = i < vocab_size ? i : 0;
+      }
+    }
+
+    if (!output_ids_map.empty()) {
       _decoder->set_vocabulary_mask(
         StorageView({static_cast<dim_t>(output_ids_map.size())},
                     std::vector<int32_t>(output_ids_map.begin(), output_ids_map.end()),
