@@ -50,7 +50,9 @@ namespace ctranslate2 {
   }
 
   static std::pair<StorageView, StorageView>
-  make_inputs(const std::vector<std::vector<size_t>>& ids, Device device) {
+  make_inputs(const std::vector<std::vector<size_t>>& ids,
+              const Device device,
+              const dim_t length_multiple_of = 1) {
     const dim_t batch_size = ids.size();
 
     // Record lengths and maximum length.
@@ -60,6 +62,10 @@ namespace ctranslate2 {
       const dim_t length = ids[i].size();
       lengths.at<int32_t>(i) = length;
       max_length = std::max(max_length, length);
+    }
+
+    if (max_length % length_multiple_of != 0) {
+      max_length += (length_multiple_of - max_length % length_multiple_of);
     }
 
     // Make 2D input.
@@ -291,12 +297,15 @@ namespace ctranslate2 {
       target_prefix_ids = tokens_to_ids(*target_prefix, *_target_vocabulary);
 
     const Device device = _model->device();
-    std::pair<StorageView, StorageView> inputs = make_inputs(source_ids, device);
+    const DataType dtype = _encoder->output_type();
+    std::pair<StorageView, StorageView> inputs = make_inputs(source_ids,
+                                                             device,
+                                                             dtype == DataType::FLOAT16 ? 8 : 1);
     StorageView& ids = inputs.first;
     StorageView& lengths = inputs.second;
 
     // Encode sequence.
-    StorageView encoded(_encoder->output_type(), device);
+    StorageView encoded(dtype, device);
     (*_encoder)(ids, lengths, encoded);
 
     // If set, extract the subset of candidates to generate.
