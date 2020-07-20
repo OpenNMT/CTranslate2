@@ -359,6 +359,7 @@ namespace ctranslate2 {
         const StorageView& variable = variable_pair.second;
         if (is_quantizable(name)) {
           model_dtype = variable.dtype();
+          break;
         }
       }
 
