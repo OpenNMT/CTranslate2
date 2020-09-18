@@ -35,6 +35,9 @@ namespace ctranslate2 {
 
 #define SINGLE_ARG(...) __VA_ARGS__
 #ifdef CT2_WITH_CPU_DISPATCH
+#  if defined(__AVX__) || defined(__AVX2__)
+#    error "When compiling for a specific CPU architecture (e.g. using the -march option), you should disable the CTranslate2 internal architecture dispatch. Set -DENABLE_CPU_DISPATCH=OFF during the CMake configuration."
+#  endif
 #  define CPU_ISA_DISPATCH(STMTS)                             \
   switch (cpu::get_cpu_isa()) {                               \
     CPU_ISA_CASE(cpu::CpuIsa::AVX2, SINGLE_ARG(STMTS))        \
