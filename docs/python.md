@@ -33,7 +33,7 @@ translator = ctranslate2.Translator(
     device_index: int = 0,          # The index of the device to place this translator on.
     compute_type: str = "default"   # The computation type: "default", "int8", "int16", "float16", or "float",
                                     # or a dict mapping a device to a computation type.
-    inter_threads: int = 1,         # Maximum number of concurrent translations (CPU only).
+    inter_threads: int = 1,         # Maximum number of parallel translations (CPU only).
     intra_threads: int = 4)         # Threads to use per translation (CPU only).
 
 # Properties:
