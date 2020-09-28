@@ -91,6 +91,22 @@ stats = translator.translate_file(
 
 Also see the [`TranslationOptions`](../include/ctranslate2/translator.h) structure for more details about the options.
 
+### Note on parallel CPU translations
+
+For CPU translations, the parameter `inter_threads` controls the number of batches a `Translator` instance can process in parallel. The `translate_file` method automatically takes advantage of this parallelization.
+
+However, extra work may be needed when using the `translate_batch` method because multiple translations should be started concurrently from Python. If you are using a multithreaded HTTP server, this may already be the case. For other cases, you could use a [`ThreadPoolExecutor`](https://docs.python.org/3/library/concurrent.futures.html#concurrent.futures.ThreadPoolExecutor) to submit multiple translations:
+
+```python
+import concurrent.futures
+with concurrent.futures.ThreadPoolExecutor(max_workers=inter_threads) as executor:
+    futures = [
+        executor.submit(translator.translate_batch, batch)
+        for batch in batch_generator()]
+    for future in futures:
+        translation_result = future.result()
+```
+
 ## Memory management API
 
 * `translator.unload_model(to_cpu: bool = False)`<br/>Unload the model attached to this translator but keep enough runtime context to quickly resume translation on the initial device. When `to_cpu` is `True`, the model is moved to the CPU memory and not fully unloaded.
