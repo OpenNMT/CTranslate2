@@ -24,5 +24,5 @@ The script outputs one result per line where each line consists of 5 fields sepa
 1. Run name
 1. BLEU score
 1. Tokens per second
-1. System maximum memory usage (Mb)
-1. GPU maximum memory usage (Mb)
+1. System maximum memory usage (MB)
+1. GPU maximum memory usage (MB)
