@@ -16,7 +16,7 @@ RUN wget -q https://opennmt-models.s3.amazonaws.com/averaged-ende-ckpt500k-v2.ta
     tar xf *.tar.gz && \
     rm *.tar.gz
 
-RUN python3 -m pip install --no-cache-dir OpenNMT-tf==2.13.*
+RUN python3 -m pip install --no-cache-dir tensorflow==2.3.* OpenNMT-tf==2.13.*
 
 COPY opennmt_tf/run.sh /
 
