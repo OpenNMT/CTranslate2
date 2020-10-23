@@ -13,8 +13,8 @@ docker build -t opennmt/opennmt-py-benchmark -f opennmt_py/Dockerfile .
 docker build -t opennmt/opennmt-tf-benchmark -f opennmt_tf/Dockerfile .
 
 # Get test data and SentencePiece model.
-sacrebleu -t wmt14 -l en-de --echo src > wmt14-en-de.src
-sacrebleu -t wmt14 -l en-de --echo ref > wmt14-en-de.tgt
+python3 -m sacrebleu -t wmt14 -l en-de --echo src > wmt14-en-de.src
+python3 -m sacrebleu -t wmt14 -l en-de --echo ref > wmt14-en-de.tgt
 wget -q -N https://opennmt-trainingdata.s3.amazonaws.com/wmtende.model
 
 # Set shared arguments.
