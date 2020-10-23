@@ -18,7 +18,7 @@ sacrebleu -t wmt14 -l en-de --echo ref > wmt14-en-de.tgt
 wget -q -N https://opennmt-trainingdata.s3.amazonaws.com/wmtende.model
 
 # Set shared arguments.
-PREFIX="python benchmark.py --num_samples 3 --num_threads $NUM_THREADS --src wmt14-en-de.src --tgt wmt14-en-de.tgt --sp_model wmtende.model"
+PREFIX="python3 benchmark.py --num_samples 3 --num_threads $NUM_THREADS --src wmt14-en-de.src --tgt wmt14-en-de.tgt --sp_model wmtende.model"
 
 # Run benchmark.
 if [[ $USE_GPU -eq 0 ]]
