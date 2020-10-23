@@ -9,6 +9,11 @@ import argparse
 
 client = docker.from_env()
 
+docker_version = client.version()["Version"]
+docker_version_numbers = docker_version.split(".")
+docker_major_version = int(docker_version_numbers[0])
+docker_minor_version = int(docker_version_numbers[1])
+
 def get_bleu_score(hyp_file, ref_file, detokenize_fn=None):
     with open(hyp_file) as hyp, open(ref_file) as ref:
         if detokenize_fn is not None:
@@ -82,7 +87,12 @@ def benchmark_image(image_name,
 
     kwargs = {}
     if use_gpu:
-        kwargs["runtime"] = "nvidia"
+        if docker_major_version < 19 or (docker_major_version == 19 and docker_minor_version < 3):
+            kwargs["runtime"] = "nvidia"
+        else:
+            kwargs["device_requests"] = [
+                docker.types.DeviceRequest(count=0, capabilities=[['gpu']])
+            ]
     if env is not None:
         kwargs["environment"] = {key:str(value) for key, value in env.items()}
     container = client.containers.run(
