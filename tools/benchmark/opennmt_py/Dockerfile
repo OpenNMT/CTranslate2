@@ -11,7 +11,7 @@ RUN wget -q https://opennmt-models.s3.amazonaws.com/transformer-ende-wmt-pyOnmt.
     tar xf *.tar.gz && \
     rm *.tar.gz sentencepiece.model
 
-RUN pip install OpenNMT-py==2.0.0rc1
+RUN pip install OpenNMT-py==2.0.0rc2
 
 COPY opennmt_py/run.sh /
 
