@@ -132,6 +132,10 @@ namespace ctranslate2 {
       if (dtype == DataType::INT8 && cuda::gpu_has_int8_tensor_cores(device_index))
         return 16;
     }
+#else
+    (void)dtype;
+    (void)device;
+    (void)device_index;
 #endif
     return 1;
   }
