@@ -49,6 +49,38 @@ namespace ctranslate2 {
     return future;
   }
 
+  TranslationOutput TranslatorPool::translate_batch(const TranslationInput& source,
+                                                    const TranslationInput& target_prefix,
+                                                    TranslationOptions options) {
+    if (source.empty())
+      return TranslationOutput();
+
+    // Rebatch the input and post each sub-batch in the translation queue.
+    std::vector<TranslationBatch> batches = rebatch_input(source, target_prefix, options);
+    options.max_batch_size = 0;  // Reset max_batch_size as it has been applied.
+    options.batch_type = BatchType::Examples;
+
+    std::vector<std::future<TranslationOutput>> futures;
+    futures.reserve(batches.size());
+    for (auto& batch : batches) {
+      futures.emplace_back(post(std::move(batch.source),
+                                std::move(batch.target_prefix),
+                                options));
+    }
+
+    const TranslationResult empty_result(options.num_hypotheses, options.return_attention);
+    TranslationOutput results(source.size(), empty_result);
+
+    // Wait for the result of each sub-batch.
+    for (size_t batch_id = 0; batch_id < batches.size(); ++batch_id) {
+      auto batch_results = futures[batch_id].get();
+      for (size_t i = 0; i < batch_results.size(); ++i)
+        results[batches[batch_id].example_index[i]] = std::move(batch_results[i]);
+    }
+
+    return results;
+  }
+
   void TranslatorPool::create_translators(const std::shared_ptr<const models::Model>& model,
                                           size_t num_translators,
                                           size_t num_threads_per_translator) {

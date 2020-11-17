@@ -103,17 +103,9 @@ namespace ctranslate2 {
     void assert_has_model() const;
 
     std::vector<TranslationResult>
-    run_batch_translation_sorted(const std::vector<std::vector<std::string>>& source,
-                                 const std::vector<std::vector<std::string>>* target_prefix,
-                                 const TranslationOptions& options);
-    std::vector<TranslationResult>
     run_batch_translation(const std::vector<std::vector<std::string>>& source,
-                          const std::vector<std::vector<std::string>>* target_prefix,
+                          const std::vector<std::vector<std::string>>& target_prefix,
                           const TranslationOptions& options);
-    TranslationResult
-    run_translation(const std::vector<std::string>& source,
-                    const std::vector<std::string>* target_prefix,
-                    const TranslationOptions& options);
 
     std::shared_ptr<const models::Model> _model;
     std::unique_ptr<layers::Encoder> _encoder;
@@ -122,5 +114,18 @@ namespace ctranslate2 {
     const Vocabulary* _source_vocabulary;
     const Vocabulary* _target_vocabulary;
   };
+
+  struct TranslationBatch {
+    std::vector<std::vector<std::string>> source;
+    std::vector<std::vector<std::string>> target_prefix;
+    std::vector<size_t> example_index;  // Index of each example in the original input.
+  };
+
+  // Rebatch the input according to the translation options.
+  // This function can also reorder the examples to improve efficiency.
+  std::vector<TranslationBatch>
+  rebatch_input(const std::vector<std::vector<std::string>>& source,
+                const std::vector<std::vector<std::string>>& target_prefix,
+                const TranslationOptions& options);
 
 }
