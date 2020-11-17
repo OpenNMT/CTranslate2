@@ -43,6 +43,21 @@ namespace ctranslate2 {
   }
 
 
+  void TranslationOptions::validate() const {
+    if (num_hypotheses == 0)
+      throw std::invalid_argument("num_hypotheses must be > 0");
+    if (beam_size == 0)
+      throw std::invalid_argument("beam_size must be > 0");
+    if (num_hypotheses > beam_size && !return_alternatives)
+      throw std::invalid_argument("The number of hypotheses can not be greater than the beam size");
+    if (sampling_topk != 1 && beam_size != 1)
+      throw std::invalid_argument("Random sampling should be used with beam_size = 1");
+    if (min_decoding_length > max_decoding_length)
+      throw std::invalid_argument("min_decoding_length is greater than max_decoding_length");
+;
+  }
+
+
   Translator::Translator(const std::string& model_dir,
                          Device device,
                          int device_index,
@@ -98,29 +113,15 @@ namespace ctranslate2 {
   Translator::translate_batch_with_prefix(const std::vector<std::vector<std::string>>& source,
                                           const std::vector<std::vector<std::string>>& target_prefix,
                                           const TranslationOptions& options) {
-    assert_has_model();
-    const size_t batch_size = source.size();
-
-    // Check options and inputs.
-    if (options.num_hypotheses == 0)
-      throw std::invalid_argument("num_hypotheses must be > 0");
-    if (options.beam_size == 0)
-      throw std::invalid_argument("beam_size must be > 0");
-    if (options.num_hypotheses > options.beam_size && !options.return_alternatives)
-      throw std::invalid_argument("The number of hypotheses can not be greater than the beam size");
-    if (options.sampling_topk != 1 && options.beam_size != 1)
-      throw std::invalid_argument("Random sampling should be used with beam_size = 1");
-    if (options.min_decoding_length > options.max_decoding_length)
-      throw std::invalid_argument("min_decoding_length is greater than max_decoding_length");
-    if (!target_prefix.empty() && target_prefix.size() != batch_size)
-      throw std::invalid_argument("Batch size mismatch: got "
-                                  + std::to_string(batch_size) + " for source and "
-                                  + std::to_string(target_prefix.size()) + " for target prefix");
+    if (!options.validated)
+      options.validate();
+    if (!options.rebatch_input)
+      return run_batch_translation(source, target_prefix, options);
 
     const TranslationResult empty_result(options.num_hypotheses, options.return_attention);
-    std::vector<TranslationResult> results(batch_size, empty_result);
+    std::vector<TranslationResult> results(source.size(), empty_result);
 
-    for (const auto& batch : rebatch_input(source, target_prefix, options)) {
+    for (const auto& batch : rebatch_translation_input(source, target_prefix, options)) {
       auto batch_results = run_batch_translation(batch.source, batch.target_prefix, options);
       for (size_t i = 0; i < batch_results.size(); ++i)
         results[batch.example_index[i]] = std::move(batch_results[i]);
@@ -134,6 +135,7 @@ namespace ctranslate2 {
                                     const std::vector<std::vector<std::string>>& target_prefix,
                                     const TranslationOptions& options) {
     PROFILE("run_batch_translation");
+    assert_has_model();
     auto scoped_device_setter = _model->get_scoped_device_setter();
 
     std::vector<std::vector<size_t>> source_ids = _source_vocabulary->to_ids(source);
@@ -289,9 +291,14 @@ namespace ctranslate2 {
   }
 
   std::vector<TranslationBatch>
-  rebatch_input(const std::vector<std::vector<std::string>>& source,
-                const std::vector<std::vector<std::string>>& target_prefix,
-                const TranslationOptions& options) {
+  rebatch_translation_input(const std::vector<std::vector<std::string>>& source,
+                            const std::vector<std::vector<std::string>>& target_prefix,
+                            const TranslationOptions& options) {
+    if (!target_prefix.empty() && target_prefix.size() != source.size())
+      throw std::invalid_argument("Batch size mismatch: got "
+                                  + std::to_string(source.size()) + " for source and "
+                                  + std::to_string(target_prefix.size()) + " for target prefix");
+
     const size_t global_batch_size = source.size();
     size_t max_batch_size = options.max_batch_size;
     BatchType batch_type = options.batch_type;

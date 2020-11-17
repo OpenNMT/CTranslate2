@@ -9,6 +9,9 @@
 
 namespace ctranslate2 {
 
+  class Translator;
+  class TranslatorPool;
+
   struct TranslationOptions {
     // Maximum batch size to run the model on (set 0 to forward the input as is).
     // When more inputs are passed to translate(), they will be internally sorted by length
@@ -52,6 +55,16 @@ namespace ctranslate2 {
     // used with a target prefix to provide alternatives at a specifc location in the
     // translation.
     bool return_alternatives = false;
+
+    void validate() const;
+
+  private:
+    // Internal options.
+    bool validated = false;
+    bool rebatch_input = true;
+
+    friend class Translator;
+    friend class TranslatorPool;
   };
 
   // This class holds all information required to translate from a model. Copying
@@ -124,8 +137,8 @@ namespace ctranslate2 {
   // Rebatch the input according to the translation options.
   // This function can also reorder the examples to improve efficiency.
   std::vector<TranslationBatch>
-  rebatch_input(const std::vector<std::vector<std::string>>& source,
-                const std::vector<std::vector<std::string>>& target_prefix,
-                const TranslationOptions& options);
+  rebatch_translation_input(const std::vector<std::vector<std::string>>& source,
+                            const std::vector<std::vector<std::string>>& target_prefix,
+                            const TranslationOptions& options);
 
 }

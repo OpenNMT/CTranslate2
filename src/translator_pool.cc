@@ -52,13 +52,15 @@ namespace ctranslate2 {
   TranslationOutput TranslatorPool::translate_batch(const TranslationInput& source,
                                                     const TranslationInput& target_prefix,
                                                     TranslationOptions options) {
+    options.validate();
+    options.validated = true;
+
     if (source.empty())
       return TranslationOutput();
 
     // Rebatch the input and post each sub-batch in the translation queue.
-    std::vector<TranslationBatch> batches = rebatch_input(source, target_prefix, options);
-    options.max_batch_size = 0;  // Reset max_batch_size as it has been applied.
-    options.batch_type = BatchType::Examples;
+    auto batches = rebatch_translation_input(source, target_prefix, options);
+    options.rebatch_input = false;
 
     std::vector<std::future<TranslationOutput>> futures;
     futures.reserve(batches.size());
