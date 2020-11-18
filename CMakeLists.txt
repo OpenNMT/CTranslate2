@@ -5,6 +5,11 @@ if(POLICY CMP0091)
   cmake_policy(SET CMP0091 NEW)
 endif()
 
+# Remove warning "option() honors normal variables".
+if(POLICY CMP0077)
+  cmake_policy(SET CMP0077 NEW)
+endif()
+
 project(ctranslate2)
 
 option(WITH_MKL "Compile with Intel MKL backend" ON)
