@@ -30,15 +30,15 @@ namespace ctranslate2 {
       } else if (axis == data.rank() - 1 && batch_dims == data.rank() - 1) {
         const dim_t depth = data.dim(-1);
         const dim_t batch_size = data.size() / depth;
-        const dim_t num_elements = input.dim(-1);
+        const dim_t gather_size = input.size() / batch_size;  // Num. elements to gather per batch.
 
         #pragma omp parallel for
         for (dim_t i = 0; i < batch_size; ++i) {
-          const auto* indices_row = indices + i * num_elements;
+          const auto* indices_row = indices + i * gather_size;
           const T* data_row = src + i * depth;
-          T* output_row = dst + i * num_elements;
+          T* output_row = dst + i * gather_size;
 
-          for (dim_t j = 0; j < num_elements; ++j)
+          for (dim_t j = 0; j < gather_size; ++j)
             output_row[j] = data_row[indices_row[j]];
         }
 

@@ -32,20 +32,20 @@ namespace ctranslate2 {
     class depth_gather_index_map {
     private:
       const int32_t* _offsets;
-      const int32_t _total_depth;
-      const int32_t _gather_depth;
+      const int32_t _depth;
+      const int32_t _gather_size;
     public:
       depth_gather_index_map(const int32_t* offsets,
-                             const int32_t total_depth,
-                             const int32_t gather_depth)
+                             const int32_t depth,
+                             const int32_t gather_size)
         : _offsets(offsets)
-        , _total_depth(total_depth)
-        , _gather_depth(gather_depth) {
+        , _depth(depth)
+        , _gather_size(gather_size) {
       }
       __host__ __device__
       int32_t operator()(const int32_t i) const {
-        const int32_t row = i / _gather_depth;
-        return row * _total_depth + _offsets[i];
+        const int32_t row = i / _gather_size;
+        return row * _depth + _offsets[i];
       }
     };
 
@@ -75,7 +75,10 @@ namespace ctranslate2 {
                    src, dst, dst_size);
 
       } else if (axis == data.rank() - 1 && batch_dims == data.rank() - 1) {
-        run_gather(depth_gather_index_map(indices, data.dim(-1), input.dim(-1)),
+        const dim_t depth = data.dim(-1);
+        const dim_t batch_size = data.size() / depth;
+        const dim_t gather_size = input.size() / batch_size;  // Num. elements to gather per batch.
+        run_gather(depth_gather_index_map(indices, depth, gather_size),
                    src, dst, dst_size);
 
       } else {
