@@ -24,14 +24,14 @@ endif()
 if(DEFINED ENV{INTELROOT})
   set(INTEL_ROOT_DEFAULT $ENV{INTELROOT})
 elseif(DEFINED ENV{ONEAPI_ROOT})
-  set(INTEL_ROOT_DEFAULT $ENV{ONEAPI_ROOT})
+  set(INTEL_ROOT_DEFAULT $ENV{ONEAPI_ROOT}/..)
 elseif(DEFINED ENV{MKLROOT})
   set(INTEL_ROOT_DEFAULT $ENV{MKLROOT}/..)
 elseif(WIN32)
   set(ProgramFilesx86 "ProgramFiles(x86)")
   set(INTEL_ROOT_DEFAULT PATHS
       $ENV{${ProgramFilesx86}}/IntelSWTools/compilers_and_libraries/windows
-      $ENV{${ProgramFilesx86}}/Intel/oneAPI)
+      $ENV{${ProgramFilesx86}}/Intel)
 else()
   set(INTEL_ROOT_DEFAULT "/opt/intel")
 endif()
@@ -166,7 +166,7 @@ if(NOT OPENMP_RUNTIME STREQUAL "NONE")
       ${INTEL_ROOT}/lib
       ${INTEL_ROOT}/lib/intel64
       ${INTEL_ROOT}/compiler/lib/intel64
-      ${INTEL_ROOT}/compiler/latest/windows/compiler/lib/intel64_win
+      ${INTEL_ROOT}/oneAPI/compiler/latest/windows/compiler/lib/intel64_win
       ${INTEL_ROOT}/oneapi/compiler/latest/linux/compiler/lib/intel64_lin
       ${INTEL_ROOT}/oneapi/compiler/latest/mac/compiler/lib
       )
@@ -191,8 +191,8 @@ endif()
 if(WITH_MKL)
   find_path(MKL_ROOT include/mkl.h DOC "Path to MKL root directory" PATHS
     $ENV{MKLROOT}
-    ${INTEL_ROOT}/mkl/latest
     ${INTEL_ROOT}/mkl
+    ${INTEL_ROOT}/oneAPI/mkl/latest
     ${INTEL_ROOT}/oneapi/mkl/latest
     )
 
