@@ -12,17 +12,19 @@ PATH=/opt/python/cp37-cp37m/bin:$PATH
 CUDA_VERSION=10.1.243
 CUDA_PKG_VERSION=10-1-$CUDA_VERSION-1
 CUBLAS_PKG_VERSION=10.2.1.243-1
-curl -o cuda-repo.rpm https://developer.download.nvidia.com/compute/cuda/repos/rhel6/x86_64/cuda-repo-rhel6-$CUDA_VERSION-1.x86_64.rpm
+curl -o cuda-repo.rpm https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-repo-rhel7-$CUDA_VERSION-1.x86_64.rpm
 rpm --install cuda-repo.rpm
 yum clean expire-cache
 yum install --setopt=obsoletes=0 -y cuda-nvcc-$CUDA_PKG_VERSION cuda-cudart-dev-$CUDA_PKG_VERSION libcublas-devel-$CUBLAS_PKG_VERSION libcublas10-$CUBLAS_PKG_VERSION
 ln -s cuda-10.1 /usr/local/cuda
 
-MKL_VERSION=2020.4-912
+ONEAPI_VERSION=2021.1.1
+MKL_BUILD=52
+DNNL_BUILD=55
 yum install -y yum-utils
-yum-config-manager --add-repo https://yum.repos.intel.com/mkl/setup/intel-mkl.repo
-rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS-2019.PUB
-yum install -y intel-mkl-64bit-${MKL_VERSION}
+yum-config-manager --add-repo https://yum.repos.intel.com/oneapi
+rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+yum install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION-$MKL_BUILD intel-oneapi-dnnl-devel-$ONEAPI_VERSION-$DNNL_BUILD
 
 pip install "cmake==3.18.4"
 
