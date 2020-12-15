@@ -28,17 +28,8 @@ yum install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION-$MKL_BUILD intel-oneapi-dn
 
 pip install "cmake==3.18.4"
 
-DNNL_VERSION=1.7
-curl -L -O https://github.com/oneapi-src/oneDNN/archive/v${DNNL_VERSION}.tar.gz
-tar xf *.tar.gz && rm *.tar.gz
-cd oneDNN-*
-mkdir build && cd build
-cmake -DCMAKE_INSTALL_PREFIX=$ROOT_DIR/dnnl -DDNNL_BUILD_EXAMPLES=OFF -DDNNL_BUILD_TESTS=OFF ..
-make -j2 install
-cd $ROOT_DIR
-
 mkdir build-release && cd build-release
-cmake -DCMAKE_BUILD_TYPE=Release -DLIB_ONLY=ON -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP -DCMAKE_PREFIX_PATH=$ROOT_DIR/dnnl -DWITH_CUDA=ON -DCUDA_NVCC_FLAGS="-Xfatbin -compress-all" -DCUDA_ARCH_LIST="Common" ..
+cmake -DCMAKE_BUILD_TYPE=Release -DLIB_ONLY=ON -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP -DWITH_CUDA=ON -DCUDA_NVCC_FLAGS="-Xfatbin -compress-all" -DCUDA_ARCH_LIST="Common" ..
 make -j2 install
 cd ..
 rm -r build-release
