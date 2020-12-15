@@ -32,16 +32,18 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
 
-      - name: Build with MKL
+      - name: Configure with MKL
         if: matrix.backend == 'mkl'
         run: |
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON .
-          make install
 
-      - name: Build with DNNL
+      - name: Configure with DNNL
         if: matrix.backend == 'dnnl'
         run: |
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON -DCMAKE_PREFIX_PATH=$PWD/dnnl .
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
+
+      - name: Build
+        run: |
           make install
 
       - name: Download test data
