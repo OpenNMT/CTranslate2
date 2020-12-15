@@ -30,16 +30,17 @@ jobs:
           sudo apt-key add *.PUB
           sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
           sudo apt-get update
-          sudo apt-get install -y intel-oneapi-mkl-devel intel-oneapi-dnnl-devel
 
       - name: Configure with MKL
         if: matrix.backend == 'mkl'
         run: |
+          sudo apt-get install -y intel-oneapi-mkl-devel
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON .
 
       - name: Configure with DNNL
         if: matrix.backend == 'dnnl'
         run: |
+          sudo apt-get install -y intel-oneapi-dnnl-devel
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
 
       - name: Build
