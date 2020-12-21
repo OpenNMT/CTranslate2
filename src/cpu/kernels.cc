@@ -6,6 +6,9 @@
 #elif defined(__AVX__)
 #  define TARGET_ISA CpuIsa::AVX
 #  include "cpu/vec_avx.h"
+#elif defined(__ARM_NEON)
+#  define TARGET_ISA CpuIsa::NEON
+#  include "cpu/vec_neon.h"
 #else
 #  define TARGET_ISA CpuIsa::GENERIC
 #  include "cpu/vec.h"

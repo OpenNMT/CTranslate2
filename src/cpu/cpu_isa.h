@@ -9,6 +9,7 @@ namespace ctranslate2 {
       GENERIC,
       AVX,
       AVX2,
+      NEON,
     };
 
     std::string isa_to_str(CpuIsa isa);
@@ -39,6 +40,7 @@ namespace ctranslate2 {
   switch (cpu::get_cpu_isa()) {                               \
     CPU_ISA_CASE(cpu::CpuIsa::AVX2, SINGLE_ARG(STMTS))        \
     CPU_ISA_CASE(cpu::CpuIsa::AVX, SINGLE_ARG(STMTS))         \
+    CPU_ISA_CASE(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))         \
     CPU_ISA_DEFAULT(cpu::CpuIsa::GENERIC, SINGLE_ARG(STMTS))  \
   }
 #elif defined(__AVX2__)
@@ -50,6 +52,11 @@ namespace ctranslate2 {
 #  define CPU_ISA_DISPATCH(STMTS)                             \
   switch (cpu::get_cpu_isa()) {                               \
     CPU_ISA_DEFAULT(cpu::CpuIsa::AVX, SINGLE_ARG(STMTS))      \
+  }
+#elif defined(__ARM_NEON)
+#  define CPU_ISA_DISPATCH(STMTS)                             \
+  switch (cpu::get_cpu_isa()) {                               \
+    CPU_ISA_DEFAULT(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))      \
   }
 #else
 #  define CPU_ISA_DISPATCH(STMTS)                             \

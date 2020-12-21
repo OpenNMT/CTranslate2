@@ -624,6 +624,7 @@ namespace ctranslate2 {
                     b, ldb,
                     beta,
                     c, ldc);
+        break;
     }
 #endif
     default:
