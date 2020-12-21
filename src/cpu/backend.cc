@@ -51,6 +51,8 @@ namespace ctranslate2 {
         return "MKL";
       case GemmBackend::DNNL:
         return "DNNL";
+      case GemmBackend::ACCELERATE:
+        return "ACCELERATE";
       default:
         return "NONE";
       }
@@ -68,6 +70,13 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_MKL
       if (compute_type == ComputeType::FLOAT || mkl_has_fast_int_gemm()) {
         return GemmBackend::MKL;
+      }
+#endif
+#ifdef CT2_WITH_ACCELERATE
+      if (compute_type == ComputeType::FLOAT) {
+        return GemmBackend::ACCELERATE;
+      } else {
+        return GemmBackend::NONE;
       }
 #endif
 

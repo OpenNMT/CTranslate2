@@ -13,6 +13,10 @@
 #  include <dnnl.h>
 #endif
 
+#ifdef CT2_WITH_ACCELERATE
+#  include <Accelerate/Accelerate.h>
+#endif
+
 #include "ctranslate2/utils.h"
 #include "cpu/backend.h"
 #include "cpu/kernels.h"
@@ -607,6 +611,21 @@ namespace ctranslate2 {
     }
 #endif
 
+#ifdef CT2_WITH_ACCELERATE
+    case cpu::GemmBackend::ACCELERATE: {
+      CBLAS_TRANSPOSE trans_a = transpose_a ? CblasTrans : CblasNoTrans;
+      CBLAS_TRANSPOSE trans_b = transpose_b ? CblasTrans : CblasNoTrans;
+
+        cblas_sgemm(CblasRowMajor,
+                    trans_a, trans_b,
+                    m, n, k,
+                    alpha,
+                    a, lda,
+                    b, ldb,
+                    beta,
+                    c, ldc);
+    }
+#endif
     default:
       throw std::runtime_error("No SGEMM backend on CPU");
     }
