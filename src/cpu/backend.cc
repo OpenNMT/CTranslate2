@@ -52,7 +52,9 @@ namespace ctranslate2 {
       case GemmBackend::DNNL:
         return "DNNL";
       case GemmBackend::ACCELERATE:
-        return "ACCELERATE";
+        return "Accelerate";
+      case GemmBackend::OPENBLAS:
+        return "OpenBLAS";
       default:
         return "NONE";
       }
@@ -75,6 +77,13 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_ACCELERATE
       if (compute_type == ComputeType::FLOAT) {
         return GemmBackend::ACCELERATE;
+      } else {
+        return GemmBackend::NONE;
+      }
+#endif
+#ifdef CT2_WITH_OPENBLAS
+      if (compute_type == ComputeType::FLOAT) {
+        return GemmBackend::OPENBLAS;
       } else {
         return GemmBackend::NONE;
       }
