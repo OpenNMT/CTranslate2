@@ -6,7 +6,7 @@
 #elif defined(__AVX__)
 #  define TARGET_ISA CpuIsa::AVX
 #  include "cpu/vec_avx.h"
-#elif defined(__ARM_NEON)
+#elif (defined(__ARM_NEON) && !defined(CT2_WITH_CPU_DISPATCH)) || defined(USE_NEON)
 #  define TARGET_ISA CpuIsa::NEON
 #  include "cpu/vec_neon.h"
 #else

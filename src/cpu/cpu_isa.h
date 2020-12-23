@@ -36,13 +36,20 @@ namespace ctranslate2 {
 
 #define SINGLE_ARG(...) __VA_ARGS__
 #ifdef CT2_WITH_CPU_DISPATCH
+#if defined(__x86_64__)
 #  define CPU_ISA_DISPATCH(STMTS)                             \
   switch (cpu::get_cpu_isa()) {                               \
     CPU_ISA_CASE(cpu::CpuIsa::AVX2, SINGLE_ARG(STMTS))        \
     CPU_ISA_CASE(cpu::CpuIsa::AVX, SINGLE_ARG(STMTS))         \
-    CPU_ISA_CASE(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))         \
     CPU_ISA_DEFAULT(cpu::CpuIsa::GENERIC, SINGLE_ARG(STMTS))  \
   }
+#elif defined(__aarch64__)
+#  define CPU_ISA_DISPATCH(STMTS)                             \
+  switch (cpu::get_cpu_isa()) {                               \
+    CPU_ISA_CASE(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))        \
+    CPU_ISA_DEFAULT(cpu::CpuIsa::GENERIC, SINGLE_ARG(STMTS))  \
+  }
+#endif
 #elif defined(__AVX2__)
 #  define CPU_ISA_DISPATCH(STMTS)                             \
   switch (cpu::get_cpu_isa()) {                               \
@@ -56,7 +63,7 @@ namespace ctranslate2 {
 #elif defined(__ARM_NEON)
 #  define CPU_ISA_DISPATCH(STMTS)                             \
   switch (cpu::get_cpu_isa()) {                               \
-    CPU_ISA_DEFAULT(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))      \
+    CPU_ISA_DEFAULT(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))     \
   }
 #else
 #  define CPU_ISA_DISPATCH(STMTS)                             \

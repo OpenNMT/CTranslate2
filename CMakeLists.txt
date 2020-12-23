@@ -136,21 +136,27 @@ macro(ct2_compile_kernels_for_isa isa flag)
     src/cpu/kernels.cc
     ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc
     COPYONLY)
-  set_source_files_properties(
-    ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc
-    PROPERTIES COMPILE_FLAGS ${flag})
+  if(NOT flag STREQUAL "")
+    set_source_files_properties(
+      ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc
+      PROPERTIES COMPILE_FLAGS ${flag})
+  endif()
   list(APPEND SOURCES ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc)
 endmacro()
 
 if(ENABLE_CPU_DISPATCH)
   message(STATUS "Compiling for multiple CPU ISA and enabling runtime dispatch")
   add_definitions(-DCT2_WITH_CPU_DISPATCH)
-  if(WIN32)
-    ct2_compile_kernels_for_isa(avx "/arch:AVX")
-    ct2_compile_kernels_for_isa(avx2 "/arch:AVX2")
-  else()
-    ct2_compile_kernels_for_isa(avx "-mavx")
-    ct2_compile_kernels_for_isa(avx2 "-mavx2")
+  if (CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(amd64)")
+    if(WIN32)
+      ct2_compile_kernels_for_isa(avx "/arch:AVX")
+      ct2_compile_kernels_for_isa(avx2 "/arch:AVX2")
+    else()
+      ct2_compile_kernels_for_isa(avx "-mavx")
+      ct2_compile_kernels_for_isa(avx2 "-mavx2")
+    endif()
+  elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm64)|(aarch64)")
+    ct2_compile_kernels_for_isa(neon "-DUSE_NEON")
   endif()
 endif()
 
