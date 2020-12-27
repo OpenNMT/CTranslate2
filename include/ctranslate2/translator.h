@@ -125,10 +125,9 @@ namespace ctranslate2 {
                           const TranslationOptions& options);
 
     void
-    replace_unknown(const std::vector<std::vector<std::string>>& source,
-                    std::vector<std::vector<std::string>>& hypotheses,
-                    const std::vector<std::vector<std::vector<float>>>& attention);
-
+    replace_unknowns(const std::vector<std::vector<std::string>>& source,
+                     std::vector<std::vector<std::string>>& hypotheses,
+                     const std::vector<std::vector<std::vector<float>>>& attention);
 
     std::shared_ptr<const models::Model> _model;
     std::unique_ptr<layers::Encoder> _encoder;

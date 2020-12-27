@@ -130,25 +130,18 @@ namespace ctranslate2 {
   }
 
   void
-  Translator::replace_unknown(const std::vector<std::vector<std::string>>& source,
-                              std::vector<std::vector<std::string>>& hypotheses,
-                              const std::vector<std::vector<std::vector<float>>>& attention) {
+  Translator::replace_unknowns(const std::vector<std::vector<std::string>>& source,
+                               std::vector<std::vector<std::string>>& hypotheses,
+                               const std::vector<std::vector<std::vector<float>>>& attention) {
       for (size_t h = 0; h < hypotheses.size(); ++h) {
         for (size_t t = 0; t < hypotheses[h].size(); ++t) {
           if (hypotheses[h][t] == Vocabulary::unk_token) {
             const std::vector<float> attention_values = attention[h][t];
 
-            float highest = 0;
-            int pos = 0;
-            for (size_t a = 0; a < attention_values.size(); ++a) {
-                float attention = attention_values[a];
-                if (attention > highest) {
-                    highest = attention;
-                    pos = a;
-                }
-            }
+            int pos = std::distance(attention_values.begin(),std::max_element(attention_values.begin(),
+                                attention_values.end()));
 
-            std::string source_token = source[0][pos];
+            std::string source_token = source[h][pos];
             hypotheses[h][t] = source_token;
           }
         }
@@ -240,7 +233,7 @@ namespace ctranslate2 {
   
       if (result.has_attention() && options.replace_unknowns) {
           auto attention_values = results[i].attention();
-          replace_unknown(source, hypotheses, attention_values);
+          replace_unknowns(source, hypotheses, attention_values);
 
           if (!options.return_attention) {
             std::vector<std::vector<std::vector<float>>> empty_attention;
