@@ -58,6 +58,9 @@ namespace ctranslate2 {
     // translation.
     bool return_alternatives = false;
 
+    // Replace unknown target tokens by the original source token with the highest attention.
+    bool replace_unknowns = false;
+
     void validate() const;
 
   private:
@@ -120,6 +123,12 @@ namespace ctranslate2 {
     run_batch_translation(const std::vector<std::vector<std::string>>& source,
                           const std::vector<std::vector<std::string>>& target_prefix,
                           const TranslationOptions& options);
+
+    void
+    replace_unknown(const std::vector<std::vector<std::string>>& source,
+                    std::vector<std::vector<std::string>>& hypotheses,
+                    const std::vector<std::vector<std::vector<float>>>& attention);
+
 
     std::shared_ptr<const models::Model> _model;
     std::unique_ptr<layers::Encoder> _encoder;

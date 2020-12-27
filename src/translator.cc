@@ -129,6 +129,32 @@ namespace ctranslate2 {
     return results;
   }
 
+  void
+  Translator::replace_unknown(const std::vector<std::vector<std::string>>& source,
+                              std::vector<std::vector<std::string>>& hypotheses,
+                              const std::vector<std::vector<std::vector<float>>>& attention) {
+      for (size_t h = 0; h < hypotheses.size(); ++h) {
+        for (size_t t = 0; t < hypotheses[h].size(); ++t) {
+          if (hypotheses[h][t] == Vocabulary::unk_token) {
+            const std::vector<float> attention_values = attention[h][t];
+
+            float highest = 0;
+            int pos = 0;
+            for (size_t a = 0; a < attention_values.size(); ++a) {
+                float attention = attention_values[a];
+                if (attention > highest) {
+                    highest = attention;
+                    pos = a;
+                }
+            }
+
+            std::string source_token = source[0][pos];
+            hypotheses[h][t] = source_token;
+          }
+        }
+      }
+    }
+
   std::vector<TranslationResult>
   Translator::run_batch_translation(const std::vector<std::vector<std::string>>& source,
                                     const std::vector<std::vector<std::string>>& target_prefix,
@@ -210,6 +236,12 @@ namespace ctranslate2 {
     final_results.reserve(results.size());
     for (size_t i = 0; i < batch_size; ++i) {
       GenerationResult<size_t>& result = results[i];
+      std::vector<std::vector<std::string>> hypotheses = target_vocabulary.to_tokens(result.hypotheses());
+
+      if (result.has_attention() && options.replace_unknowns) {
+          auto attention_values = results[i].attention();
+          replace_unknown(source, hypotheses, attention_values);
+      }
 
       // Remove padding in attention vectors.
       if (result.has_attention()) {
@@ -223,7 +255,8 @@ namespace ctranslate2 {
         result.set_attention(std::move(all_attention));
       }
 
-      final_results.emplace_back(target_vocabulary.to_tokens(result.hypotheses()),
+
+      final_results.emplace_back(hypotheses,
                                  result.scores(),
                                  result.attention());
     }
