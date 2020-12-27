@@ -63,7 +63,8 @@ output = translator.translate_batch(
     return_attention: bool = False,    # Include the attention vectors in the output.
     return_alternatives: bool = False, # Return alternatives at the first unconstrained decoding position.
     sampling_topk: int = 1,            # Randomly sample predictions from the top K candidates (with beam_size=1).
-    sampling_temperature: float = 1)   # Sampling temperature to generate more random samples.
+    sampling_temperature: float = 1,   # Sampling temperature to generate more random samples.
+    replace_unknowns: false)           # Replace unknown target tokens by the original source token with the highest attention.
 
 # stats is a tuple of file statistics containing in order:
 # 1. the number of generated target tokens
