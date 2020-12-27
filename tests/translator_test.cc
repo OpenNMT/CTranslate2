@@ -193,7 +193,6 @@ TEST_P(SearchVariantTest, TranslateBatch) {
 
 TEST_P(SearchVariantTest, ReplaceUnknowns) {
   const auto beam_size = GetParam();
-  printf("Size: %d\n", beam_size);
   Translator translator = default_translator();
   TranslationOptions options;
   options.beam_size = beam_size;
