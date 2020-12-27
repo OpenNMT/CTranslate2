@@ -207,7 +207,8 @@ public:
                            bool return_attention,
                            bool return_alternatives,
                            size_t sampling_topk,
-                           float sampling_temperature) {
+                           float sampling_temperature,
+                           bool replace_unknowns) {
     if (source.empty())
       return py::list();
 
@@ -233,6 +234,7 @@ public:
       options.return_scores = return_scores;
       options.return_attention = return_attention;
       options.return_alternatives = return_alternatives;
+      options.replace_unknowns = replace_unknowns;
 
       results = _translator_pool.translate_batch(source,
                                                  finalize_optional_batch(target_prefix),
@@ -361,7 +363,8 @@ PYBIND11_MODULE(translator, m)
          py::arg("return_attention")=false,
          py::arg("return_alternatives")=false,
          py::arg("sampling_topk")=1,
-         py::arg("sampling_temperature")=1)
+         py::arg("sampling_temperature")=1,
+         py::arg("replace_unknowns")=false)
     .def("translate_file", &TranslatorWrapper::translate_file,
          py::arg("input_path"),
          py::arg("output_path"),

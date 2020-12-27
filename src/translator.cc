@@ -229,7 +229,7 @@ namespace ctranslate2 {
       options.num_hypotheses,
       options.return_alternatives,
       options.return_scores,
-      options.return_attention);
+      options.return_attention || options.replace_unknowns);
 
     // Convert generated ids to tokens.
     std::vector<TranslationResult> final_results;
@@ -237,10 +237,15 @@ namespace ctranslate2 {
     for (size_t i = 0; i < batch_size; ++i) {
       GenerationResult<size_t>& result = results[i];
       std::vector<std::vector<std::string>> hypotheses = target_vocabulary.to_tokens(result.hypotheses());
-
+  
       if (result.has_attention() && options.replace_unknowns) {
           auto attention_values = results[i].attention();
           replace_unknown(source, hypotheses, attention_values);
+
+          if (!options.return_attention) {
+            std::vector<std::vector<std::vector<float>>> empty_attention;
+            result.set_attention(empty_attention);
+          }
       }
 
       // Remove padding in attention vectors.
