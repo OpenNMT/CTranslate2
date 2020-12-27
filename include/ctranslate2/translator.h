@@ -125,7 +125,7 @@ namespace ctranslate2 {
                           const TranslationOptions& options);
 
     void
-    replace_unknowns(const std::vector<std::vector<std::string>>& source,
+    replace_unknowns(const std::vector<std::string>& source,
                      std::vector<std::vector<std::string>>& hypotheses,
                      const std::vector<std::vector<std::vector<float>>>& attention);
 
