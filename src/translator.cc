@@ -140,8 +140,7 @@ namespace ctranslate2 {
             const size_t pos = std::distance(attention_values.begin(),
                                              std::max_element(attention_values.begin(), attention_values.end()));
 
-            std::string source_token = source[pos];
-            hypotheses[h][t] = source_token;
+            hypotheses[h][t] = source[pos];
           }
         }
       }
