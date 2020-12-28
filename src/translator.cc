@@ -230,7 +230,7 @@ namespace ctranslate2 {
       std::vector<std::vector<std::string>> hypotheses = target_vocabulary.to_tokens(result.hypotheses());
   
       if (result.has_attention() && options.replace_unknowns) {
-          auto attention_values = results[i].attention();
+          const auto& attention_values = results[i].attention();
           replace_unknowns(source[i], hypotheses, attention_values);
 
           if (!options.return_attention) {
