@@ -62,7 +62,7 @@ int main(int argc, char* argv[]) {
     ("device", "Device to use (can be cpu, cuda, auto).",
      cxxopts::value<std::string>()->default_value("cpu"))
     ("device_index", "Index of the device to use.",
-     cxxopts::value<int>()->default_value("0")),
+     cxxopts::value<int>()->default_value("0"))
     ("replace_unknowns", "Replace unknown target tokens by the original source token with the highest attention.",
      cxxopts::value<bool>()->default_value("false"))
     ;
