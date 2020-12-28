@@ -109,6 +109,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/usr/aarch64-linux-gnu \
             -DDNNL_TARGET_ARCH="AARCH64" \
             -DDNNL_CPU_RUNTIME=OMP \
+            -DDNNL_BUILD_TESTS=OFF \
             .
           make -j $(nproc)
           sudo make install
