@@ -620,15 +620,15 @@ namespace ctranslate2 {
       CBLAS_TRANSPOSE trans_a = transpose_a ? CblasTrans : CblasNoTrans;
       CBLAS_TRANSPOSE trans_b = transpose_b ? CblasTrans : CblasNoTrans;
 
-        cblas_sgemm(CblasRowMajor,
-                    trans_a, trans_b,
-                    m, n, k,
-                    alpha,
-                    a, lda,
-                    b, ldb,
-                    beta,
-                    c, ldc);
-        break;
+      cblas_sgemm(CblasRowMajor,
+                  trans_a, trans_b,
+                  m, n, k,
+                  alpha,
+                  a, lda,
+                  b, ldb,
+                  beta,
+                  c, ldc);
+      break;
     }
 #endif
 
@@ -637,15 +637,15 @@ namespace ctranslate2 {
       CBLAS_TRANSPOSE trans_a = transpose_a ? CblasTrans : CblasNoTrans;
       CBLAS_TRANSPOSE trans_b = transpose_b ? CblasTrans : CblasNoTrans;
 
-        cblas_sgemm(CblasRowMajor,
-                    trans_a, trans_b,
-                    m, n, k,
-                    alpha,
-                    a, lda,
-                    b, ldb,
-                    beta,
-                    c, ldc);
-        break;
+      cblas_sgemm(CblasRowMajor,
+                  trans_a, trans_b,
+                  m, n, k,
+                  alpha,
+                  a, lda,
+                  b, ldb,
+                  beta,
+                  c, ldc);
+      break;
     }
 #endif
 
