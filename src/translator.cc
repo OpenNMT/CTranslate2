@@ -230,13 +230,13 @@ namespace ctranslate2 {
       std::vector<std::vector<std::string>> hypotheses = target_vocabulary.to_tokens(result.hypotheses());
   
       if (result.has_attention() && options.replace_unknowns) {
-          const auto& attention_values = results[i].attention();
-          replace_unknowns(source[i], hypotheses, attention_values);
+        const auto& attention_values = results[i].attention();
+        replace_unknowns(source[i], hypotheses, attention_values);
 
-          if (!options.return_attention) {
-            std::vector<std::vector<std::vector<float>>> empty_attention;
-            result.set_attention(empty_attention);
-          }
+        if (!options.return_attention) {
+          std::vector<std::vector<std::vector<float>>> empty_attention;
+          result.set_attention(empty_attention);
+        }
       }
 
       // Remove padding in attention vectors.
