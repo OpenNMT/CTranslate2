@@ -131,8 +131,8 @@ namespace ctranslate2 {
 
   static void
   replace_unknowns(const std::vector<std::string>& source,
-                               std::vector<std::vector<std::string>>& hypotheses,
-                               const std::vector<std::vector<std::vector<float>>>& attention) {
+                   std::vector<std::vector<std::string>>& hypotheses,
+                   const std::vector<std::vector<std::vector<float>>>& attention) {
       for (size_t h = 0; h < hypotheses.size(); ++h) {
         for (size_t t = 0; t < hypotheses[h].size(); ++t) {
           if (hypotheses[h][t] == Vocabulary::unk_token) {
