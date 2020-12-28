@@ -136,11 +136,9 @@ macro(ct2_compile_kernels_for_isa isa flag)
     src/cpu/kernels.cc
     ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc
     COPYONLY)
-  if(NOT flag STREQUAL "")
-    set_source_files_properties(
-      ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc
-      PROPERTIES COMPILE_FLAGS ${flag})
-  endif()
+  set_source_files_properties(
+    ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc
+    PROPERTIES COMPILE_FLAGS ${flag})
   list(APPEND SOURCES ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc)
 endmacro()
 
