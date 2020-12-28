@@ -136,7 +136,7 @@ namespace ctranslate2 {
       for (size_t h = 0; h < hypotheses.size(); ++h) {
         for (size_t t = 0; t < hypotheses[h].size(); ++t) {
           if (hypotheses[h][t] == Vocabulary::unk_token) {
-            const std::vector<float> attention_values = attention[h][t];
+            const std::vector<float>& attention_values = attention[h][t];
             int pos = std::distance(attention_values.begin(),std::max_element(attention_values.begin(),
                                 attention_values.end()));
 
