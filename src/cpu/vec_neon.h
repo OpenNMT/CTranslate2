@@ -6,9 +6,9 @@
 #include "vec.h"
 
 #if defined(__GNUC__) || defined(__clang__)
-#  define __ct2_align32__ __attribute__((aligned(16)))
+#  define __ct2_align16__ __attribute__((aligned(16)))
 #else
-#  define __ct2_align32__
+#  define __ct2_align16__
 #endif
 
 namespace ctranslate2 {
@@ -28,7 +28,7 @@ namespace ctranslate2 {
         if (count == width) {
           return vld1q_f32(ptr);
         } else {
-          __ct2_align32__ float tmp_values[width];
+          __ct2_align16__ float tmp_values[width];
           std::fill(tmp_values, tmp_values + width, default_value);
           std::copy(ptr, ptr + count, tmp_values);
           return vld1q_f32(tmp_values);
@@ -39,7 +39,7 @@ namespace ctranslate2 {
         if (count == width) {
           vst1q_f32(ptr, value);
         } else {
-          __ct2_align32__ float tmp_values[width];
+          __ct2_align16__ float tmp_values[width];
           vst1q_f32(tmp_values, value);
           std::copy(tmp_values, tmp_values + count, ptr);
         }
