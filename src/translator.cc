@@ -129,8 +129,8 @@ namespace ctranslate2 {
     return results;
   }
 
-  void
-  Translator::replace_unknowns(const std::vector<std::string>& source,
+  static void
+  replace_unknowns(const std::vector<std::string>& source,
                                std::vector<std::vector<std::string>>& hypotheses,
                                const std::vector<std::vector<std::vector<float>>>& attention) {
       for (size_t h = 0; h < hypotheses.size(); ++h) {
