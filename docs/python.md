@@ -90,6 +90,7 @@ stats = translator.translate_file(
     detokenize_fn: callable = None, # Function with signature: list of strings -> string
     target_path: str = "",          # Target prefix file.
     target_tokenize_fn: callable = None,  # Same as tokenize_fn but for the target.
+    replace_unknowns: bool = False,  # Replace unknown target tokens by the source token with the highest attention.
 )
 ```
 
