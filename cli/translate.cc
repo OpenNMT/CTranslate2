@@ -62,7 +62,9 @@ int main(int argc, char* argv[]) {
     ("device", "Device to use (can be cpu, cuda, auto).",
      cxxopts::value<std::string>()->default_value("cpu"))
     ("device_index", "Index of the device to use.",
-     cxxopts::value<int>()->default_value("0"))
+     cxxopts::value<int>()->default_value("0")),
+    ("replace_unknowns", "Replace unknown target tokens by the original source token with the highest attention.",
+     cxxopts::value<bool>()->default_value("false"))
     ;
 
   auto args = cmd_options.parse(argc, argv);
@@ -115,6 +117,7 @@ int main(int argc, char* argv[]) {
   options.num_hypotheses = args["n_best"].as<size_t>();
   options.use_vmap = args["use_vmap"].as<bool>();
   options.return_scores = args["with_score"].as<bool>();
+  options.replace_unknowns = args["replace_unknowns"].as<bool>();
 
   std::istream* source = &std::cin;
   std::istream* target = nullptr;
