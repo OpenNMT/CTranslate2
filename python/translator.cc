@@ -387,7 +387,7 @@ PYBIND11_MODULE(translator, m)
          py::arg("detokenize_fn")=nullptr,
          py::arg("target_path")="",
          py::arg("target_tokenize_fn")=nullptr,
-         py::arg("replace_unknowns")=false),
+         py::arg("replace_unknowns")=false)
     .def("unload_model", &TranslatorWrapper::unload_model,
          py::arg("to_cpu")=false)
     .def("load_model", &TranslatorWrapper::load_model)
