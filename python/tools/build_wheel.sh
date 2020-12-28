@@ -15,10 +15,10 @@ CUBLAS_PKG_VERSION=10.2.1.243-1
 curl -o cuda-repo.rpm https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-repo-rhel7-$CUDA_VERSION-1.x86_64.rpm
 rpm --install cuda-repo.rpm
 yum clean expire-cache
-yum install --setopt=obsoletes=0 -y devtoolset-8 cuda-nvcc-$CUDA_PKG_VERSION cuda-cudart-dev-$CUDA_PKG_VERSION libcublas-devel-$CUBLAS_PKG_VERSION libcublas10-$CUBLAS_PKG_VERSION
+yum install --setopt=obsoletes=0 -y cuda-nvcc-$CUDA_PKG_VERSION cuda-cudart-dev-$CUDA_PKG_VERSION libcublas-devel-$CUBLAS_PKG_VERSION libcublas10-$CUBLAS_PKG_VERSION
 ln -s cuda-10.1 /usr/local/cuda
 
-# Maximum GCC version supported by CUDA is GCC 8.
+# Maximum GCC version supported by CUDA 10.1 is GCC 8.
 yum install -y devtoolset-8
 source /opt/rh/devtoolset-8/enable
 
