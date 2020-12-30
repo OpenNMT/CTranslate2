@@ -271,7 +271,23 @@ namespace ctranslate2 {
       virtual void run(Translator& translator) = 0;
     };
 
-    class TranslationJob : public Job {
+    template <typename ResultType>
+    class BaseJob : public Job {
+    public:
+      std::future<ResultType> get_future() {
+        return _promise.get_future();
+      }
+
+      void run(Translator& translator) override;
+
+    protected:
+      virtual ResultType compute(Translator& translator) const = 0;
+
+    private:
+      std::promise<ResultType> _promise;
+    };
+
+    class TranslationJob : public BaseJob<TranslationOutput> {
     public:
       TranslationJob(TranslationInput source,
                      TranslationInput target_prefix,
@@ -281,17 +297,13 @@ namespace ctranslate2 {
         , _options(std::move(options)) {
       }
 
-      std::future<TranslationOutput> get_future() {
-        return _promise.get_future();
-      }
-
-      void run(Translator& translator) override;
+    protected:
+      TranslationOutput compute(Translator& translator) const override;
 
     private:
       TranslationInput _source;
       TranslationInput _target_prefix;
       TranslationOptions _options;
-      std::promise<TranslationOutput> _promise;
     };
 
     void create_translators(const std::shared_ptr<const models::Model>& model,

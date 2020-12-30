@@ -152,11 +152,10 @@ namespace ctranslate2 {
     }
   }
 
-  void TranslatorPool::TranslationJob::run(Translator& translator) {
+  template <typename OutputType>
+  void TranslatorPool::BaseJob<OutputType>::run(Translator& translator) {
     try {
-      _promise.set_value(translator.translate_batch_with_prefix(_source,
-                                                                _target_prefix,
-                                                                _options));
+      _promise.set_value(compute(translator));
     } catch (...) {
       try {
         // Store the exception in the shared state so that future.get() will throw it.
@@ -165,6 +164,10 @@ namespace ctranslate2 {
         // set_exception may throw too.
       }
     }
+  }
+
+  TranslationOutput TranslatorPool::TranslationJob::compute(Translator& translator) const {
+    return translator.translate_batch_with_prefix(_source, _target_prefix, _options);
   }
 
   void TranslatorPool::open_input_file(const std::string& file, std::ifstream& stream) const {
