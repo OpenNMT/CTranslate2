@@ -265,17 +265,33 @@ namespace ctranslate2 {
     const std::vector<Translator>& get_translators() const;
 
   private:
-    struct TranslationJob {
-      TranslationJob(TranslationInput source_,
-                     TranslationInput target_prefix_,
-                     TranslationOptions options_)
-        : source(source_)
-        , target_prefix(target_prefix_)
-        , options(options_) {
+    class Job {
+    public:
+      virtual ~Job() = default;
+      virtual void run(Translator& translator) = 0;
+    };
+
+    class TranslationJob : public Job {
+    public:
+      TranslationJob(TranslationInput source,
+                     TranslationInput target_prefix,
+                     TranslationOptions options)
+        : _source(std::move(source))
+        , _target_prefix(std::move(target_prefix))
+        , _options(std::move(options)) {
       }
-      const TranslationInput source;
-      const TranslationInput target_prefix;
-      const TranslationOptions options;
+
+      std::future<TranslationOutput> get_future() {
+        return _promise.get_future();
+      }
+
+      void run(Translator& translator) override;
+
+    private:
+      TranslationInput _source;
+      TranslationInput _target_prefix;
+      TranslationOptions _options;
+      std::promise<TranslationOutput> _promise;
     };
 
     void create_translators(const std::shared_ptr<const models::Model>& model,
@@ -287,7 +303,7 @@ namespace ctranslate2 {
     void open_output_file(const std::string& file, std::ofstream& stream) const;
 
     std::condition_variable _can_add_more_work;
-    std::queue<std::pair<const TranslationJob, std::promise<TranslationOutput>>> _work;
+    std::queue<std::unique_ptr<Job>> _work;
     std::vector<std::thread> _workers;
     std::vector<Translator> _translators;
     std::mutex _mutex;
