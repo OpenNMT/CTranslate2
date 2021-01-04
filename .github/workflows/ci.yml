@@ -161,7 +161,7 @@ jobs:
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_BEFORE_TEST: python/tools/prepare_test_environment.sh
-          CIBW_TEST_COMMAND: {project}/python/tools/run_test.sh {project}
+          CIBW_TEST_COMMAND: '{project}/python/tools/run_test.sh {project}'
           CIBW_SKIP: cp27-* pp* *i686
 
       - name: Upload Python wheels
