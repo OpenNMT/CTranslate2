@@ -152,10 +152,15 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up Python 3.6
+        uses: actions/setup-python@v2
+        with:
+          python-version: 3.6
+
       - name: Build wheels
         run: |
-          python3 -m pip install cibuildwheel==1.7.4
-          python3 -m cibuildwheel python --output-dir python/wheelhouse
+          python -m pip install cibuildwheel==1.7.4
+          python -m cibuildwheel python --output-dir python/wheelhouse
         env:
           CIBW_BEFORE_ALL: python/tools/prepare_build_environment.sh
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
