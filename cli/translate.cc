@@ -65,6 +65,10 @@ int main(int argc, char* argv[]) {
      cxxopts::value<int>()->default_value("0"))
     ("replace_unknowns", "Replace unknown target tokens by the original source token with the highest attention.",
      cxxopts::value<bool>()->default_value("false"))
+    ("add_source_bos", "Prepend BOS token to the source sequences.",
+     cxxopts::value<bool>()->default_value("false"))
+    ("add_source_eos", "Append EOS token to the source sequences.",
+     cxxopts::value<bool>()->default_value("false"))
     ;
 
   auto args = cmd_options.parse(argc, argv);
@@ -118,6 +122,8 @@ int main(int argc, char* argv[]) {
   options.use_vmap = args["use_vmap"].as<bool>();
   options.return_scores = args["with_score"].as<bool>();
   options.replace_unknowns = args["replace_unknowns"].as<bool>();
+  options.add_source_bos = args["add_source_bos"].as<bool>();
+  options.add_source_eos = args["add_source_eos"].as<bool>();
 
   std::istream* source = &std::cin;
   std::istream* target = nullptr;
