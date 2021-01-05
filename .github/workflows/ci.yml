@@ -44,6 +44,10 @@ jobs:
           wget -q $ONEAPI_INSTALLER_URL
           hdiutil attach -noverify -noautofsck $(basename $ONEAPI_INSTALLER_URL)
 
+      - name: Install libomp
+        if: startsWith(matrix.os, 'macos')
+        run: brew install libomp
+
       - name: Configure with MKL
         if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
         run: |
@@ -60,14 +64,14 @@ jobs:
         if: startsWith(matrix.os, 'macos') && matrix.backend == 'mkl'
         run: |
           sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.mkl.devel
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON .
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument" .
 
       - name: Configure with DNNL
         if: startsWith(matrix.os, 'macos') && matrix.backend == 'dnnl'
         run: |
           sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.dnnl
           sudo install_name_tool -id @rpath/libdnnl.2.dylib /opt/intel/oneapi/dnnl/latest/cpu_iomp/lib/libdnnl.2.0.dylib
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON -DWITH_MKL=OFF -DWITH_DNNL=ON .
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DWITH_TESTS=ON -DWITH_MKL=OFF -DWITH_DNNL=ON -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument" .
 
       - name: Build
         run: |
