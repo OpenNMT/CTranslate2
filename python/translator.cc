@@ -376,8 +376,7 @@ PYBIND11_MODULE(translator, m)
          py::arg("sampling_temperature")=1,
          py::arg("replace_unknowns")=false,
          py::arg("add_source_bos")=false,
-         py::arg("add_source_eos")=false,
-      )
+         py::arg("add_source_eos")=false)
     .def("translate_file", &TranslatorWrapper::translate_file,
          py::arg("input_path"),
          py::arg("output_path"),
@@ -400,8 +399,7 @@ PYBIND11_MODULE(translator, m)
          py::arg("target_tokenize_fn")=nullptr,
          py::arg("replace_unknowns")=false,
          py::arg("add_source_bos")=false,
-         py::arg("add_source_eos")=false,
-      )
+         py::arg("add_source_eos")=false)
     .def("unload_model", &TranslatorWrapper::unload_model,
          py::arg("to_cpu")=false)
     .def("load_model", &TranslatorWrapper::load_model)
