@@ -146,8 +146,8 @@ namespace ctranslate2 {
     const auto& source_vocabulary = _seq2seq_model->get_source_vocabulary();
     const auto& target_vocabulary = _seq2seq_model->get_target_vocabulary();
     const auto source_ids = source_vocabulary.to_ids(source,
-                                                     options.add_source_bos,
-                                                     options.add_source_eos);
+                                                     _seq2seq_model->with_source_bos(),
+                                                     _seq2seq_model->with_source_eos());
     const auto target_prefix_ids = target_vocabulary.to_ids(target_prefix);
 
     const Device device = _model->device();
@@ -222,7 +222,7 @@ namespace ctranslate2 {
 
       if (result.has_attention()) {
         // Remove padding and special tokens in attention vectors.
-        const size_t offset = size_t(options.add_source_bos);
+        const size_t offset = size_t(_seq2seq_model->with_source_bos());
         const size_t length = source[i].size();
 
         auto all_attention = result.attention();

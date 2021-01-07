@@ -409,17 +409,3 @@ TEST(TranslatorTest, IgnoreScore) {
   EXPECT_FALSE(result.has_scores());
   EXPECT_EQ(result.output(), (std::vector<std::string>{"a", "t", "z", "m", "o", "n"}));
 }
-
-TEST(TranslatorTest, SourceBosAndEos) {
-  Translator translator = default_translator();
-  TranslationOptions options;
-  options.beam_size = 1;
-  options.add_source_bos = true;
-  options.add_source_eos = true;
-  options.return_attention = true;
-  std::vector<std::string> input = {"ب"};
-  auto result = translator.translate(input, options);
-  ASSERT_TRUE(result.has_attention());
-  // Attention for special tokens BOS and EOS should not be returned.
-  EXPECT_EQ(result.attention()[0][0].size(), 1);
-}

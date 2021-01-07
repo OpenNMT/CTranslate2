@@ -124,9 +124,7 @@ public:
                            const DetokenizeFn& detokenize_fn,
                            const std::string& target_path,
                            const TokenizeFn& target_tokenize_fn,
-                           bool replace_unknowns,
-                           bool add_source_bos,
-                           bool add_source_eos) {
+                           bool replace_unknowns) {
     if (bool(tokenize_fn) != bool(detokenize_fn))
       throw std::invalid_argument("tokenize_fn and detokenize_fn should both be set or none at all");
     const std::string* target_path_ptr = target_path.empty() ? nullptr : &target_path;
@@ -153,8 +151,6 @@ public:
       options.use_vmap = use_vmap;
       options.return_scores = with_scores;
       options.replace_unknowns = replace_unknowns;
-      options.add_source_bos = add_source_bos;
-      options.add_source_eos = add_source_eos;
 
       if (read_batch_size == 0)
         read_batch_size = max_batch_size;
@@ -214,9 +210,7 @@ public:
                            bool return_alternatives,
                            size_t sampling_topk,
                            float sampling_temperature,
-                           bool replace_unknowns,
-                           bool add_source_bos,
-                           bool add_source_eos) {
+                           bool replace_unknowns) {
     if (source.empty())
       return py::list();
 
@@ -243,8 +237,6 @@ public:
       options.return_attention = return_attention;
       options.return_alternatives = return_alternatives;
       options.replace_unknowns = replace_unknowns;
-      options.add_source_bos = add_source_bos;
-      options.add_source_eos = add_source_eos;
 
       results = _translator_pool.translate_batch(source,
                                                  finalize_optional_batch(target_prefix),
@@ -374,9 +366,7 @@ PYBIND11_MODULE(translator, m)
          py::arg("return_alternatives")=false,
          py::arg("sampling_topk")=1,
          py::arg("sampling_temperature")=1,
-         py::arg("replace_unknowns")=false,
-         py::arg("add_source_bos")=false,
-         py::arg("add_source_eos")=false)
+         py::arg("replace_unknowns")=false)
     .def("translate_file", &TranslatorWrapper::translate_file,
          py::arg("input_path"),
          py::arg("output_path"),
@@ -397,9 +387,7 @@ PYBIND11_MODULE(translator, m)
          py::arg("detokenize_fn")=nullptr,
          py::arg("target_path")="",
          py::arg("target_tokenize_fn")=nullptr,
-         py::arg("replace_unknowns")=false,
-         py::arg("add_source_bos")=false,
-         py::arg("add_source_eos")=false)
+         py::arg("replace_unknowns")=false)
     .def("unload_model", &TranslatorWrapper::unload_model,
          py::arg("to_cpu")=false)
     .def("load_model", &TranslatorWrapper::load_model)

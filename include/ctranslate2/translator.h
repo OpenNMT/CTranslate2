@@ -61,11 +61,6 @@ namespace ctranslate2 {
     // Replace unknown target tokens by the original source token with the highest attention.
     bool replace_unknowns = false;
 
-    // Add BOS and/or EOS tokens to the source sequences.
-    // Only useful if the model was trained with BOS and/or EOS on the source side.
-    bool add_source_bos = false;
-    bool add_source_eos = false;
-
     void validate() const;
 
   private:
