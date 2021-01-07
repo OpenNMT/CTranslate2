@@ -21,8 +21,6 @@ namespace ctranslate2 {
       virtual std::unique_ptr<layers::Encoder> make_encoder() const = 0;
       virtual std::unique_ptr<layers::Decoder> make_decoder() const = 0;
 
-      virtual void finalize() override;
-
       bool with_source_bos() const {
         return _with_source_bos;
       }
@@ -33,6 +31,7 @@ namespace ctranslate2 {
 
     protected:
       SequenceToSequenceModel(ModelReader& model_reader, size_t spec_revision);
+      virtual void finalize() override;
 
     private:
       std::unique_ptr<const Vocabulary> _source_vocabulary;
