@@ -41,7 +41,6 @@ namespace ctranslate2 {
 
       bool _with_source_bos = false;
       bool _with_source_eos = false;
-
     };
 
   }
