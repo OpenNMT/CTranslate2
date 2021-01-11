@@ -1,5 +1,11 @@
 ## [Unreleased]
 
+### New features
+
+### Fixes and improvements
+
+## [v1.17.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v1.17.0) (2021-01-11)
+
 ### Changes
 
 * Linux Python wheels are now compiled under `manylinux2014` and require `pip` version >= 19.3
