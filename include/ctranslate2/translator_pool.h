@@ -25,6 +25,11 @@ namespace ctranslate2 {
                    size_t num_threads_per_translator,
                    const std::shared_ptr<const models::Model>& model);
 
+    // Create one translator per model.
+    // Typically, they are all the same model but placed on different devices.
+    TranslatorPool(const std::vector<std::shared_ptr<const models::Model>>& models,
+                   size_t num_threads_per_cpu_translator = 1);
+
     // "args" are forwarded to the models::Model::load function.
     template <typename... Args>
     TranslatorPool(size_t num_translators,
@@ -319,6 +324,8 @@ namespace ctranslate2 {
 
     void create_translators(const std::shared_ptr<const models::Model>& model,
                             size_t num_translators,
+                            size_t num_threads_per_translator);
+    void create_translators(const std::vector<std::shared_ptr<const models::Model>>& models,
                             size_t num_threads_per_translator);
     void post_job(std::unique_ptr<Job> job, bool throttle = false);
     void work_loop(Translator& translator, size_t num_threads);

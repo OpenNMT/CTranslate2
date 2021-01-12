@@ -10,6 +10,11 @@ namespace ctranslate2 {
     create_translators(model, num_translators, num_threads_per_translator);
   }
 
+  TranslatorPool::TranslatorPool(const std::vector<std::shared_ptr<const models::Model>>& models,
+                                 size_t num_threads_per_cpu_translator) {
+    create_translators(models, num_threads_per_cpu_translator);
+  }
+
   TranslatorPool::~TranslatorPool() {
     {
       std::lock_guard<std::mutex> lock(_mutex);
@@ -118,10 +123,16 @@ namespace ctranslate2 {
       // On GPU, we currently don't benefit much from running translators in parallel, even
       // when using separate streams. This could be revisited/improved in the future.
       num_translators = 1;
-      // Most computation will run on GPU so multiple CPU computation threads are not useful.
-      num_threads_per_translator = 1;
     }
 
+    // All parallel translators will use the same model instance.
+    const std::vector<std::shared_ptr<const models::Model>> models(num_translators, model);
+    create_translators(models, num_threads_per_translator);
+  }
+
+  void
+  TranslatorPool::create_translators(const std::vector<std::shared_ptr<const models::Model>>& models,
+                                     size_t num_threads_per_translator) {
     static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
     if (core_offset >= 0) {
 #ifdef __linux__
@@ -133,14 +144,20 @@ namespace ctranslate2 {
 #endif
     }
 
+    const size_t num_translators = models.size();
     _translators.reserve(num_translators);
     _workers.reserve(num_translators);
     for (size_t i = 0; i < num_translators; ++i) {
+      const auto& model = models[i];
+
+      // Disable OpenMP multithreading when running on GPU.
+      const size_t num_threads = model->device() == Device::CUDA ? 1 : num_threads_per_translator;
+
       _translators.emplace_back(model);
       _workers.emplace_back(&TranslatorPool::work_loop,
                             this,
                             std::ref(_translators.back()),
-                            num_threads_per_translator);
+                            num_threads);
 #ifdef __linux__
       if (core_offset >= 0) {
         cpu_set_t cpuset;

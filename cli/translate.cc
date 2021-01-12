@@ -55,14 +55,14 @@ int main(int argc, char* argv[]) {
      cxxopts::value<bool>()->default_value("false"))
     ("log_profiling", "Log execution profiling.",
      cxxopts::value<bool>()->default_value("false"))
-    ("inter_threads", "Maximum number of translations to run in parallel.",
+    ("inter_threads", "Maximum number of CPU translations to run in parallel.",
      cxxopts::value<size_t>()->default_value("1"))
     ("intra_threads", "Number of OpenMP threads (set to 0 to use the default value).",
      cxxopts::value<size_t>()->default_value("0"))
     ("device", "Device to use (can be cpu, cuda, auto).",
      cxxopts::value<std::string>()->default_value("cpu"))
-    ("device_index", "Index of the device to use.",
-     cxxopts::value<int>()->default_value("0"))
+    ("device_index", "Comma-separated list of device IDs to use.",
+     cxxopts::value<std::vector<int>>()->default_value("0"))
     ("replace_unknowns", "Replace unknown target tokens by the original source token with the highest attention.",
      cxxopts::value<bool>()->default_value("false"))
     ;
@@ -96,13 +96,27 @@ int main(int argc, char* argv[]) {
     break;
   };
 
-  auto model = ctranslate2::models::Model::load(
-    args["model"].as<std::string>(),
-    device,
-    args["device_index"].as<int>(),
-    compute_type);
+  const auto device_indices = args["device_index"].as<std::vector<int>>();
+  if (device_indices.empty())
+    throw std::invalid_argument("At least one device index should be set");
+  if (device == ctranslate2::Device::CPU && device_indices.size() > 1)
+    throw std::invalid_argument("Passing multiple device ids requires using --device cuda");
+  std::vector<std::shared_ptr<const ctranslate2::models::Model>> models;
+  models.reserve(device_indices.size());
+  for (const auto device_index : device_indices) {
+    models.emplace_back(ctranslate2::models::Model::load(args["model"].as<std::string>(),
+                                                         device,
+                                                         device_index,
+                                                         compute_type));
+  }
 
-  ctranslate2::TranslatorPool translator_pool(inter_threads, intra_threads, model);
+  std::unique_ptr<ctranslate2::TranslatorPool> translator_pool;
+  if (models.size() > 1) {
+    inter_threads = models.size();
+    translator_pool.reset(new ctranslate2::TranslatorPool(models));
+  } else {
+    translator_pool.reset(new ctranslate2::TranslatorPool(inter_threads, intra_threads, models[0]));
+  }
 
   auto options = ctranslate2::TranslationOptions();
   options.max_batch_size = args["batch_size"].as<size_t>();
@@ -142,11 +156,11 @@ int main(int argc, char* argv[]) {
 
   auto log_profiling = args["log_profiling"].as<bool>();
   if (log_profiling)
-    ctranslate2::init_profiling(model->device(), inter_threads);
+    ctranslate2::init_profiling(device, inter_threads);
   auto read_batch_size = args["read_batch_size"].as<size_t>();
   if (read_batch_size == 0)
     read_batch_size = options.max_batch_size;
-  const ctranslate2::TranslationStats stats = translator_pool.consume_text_file(
+  const ctranslate2::TranslationStats stats = translator_pool->consume_text_file(
     *source,
     *output,
     read_batch_size,
