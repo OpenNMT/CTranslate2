@@ -80,9 +80,6 @@ int main(int argc, char* argv[]) {
   size_t inter_threads = args["inter_threads"].as<size_t>();
   size_t intra_threads = args["intra_threads"].as<size_t>();
 
-  // The same number of OpenMP threads should be used for loading and running model.
-  ctranslate2::set_num_threads(intra_threads);
-
   const auto device = ctranslate2::str_to_device(args["device"].as<std::string>());
   auto compute_type = ctranslate2::str_to_compute_type(args["compute_type"].as<std::string>());
   switch (device) {
@@ -96,27 +93,12 @@ int main(int argc, char* argv[]) {
     break;
   };
 
-  const auto device_indices = args["device_index"].as<std::vector<int>>();
-  if (device_indices.empty())
-    throw std::invalid_argument("At least one device index should be set");
-  if (device == ctranslate2::Device::CPU && device_indices.size() > 1)
-    throw std::invalid_argument("Passing multiple device ids requires using --device cuda");
-  std::vector<std::shared_ptr<const ctranslate2::models::Model>> models;
-  models.reserve(device_indices.size());
-  for (const auto device_index : device_indices) {
-    models.emplace_back(ctranslate2::models::Model::load(args["model"].as<std::string>(),
-                                                         device,
-                                                         device_index,
-                                                         compute_type));
-  }
-
-  std::unique_ptr<ctranslate2::TranslatorPool> translator_pool;
-  if (models.size() > 1) {
-    inter_threads = models.size();
-    translator_pool.reset(new ctranslate2::TranslatorPool(models));
-  } else {
-    translator_pool.reset(new ctranslate2::TranslatorPool(inter_threads, intra_threads, models[0]));
-  }
+  ctranslate2::TranslatorPool translator_pool(inter_threads,
+                                              intra_threads,
+                                              args["model"].as<std::string>(),
+                                              device,
+                                              args["device_index"].as<std::vector<int>>(),
+                                              compute_type);
 
   auto options = ctranslate2::TranslationOptions();
   options.max_batch_size = args["batch_size"].as<size_t>();
@@ -156,11 +138,11 @@ int main(int argc, char* argv[]) {
 
   auto log_profiling = args["log_profiling"].as<bool>();
   if (log_profiling)
-    ctranslate2::init_profiling(device, inter_threads);
+    ctranslate2::init_profiling(device, translator_pool.num_translators());
   auto read_batch_size = args["read_batch_size"].as<size_t>();
   if (read_batch_size == 0)
     read_batch_size = options.max_batch_size;
-  const ctranslate2::TranslationStats stats = translator_pool->consume_text_file(
+  const ctranslate2::TranslationStats stats = translator_pool.consume_text_file(
     *source,
     *output,
     read_batch_size,

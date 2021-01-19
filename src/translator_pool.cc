@@ -1,18 +1,38 @@
 #include "ctranslate2/translator_pool.h"
 
+#include <algorithm>
+#include <stdexcept>
+
 #include "ctranslate2/utils.h"
 
 namespace ctranslate2 {
 
   TranslatorPool::TranslatorPool(size_t num_translators,
                                  size_t num_threads_per_translator,
-                                 const std::shared_ptr<const models::Model>& model) {
-    create_translators(model, num_translators, num_threads_per_translator);
+                                 const std::string& model_dir,
+                                 const Device device,
+                                 const int device_index,
+                                 const ComputeType compute_type) {
+    create_translators(num_translators,
+                       num_threads_per_translator,
+                       model_dir,
+                       device,
+                       std::vector<int>(1, device_index),
+                       compute_type);
   }
 
-  TranslatorPool::TranslatorPool(const std::vector<std::shared_ptr<const models::Model>>& models,
-                                 size_t num_threads_per_cpu_translator) {
-    create_translators(models, num_threads_per_cpu_translator);
+  TranslatorPool::TranslatorPool(size_t num_translators_per_device,
+                                 size_t num_threads_per_translator,
+                                 const std::string& model_dir,
+                                 const Device device,
+                                 const std::vector<int>& device_indices,
+                                 const ComputeType compute_type) {
+    create_translators(num_translators_per_device,
+                       num_threads_per_translator,
+                       model_dir,
+                       device,
+                       device_indices,
+                       compute_type);
   }
 
   TranslatorPool::~TranslatorPool() {
@@ -116,23 +136,44 @@ namespace ctranslate2 {
     return results;
   }
 
-  void TranslatorPool::create_translators(const std::shared_ptr<const models::Model>& model,
-                                          size_t num_translators,
-                                          size_t num_threads_per_translator) {
-    if (model->device() == Device::CUDA) {
-      // On GPU, we currently don't benefit much from running translators in parallel, even
-      // when using separate streams. This could be revisited/improved in the future.
-      num_translators = 1;
-    }
-
-    // All parallel translators will use the same model instance.
-    const std::vector<std::shared_ptr<const models::Model>> models(num_translators, model);
-    create_translators(models, num_threads_per_translator);
+  template <typename T>
+  static bool all_unique(std::vector<T> v) {
+    std::sort(v.begin(), v.end());
+    return std::adjacent_find(v.begin(), v.end()) == v.end();
   }
 
-  void
-  TranslatorPool::create_translators(const std::vector<std::shared_ptr<const models::Model>>& models,
-                                     size_t num_threads_per_translator) {
+  void TranslatorPool::create_translators(size_t num_translators_per_device,
+                                          size_t num_threads_per_translator,
+                                          const std::string& model_dir,
+                                          const Device device,
+                                          const std::vector<int>& device_indices,
+                                          const ComputeType compute_type) {
+    if (device_indices.empty())
+      throw std::invalid_argument("At least one device index should be set");
+
+    if (device == Device::CUDA) {
+      // On GPU, we currently don't benefit much from running translators in parallel
+      // on the same device. This could be revisited/improved in the future.
+      num_translators_per_device = 1;
+      // Most computation will run on GPU so multiple CPU computation threads are not useful.
+      num_threads_per_translator = 1;
+
+      if (!all_unique(device_indices))
+        throw std::invalid_argument("GPU IDs in device_index should be unique");
+    }
+
+    // The same number of OpenMP threads should be used for loading and running model.
+    set_num_threads(num_threads_per_translator);
+
+    std::vector<int> device_ids;
+    device_ids.reserve(device_indices.size() * num_translators_per_device);
+    for (const int device_index : device_indices) {
+      for (size_t i = 0; i < num_translators_per_device; ++i)
+        device_ids.emplace_back(device_index);
+    }
+
+    const auto models = models::load_replicas(model_dir, device, device_ids, compute_type);
+
     static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
     if (core_offset >= 0) {
 #ifdef __linux__
@@ -149,15 +190,11 @@ namespace ctranslate2 {
     _workers.reserve(num_translators);
     for (size_t i = 0; i < num_translators; ++i) {
       const auto& model = models[i];
-
-      // Disable OpenMP multithreading when running on GPU.
-      const size_t num_threads = model->device() == Device::CUDA ? 1 : num_threads_per_translator;
-
       _translators.emplace_back(model);
       _workers.emplace_back(&TranslatorPool::work_loop,
                             this,
                             std::ref(_translators.back()),
-                            num_threads);
+                            num_threads_per_translator);
 #ifdef __linux__
       if (core_offset >= 0) {
         cpu_set_t cpuset;
