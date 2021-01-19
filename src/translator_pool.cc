@@ -142,11 +142,22 @@ namespace ctranslate2 {
     return std::adjacent_find(v.begin(), v.end()) == v.end();
   }
 
+  template <typename T>
+  static std::vector<T> repeat_elements(const std::vector<T>& v, const size_t repeat) {
+    std::vector<int> repeated;
+    repeated.reserve(v.size() * repeat);
+    for (const T& e : v) {
+      for (size_t i = 0; i < repeat; ++i)
+        repeated.emplace_back(e);
+    }
+    return repeated;
+  }
+
   void TranslatorPool::create_translators(size_t num_translators_per_device,
                                           size_t num_threads_per_translator,
                                           const std::string& model_dir,
                                           const Device device,
-                                          const std::vector<int>& device_indices,
+                                          std::vector<int> device_indices,
                                           const ComputeType compute_type) {
     if (device_indices.empty())
       throw std::invalid_argument("At least one device index should be set");
@@ -162,17 +173,12 @@ namespace ctranslate2 {
         throw std::invalid_argument("GPU IDs in device_index should be unique");
     }
 
+    // Repeat each device index by the number of translators running on each device.
+    device_indices = repeat_elements(device_indices, num_translators_per_device);
+
     // The same number of OpenMP threads should be used for loading and running model.
     set_num_threads(num_threads_per_translator);
-
-    std::vector<int> device_ids;
-    device_ids.reserve(device_indices.size() * num_translators_per_device);
-    for (const int device_index : device_indices) {
-      for (size_t i = 0; i < num_translators_per_device; ++i)
-        device_ids.emplace_back(device_index);
-    }
-
-    const auto models = models::load_replicas(model_dir, device, device_ids, compute_type);
+    const auto models = models::load_replicas(model_dir, device, device_indices, compute_type);
 
     static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
     if (core_offset >= 0) {

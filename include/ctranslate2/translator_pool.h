@@ -322,7 +322,7 @@ namespace ctranslate2 {
                             size_t num_threads_per_translator,
                             const std::string& model_dir,
                             const Device device,
-                            const std::vector<int>& device_indices,
+                            std::vector<int> device_indices,
                             const ComputeType compute_type);
 
     void post_job(std::unique_ptr<Job> job, bool throttle = false);
