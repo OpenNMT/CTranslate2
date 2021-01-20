@@ -12,6 +12,7 @@ def _register_gather_tree_op(tf, tf_version):
         from tensorflow.contrib.seq2seq.python.ops import beam_search_ops
     elif tf_version == 2:
         import tensorflow_addons as tfa
+
         tfa.register_all()
     else:
         raise ValueError("Unsupported TensorFlow version %d" % tf_version)
