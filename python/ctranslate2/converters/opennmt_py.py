@@ -11,11 +11,10 @@ class OpenNMTPyConverter(Converter):
         self._model_path = model_path
 
     def _save_vocabulary(self, vocab, output_path):
-        with open(output_path, "wb") as output_file:
+        with open(output_path, "w") as output_file:
             for word in vocab.itos:
-                word = word.encode("utf-8")
                 output_file.write(word)
-                output_file.write(b"\n")
+                output_file.write("\n")
 
     def _load(self, model_spec):
         import torch
