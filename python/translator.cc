@@ -1,4 +1,5 @@
 #include <optional>
+#include <shared_mutex>
 #include <unordered_map>
 #include <variant>
 
@@ -93,7 +94,8 @@ public:
     , _model_is_loaded(true) {
   }
 
-  bool model_is_loaded() const {
+  bool model_is_loaded() {
+    std::shared_lock lock(_mutex);
     return _model_is_loaded;
   }
 
@@ -142,11 +144,13 @@ public:
     if (target_path_ptr && tokenize_fn && !target_tokenize_fn)
       throw std::invalid_argument("target_tokenize_fn should be set when passing a target file");
 
-    assert_model_is_ready();
     ctranslate2::TranslationStats stats;
 
     {
       py::gil_scoped_release release;
+
+      std::shared_lock lock(_mutex);
+      assert_model_is_ready();
 
       ctranslate2::TranslationOptions options;
       options.max_batch_size = max_batch_size;
@@ -225,12 +229,13 @@ public:
     if (source.empty())
       return py::list();
 
-    assert_model_is_ready();
-
     std::vector<ctranslate2::TranslationResult> results;
 
     {
       py::gil_scoped_release release;
+
+      std::shared_lock lock(_mutex);
+      assert_model_is_ready();
 
       ctranslate2::TranslationOptions options;
       options.max_batch_size = max_batch_size;
@@ -276,11 +281,15 @@ public:
   }
 
   void unload_model(const bool to_cpu) {
-    if (!_model_is_loaded || (to_cpu && _device == ctranslate2::Device::CPU))
-      return;
-
     py::gil_scoped_release release;
 
+    {
+      std::shared_lock lock(_mutex);
+      if (!_model_is_loaded || (to_cpu && _device == ctranslate2::Device::CPU))
+        return;
+    }
+
+    std::unique_lock lock(_mutex);
     const auto& translators = _translator_pool.get_translators();
     if (to_cpu)
       _cached_models.reserve(translators.size());
@@ -299,11 +308,15 @@ public:
   }
 
   void load_model() {
-    if (_model_is_loaded)
-      return;
-
     py::gil_scoped_release release;
 
+    {
+      std::shared_lock lock(_mutex);
+      if (_model_is_loaded)
+        return;
+    }
+
+    std::unique_lock lock(_mutex);
     if (_cached_models.empty()) {
       _cached_models = ctranslate2::models::load_replicas(_model_path,
                                                           _device,
@@ -340,8 +353,13 @@ private:
   std::vector<std::shared_ptr<const ctranslate2::models::Model>> _cached_models;
   bool _model_is_loaded;
 
-  void assert_model_is_ready() const {
-    if (!model_is_loaded())
+  // Use a shared_mutex to protect the model state (loaded/unloaded).
+  // Multiple threads can read the model at the same time, but a single thread can change
+  // the model state (e.g. load or unload the model).
+  std::shared_mutex _mutex;
+
+  void assert_model_is_ready() {
+    if (!_model_is_loaded)
       throw std::runtime_error("The model for this translator was unloaded");
   }
 };
