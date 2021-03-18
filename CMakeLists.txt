@@ -72,6 +72,7 @@ set(PRIVATE_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}/third_party
   )
 set(SOURCES
+  src/allocator.cc
   src/batch_reader.cc
   src/cpu/backend.cc
   src/cpu/cpu_info.cc
