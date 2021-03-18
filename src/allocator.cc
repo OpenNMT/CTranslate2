@@ -127,6 +127,14 @@ namespace ctranslate2 {
   private:
     std::unique_ptr<cub::CachingDeviceAllocator> _allocator;
   };
+
+  template<>
+  Allocator& get_allocator<Device::CUDA>() {
+    // Use 1 allocator per thread for performance.
+    static thread_local CubCachingAllocator allocator;
+    return allocator;
+  }
+
 #endif
 
   template<>
@@ -137,13 +145,6 @@ namespace ctranslate2 {
 #else
     static AlignedAllocator allocator(alignment);
 #endif
-    return allocator;
-  }
-
-  template<>
-  Allocator& get_allocator<Device::CUDA>() {
-    // Use 1 allocator per thread for performance.
-    static thread_local CubCachingAllocator allocator;
     return allocator;
   }
 
