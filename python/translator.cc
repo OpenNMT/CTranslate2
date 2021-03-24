@@ -281,16 +281,18 @@ public:
     return py_results;
   }
 
-  void unload_model(const bool to_cpu) {
+  bool unload_model(const bool to_cpu, const int timeout) {
+    if (to_cpu && _device == ctranslate2::Device::CPU)
+      return false;
+
     py::gil_scoped_release release;
 
-    {
-      std::shared_lock lock(_mutex);
-      if (!_model_is_loaded || (to_cpu && _device == ctranslate2::Device::CPU))
-        return;
-    }
+    // If the mutex is not locked after timeout seconds, it means new translation requests
+    // keep coming in other threads and the model can't be unloaded at this time.
+    std::unique_lock lock(_mutex, std::chrono::seconds(timeout));
+    if (!_model_is_loaded || !lock)
+      return false;
 
-    std::unique_lock lock(_mutex);
     const auto& translators = _translator_pool.get_translators();
     if (to_cpu)
       _cached_models.reserve(translators.size());
@@ -306,18 +308,16 @@ public:
     }
 
     _model_is_loaded = false;
+    return true;
   }
 
   void load_model() {
     py::gil_scoped_release release;
 
-    {
-      std::shared_lock lock(_mutex);
-      if (_model_is_loaded)
-        return;
-    }
-
     std::unique_lock lock(_mutex);
+    if (_model_is_loaded)
+      return;
+
     if (_cached_models.empty()) {
       _cached_models = ctranslate2::models::load_replicas(_model_path,
                                                           _device,
@@ -354,10 +354,10 @@ private:
   std::vector<std::shared_ptr<const ctranslate2::models::Model>> _cached_models;
   bool _model_is_loaded;
 
-  // Use a shared_mutex to protect the model state (loaded/unloaded).
+  // Use a shared mutex to protect the model state (loaded/unloaded).
   // Multiple threads can read the model at the same time, but a single thread can change
   // the model state (e.g. load or unload the model).
-  std::shared_mutex _mutex;
+  std::shared_timed_mutex _mutex;
 
   void assert_model_is_ready() {
     if (!_model_is_loaded)
@@ -421,7 +421,8 @@ PYBIND11_MODULE(translator, m)
          py::arg("target_tokenize_fn")=nullptr,
          py::arg("replace_unknowns")=false)
     .def("unload_model", &TranslatorWrapper::unload_model,
-         py::arg("to_cpu")=false)
+         py::arg("to_cpu")=false,
+         py::arg("timeout")=10)
     .def("load_model", &TranslatorWrapper::load_model)
     .def_property_readonly("model_is_loaded", &TranslatorWrapper::model_is_loaded)
     ;
