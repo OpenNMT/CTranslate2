@@ -358,7 +358,7 @@ private:
   // the model state (e.g. load or unload the model).
   std::shared_mutex _mutex;
 
-  void assert_model_is_ready() {
+  void assert_model_is_ready() const {
     if (!_model_is_loaded)
       throw std::runtime_error("The model for this translator was unloaded");
   }
