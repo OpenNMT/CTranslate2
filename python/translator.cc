@@ -282,15 +282,17 @@ public:
   }
 
   void unload_model(const bool to_cpu) {
+    if (to_cpu && _device == ctranslate2::Device::CPU)
+      return;
+
     py::gil_scoped_release release;
 
-    {
-      std::shared_lock lock(_mutex);
-      if (!_model_is_loaded || (to_cpu && _device == ctranslate2::Device::CPU))
-        return;
-    }
+    // If the lock is not acquired immediately it means the model is being used
+    // in another thread and we can't unload it at this time.
+    std::unique_lock lock(_mutex, std::try_to_lock);
+    if (!lock || !_model_is_loaded)
+      return;
 
-    std::unique_lock lock(_mutex);
     const auto& translators = _translator_pool.get_translators();
     if (to_cpu)
       _cached_models.reserve(translators.size());
@@ -311,13 +313,10 @@ public:
   void load_model() {
     py::gil_scoped_release release;
 
-    {
-      std::shared_lock lock(_mutex);
-      if (_model_is_loaded)
-        return;
-    }
-
     std::unique_lock lock(_mutex);
+    if (_model_is_loaded)
+      return;
+
     if (_cached_models.empty()) {
       _cached_models = ctranslate2::models::load_replicas(_model_path,
                                                           _device,
@@ -354,7 +353,7 @@ private:
   std::vector<std::shared_ptr<const ctranslate2::models::Model>> _cached_models;
   bool _model_is_loaded;
 
-  // Use a shared_mutex to protect the model state (loaded/unloaded).
+  // Use a shared mutex to protect the model state (loaded/unloaded).
   // Multiple threads can read the model at the same time, but a single thread can change
   // the model state (e.g. load or unload the model).
   std::shared_mutex _mutex;
