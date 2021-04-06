@@ -30,6 +30,15 @@ namespace ctranslate2 {
     float length_penalty = 0;
     // Coverage value to apply during beam search.
     float coverage_penalty = 0;
+    // Biases decoding towards a given prefix, see https://arxiv.org/abs/1912.03393 --section 4.2
+    // Only activates biased-decoding when beta is in range (0, 1) and SearchStrategy is set to BeamSearch.
+    //
+    // Setting beta to 1.0 is equivalent to using a hard prefix, setting it to 0 is equivalent
+    // to unconstrained decoding.  The higher beta is, the stronger the bias towards the given prefix.
+    //
+    // If you translate with a non-empty prefix and beta <= 0, 
+    // then the prefix will be used as a hard-prefix rather than a soft, biased-prefix.
+    float prefix_bias_beta = 0;
 
     // Decoding length constraints.
     size_t max_decoding_length = 250;
