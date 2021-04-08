@@ -424,5 +424,5 @@ TEST(TranslatorTest, SameBeamAndGreedyScore) {
   const auto greedy_score = translator.translate(input, options).score();
   options.beam_size = 2;
   const auto beam_score = translator.translate(input, options).score();
-  EXPECT_EQ(greedy_score, beam_score);
+  EXPECT_NEAR(greedy_score, beam_score, 1e-5);
 }
