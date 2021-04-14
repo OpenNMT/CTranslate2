@@ -39,14 +39,6 @@ namespace ctranslate2 {
       , _num_heads(num_heads) {
     }
 
-    size_t TransformerModel::num_heads() const {
-      return _num_heads;
-    }
-
-    bool TransformerModel::with_relative_position() const {
-      return _with_relative_position;
-    }
-
     size_t TransformerModel::current_spec_revision() const {
       return 3;
     }
