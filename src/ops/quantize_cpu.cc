@@ -65,7 +65,8 @@ namespace ctranslate2 {
               std::min(v * scale_value,
                        static_cast<float>(std::numeric_limits<int16_t>::max())),
               static_cast<float>(std::numeric_limits<int16_t>::lowest())));
-        }
+        });
+    }
 
   }
 }
