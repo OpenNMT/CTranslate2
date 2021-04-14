@@ -61,7 +61,7 @@ namespace ctranslate2 {
 
       cpu::parallel_unary_transform(
         input_data, output_data, size, /*work_size=*/5,
-        [scale_value](float v) {
+        [scale_value, int16_max, int16_min](float v) {
           return static_cast<int16_t>(std::max(std::min(v * scale_value, int16_max), int16_min));
         });
     }
