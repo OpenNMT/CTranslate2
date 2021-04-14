@@ -42,8 +42,6 @@ namespace ctranslate2 {
                                                   StorageView& output,
                                                   StorageView& scale) const {
       // INT16 quantization simply rescales by a constant.
-      constexpr float int16_max = std::numeric_limits<int16_t>::max();
-      constexpr float int16_min = std::numeric_limits<int16_t>::min();
 
       const dim_t size = input.size();
       const auto* input_data = input.data<float>();
@@ -61,10 +59,13 @@ namespace ctranslate2 {
 
       cpu::parallel_unary_transform(
         input_data, output_data, size, /*work_size=*/5,
-        [scale_value, int16_max, int16_min](float v) {
-          return static_cast<int16_t>(std::max(std::min(v * scale_value, int16_max), int16_min));
-        });
-    }
+        [scale_value](float v) {
+          return static_cast<int16_t>(
+            std::max(
+              std::min(v * scale_value,
+                       static_cast<float>(std::numeric_limits<int16_t>::max())),
+              static_cast<float>(std::numeric_limits<int16_t>::lowest())));
+        }
 
   }
 }
