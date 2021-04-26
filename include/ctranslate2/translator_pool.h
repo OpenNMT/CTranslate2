@@ -293,8 +293,8 @@ namespace ctranslate2 {
     public:
       JobResultConsumer(size_t num_results);
       std::vector<std::future<Result>> get_futures();
-      virtual void set_result(size_t index, Result result);
-      virtual void set_exception(size_t index, std::exception_ptr exception);
+      void set_result(size_t index, Result result);
+      void set_exception(size_t index, std::exception_ptr exception);
 
     private:
       std::vector<std::promise<Result>> _promises;
