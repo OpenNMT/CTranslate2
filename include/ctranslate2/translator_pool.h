@@ -39,12 +39,15 @@ namespace ctranslate2 {
     ~TranslatorPool();
 
     // Run a translation job asynchronously.
-    std::future<std::vector<TranslationResult>>
-    translate_batch_async(std::vector<std::vector<std::string>> source,
-                          TranslationOptions options);
-    std::future<std::vector<TranslationResult>>
-    translate_batch_async(std::vector<std::vector<std::string>> source,
-                          std::vector<std::vector<std::string>> target_prefix,
+    // To benefit from parallelism, you can set max_batch_size in the translation options:
+    // the input will be split according to this value and each batch will be translated
+    // in parallel.
+    std::vector<std::future<TranslationResult>>
+    translate_batch_async(const std::vector<std::vector<std::string>>& source,
+                          const TranslationOptions& options);
+    std::vector<std::future<TranslationResult>>
+    translate_batch_async(const std::vector<std::vector<std::string>>& source,
+                          const std::vector<std::vector<std::string>>& target_prefix,
                           TranslationOptions options);
 
     // Run a translation synchronously.
@@ -82,15 +85,14 @@ namespace ctranslate2 {
                         SourceReader& source_reader,
                         TargetReader& target_reader,
                         TargetWriter& target_writer) {
-      std::queue<std::future<std::vector<TranslationResult>>> results;
+      std::queue<std::future<TranslationResult>> results;
 
       auto pop_results = [&results, &output, &target_writer](bool blocking) {
         static const auto zero_sec = std::chrono::seconds(0);
         while (!results.empty()
                && (blocking
                    || results.front().wait_for(zero_sec) == std::future_status::ready)) {
-          for (const auto& result : results.front().get())
-            target_writer(output, result);
+          target_writer(output, results.front().get());
           results.pop();
         }
       };
@@ -105,12 +107,14 @@ namespace ctranslate2 {
         auto batch = batch_reader.get_next(read_batch_size, options.batch_type);
         if (batch[0].empty())
           break;
-        results.emplace(post(std::move(batch[0]),
-                             target
-                             ? std::move(batch[1])
-                             : std::vector<std::vector<std::string>>(),
-                             options,
-                             /*throttle=*/true));
+        auto futures = post(std::move(batch[0]),
+                            target
+                            ? std::move(batch[1])
+                            : std::vector<std::vector<std::string>>(),
+                            options,
+                            /*throttle=*/true);
+        for (auto& future : futures)
+          results.emplace(std::move(future));
 
         pop_results(/*blocking=*/false);
       }
@@ -266,11 +270,11 @@ namespace ctranslate2 {
     const std::vector<Translator>& get_translators() const;
 
     // With throttle=true it will block if there is already too much work pending.
-    std::future<std::vector<TranslationResult>>
+    std::vector<std::future<TranslationResult>>
     post(std::vector<std::vector<std::string>> source,
          TranslationOptions options,
          bool throttle = false);
-    std::future<std::vector<TranslationResult>>
+    std::vector<std::future<TranslationResult>>
     post(std::vector<std::vector<std::string>> source,
          std::vector<std::vector<std::string>> target_prefix,
          TranslationOptions options,
@@ -283,39 +287,33 @@ namespace ctranslate2 {
       virtual void run(Translator& translator) = 0;
     };
 
-    template <typename ResultType>
-    class BaseJob : public Job {
+    // Base class for consuming job results.
+    template <typename Result>
+    class JobResultConsumer {
     public:
-      std::future<ResultType> get_future() {
-        return _promise.get_future();
-      }
+      JobResultConsumer(size_t num_results);
+      std::vector<std::future<Result>> get_futures();
+      virtual void set_result(size_t index, Result result);
+      virtual void set_exception(size_t index, std::exception_ptr exception);
+
+    private:
+      std::vector<std::promise<Result>> _promises;
+    };
+
+    using TranslationResultConsumer = JobResultConsumer<TranslationResult>;
+
+    class TranslationJob : public Job {
+    public:
+      TranslationJob(Batch batch,
+                     TranslationOptions options,
+                     std::shared_ptr<TranslationResultConsumer> consumer);
 
       void run(Translator& translator) override;
 
-    protected:
-      virtual ResultType compute(Translator& translator) const = 0;
-
     private:
-      std::promise<ResultType> _promise;
-    };
-
-    class TranslationJob : public BaseJob<std::vector<TranslationResult>> {
-    public:
-      TranslationJob(std::vector<std::vector<std::string>> source,
-                     std::vector<std::vector<std::string>> target_prefix,
-                     TranslationOptions options)
-        : _source(std::move(source))
-        , _target_prefix(std::move(target_prefix))
-        , _options(std::move(options)) {
-      }
-
-    protected:
-      std::vector<TranslationResult> compute(Translator& translator) const override;
-
-    private:
-      std::vector<std::vector<std::string>> _source;
-      std::vector<std::vector<std::string>> _target_prefix;
-      TranslationOptions _options;
+      const Batch _batch;
+      const TranslationOptions _options;
+      const std::shared_ptr<TranslationResultConsumer> _consumer;
     };
 
     void create_translators(size_t num_translators_per_device,
