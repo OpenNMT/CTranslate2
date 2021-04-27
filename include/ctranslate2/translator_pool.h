@@ -48,7 +48,7 @@ namespace ctranslate2 {
     std::vector<std::future<TranslationResult>>
     translate_batch_async(const std::vector<std::vector<std::string>>& source,
                           const std::vector<std::vector<std::string>>& target_prefix,
-                          TranslationOptions options);
+                          const TranslationOptions& options);
 
     // Run a translation synchronously.
     // To benefit from parallelism, you can set max_batch_size in the translation options:
@@ -88,7 +88,7 @@ namespace ctranslate2 {
       std::queue<std::future<TranslationResult>> results;
 
       auto pop_results = [&results, &output, &target_writer](bool blocking) {
-        static const auto zero_sec = std::chrono::seconds(0);
+        constexpr std::chrono::seconds zero_sec(0);
         while (!results.empty()
                && (blocking
                    || results.front().wait_for(zero_sec) == std::future_status::ready)) {
@@ -107,10 +107,8 @@ namespace ctranslate2 {
         auto batch = batch_reader.get_next(read_batch_size, options.batch_type);
         if (batch[0].empty())
           break;
-        auto futures = post(std::move(batch[0]),
-                            target
-                            ? std::move(batch[1])
-                            : std::vector<std::vector<std::string>>(),
+        auto futures = post(batch[0],
+                            target ? batch[1] : std::vector<std::vector<std::string>>(),
                             options,
                             /*throttle=*/true);
         for (auto& future : futures)
@@ -269,17 +267,6 @@ namespace ctranslate2 {
     size_t num_translators() const;
     const std::vector<Translator>& get_translators() const;
 
-    // With throttle=true it will block if there is already too much work pending.
-    std::vector<std::future<TranslationResult>>
-    post(std::vector<std::vector<std::string>> source,
-         TranslationOptions options,
-         bool throttle = false);
-    std::vector<std::future<TranslationResult>>
-    post(std::vector<std::vector<std::string>> source,
-         std::vector<std::vector<std::string>> target_prefix,
-         TranslationOptions options,
-         bool throttle = false);
-
   private:
     class Job {
     public:
@@ -344,6 +331,12 @@ namespace ctranslate2 {
                             std::vector<int> device_indices,
                             const ComputeType compute_type);
 
+    // With throttle=true it will block if there is already too much work pending.
+    std::vector<std::future<TranslationResult>>
+    post(const std::vector<std::vector<std::string>>& source,
+         const std::vector<std::vector<std::string>>& target_prefix,
+         TranslationOptions options,
+         bool throttle = false);
     void post_job(std::unique_ptr<Job> job, bool throttle = false);
     void work_loop(Translator& translator, size_t num_threads);
 

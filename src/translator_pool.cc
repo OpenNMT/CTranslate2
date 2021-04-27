@@ -58,7 +58,35 @@ namespace ctranslate2 {
   std::vector<std::future<TranslationResult>>
   TranslatorPool::translate_batch_async(const std::vector<std::vector<std::string>>& source,
                                         const std::vector<std::vector<std::string>>& target_prefix,
-                                        TranslationOptions options) {
+                                        const TranslationOptions& options) {
+    return post(source, target_prefix, options);
+  }
+
+  std::vector<TranslationResult>
+  TranslatorPool::translate_batch(const std::vector<std::vector<std::string>>& source,
+                                  const TranslationOptions& options) {
+    return translate_batch(source, {}, options);
+  }
+
+  std::vector<TranslationResult>
+  TranslatorPool::translate_batch(const std::vector<std::vector<std::string>>& source,
+                                  const std::vector<std::vector<std::string>>& target_prefix,
+                                  const TranslationOptions& options) {
+    auto futures = translate_batch_async(source, target_prefix, options);
+
+    std::vector<TranslationResult> results;
+    results.reserve(futures.size());
+    for (auto& future : futures)
+      results.emplace_back(future.get());
+
+    return results;
+  }
+
+  std::vector<std::future<TranslationResult>>
+  TranslatorPool::post(const std::vector<std::vector<std::string>>& source,
+                       const std::vector<std::vector<std::string>>& target_prefix,
+                       TranslationOptions options,
+                       bool throttle) {
     options.validate();
     options.validated = true;
 
@@ -82,33 +110,8 @@ namespace ctranslate2 {
     options.rebatch_input = false;
 
     for (auto& batch : batches)
-      post_job(std::make_unique<TranslationJob>(std::move(batch), options, consumer));
+      post_job(std::make_unique<TranslationJob>(std::move(batch), options, consumer), throttle);
 
-    return futures;
-  }
-
-  std::vector<std::future<TranslationResult>>
-  TranslatorPool::post(std::vector<std::vector<std::string>> source,
-                       TranslationOptions options,
-                       bool throttle) {
-    return post(std::move(source), {}, std::move(options), throttle);
-  }
-
-  std::vector<std::future<TranslationResult>>
-  TranslatorPool::post(std::vector<std::vector<std::string>> source,
-                       std::vector<std::vector<std::string>> target_prefix,
-                       TranslationOptions options,
-                       bool throttle) {
-    auto consumer = std::make_shared<TranslationResultConsumer>(source.size());
-    auto futures = consumer->get_futures();
-
-    Batch batch;
-    batch.source = std::move(source);
-    batch.target = std::move(target_prefix);
-    auto job = std::make_unique<TranslationJob>(std::move(batch),
-                                                std::move(options),
-                                                consumer);
-    post_job(std::move(job), throttle);
     return futures;
   }
 
@@ -123,26 +126,6 @@ namespace ctranslate2 {
 
     lock.unlock();
     _can_get_job.notify_one();
-  }
-
-  std::vector<TranslationResult>
-  TranslatorPool::translate_batch(const std::vector<std::vector<std::string>>& source,
-                                  const TranslationOptions& options) {
-    return translate_batch(source, {}, options);
-  }
-
-  std::vector<TranslationResult>
-  TranslatorPool::translate_batch(const std::vector<std::vector<std::string>>& source,
-                                  const std::vector<std::vector<std::string>>& target_prefix,
-                                  const TranslationOptions& options) {
-    auto futures = translate_batch_async(source, target_prefix, options);
-
-    std::vector<TranslationResult> results;
-    results.reserve(futures.size());
-    for (auto& future : futures)
-      results.emplace_back(future.get());
-
-    return results;
   }
 
   template <typename T>
