@@ -82,6 +82,19 @@ namespace ctranslate2 {
     return results;
   }
 
+  void TranslatorPool::post_job(std::unique_ptr<Job> job, bool throttle) {
+    std::unique_lock<std::mutex> lock(_mutex);
+    if (throttle)
+      _can_add_job.wait(lock, [this]{ return _work.size() < 2 * _workers.size(); });
+
+    // locked again here
+
+    _work.emplace(std::move(job));
+
+    lock.unlock();
+    _can_get_job.notify_one();
+  }
+
   std::vector<std::future<TranslationResult>>
   TranslatorPool::post(const std::vector<std::vector<std::string>>& source,
                        const std::vector<std::vector<std::string>>& target_prefix,
@@ -113,19 +126,6 @@ namespace ctranslate2 {
       post_job(std::make_unique<TranslationJob>(std::move(batch), options, consumer), throttle);
 
     return futures;
-  }
-
-  void TranslatorPool::post_job(std::unique_ptr<Job> job, bool throttle) {
-    std::unique_lock<std::mutex> lock(_mutex);
-    if (throttle)
-      _can_add_job.wait(lock, [this]{ return _work.size() < 2 * _workers.size(); });
-
-    // locked again here
-
-    _work.emplace(std::move(job));
-
-    lock.unlock();
-    _can_get_job.notify_one();
   }
 
   template <typename T>
