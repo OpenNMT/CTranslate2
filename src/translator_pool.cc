@@ -258,32 +258,6 @@ namespace ctranslate2 {
     }
   }
 
-  template <typename Result>
-  TranslatorPool::JobResultConsumer<Result>::JobResultConsumer(size_t num_results)
-    : _promises(num_results)
-  {
-  }
-
-  template <typename Result>
-  std::vector<std::future<Result>> TranslatorPool::JobResultConsumer<Result>::get_futures() {
-    std::vector<std::future<Result>> futures;
-    futures.reserve(_promises.size());
-    for (auto& promise : _promises)
-      futures.emplace_back(promise.get_future());
-    return futures;
-  }
-
-  template <typename Result>
-  void TranslatorPool::JobResultConsumer<Result>::set_result(size_t index, Result result) {
-    _promises[index].set_value(std::move(result));
-  }
-
-  template <typename Result>
-  void TranslatorPool::JobResultConsumer<Result>::set_exception(size_t index,
-                                                                std::exception_ptr exception) {
-    _promises[index].set_exception(exception);
-  }
-
   TranslatorPool::TranslationJob::TranslationJob(Batch batch,
                                                  TranslationOptions options,
                                                  std::shared_ptr<TranslationResultConsumer> consumer)

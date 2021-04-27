@@ -291,10 +291,31 @@ namespace ctranslate2 {
     template <typename Result>
     class JobResultConsumer {
     public:
-      JobResultConsumer(size_t num_results);
-      std::vector<std::future<Result>> get_futures();
-      void set_result(size_t index, Result result);
-      void set_exception(size_t index, std::exception_ptr exception);
+      JobResultConsumer(size_t num_results)
+        : _promises(num_results)
+      {
+      }
+
+      JobResultConsumer(std::vector<std::promise<Result>> promises)
+        : _promises(std::move(promises))
+      {
+      }
+
+      std::vector<std::future<Result>> get_futures() {
+        std::vector<std::future<Result>> futures;
+        futures.reserve(_promises.size());
+        for (auto& promise : _promises)
+          futures.emplace_back(promise.get_future());
+        return futures;
+      }
+
+      void set_result(size_t index, Result result) {
+        _promises[index].set_value(std::move(result));
+      }
+
+      void set_exception(size_t index, std::exception_ptr exception) {
+        _promises[index].set_exception(exception);
+      }
 
     private:
       std::vector<std::promise<Result>> _promises;
