@@ -106,6 +106,10 @@ namespace ctranslate2 {
     if (source.empty())
       return {};
 
+    // Rebatch the input and post each sub-batch in the translation queue.
+    auto batches = rebatch_input(source, target_prefix, options);
+    options.rebatch_input = false;
+
     auto consumer = std::make_shared<TranslationResultConsumer>(source.size());
     auto futures = consumer->get_futures();
 
@@ -117,10 +121,6 @@ namespace ctranslate2 {
                                                   options.return_scores));
       }
     }
-
-    // Rebatch the input and post each sub-batch in the translation queue.
-    auto batches = rebatch_input(source, target_prefix, options);
-    options.rebatch_input = false;
 
     for (auto& batch : batches)
       post_job(std::make_unique<TranslationJob>(std::move(batch), options, consumer), throttle);
