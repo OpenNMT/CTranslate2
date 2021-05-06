@@ -91,7 +91,6 @@ namespace ctranslate2 {
         }
       }
     };
-
 #endif
 
     static std::unique_ptr<Allocator> create_allocator() {
