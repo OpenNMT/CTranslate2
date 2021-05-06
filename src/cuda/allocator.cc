@@ -95,11 +95,13 @@ namespace ctranslate2 {
 #endif
 
     static std::unique_ptr<Allocator> create_allocator() {
-      const bool async_alloc = read_bool_from_env("CT2_CUDA_USE_ASYNC_ALLOCATOR");
+      const auto allocator = read_string_from_env("CT2_CUDA_ALLOCATOR", "cub_caching");
 
-      if (async_alloc) {
+      if (allocator == "cub_caching") {
+        return std::make_unique<CubCachingAllocator>();
+      } else if (allocator == "cuda_malloc_async") {
 #if CUDA_VERSION < 11020
-        throw std::runtime_error("Using the asynchronous CUDA allocator requires CUDA 11.2 or above");
+        throw std::runtime_error("The asynchronous CUDA allocator requires CUDA >= 11.2");
 #else
         for (int i = 0; i < get_gpu_count(); ++i) {
           int supported = 0;
@@ -112,7 +114,7 @@ namespace ctranslate2 {
 #endif
       }
 
-      return std::make_unique<CubCachingAllocator>();
+      throw std::invalid_argument("Invalid CUDA allocator " + allocator);
     }
 
   }
