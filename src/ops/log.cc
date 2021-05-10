@@ -7,7 +7,7 @@ namespace ctranslate2 {
 
     void Log::operator()(const StorageView& x, StorageView& y) const {
       PROFILE("Log");
-      DEVICE_DISPATCH(x.device(), (compute<D, float>(x, y)));
+      DEVICE_DISPATCH(x.device(), (compute<D, float>(x.to_float(), y)));
     }
 
   }

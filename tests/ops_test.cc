@@ -674,6 +674,10 @@ TEST_P(OpDeviceTest, Log) {
   StorageView output(device);
   ops::Log()(input, output);
   expect_storage_eq(output, expected, 1e-4);
+
+  // Test float16
+  ops::Log()(input.to_float16(), output);
+  expect_storage_eq(output, expected, 1e-4);
 }
 
 template <typename T, typename Ops, typename Func>
