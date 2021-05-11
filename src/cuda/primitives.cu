@@ -494,10 +494,21 @@ namespace ctranslate2 {
   };
 
   template<>
+  template<>
   void primitives<Device::CUDA>::log(const float* x, float* y, dim_t size) {
     cuda::unary_transform(x, y, size, log_func());
   }
 
+  struct hlog_func {
+    __device__
+    __half operator()(__half x) { return hlog(x); }
+  };
+
+  template<>
+  template<>
+  void primitives<Device::CUDA>::log(const float16_t* x, float16_t* y, dim_t size) {
+    cuda::unary_transform(x, y, size, hlog_func());
+  }
 
   template<>
   template <typename T>
