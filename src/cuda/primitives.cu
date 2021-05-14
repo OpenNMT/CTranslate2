@@ -499,10 +499,17 @@ namespace ctranslate2 {
     cuda::unary_transform(x, y, size, log_func());
   }
 
+#if CUDA_CAN_USE_HALF
   struct hlog_func {
     __device__
     __half operator()(__half x) { return hlog(x); }
   };
+#else 
+  struct hlog_func {
+    __host__ __device__
+    __half operator()(__half x) { return __half(logf(float(x))); }
+  };
+#endif
 
   template<>
   template<>
