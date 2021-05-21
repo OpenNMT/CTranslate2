@@ -246,7 +246,7 @@ namespace ctranslate2 {
       beams_diverged_from_prefix = std::vector<std::vector<bool>>(
           batch_size, std::vector<bool>(_beam_size, false));
     }
-    const bool use_hard_prefix = prefix_ids and !bias_towards_prefix;
+    const bool use_hard_prefix = prefix_ids && !bias_towards_prefix;
 
     std::vector<bool> top_beam_finished(batch_size, false);
     std::vector<dim_t> batch_offset(batch_size);
