@@ -136,7 +136,7 @@ namespace ctranslate2 {
     std::vector<StorageView*> logit_beam_views(num_beams);
     std::vector<StorageView> log_prob_beam_view_storage(num_beams, StorageView(device, dtype));
     std::vector<StorageView*> log_prob_beam_views(num_beams);
-    for (int i = 0; i < num_beams; ++i) {
+    for (dim_t i = 0; i < num_beams; ++i) {
       logit_beam_views[i] = &(logit_beam_view_storage[i]);
       log_prob_beam_views[i] = &(log_prob_beam_view_storage[i]);
     }
