@@ -280,7 +280,7 @@ namespace ctranslate2 {
 
       if (bias_towards_prefix) {
         if (!biased_decoder) {
-          biased_decoder.reset(new BiasedDecoder());
+          biased_decoder = std::make_unique<BiasedDecoder>();
         }
         biased_decoder->decode(
             _prefix_bias_beta,
