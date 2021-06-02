@@ -181,7 +181,9 @@ namespace ctranslate2 {
     }
   }
 
-  BeamSearch::BeamSearch(const dim_t beam_size, const float length_penalty, const float coverage_penalty, 
+  BeamSearch::BeamSearch(const dim_t beam_size,
+                         const float length_penalty,
+                         const float coverage_penalty, 
                          const float prefix_bias_beta)
     : _beam_size(beam_size)
     , _length_penalty(length_penalty)
