@@ -339,7 +339,7 @@ TEST(TranslatorTest, TranslateBatchWithHardPrefixAndEmpty) {
   EXPECT_EQ(result[4].output(), (std::vector<std::string>{"a", "z", "z", "a"}));
 }
 
-TEST(TranslatorTest, TranslateBatchWithStronglyBiasedPrefixAndEmpty) {
+TEST(TranslatorTest, TranslateBatchWithStronglyBiasedPrefix) {
   // This test should produce the same results as TranslateBatchWithHardPrefixAndEmpty
   // because prefix_bias_beta is set to 0.99, which is almost equivalent to using a hard prefix.
   Translator translator = default_translator();
@@ -350,23 +350,20 @@ TEST(TranslatorTest, TranslateBatchWithStronglyBiasedPrefixAndEmpty) {
     {"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"},
     {"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"},
     {"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"},
-    {},
     {"آ" ,"ز" ,"ا"}};
   const std::vector<std::vector<std::string>> prefix = {
     {"a", "t", "s"},
     {},
     {"a", "t", "z", "o"},
-    {},
     {}};
   const auto result = translator.translate_batch_with_prefix(input, prefix, options);
   EXPECT_EQ(result[0].output(), (std::vector<std::string>{"a", "t", "s", "u", "m", "o", "n"}));
   EXPECT_EQ(result[1].output(), (std::vector<std::string>{"a", "t", "z", "m", "o", "n"}));
   EXPECT_EQ(result[2].output(), (std::vector<std::string>{"a", "t", "z", "o", "m", "o", "n"}));
-  EXPECT_TRUE(result[3].output().empty());
-  EXPECT_EQ(result[4].output(), (std::vector<std::string>{"a", "z", "z", "a"}));
+  EXPECT_EQ(result[3].output(), (std::vector<std::string>{"a", "z", "z", "a"}));
 }
 
-TEST(TranslatorTest, TranslateBatchWithWeaklyBiasedPrefixAndEmpty) {
+TEST(TranslatorTest, TranslateBatchWithWeaklyBiasedPrefix) {
   Translator translator = default_translator();
   TranslationOptions options;
   options.prefix_bias_beta = 0.01;
@@ -375,22 +372,19 @@ TEST(TranslatorTest, TranslateBatchWithWeaklyBiasedPrefixAndEmpty) {
     {"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"},
     {"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"},
     {"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"},
-    {},
     {"آ" ,"ز" ,"ا"}
   };
   const std::vector<std::vector<std::string>> prefix = {
     {"a", "t", "s", "s", "s"},   // Test divergence at divergence first 's'
     {},
     {"a", "t", "z", "o"},
-    {},
     {}
   };
   const auto result = translator.translate_batch_with_prefix(input, prefix, options);
   EXPECT_EQ(result[0].output(), (std::vector<std::string>{"a", "t", "z", "m", "o", "n"}));
   EXPECT_EQ(result[1].output(), (std::vector<std::string>{"a", "t", "z", "m", "o", "n"}));
   EXPECT_EQ(result[2].output(), (std::vector<std::string>{"a", "t", "z", "m", "o", "n"}));
-  EXPECT_TRUE(result[3].output().empty());
-  EXPECT_EQ(result[4].output(), (std::vector<std::string>{"a", "z", "z", "a"}));
+  EXPECT_EQ(result[3].output(), (std::vector<std::string>{"a", "z", "z", "a"}));
 }
 
 class BiasedDecodingDeviceFPTest : public ::testing::TestWithParam<std::pair<Device, DataType>> {

@@ -147,7 +147,6 @@ namespace ctranslate2 {
 
     // Scalar's need to be allocated on CPUs.
     StorageView scalar_discount(1 - prefix_bias_beta, Device::CPU);
-    // const dim_t cur_beam_size = is_expanded ? _beam_size : 1;
     assert (num_beams % cur_batch_size == 0);
     const dim_t cur_beam_size = num_beams / cur_batch_size;
     for (dim_t b = 0; b < num_beams; ++b) {
@@ -241,7 +240,6 @@ namespace ctranslate2 {
       attention->resize(batch_size);
     }
 
-    // TODO(scotfang): Instead of initializing and empty vector, use unique_ptr.
     std::vector<std::vector<bool>> beams_diverged_from_prefix;
     bool bias_towards_prefix = prefix_ids && _prefix_bias_beta > 0;
     if (bias_towards_prefix) {
