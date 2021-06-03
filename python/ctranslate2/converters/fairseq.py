@@ -4,21 +4,37 @@ from ctranslate2.specs import common_spec
 from ctranslate2.specs import transformer_spec
 
 
+_SUPPORTED_ARCHS = {
+    "transformer",
+    "transformer_iwslt_de_en",
+    "transformer_tiny",
+    "transformer_vaswani_wmt_en_de_big",
+    "transformer_vaswani_wmt_en_fr_big",
+    "transformer_wmt_en_de",
+    "transformer_wmt_en_de_big",
+    "transformer_wmt_en_de_big_t2t",
+}
+
+
 def _get_model_spec(args):
-    if not args.arch.startswith("transformer"):
-        raise ValueError("--arch %s is unsupported" % args.arch)
+    if args.arch not in _SUPPORTED_ARCHS:
+        raise ValueError("--arch %s is currently unsupported" % args.arch)
     if args.encoder_normalize_before != args.decoder_normalize_before:
         raise ValueError(
-            "--encoder_normalize_before and --decoder_normalize_before must have the same value"
+            "--encoder-normalize-before and --decoder-normalize-before must have the same value"
         )
     if args.encoder_attention_heads != args.decoder_attention_heads:
         raise ValueError(
-            "--encoder_attention_heads and --decoder_attention_heads must have the same value"
+            "--encoder-attention-heads and --decoder-attention-heads must have the same value"
         )
     if getattr(args, "activation_fn", "relu") != "relu":
-        raise ValueError("--activation_fn '%s' is unsupported" % args.activation_fn)
+        raise ValueError(
+            "--activation-fn %s is currently unsupported" % args.activation_fn
+        )
     if getattr(args, "no_token_positional_embeddings", False):
-        raise ValueError("--no_token_positional_embeddings is unsupported")
+        raise ValueError("--no-token-positional-embeddings is currently unsupported")
+    if getattr(args, "layernorm_embedding", False):
+        raise ValueError("--layernorm-embedding is currently unsupported")
 
     return transformer_spec.TransformerSpec(
         (args.encoder_layers, args.decoder_layers),
@@ -71,6 +87,8 @@ def set_transformer_encoder(spec, module):
     set_input_layers(spec, module)
     for layer_spec, layer in zip(spec.layer, module.layers):
         set_transformer_encoder_layer(layer_spec, layer)
+    if module.layer_norm is not None:
+        set_layer_norm(spec.layer_norm, module.layer_norm)
 
 
 def set_transformer_decoder(spec, module):
@@ -78,6 +96,8 @@ def set_transformer_decoder(spec, module):
     set_linear(spec.projection, module.output_projection)
     for layer_spec, layer in zip(spec.layer, module.layers):
         set_transformer_decoder_layer(layer_spec, layer)
+    if module.layer_norm is not None:
+        set_layer_norm(spec.layer_norm, module.layer_norm)
 
 
 def set_input_layers(spec, module):
