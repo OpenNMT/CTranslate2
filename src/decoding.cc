@@ -138,15 +138,14 @@ namespace ctranslate2 {
   }
 
 
-  void BiasedDecoder::decode(
-        const float prefix_bias_beta,
-        const dim_t cur_batch_size,
-        const size_t step,
-        const std::vector<dim_t>& batch_offset,
-        const std::vector<std::vector<bool>>& beams_diverged_from_prefix,
-        const std::vector<std::vector<size_t>>& prefix_ids,
-        const StorageView& logits,
-        StorageView& log_probs) {
+  void BiasedDecoder::decode(const float prefix_bias_beta,
+                             const dim_t cur_batch_size,
+                             const size_t step,
+                             const std::vector<dim_t>& batch_offset,
+                             const std::vector<std::vector<bool>>& beams_diverged_from_prefix,
+                             const std::vector<std::vector<size_t>>& prefix_ids,
+                             const StorageView& logits,
+                             StorageView& log_probs) {
     const dim_t num_beams = logits.dim(0);
     const Device device = logits.device();
     const DataType dtype = logits.dtype();
@@ -178,8 +177,8 @@ namespace ctranslate2 {
       const dim_t index_batch = b / cur_beam_size;
       const dim_t index_beam = b % cur_beam_size;
       const auto& prefix = prefix_ids[batch_offset[index_batch]];
-      if (static_cast<size_t>(step) < prefix.size() &&
-          !(beams_diverged_from_prefix[index_batch][index_beam])) {
+      if (static_cast<size_t>(step) < prefix.size()
+          && !(beams_diverged_from_prefix[index_batch][index_beam])) {
         ops::SoftMax()(logit_beam, log_prob_beam);
         ops::Mul()(log_prob_beam,
                    scalar_discount.to(log_prob_beam.dtype()),
@@ -187,14 +186,14 @@ namespace ctranslate2 {
         const size_t biased_word_id = prefix[step];
         StorageView spare_scalar_view;
         TYPE_DISPATCH(
-            _spare_beam.dtype(),
-            spare_scalar_view = StorageView({1}, _spare_beam.data<T>() + biased_word_id, device));
+          _spare_beam.dtype(),
+          spare_scalar_view = StorageView({1}, _spare_beam.data<T>() + biased_word_id, device));
         const StorageView spare_scalar_copy(spare_scalar_view);
         StorageView beta_scalar;
         TYPE_DISPATCH(
-            _spare_beam.dtype(),
-            // Scalar's need to be allocated on CPUs.
-            beta_scalar = StorageView(static_cast<T>(prefix_bias_beta), Device::CPU));
+          _spare_beam.dtype(),
+          // Scalar's need to be allocated on CPUs.
+          beta_scalar = StorageView(static_cast<T>(prefix_bias_beta), Device::CPU));
         ops::Add()(spare_scalar_copy, beta_scalar, spare_scalar_view);
         ops::Log()(_spare_beam, log_prob_beam);
       } else {
@@ -253,7 +252,7 @@ namespace ctranslate2 {
     bool bias_towards_prefix = prefix_ids && _prefix_bias_beta > 0;
     if (bias_towards_prefix) {
       beams_diverged_from_prefix = std::vector<std::vector<bool>>(
-          batch_size, std::vector<bool>(_beam_size, false));
+        batch_size, std::vector<bool>(_beam_size, false));
     }
     const bool use_hard_prefix = prefix_ids && !bias_towards_prefix;
 
@@ -285,21 +284,21 @@ namespace ctranslate2 {
         if (!biased_decoder) {
           biased_decoder = std::make_unique<BiasedDecoder>();
         }
-        biased_decoder->decode(
-            _prefix_bias_beta,
-            cur_batch_size,
-            step,
-            batch_offset,
-            beams_diverged_from_prefix,
-            *prefix_ids,
-            logits,
-            log_probs);
+        biased_decoder->decode(_prefix_bias_beta,
+                               cur_batch_size,
+                               step,
+                               batch_offset,
+                               beams_diverged_from_prefix,
+                               *prefix_ids,
+                               logits,
+                               log_probs);
       } else {
         ops::LogSoftMax()(logits, log_probs);
       }
 
       const dim_t vocabulary_size = log_probs.dim(-1);
       const bool is_expanded = (!expand_after_first_step || step > start_step);
+
       // Multiply by the current beam log probs.
       if (is_expanded) {
         DEVICE_DISPATCH(
@@ -355,8 +354,8 @@ namespace ctranslate2 {
           const auto& prefix = (*prefix_ids)[batch_offset[batch_id]];
           bool diverged = true;
           if (static_cast<size_t>(step) < prefix.size()) {
-            diverged = prev_beams_diverged_from_prefix[batch_id][beam_id] || \
-                static_cast<size_t>(word_id) != prefix[step];
+            diverged = (prev_beams_diverged_from_prefix[batch_id][beam_id]
+                        || static_cast<size_t>(word_id) != prefix[step]);
           }
           beams_diverged_from_prefix[batch_id][i % _beam_size] = diverged;
         }
