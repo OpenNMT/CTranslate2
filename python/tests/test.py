@@ -564,7 +564,9 @@ def test_fairseq_model_conversion(tmpdir):
         "transliteration-aren-all",
         "fairseq",
     )
-    converter = ctranslate2.converters.FairseqConverter(os.path.join(data_dir, "model.pt"), data_dir)
+    converter = ctranslate2.converters.FairseqConverter(
+        os.path.join(data_dir, "model.pt"), data_dir
+    )
     output_dir = str(tmpdir.join("ctranslate2_model"))
     converter.convert(output_dir)
     translator = ctranslate2.Translator(output_dir)
