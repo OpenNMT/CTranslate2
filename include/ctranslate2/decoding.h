@@ -29,8 +29,8 @@ namespace ctranslate2 {
 
   class BeamSearch : public SearchStrategy {
   public:
-    BeamSearch(const dim_t beam_size, 
-               const float length_penalty = 0, 
+    BeamSearch(const dim_t beam_size,
+               const float length_penalty = 0,
                const float coverage_penalty = 0,
                const float prefix_bias_beta = 0);
 
@@ -57,20 +57,20 @@ namespace ctranslate2 {
   };
 
   class BiasedDecoder {
-    public: 
-      BiasedDecoder() {};
+  public:
+    BiasedDecoder() = default;
 
-      void 
-      decode(const float prefix_bias_beta, 
-             const dim_t cur_batch_size, 
-             const size_t step,
-             const std::vector<dim_t>& batch_offset,
-             const std::vector<std::vector<bool>>& beams_diverged_from_prefix,
-             const std::vector<std::vector<size_t>>& prefix_ids,
-             const StorageView& logits,
-             StorageView& log_probs);
-    private:
-      StorageView _spare_beam;
+    void
+    decode(const float prefix_bias_beta,
+           const dim_t cur_batch_size,
+           const size_t step,
+           const std::vector<dim_t>& batch_offset,
+           const std::vector<std::vector<bool>>& beams_diverged_from_prefix,
+           const std::vector<std::vector<size_t>>& prefix_ids,
+           const StorageView& logits,
+           StorageView& log_probs);
+  private:
+    StorageView _spare_beam;
   };
 
 

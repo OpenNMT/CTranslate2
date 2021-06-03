@@ -139,15 +139,15 @@ namespace ctranslate2 {
 
 
   void BiasedDecoder::decode(
-        const float prefix_bias_beta, 
-        const dim_t cur_batch_size, 
+        const float prefix_bias_beta,
+        const dim_t cur_batch_size,
         const size_t step,
         const std::vector<dim_t>& batch_offset,
         const std::vector<std::vector<bool>>& beams_diverged_from_prefix,
         const std::vector<std::vector<size_t>>& prefix_ids,
         const StorageView& logits,
         StorageView& log_probs) {
-    const dim_t num_beams = logits.dim(0);         
+    const dim_t num_beams = logits.dim(0);
     const Device device = logits.device();
     const DataType dtype = logits.dtype();
 
@@ -178,21 +178,21 @@ namespace ctranslate2 {
       const dim_t index_batch = b / cur_beam_size;
       const dim_t index_beam = b % cur_beam_size;
       const auto& prefix = prefix_ids[batch_offset[index_batch]];
-      if (static_cast<size_t>(step) < prefix.size() && 
+      if (static_cast<size_t>(step) < prefix.size() &&
           !(beams_diverged_from_prefix[index_batch][index_beam])) {
         ops::SoftMax()(logit_beam, log_prob_beam);
-        ops::Mul()(log_prob_beam, 
+        ops::Mul()(log_prob_beam,
                    scalar_discount.to(log_prob_beam.dtype()),
                    _spare_beam);
         const size_t biased_word_id = prefix[step];
         StorageView spare_scalar_view;
         TYPE_DISPATCH(
-            _spare_beam.dtype(), 
+            _spare_beam.dtype(),
             spare_scalar_view = StorageView({1}, _spare_beam.data<T>() + biased_word_id, device));
         const StorageView spare_scalar_copy(spare_scalar_view);
         StorageView beta_scalar;
         TYPE_DISPATCH(
-            _spare_beam.dtype(), 
+            _spare_beam.dtype(),
             // Scalar's need to be allocated on CPUs.
             beta_scalar = StorageView(static_cast<T>(prefix_bias_beta), Device::CPU));
         ops::Add()(spare_scalar_copy, beta_scalar, spare_scalar_view);
@@ -206,7 +206,7 @@ namespace ctranslate2 {
 
   BeamSearch::BeamSearch(const dim_t beam_size,
                          const float length_penalty,
-                         const float coverage_penalty, 
+                         const float coverage_penalty,
                          const float prefix_bias_beta)
     : _beam_size(beam_size)
     , _length_penalty(length_penalty)
@@ -287,7 +287,7 @@ namespace ctranslate2 {
         }
         biased_decoder->decode(
             _prefix_bias_beta,
-            cur_batch_size, 
+            cur_batch_size,
             step,
             batch_offset,
             beams_diverged_from_prefix,
@@ -342,7 +342,7 @@ namespace ctranslate2 {
       // Unflatten the ids.
       gather_indices.resize({cur_batch_size * _beam_size});
       std::vector<std::vector<bool>> prev_beams_diverged_from_prefix;
-      if (bias_towards_prefix) 
+      if (bias_towards_prefix)
         prev_beams_diverged_from_prefix = beams_diverged_from_prefix;
       for (dim_t i = 0; i < topk_ids.size(); ++i) {
         auto flat_id = topk_ids.at<int32_t>(i);
