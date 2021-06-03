@@ -11,7 +11,7 @@ namespace ctranslate2 {
   class SearchStrategy {
   public:
     virtual ~SearchStrategy() = default;
-    virtual void
+    virtual std::vector<GenerationResult<size_t>>
     search(layers::Decoder& decoder,
            layers::DecoderState& state,
            const Sampler& sampler,
@@ -21,9 +21,8 @@ namespace ctranslate2 {
            const dim_t max_length,
            const dim_t min_length,
            const std::vector<size_t>* output_ids_map,
-           std::vector<std::vector<std::vector<size_t>>>& sampled_ids,
-           std::vector<std::vector<float>>* scores = nullptr,
-           std::vector<std::vector<std::vector<std::vector<float>>>>* attention = nullptr,
+           const bool return_scores = false,
+           const bool return_attention = false,
            const size_t num_hypotheses = 1,
            const std::vector<std::vector<size_t>>* prefix_ids = nullptr) const = 0;
   };
@@ -35,7 +34,7 @@ namespace ctranslate2 {
                const float coverage_penalty = 0,
                const float prefix_bias_beta = 0);
 
-    void
+    std::vector<GenerationResult<size_t>>
     search(layers::Decoder& decoder,
            layers::DecoderState& state,
            const Sampler& sampler,
@@ -45,9 +44,8 @@ namespace ctranslate2 {
            const dim_t max_length,
            const dim_t min_length,
            const std::vector<size_t>* output_ids_map,
-           std::vector<std::vector<std::vector<size_t>>>& sampled_ids,
-           std::vector<std::vector<float>>* scores = nullptr,
-           std::vector<std::vector<std::vector<std::vector<float>>>>* attention = nullptr,
+           const bool return_scores = false,
+           const bool return_attention = false,
            const size_t num_hypotheses = 1,
            const std::vector<std::vector<size_t>>* prefix_ids = nullptr) const override;
 
@@ -78,7 +76,7 @@ namespace ctranslate2 {
 
   class GreedySearch : public SearchStrategy {
   public:
-    void
+    std::vector<GenerationResult<size_t>>
     search(layers::Decoder& decoder,
            layers::DecoderState& state,
            const Sampler& sampler,
@@ -88,9 +86,8 @@ namespace ctranslate2 {
            const dim_t max_length,
            const dim_t min_length,
            const std::vector<size_t>* output_ids_map,
-           std::vector<std::vector<std::vector<size_t>>>& sampled_ids,
-           std::vector<std::vector<float>>* scores = nullptr,
-           std::vector<std::vector<std::vector<std::vector<float>>>>* attention = nullptr,
+           const bool return_scores = false,
+           const bool return_attention = false,
            const size_t num_hypotheses = 1,
            const std::vector<std::vector<size_t>>* prefix_ids = nullptr) const override;
   };
