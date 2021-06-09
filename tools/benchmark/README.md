@@ -36,7 +36,7 @@ Note: the script focuses on raw decoding performance so the following steps are 
 
 ### Reproducing the benchmark numbers from the README
 
-We use the script `benchmark_pretrained.py` to produce the benchmark numbers in the main [README](https://github.com/OpenNMT/CTranslate2#benchmarks):
+We use the script `benchmark_pretrained.py` to produce the benchmark numbers in the main [README](https://github.com/OpenNMT/CTranslate2#benchmarks). The directory `pretrained_transformer_base` contains the corresponding Docker images.
 
 ```text
 # Run CPU benchmark:

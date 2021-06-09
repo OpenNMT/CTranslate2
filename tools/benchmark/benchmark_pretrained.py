@@ -1,3 +1,4 @@
+import os
 import sys
 import docker
 import sacrebleu
@@ -14,14 +15,19 @@ num_samples = 5 if gpu else 3
 
 print("Building the images...")
 client = docker.from_env()
+current_dir = os.path.dirname(os.path.realpath(__file__))
+pretrained_dir = os.path.join(current_dir, "pretrained_transformer_base")
 ctranslate2, _ = client.images.build(
-    path="pretrained_transformer_base/ctranslate2", tag="opennmt/ctranslate2-benchmark"
+    path=os.path.join(pretrained_dir, "ctranslate2"),
+    tag="opennmt/ctranslate2-benchmark",
 )
 opennmt_py, _ = client.images.build(
-    path="pretrained_transformer_base/opennmt_py", tag="opennmt/opennmt-py-benchmark"
+    path=os.path.join(pretrained_dir, "opennmt_py"),
+    tag="opennmt/opennmt-py-benchmark",
 )
 opennmt_tf, _ = client.images.build(
-    path="pretrained_transformer_base/opennmt_tf", tag="opennmt/opennmt-tf-benchmark"
+    path=os.path.join(pretrained_dir, "opennmt_tf"),
+    tag="opennmt/opennmt-tf-benchmark",
 )
 
 print("Downloading the test files...")
