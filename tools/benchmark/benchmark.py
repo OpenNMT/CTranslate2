@@ -253,29 +253,27 @@ def main():
         "--num_samples",
         type=int,
         default=1,
-        help="Aggregate results over this number of runs",
+        help="aggregate results over this number of runs",
     )
-    parser.add_argument(
-        "--num_cpus", type=int, default=4, help="Number of CPUs to use."
-    )
-    parser.add_argument("--gpu", action="store_true", help="Use the GPU.")
+    parser.add_argument("--num_cpus", type=int, default=4, help="number of CPUs to use")
+    parser.add_argument("--gpu", action="store_true", help="run on GPU")
     parser.add_argument(
         "--env",
         type=str,
         nargs=2,
         action="append",
         default=[],
-        help="Pass this environment variable to the Docker container",
+        help="add this environment variable to the Docker container",
     )
-    parser.add_argument("image", type=str, help="Docker image to benchmark.")
-    parser.add_argument("src", type=str, help="Source file.")
-    parser.add_argument("tgt", type=str, help="Target file.")
+    parser.add_argument("image", type=str, help="name of Docker image to benchmark")
+    parser.add_argument("src", type=str, help="source file")
+    parser.add_argument("ref", type=str, help="reference file")
     args = parser.parse_args()
 
     result = benchmark_image(
         args.image,
         args.src,
-        args.tgt,
+        args.ref,
         num_samples=args.num_samples,
         environment={key: value for key, value in args.env},
         num_cpus=args.num_cpus,

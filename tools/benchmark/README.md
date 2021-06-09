@@ -14,10 +14,10 @@ python3 -m pip install -r requirements.txt
 ### Usage
 
 ```text
-python3 benchmark.py <DOCKER_IMAGE> <SOURCE> <REFERENCE>
+python3 benchmark.py <IMAGE> <SOURCE> <REFERENCE>
 ```
 
-The Docker image should contain 3 scripts at the root:
+The Docker image must contain 3 scripts at its root:
 
 * `/tokenize.sh $input $output`
 * `/detokenize.sh $input $output`
@@ -26,7 +26,7 @@ The Docker image should contain 3 scripts at the root:
   * `$input` is the path to the tokenized input file
   * `$output` is the path where the tokenized output should be written
 
-The benchmark script will report multiple metrics, possibly aggregated over multiple runs. See `python3 benchmark.py -h` for additional options.
+The benchmark script will report multiple metrics. The results can be aggregated over multiple runs using the option `--num_samples N`. See `python3 benchmark.py -h` for additional options.
 
 Note: the script focuses on raw decoding performance so the following steps are **not** included in the translation time:
 
@@ -36,7 +36,7 @@ Note: the script focuses on raw decoding performance so the following steps are 
 
 ### Reproducing the benchmark numbers from the README
 
-We use the script `benchmark_pretrained.py` to produce the benchmark numbers in the main [README](https://github.com/OpenNMT/CTranslate2#benchmarks). The directory `pretrained_transformer_base` contains the corresponding Docker images.
+We use the script `benchmark_pretrained.py` to produce the benchmark numbers in the main [README](https://github.com/OpenNMT/CTranslate2#benchmarks). The directory `pretrained_transformer_base` contains the Docker images corresponding to the pretrained OpenNMT Transformers.
 
 ```text
 # Run CPU benchmark:
