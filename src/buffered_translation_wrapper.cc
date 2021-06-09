@@ -33,6 +33,7 @@ namespace ctranslate2 {
     std::promise<TranslationResult> promise;
     auto future = promise.get_future();
 
+    bool notify = false;
     if (source.empty()) {
       promise.set_value(TranslationResult(_options.num_hypotheses,
                                           _options.return_attention,
@@ -44,9 +45,11 @@ namespace ctranslate2 {
       _source.emplace(std::move(source));
       _target.emplace(std::move(target));
 
-      if (_source.size() >= _max_buffer_size)
-        _cv.notify_one();
+      notify = (_source.size() >= _max_buffer_size);
     }
+
+    if (notify)
+      _cv.notify_one();
 
     return future;
   }
