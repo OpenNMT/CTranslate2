@@ -8,7 +8,5 @@ RUN cd averaged-ende-ckpt500k-v2 && \
 
 RUN python3 -m pip install --no-cache-dir OpenNMT-tf==2.19.*
 
-ENV LANG=C.UTF-8
-
 COPY *.yml /
 COPY *.sh /
