@@ -28,17 +28,17 @@ def _get_model_spec(args):
     activation_fn = getattr(args, "activation_fn", "relu")
 
     reasons = []
-    if args.arch not in _SUPPORTED_ARCHS:
+    if args.model.arch not in _SUPPORTED_ARCHS:
         reasons.append(
             "Option --arch %s is not supported (supported architectures are: %s)"
             % (args.arch, ", ".join(_SUPPORTED_ARCHS))
         )
-    if args.encoder_normalize_before != args.decoder_normalize_before:
+    if args.model.encoder_normalize_before != args.model.decoder_normalize_before:
         reasons.append(
             "Options --encoder-normalize-before and --decoder-normalize-before "
             "must have the same value"
         )
-    if args.encoder_attention_heads != args.decoder_attention_heads:
+    if args.model.encoder_attention_heads != args.model.decoder_attention_heads:
         reasons.append(
             "Options --encoder-attention-heads and --decoder-attention-heads must "
             "have the same value"
@@ -57,9 +57,9 @@ def _get_model_spec(args):
         utils.raise_unsupported(reasons)
 
     return transformer_spec.TransformerSpec(
-        (args.encoder_layers, args.decoder_layers),
-        args.encoder_attention_heads,
-        pre_norm=args.encoder_normalize_before,
+        (args.model.encoder_layers, args.model.decoder_layers),
+        args.model.encoder_attention_heads,
+        pre_norm=args.model.encoder_normalize_before,
         activation=_SUPPORTED_ACTIVATIONS[activation_fn],
     )
 
@@ -82,20 +82,25 @@ class FairseqConverter(Converter):
 
         with torch.no_grad():
             checkpoint = checkpoint_utils.load_checkpoint_to_cpu(self._model_path)
-            args = checkpoint["args"]
-            args.data = self._data_dir
+            args = checkpoint["cfg"]
+            #print(dir(checkpoint))
+            #print(checkpoint["args"])
+            #print(args)
+            
+            args.model.data = self._data_dir
 
             model_spec = _get_model_spec(args)
             model_spec.with_source_eos = True
             model_spec.with_target_bos = False
-
-            task = fairseq.tasks.setup_task(args)
-            model = fairseq.models.build_model(args, task)
+            print(args)
+            task = fairseq.tasks.setup_task(args.model)
+            model = fairseq.models.build_model(args.model, task)
             model.load_state_dict(checkpoint["model"])
 
             set_transformer_spec(model_spec, model)
             model_spec.register_vocabulary("source", _get_vocab(task.source_dictionary))
             model_spec.register_vocabulary("target", _get_vocab(task.target_dictionary))
+            print(args)
             return model_spec
 
 
