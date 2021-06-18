@@ -39,35 +39,6 @@ namespace ctranslate2 {
     }
 
 
-    static inline std::unique_ptr<const ops::UnaryOp>
-    make_activation_op(const ActivationType type) {
-      switch (type) {
-      case ActivationType::GELU:
-        return std::make_unique<ops::GELU>();
-      case ActivationType::ReLU:
-        return std::make_unique<ops::ReLU>();
-      }
-      return nullptr;
-    }
-
-    Activation::Activation(const ActivationType type)
-      : _type(type)
-      , _op(make_activation_op(type)) {
-    }
-
-    DataType Activation::output_type() const {
-      return DataType::FLOAT;
-    }
-
-    dim_t Activation::output_size() const {
-      return 0;
-    }
-
-    void Activation::operator()(const StorageView& x, StorageView& y) const {
-      (*_op)(x, y);
-    }
-
-
     static inline StorageView get_sqrt_depth_scale(const StorageView& embeddings) {
       const auto scale = std::sqrt(static_cast<float>(embeddings.dim(-1)));
       if (embeddings.dtype() == DataType::FLOAT16) {
@@ -225,7 +196,7 @@ namespace ctranslate2 {
 
     Dense::Dense(const models::Model& model,
                  const std::string& scope,
-                 const Activation* activation)
+                 const ops::UnaryOp* activation)
       : _packed_weight(false)
       , _weight(get_linear_weight(model, scope, &_packed_weight))
       , _bias(model.get_variable_if_exists(scope + "/bias"))

@@ -4,6 +4,7 @@
 #include "ctranslate2/layers/common.h"
 #include "ctranslate2/layers/decoder.h"
 #include "ctranslate2/layers/encoder.h"
+#include "ctranslate2/ops/activation.h"
 #include "ctranslate2/padder.h"
 
 namespace ctranslate2 {
@@ -15,7 +16,7 @@ namespace ctranslate2 {
       FeedForwardNetwork(const models::Model& model,
                          const std::string& scope,
                          const bool pre_norm = true,
-                         const layers::ActivationType activation_type = layers::ActivationType::ReLU);
+                         const ops::ActivationType activation_type = ops::ActivationType::ReLU);
 
       void operator()(const StorageView& input, StorageView& output) const;
 
@@ -30,7 +31,6 @@ namespace ctranslate2 {
     private:
       const LayerNorm _layer_norm;
       const bool _pre_norm;
-      const Activation _activation;
       const Dense _ff1;
       const Dense _ff2;
     };
@@ -42,7 +42,7 @@ namespace ctranslate2 {
                               const std::string& scope,
                               const size_t num_heads,
                               const bool pre_norm = true,
-                              const layers::ActivationType activation_type = layers::ActivationType::ReLU);
+                              const ops::ActivationType activation_type = ops::ActivationType::ReLU);
 
       void operator()(const StorageView& input,
                       const StorageView& lengths,
@@ -70,7 +70,7 @@ namespace ctranslate2 {
                               const size_t num_heads,
                               const bool with_encoder_attention = true,
                               const bool pre_norm = true,
-                              const layers::ActivationType activation_type = layers::ActivationType::ReLU);
+                              const ops::ActivationType activation_type = ops::ActivationType::ReLU);
 
       void operator()(const StorageView& input,
                       const StorageView* memory,
@@ -105,7 +105,7 @@ namespace ctranslate2 {
                          const size_t num_heads,
                          const bool with_position_encoding = true,
                          const bool pre_norm = true,
-                         const layers::ActivationType activation_type = layers::ActivationType::ReLU);
+                         const ops::ActivationType activation_type = ops::ActivationType::ReLU);
 
       void operator()(const StorageView& ids,
                       const StorageView& lengths,
@@ -136,7 +136,7 @@ namespace ctranslate2 {
                          const bool with_position_encoding = true,
                          const bool with_encoder_attention = true,
                          const bool pre_norm = true,
-                         const layers::ActivationType activation_type = layers::ActivationType::ReLU);
+                         const ops::ActivationType activation_type = ops::ActivationType::ReLU);
 
       void set_vocabulary_mask(const StorageView& ids) override;
       void reset_vocabulary_mask() override;
