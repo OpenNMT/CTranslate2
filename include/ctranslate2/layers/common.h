@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ctranslate2/ops/activation.h"
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/models/model.h"
 
@@ -72,7 +73,7 @@ namespace ctranslate2 {
     public:
       Dense(const models::Model& model,
             const std::string& scope,
-            const ops::UnaryOp* activation = nullptr);
+            const ops::ActivationType* activation_type = nullptr);
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output) const;

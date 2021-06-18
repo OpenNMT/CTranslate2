@@ -4,7 +4,6 @@
 #include "ctranslate2/layers/common.h"
 #include "ctranslate2/layers/decoder.h"
 #include "ctranslate2/layers/encoder.h"
-#include "ctranslate2/ops/activation.h"
 #include "ctranslate2/padder.h"
 
 namespace ctranslate2 {
