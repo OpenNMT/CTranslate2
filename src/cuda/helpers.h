@@ -203,6 +203,15 @@ namespace ctranslate2 {
       }
     };
 
+#if !CUDA_CAN_USE_HALF
+    template<>
+    struct relu_func<__half> {
+      __host__ __device__ __half operator()(__half x) const {
+        return float(x) > float(0) ? x : __half(0);
+      }
+    };
+#endif
+
     template <typename T>
     class gelu_func {
     private:
@@ -210,6 +219,7 @@ namespace ctranslate2 {
     public:
       gelu_func() : _scale(std::sqrt(2.f / std::acos(-1.f))) {}
 
+      // Implicitly promote half to float in this function.
       __host__ __device__ float operator()(float x) const {
         return 0.5f * x * (1.f + tanhf(_scale * (x + 0.044715f * powf(x, 3.f))));
       }
