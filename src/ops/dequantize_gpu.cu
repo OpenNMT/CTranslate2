@@ -77,13 +77,13 @@ namespace ctranslate2 {
 
         case ActivationType::ReLU: {
           dequantize_gemm_output_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-            c, a_scales, b_scales, transpose_a, transpose_b, bias, cuda::relu_func(), y, depth);
+            c, a_scales, b_scales, transpose_a, transpose_b, bias, cuda::relu_func<float>(), y, depth);
           break;
         }
 
         case ActivationType::GELU: {
           dequantize_gemm_output_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-            c, a_scales, b_scales, transpose_a, transpose_b, bias, cuda::gelu_func(), y, depth);
+            c, a_scales, b_scales, transpose_a, transpose_b, bias, cuda::gelu_func<float>(), y, depth);
           break;
         }
 

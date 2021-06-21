@@ -196,13 +196,14 @@ namespace ctranslate2 {
     };
 #endif
 
+    template <typename T>
     struct relu_func {
-      template <typename T>
       __host__ __device__ T operator()(T x) const {
         return x > T(0) ? x : T(0);
       }
     };
 
+    template <typename T>
     class gelu_func {
     private:
       float _scale;
