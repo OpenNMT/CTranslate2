@@ -6,16 +6,17 @@
 namespace ctranslate2 {
   namespace ops {
 
-    template <typename T, typename Epilogue>
+    template <typename T, typename AddFunc, typename Epilogue>
     __global__ void bias_add_kernel(const T* value,
                                     const T* bias,
                                     T* output,
                                     dim_t depth,
+                                    const AddFunc& add_func,
                                     const Epilogue& epilogue) {
       const dim_t i = blockIdx.x;
       for (dim_t j = threadIdx.x; j < depth; j += blockDim.x) {
         const dim_t index = i * depth + j;
-        output[index] = epilogue(value[index] + bias[j]);
+        output[index] = epilogue(add_func(value[index], bias[j]));
       }
     }
 
@@ -35,19 +36,19 @@ namespace ctranslate2 {
 
       if (!_activation_type) {
         bias_add_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-          x, b, y, depth, thrust::identity<DeviceT>());
+          x, b, y, depth, cuda::plus<DeviceT>(), thrust::identity<DeviceT>());
 
       } else {
         switch (*_activation_type) {
 
         case ActivationType::ReLU:
           bias_add_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-            x, b, y, depth, cuda::relu_func<DeviceT>());
+            x, b, y, depth, cuda::plus<DeviceT>(), cuda::relu_func<DeviceT>());
           break;
 
         case ActivationType::GELU:
           bias_add_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-            x, b, y, depth, cuda::gelu_func<DeviceT>());
+            x, b, y, depth, cuda::plus<DeviceT>(), cuda::gelu_func<DeviceT>());
           break;
         }
       }
