@@ -11,6 +11,9 @@
 #  include "./cuda/utils.h"
 #endif
 
+#include <spdlog/spdlog.h>
+#include <spdlog/sinks/stdout_sinks.h>
+
 #include "cpu/backend.h"
 #include "cpu/cpu_info.h"
 #include "cpu/cpu_isa.h"
@@ -39,45 +42,38 @@ namespace ctranslate2 {
     return std::stoi(value);
   }
 
-  bool verbose_mode() {
-    static const bool verbose = read_bool_from_env("CT2_VERBOSE");
-    return verbose;
-  }
-
   static void log_config() {
-    LOG() << std::boolalpha
-          << "CPU: " << cpu::cpu_vendor()
-          << " (SSE4.1=" << cpu::cpu_supports_sse41()
-          << ", AVX=" << cpu::cpu_supports_avx()
-          << ", AVX2=" << cpu::cpu_supports_avx2()
-          << ", NEON=" << cpu::cpu_supports_neon()
-          << ")" << std::endl;
-    LOG() << " - Selected ISA: " << cpu::isa_to_str(cpu::get_cpu_isa()) << std::endl;
-    LOG() << " - Use Intel MKL: " << cpu::mayiuse_mkl() << std::endl;
-    LOG() << " - SGEMM backend: "
-          << cpu::gemm_backend_to_str(cpu::get_gemm_backend(ComputeType::FLOAT))
-          << std::endl;
-    LOG() << " - GEMM_S16 backend: "
-          << cpu::gemm_backend_to_str(cpu::get_gemm_backend(ComputeType::INT16))
-          << std::endl;
-    LOG() << " - GEMM_S8 backend: "
-          << cpu::gemm_backend_to_str(cpu::get_gemm_backend(ComputeType::INT8))
-          << " (u8s8 preferred: " << cpu::prefer_u8s8s32_gemm() << ")"
-          << std::endl;
-    LOG() << " - Use packed GEMM: " << cpu::should_pack_gemm_weights() << std::endl;
+    if (!spdlog::should_log(spdlog::level::info))
+      return;
+
+    spdlog::info("CPU: {} (SSE4.1={}, AVX={}, AVX2={}, NEON={})",
+                 cpu::cpu_vendor(),
+                 cpu::cpu_supports_sse41(),
+                 cpu::cpu_supports_avx(),
+                 cpu::cpu_supports_avx2(),
+                 cpu::cpu_supports_neon());
+    spdlog::info(" - Selected ISA: {}", cpu::isa_to_str(cpu::get_cpu_isa()));
+    spdlog::info(" - Use Intel MKL: {}", cpu::mayiuse_mkl());
+    spdlog::info(" - SGEMM backend: {}",
+                 cpu::gemm_backend_to_str(cpu::get_gemm_backend(ComputeType::FLOAT)));
+    spdlog::info(" - GEMM_S16 backend: {}",
+                 cpu::gemm_backend_to_str(cpu::get_gemm_backend(ComputeType::INT16)));
+    spdlog::info(" - GEMM_S8 backend: {} (u8s8 preferred: {})",
+                 cpu::gemm_backend_to_str(cpu::get_gemm_backend(ComputeType::INT8)),
+                 cpu::prefer_u8s8s32_gemm());
+    spdlog::info(" - Use packed GEMM: {}", cpu::should_pack_gemm_weights());
 
 #ifdef CT2_WITH_CUDA
     for (int i = 0; i < cuda::get_gpu_count(); ++i) {
       const cudaDeviceProp& device_prop = cuda::get_device_properties(i);
-      LOG() << "GPU #" << i << ": " << device_prop.name
-            << " (CC=" << device_prop.major << '.' << device_prop.minor << ')'
-            << std::endl;
-      LOG() << " - Allow INT8: " << mayiuse_int8(Device::CUDA, i)
-            << " (with Tensor Cores: " << cuda::gpu_has_int8_tensor_cores(i) << ')'
-            << std::endl;
-      LOG() << " - Allow FP16: " << mayiuse_float16(Device::CUDA, i)
-            << " (with Tensor Cores: " << cuda::gpu_has_fp16_tensor_cores(i) << ')'
-            << std::endl;
+      spdlog::info("GPU #{}: {} (CC={}.{})",
+                   i, device_prop.name, device_prop.major, device_prop.minor);
+      spdlog::info(" - Allow INT8: {} (with Tensor Cores: {})",
+                   mayiuse_int8(Device::CUDA, i),
+                   cuda::gpu_has_int8_tensor_cores(i));
+      spdlog::info(" - Allow FP16: {} (with Tensor Cores: {})",
+                   mayiuse_float16(Device::CUDA, i),
+                   cuda::gpu_has_fp16_tensor_cores(i));
     }
 #endif
   }
@@ -85,9 +81,26 @@ namespace ctranslate2 {
   // Maybe log run configuration on program start.
   static struct ConfigLogger {
     ConfigLogger() {
-      if (verbose_mode()) {
-        log_config();
+      auto logger = spdlog::stderr_logger_st("ctranslate2");
+      logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [thread %t] [%l] %v");
+      spdlog::set_default_logger(logger);
+
+      switch (read_int_from_env("CT2_VERBOSE", 0)) {
+      case 0:
+        spdlog::set_level(spdlog::level::warn);
+        break;
+      case 1:
+        spdlog::set_level(spdlog::level::info);
+        break;
+      case 2:
+        spdlog::set_level(spdlog::level::debug);
+        break;
+      default:
+        throw std::invalid_argument("invalid CT2_VERBOSE value (should be between 0 and 2)");
+        break;
       }
+
+      log_config();
     }
   } config_logger;
 
