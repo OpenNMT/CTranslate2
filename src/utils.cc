@@ -78,31 +78,25 @@ namespace ctranslate2 {
 #endif
   }
 
+  static void set_log_level(int level) {
+    if (level < -3 || level > 3)
+      throw std::invalid_argument("Invalid log level "
+                                  + std::to_string(level)
+                                  + " (should be between -3 and 3)");
+
+    spdlog::set_level(static_cast<spdlog::level::level_enum>(6 - (level + 3)));
+  }
+
   // Maybe log run configuration on program start.
-  static struct ConfigLogger {
-    ConfigLogger() {
-      auto logger = spdlog::stderr_logger_st("ctranslate2");
+  static struct LoggerInit {
+    LoggerInit() {
+      auto logger = spdlog::stderr_logger_mt("ctranslate2");
       logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [thread %t] [%l] %v");
       spdlog::set_default_logger(logger);
-
-      switch (read_int_from_env("CT2_VERBOSE", 0)) {
-      case 0:
-        spdlog::set_level(spdlog::level::warn);
-        break;
-      case 1:
-        spdlog::set_level(spdlog::level::info);
-        break;
-      case 2:
-        spdlog::set_level(spdlog::level::debug);
-        break;
-      default:
-        throw std::invalid_argument("invalid CT2_VERBOSE value (should be between 0 and 2)");
-        break;
-      }
-
+      set_log_level(read_int_from_env("CT2_VERBOSE", 0));
       log_config();
     }
-  } config_logger;
+  } logger_init;
 
   bool mayiuse_float16(Device device, int device_index) {
     switch (device) {
