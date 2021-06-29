@@ -87,7 +87,7 @@ namespace ctranslate2 {
     spdlog::set_level(static_cast<spdlog::level::level_enum>(6 - (level + 3)));
   }
 
-  // Maybe log run configuration on program start.
+  // Initialize the global logger on program start.
   static struct LoggerInit {
     LoggerInit() {
       auto logger = spdlog::stderr_logger_mt("ctranslate2");
