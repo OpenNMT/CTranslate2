@@ -40,9 +40,10 @@ namespace ctranslate2 {
     }
 
 
-    static inline StorageView get_sqrt_depth_scale(const StorageView& embeddings) {
-      const auto scale = std::sqrt(static_cast<float>(embeddings.dim(-1)));
-      if (embeddings.dtype() == DataType::FLOAT16) {
+    static inline StorageView get_sqrt_depth_scale(const dim_t embedding_size,
+                                                   const DataType dtype) {
+      const auto scale = std::sqrt(static_cast<float>(embedding_size));
+      if (dtype == DataType::FLOAT16) {
         return StorageView(float16_t(scale));
       } else {
         return StorageView(scale);
@@ -51,14 +52,15 @@ namespace ctranslate2 {
 
     Embeddings::Embeddings(const models::Model& model, const std::string& scope)
       : _embeddings(model.get_variable(scope + "/weight"))
+      , _output_type(model.default_float_type())
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
       , _scale(model.get_flag_with_default(scope + "/multiply_by_sqrt_depth", true)
-               ? std::make_unique<StorageView>(get_sqrt_depth_scale(_embeddings))
+               ? std::make_unique<StorageView>(get_sqrt_depth_scale(_embeddings.dim(1), _output_type))
                : nullptr) {
     }
 
     DataType Embeddings::output_type() const {
-      return _embeddings.dtype() == DataType::FLOAT16 ? DataType::FLOAT16 : DataType::FLOAT;
+      return _output_type;
     }
 
     dim_t Embeddings::output_size() const {
@@ -207,6 +209,7 @@ namespace ctranslate2 {
       , _partial_bias(_weight.device(), _bias ? _bias->dtype() : DataType::FLOAT)
       , _partial_qscale(_weight.device(), DataType::FLOAT)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
+      , _output_type(model.default_float_type())
       , _quantized_gemm(_weight.dtype() == DataType::INT16 || _weight.dtype() == DataType::INT8)
       , _gemm_op(/*alpha=*/1,
                  /*beta=*/0,
@@ -222,7 +225,7 @@ namespace ctranslate2 {
     }
 
     DataType Dense::output_type() const {
-      return _weight.dtype() == DataType::FLOAT16 ? DataType::FLOAT16 : DataType::FLOAT;
+      return _output_type;
     }
 
     dim_t Dense::output_size() const {

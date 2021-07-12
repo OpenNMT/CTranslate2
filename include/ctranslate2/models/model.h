@@ -53,6 +53,10 @@ namespace ctranslate2 {
         return _effective_compute_type;
       }
 
+      DataType default_float_type() const {
+        return ::ctranslate2::default_float_type(_effective_compute_type);
+      }
+
       dim_t preferred_size_multiple() const {
         return _preferred_size_multiple;
       }
@@ -92,6 +96,9 @@ namespace ctranslate2 {
       // Returns true if the variable can be pre-packed.
       virtual bool is_packable(const std::string& variable_name) const;
 
+      // Returns true if the variable can be converted to another type.
+      virtual bool is_convertible(const StorageView& variable, const std::string& name) const;
+
       // Models can override these methods to execute some transformations if needed
       // (e.g. a variable name changed in a newer spec revision).
       virtual void register_variable(const std::string& name, StorageView& variable);
@@ -115,6 +122,7 @@ namespace ctranslate2 {
                         const DataType target_dtype,
                         std::unordered_map<std::string, StorageView>& variables_to_add,
                         std::vector<std::string>& variables_to_remove);
+      ComputeType infer_compute_type() const;
     };
 
     // The ModelReader interface allows user code to customize how and where to read model files.

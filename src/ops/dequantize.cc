@@ -1,6 +1,7 @@
 #include "ctranslate2/ops/dequantize.h"
 
-#include "../device_dispatch.h"
+#include "device_dispatch.h"
+#include "type_dispatch.h"
 
 namespace ctranslate2 {
   namespace ops {
@@ -22,7 +23,7 @@ namespace ctranslate2 {
           throw std::invalid_argument("INT16 dequantization is only supported on CPU");
         if (!scale.is_scalar())
           throw std::invalid_argument("INT16 quantization scale should be a scalar value");
-        dequantize<Device::CPU, int16_t>(input, scale, output);
+        dequantize<Device::CPU, int16_t, float>(input, scale, output);
         break;
       }
 
@@ -30,7 +31,22 @@ namespace ctranslate2 {
         const dim_t batch_size = input.size() / input.dim(-1);
         if (scale.size() != batch_size)
           throw std::invalid_argument("INT8 dequantization expects per-batch scales");
-        DEVICE_DISPATCH(input.device(), (dequantize<D, int8_t>(input, scale, output)));
+
+        switch (output.dtype()) {
+        case DataType::FLOAT: {
+          DEVICE_DISPATCH(input.device(), (dequantize<D, int8_t, float>(input, scale, output)));
+          break;
+        }
+        case DataType::FLOAT16: {
+          if (output.device() != Device::CUDA)
+            throw std::invalid_argument("Dequantize: float16 ouput is only supported on CUDA");
+          dequantize<Device::CUDA, int8_t, float16_t>(input, scale, output);
+          break;
+        }
+        default:
+          throw std::invalid_argument("Dequantize: output should have a float type");
+        }
+
         break;
       }
 
@@ -49,13 +65,35 @@ namespace ctranslate2 {
                                 const StorageView* bias) const {
       PROFILE("DequantizeGemmOutput");
       y.resize_as(c);
-      DEVICE_DISPATCH(c.device(), dequantize_gemm_output<D>(c,
-                                                            a_scale,
-                                                            b_scale,
-                                                            transpose_a,
-                                                            transpose_b,
-                                                            bias,
-                                                            y));
+
+      switch (y.dtype()) {
+      case DataType::FLOAT: {
+        DEVICE_DISPATCH(c.device(), (dequantize_gemm_output<D, float>(c,
+                                                                      a_scale,
+                                                                      b_scale,
+                                                                      transpose_a,
+                                                                      transpose_b,
+                                                                      bias,
+                                                                      y)));
+        break;
+      }
+
+      case DataType::FLOAT16: {
+        if (y.device() != Device::CUDA)
+          throw std::invalid_argument("DequantizeGemmOutput: float16 ouput is only supported on CUDA");
+        dequantize_gemm_output<Device::CUDA, float16_t>(c,
+                                                        a_scale,
+                                                        b_scale,
+                                                        transpose_a,
+                                                        transpose_b,
+                                                        bias,
+                                                        y);
+        break;
+      }
+
+      default:
+        throw std::invalid_argument("DequantizeGemmOutput: output should have a float type");
+      }
     }
 
   }
