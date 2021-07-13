@@ -5,21 +5,11 @@
 namespace ctranslate2 {
   namespace ops {
 
-    template <typename T>
-    __device__ __forceinline__ float cast_to_float(T x) {
-      return static_cast<float>(x);
-    }
-
-    template<>
-    __device__ __forceinline__ float cast_to_float(int32_t x) {
-      return __int2float_rn(x);
-    }
-
     template <typename InT, typename OutT>
     struct dequantize_func {
       __device__ __forceinline__
       OutT operator()(float scale, InT x) const {
-        return __fdividef(cast_to_float<InT>(x), scale);
+        return __fdividef(static_cast<float>(x), scale);
       }
     };
 
