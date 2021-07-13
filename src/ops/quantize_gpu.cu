@@ -55,8 +55,8 @@ namespace ctranslate2 {
       output += blockIdx.x * depth;
 
       T thread_max = cuda::ilp_reduce(input, depth, absolute_maximum_func<T>(), T(0));
-      T max_t = cuda::block_reduce(sdata, thread_max, cuda::maximum<T>(), T(0));
-      float max = max_t;
+      T global_max = cuda::block_reduce(sdata, thread_max, cuda::maximum<T>(), T(0));
+      float max = global_max;
       float scale = max != 0.f ? 127.f / max : 1.f;
 
       scales[blockIdx.x] = scale;
