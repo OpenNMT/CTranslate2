@@ -37,12 +37,16 @@ namespace ctranslate2 {
           DEVICE_DISPATCH(input.device(), (dequantize<D, int8_t, float>(input, scale, output)));
           break;
         }
+
+#ifdef CT2_WITH_CUDA
         case DataType::FLOAT16: {
           if (output.device() != Device::CUDA)
             throw std::invalid_argument("Dequantize: float16 ouput is only supported on CUDA");
           dequantize<Device::CUDA, int8_t, float16_t>(input, scale, output);
           break;
         }
+#endif
+
         default:
           throw std::invalid_argument("Dequantize: output should have a float type");
         }
@@ -78,6 +82,7 @@ namespace ctranslate2 {
         break;
       }
 
+#ifdef CT2_WITH_CUDA
       case DataType::FLOAT16: {
         if (y.device() != Device::CUDA)
           throw std::invalid_argument("DequantizeGemmOutput: float16 ouput is only supported on CUDA");
@@ -90,6 +95,7 @@ namespace ctranslate2 {
                                                         y);
         break;
       }
+#endif
 
       default:
         throw std::invalid_argument("DequantizeGemmOutput: output should have a float type");
