@@ -40,23 +40,15 @@ namespace ctranslate2 {
     }
 
 
-    static inline StorageView get_sqrt_depth_scale(const dim_t embedding_size,
-                                                   const DataType dtype) {
-      const auto scale = std::sqrt(static_cast<float>(embedding_size));
-      if (dtype == DataType::FLOAT16) {
-        return StorageView(float16_t(scale));
-      } else {
-        return StorageView(scale);
-      }
-    }
-
     Embeddings::Embeddings(const models::Model& model, const std::string& scope)
       : _embeddings(model.get_variable(scope + "/weight"))
       , _output_type(model.default_float_type())
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
-      , _scale(model.get_flag_with_default(scope + "/multiply_by_sqrt_depth", true)
-               ? std::make_unique<StorageView>(get_sqrt_depth_scale(_embeddings.dim(1), _output_type))
-               : nullptr) {
+    {
+      if (model.get_flag_with_default(scope + "/multiply_by_sqrt_depth", true)) {
+        const StorageView scale(std::sqrt(static_cast<float>(_embeddings.dim(1))));
+        _scale = std::make_unique<StorageView>(scale.to(_output_type));
+      }
     }
 
     DataType Embeddings::output_type() const {
