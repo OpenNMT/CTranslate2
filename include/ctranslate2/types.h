@@ -42,6 +42,6 @@ namespace ctranslate2 {
   DataType compute_type_to_data_type(const ComputeType compute_type);
 
   // Gets the default floating point type for the given compute type.
-  DataType default_float_type(const ComputeType compute_type);
+  DataType get_default_float_type(const ComputeType compute_type);
 
 }

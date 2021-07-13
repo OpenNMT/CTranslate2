@@ -53,10 +53,6 @@ namespace ctranslate2 {
         return _effective_compute_type;
       }
 
-      DataType default_float_type() const {
-        return ::ctranslate2::default_float_type(_effective_compute_type);
-      }
-
       dim_t preferred_size_multiple() const {
         return _preferred_size_multiple;
       }

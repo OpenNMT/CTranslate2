@@ -147,7 +147,7 @@ namespace ctranslate2 {
     }
   }
 
-  DataType default_float_type(const ComputeType compute_type) {
+  DataType get_default_float_type(const ComputeType compute_type) {
     switch (compute_type) {
     case ComputeType::FLOAT:
     case ComputeType::INT8:

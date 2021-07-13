@@ -316,6 +316,7 @@ namespace ctranslate2 {
                                                              _device,
                                                              _device_index);
       const DataType target_dtype = compute_type_to_data_type(_effective_compute_type);
+      const DataType float_dtype = get_default_float_type(_effective_compute_type);
 
       for (auto& variable_pair : _variable_index) {
         const auto& name = variable_pair.first;
@@ -330,7 +331,7 @@ namespace ctranslate2 {
                        variables_to_remove);
         } else if (is_convertible(variable, name)) {
           // Other parameters may be converted from or to float16 (e.g. bias).
-          if (default_float_type() == DataType::FLOAT16) {
+          if (float_dtype == DataType::FLOAT16) {
             if (variable.dtype() == DataType::FLOAT) {
               variable = variable.to_float16();
             }

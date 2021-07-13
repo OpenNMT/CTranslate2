@@ -42,7 +42,7 @@ namespace ctranslate2 {
 
     Embeddings::Embeddings(const models::Model& model, const std::string& scope)
       : _embeddings(model.get_variable(scope + "/weight"))
-      , _output_type(model.default_float_type())
+      , _output_type(get_default_float_type(model.effective_compute_type()))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
     {
       if (model.get_flag_with_default(scope + "/multiply_by_sqrt_depth", true)) {
@@ -201,7 +201,7 @@ namespace ctranslate2 {
       , _partial_bias(_weight.device(), _bias ? _bias->dtype() : DataType::FLOAT)
       , _partial_qscale(_weight.device(), DataType::FLOAT)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
-      , _output_type(model.default_float_type())
+      , _output_type(get_default_float_type(model.effective_compute_type()))
       , _quantized_gemm(_weight.dtype() == DataType::INT16 || _weight.dtype() == DataType::INT8)
       , _gemm_op(/*alpha=*/1,
                  /*beta=*/0,
