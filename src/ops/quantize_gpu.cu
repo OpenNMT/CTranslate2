@@ -30,14 +30,13 @@ namespace ctranslate2 {
       }
     };
 
-    template <typename T>
     struct quantize_func {
       __device__ __forceinline__ quantize_func(float scale)
         : _scale(scale) {
       }
 
-      __device__ __forceinline__ int8_t operator()(T v) const {
-        return static_cast<int8_t>(float(v) * _scale);
+      __device__ __forceinline__ int8_t operator()(float v) const {
+        return static_cast<int8_t>(v * _scale);
       }
 
     private:
@@ -62,7 +61,7 @@ namespace ctranslate2 {
 
       scales[blockIdx.x] = scale;
 
-      cuda::apply_epilogue(input, depth, quantize_func<T>(scale), output);
+      cuda::apply_epilogue(input, depth, quantize_func(scale), output);
     }
 
     template <Device D, typename InT, typename OutT>
