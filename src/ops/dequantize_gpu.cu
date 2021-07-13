@@ -5,11 +5,21 @@
 namespace ctranslate2 {
   namespace ops {
 
+    template <typename T>
+    __device__ __forceinline__ float cast_to_float(T x) {
+      return static_cast<float>(x);
+    }
+
+    template<>
+    __device__ __forceinline__ float cast_to_float(int32_t x) {
+      return __int2float_rn(x);
+    }
+
     template <typename InT, typename OutT>
     struct dequantize_func {
-      __device__
-      OutT operator()(float scale, InT x) {
-        return __fdividef(static_cast<float>(x), scale);
+      __device__ __forceinline__
+      OutT operator()(float scale, InT x) const {
+        return __fdividef(cast_to_float<InT>(x), scale);
       }
     };
 
@@ -36,12 +46,6 @@ namespace ctranslate2 {
                                                             StorageView&) const;
 
 
-    __device__ __forceinline__ float rescale(const int32_t c,
-                                             const float a_scale,
-                                             const float b_scale) {
-      return __fdividef(__int2float_rn(c), a_scale * b_scale);
-    }
-
     template <typename Epilogue, typename T>
     __global__ void dequantize_gemm_output_kernel(const int32_t* c,
                                                   const float* a_scales,
@@ -55,13 +59,15 @@ namespace ctranslate2 {
       // y = c / (expand_dims(a_scales, trans_a ? 0 : 1) * expand_dims(b_scales, trans_b ? 0 : 1)
       // if bias: y += expand_dims(bias, 0)
       // y = epilogue(y)
-      const auto add_op = cuda::plus<T>();
+      const auto add_func = cuda::plus<T>();
+      const auto rescale_func = dequantize_func<int32_t, T>();
       const dim_t i = blockIdx.x;
       for (dim_t j = threadIdx.x; j < depth; j += blockDim.x) {
         const dim_t index = i * depth + j;
-        T v = rescale(c[index], a_scales[transpose_a ? j : i], b_scales[transpose_b ? j : i]);
+        const float scale = a_scales[transpose_a ? j : i] * b_scales[transpose_b ? j : i];
+        T v = rescale_func(scale, c[index]);
         if (bias)
-          v = add_op(v, bias[j]);
+          v = add_func(v, bias[j]);
         y[index] = epilogue(v);
       }
     }
