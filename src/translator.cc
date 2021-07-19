@@ -29,9 +29,9 @@ namespace ctranslate2 {
   }
 
   static bool should_rebatch(const std::vector<std::vector<std::string>>& source,
-                             const TranslationOptions& options) {
+                             const bool allow_batch = true) {
     const size_t batch_size = source.size();
-    if (!options.support_batch_translation() && batch_size > 1)
+    if (!allow_batch && batch_size > 1)
       return true;
     for (size_t i = 0; i < batch_size; ++i) {
       if (source[i].empty())
@@ -119,7 +119,7 @@ namespace ctranslate2 {
     options.validate();
     if (source.empty())
       return {};
-    if (!should_rebatch(source, options))
+    if (!should_rebatch(source, options.support_batch_translation()))
       return run_batch_translation(source, target_prefix, options);
 
     // Rebatching is required to filter out empty inputs and sort by length.
