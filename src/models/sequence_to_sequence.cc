@@ -108,7 +108,6 @@ namespace ctranslate2 {
       layers::DecoderState state = decoder.initial_state();
       state.emplace("memory", std::move(memory));
       state.emplace("memory_lengths", std::move(memory_lengths));
-
       forward_decoder(decoder, state, target, log_probs);
     }
 
