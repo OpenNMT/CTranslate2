@@ -1,5 +1,7 @@
 #include "ctranslate2/models/sequence_to_sequence.h"
 
+#include <numeric>
+
 namespace ctranslate2 {
   namespace models {
 
