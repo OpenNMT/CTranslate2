@@ -4,6 +4,7 @@
 #include <future>
 #include <fstream>
 #include <mutex>
+#include <numeric>
 #include <queue>
 #include <thread>
 
