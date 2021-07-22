@@ -107,7 +107,7 @@ namespace ctranslate2 {
       StorageView memory_lengths(DataType::INT32, _device);
       forward_encoder(encoder, source, memory, memory_lengths);
 
-      layers::DecoderState state = decoder.initial_state();
+      layers::DecoderState state = decoder.initial_state(/*iterative_decoding=*/false);
       state.emplace("memory", std::move(memory));
       state.emplace("memory_lengths", std::move(memory_lengths));
       forward_decoder(decoder, state, target, log_probs);
