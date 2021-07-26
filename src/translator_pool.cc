@@ -356,12 +356,12 @@ namespace ctranslate2 {
                                  with_scores);
   }
 
-  void TranslatorPool::score_text_file(const std::string& source_file,
-                                       const std::string& target_file,
-                                       const std::string& output_file,
-                                       size_t max_batch_size,
-                                       size_t read_batch_size,
-                                       BatchType batch_type) {
+  TranslationStats TranslatorPool::score_text_file(const std::string& source_file,
+                                                   const std::string& target_file,
+                                                   const std::string& output_file,
+                                                   size_t max_batch_size,
+                                                   size_t read_batch_size,
+                                                   BatchType batch_type) {
     std::ifstream source;
     open_input_file(source_file, source);
     std::ifstream target;
@@ -371,12 +371,12 @@ namespace ctranslate2 {
     return score_text_file(source, target, output, max_batch_size, read_batch_size, batch_type);
   }
 
-  void TranslatorPool::score_text_file(std::istream& source,
-                                       std::istream& target,
-                                       std::ostream& output,
-                                       size_t max_batch_size,
-                                       size_t read_batch_size,
-                                       BatchType batch_type) {
+  TranslationStats TranslatorPool::score_text_file(std::istream& source,
+                                                   std::istream& target,
+                                                   std::ostream& output,
+                                                   size_t max_batch_size,
+                                                   size_t read_batch_size,
+                                                   BatchType batch_type) {
     return score_raw_text_file(source,
                                target,
                                output,

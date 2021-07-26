@@ -153,9 +153,10 @@ int main(int argc, char* argv[]) {
   const auto max_batch_size = args["batch_size"].as<size_t>();
   const auto read_batch_size = args["read_batch_size"].as<size_t>();
   const auto batch_type = ctranslate2::str_to_batch_type(args["batch_type"].as<std::string>());
+  ctranslate2::TranslationStats stats;
 
   if (task == "translate") {
-    const ctranslate2::TranslationStats stats = translator_pool.consume_text_file(
+    stats = translator_pool.consume_text_file(
       *source,
       *output,
       options,
@@ -164,19 +165,15 @@ int main(int argc, char* argv[]) {
       batch_type,
       args["with_score"].as<bool>(),
       target);
-    if (args["log_throughput"].as<bool>()) {
-      std::cerr << static_cast<double>(stats.num_tokens) / (stats.total_time_in_ms / 1000)
-                << std::endl;
-    }
   } else if (task == "score") {
     if (source == &std::cin || !target)
       throw std::invalid_argument("Score task requires both arguments --src and --tgt to be set");
-    translator_pool.score_text_file(*source,
-                                    *target,
-                                    *output,
-                                    max_batch_size,
-                                    read_batch_size,
-                                    batch_type);
+    stats = translator_pool.score_text_file(*source,
+                                            *target,
+                                            *output,
+                                            max_batch_size,
+                                            read_batch_size,
+                                            batch_type);
   } else {
     throw std::invalid_argument("Invalid task: " + task);
   }
@@ -190,6 +187,10 @@ int main(int argc, char* argv[]) {
     delete target;
   if (output != &std::cout)
     delete output;
+
+  if (args["log_throughput"].as<bool>()) {
+      std::cerr << static_cast<double>(stats.num_tokens) / (stats.total_time_in_ms / 1000) << std::endl;
+    }
 
   return 0;
 }

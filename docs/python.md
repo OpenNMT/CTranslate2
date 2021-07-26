@@ -121,6 +121,7 @@ Also see the [`TranslationOptions`](../include/ctranslate2/translator.h) structu
 The `Translator` object (see previous section) can also be used to score existing translations:
 
 ```python
+# Batch scoring:
 scores = translator.score_batch(
     source: List[List[str]],
     target: List[List[str]],
@@ -129,9 +130,15 @@ scores = translator.score_batch(
     batch_type: str = "examples",  # Whether max_batch_size is the number of examples or tokens.
 )
 
+# File scoring:
 # Each line in output_path will have the format: <score> ||| <target>
 # The score is normalized by the target length.
-translator.score_file(
+#
+# The returned stats object has the following properties:
+# * num_tokens: the number of scored target tokens
+# * num_examples: the number of scored examples
+# * total_time_in_ms: the total scoring time in milliseconds
+stats = translator.score_file(
     source_path: str,              # Source file.
     target_path: str,              # Target file.
     output_path: str,              # Output file.

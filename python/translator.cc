@@ -320,15 +320,15 @@ public:
     return scores;
   }
 
-  void score_file(const std::string& source_path,
-                  const std::string& target_path,
-                  const std::string& output_path,
-                  size_t max_batch_size,
-                  size_t read_batch_size,
-                  const std::string& batch_type_str,
-                  const TokenizeFn& source_tokenize_fn,
-                  const TokenizeFn& target_tokenize_fn,
-                  const DetokenizeFn& target_detokenize_fn) {
+  ctranslate2::TranslationStats score_file(const std::string& source_path,
+                                           const std::string& target_path,
+                                           const std::string& output_path,
+                                           size_t max_batch_size,
+                                           size_t read_batch_size,
+                                           const std::string& batch_type_str,
+                                           const TokenizeFn& source_tokenize_fn,
+                                           const TokenizeFn& target_tokenize_fn,
+                                           const DetokenizeFn& target_detokenize_fn) {
     if (bool(source_tokenize_fn) != bool(target_tokenize_fn)
         || bool(target_tokenize_fn) != bool(target_detokenize_fn))
       throw std::invalid_argument("source_tokenize_fn, target_tokenize_fn, and target_detokenize_fn should all be set or none at all");
@@ -339,28 +339,31 @@ public:
     assert_model_is_ready();
 
     const auto batch_type = ctranslate2::str_to_batch_type(batch_type_str);
+    ctranslate2::TranslationStats stats;
 
     if (source_tokenize_fn) {
       const SafeCaller<TokenizeFn> safe_source_tokenize_fn(source_tokenize_fn);
       const SafeCaller<TokenizeFn> safe_target_tokenize_fn(target_tokenize_fn);
       const SafeCaller<DetokenizeFn> safe_target_detokenize_fn(target_detokenize_fn);
-      _translator_pool.score_raw_text_file(source_path,
-                                           target_path,
-                                           output_path,
-                                           safe_source_tokenize_fn,
-                                           safe_target_tokenize_fn,
-                                           safe_target_detokenize_fn,
-                                           max_batch_size,
-                                           read_batch_size,
-                                           batch_type);
+      stats = _translator_pool.score_raw_text_file(source_path,
+                                                   target_path,
+                                                   output_path,
+                                                   safe_source_tokenize_fn,
+                                                   safe_target_tokenize_fn,
+                                                   safe_target_detokenize_fn,
+                                                   max_batch_size,
+                                                   read_batch_size,
+                                                   batch_type);
     } else {
-      _translator_pool.score_text_file(source_path,
-                                       target_path,
-                                       output_path,
-                                       max_batch_size,
-                                       read_batch_size,
-                                       batch_type);
+      stats = _translator_pool.score_text_file(source_path,
+                                               target_path,
+                                               output_path,
+                                               max_batch_size,
+                                               read_batch_size,
+                                               batch_type);
     }
+
+    return stats;
   }
 
   void unload_model(const bool to_cpu) {

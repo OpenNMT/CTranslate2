@@ -377,7 +377,9 @@ def test_score_api(tmpdir):
     _write_tokens(source, source_path)
     _write_tokens(target, target_path)
 
-    translator.score_file(source_path, target_path, output_path)
+    stats = translator.score_file(source_path, target_path, output_path)
+    assert stats.num_examples == 2
+    assert stats.num_tokens == 13
 
     with open(output_path) as output_file:
         scores = [np.mean(scores) for scores in expected]
