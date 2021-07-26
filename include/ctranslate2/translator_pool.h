@@ -489,40 +489,101 @@ namespace ctranslate2 {
     class JobCreator {
     public:
       virtual ~JobCreator() = default;
-      virtual std::vector<std::future<Result>>
-      post(TranslatorPool& pool,
-           const std::vector<std::vector<std::string>>& source,
-           const std::vector<std::vector<std::string>>& target,
-           size_t max_batch_size,
-           BatchType batch_type,
-           bool throttle) const = 0;
+
+      std::vector<std::future<Result>> post(TranslatorPool& pool,
+                                            const std::vector<std::vector<std::string>>& source,
+                                            const std::vector<std::vector<std::string>>& target,
+                                            size_t max_batch_size,
+                                            BatchType batch_type,
+                                            bool throttle) const {
+        if (source.empty())
+          return {};
+
+        auto batches = create_batches(source, target, max_batch_size, batch_type);
+        auto consumer = create_consumer(source, target);
+        auto futures = consumer->get_futures();
+
+        for (auto& batch : batches)
+          pool.post_job(create_job(std::move(batch), consumer), throttle);
+
+        return futures;
+      }
+
+    protected:
+      virtual std::shared_ptr<JobResultConsumer<Result>>
+      create_consumer(const std::vector<std::vector<std::string>>& source,
+                      const std::vector<std::vector<std::string>>& target) const {
+        (void)target;
+        return std::make_shared<JobResultConsumer<Result>>(source.size());
+      }
+
+      virtual std::vector<Batch>
+      create_batches(const std::vector<std::vector<std::string>>& source,
+                     const std::vector<std::vector<std::string>>& target,
+                     size_t max_batch_size,
+                     BatchType batch_type) const {
+        return rebatch_input(source, target, max_batch_size, batch_type, /*filter_empty=*/false);
+      }
+
+      virtual std::unique_ptr<Job>
+      create_job(Batch batch, std::shared_ptr<JobResultConsumer<Result>> consumer) const = 0;
     };
 
     class TranslateJobCreator : public JobCreator<TranslationResult> {
     public:
-      TranslateJobCreator(TranslationOptions options);
+      TranslateJobCreator(TranslationOptions options)
+        : _options(std::move(options))
+      {
+        _options.validate();
+      }
 
-      std::vector<std::future<TranslationResult>>
-      post(TranslatorPool& pool,
-           const std::vector<std::vector<std::string>>& source,
-           const std::vector<std::vector<std::string>>& target,
-           size_t max_batch_size,
-           BatchType batch_type,
-           bool throttle) const override;
+    protected:
+      std::shared_ptr<JobResultConsumer<TranslationResult>>
+      create_consumer(const std::vector<std::vector<std::string>>& source,
+                      const std::vector<std::vector<std::string>>& target) const override {
+        auto consumer = JobCreator<TranslationResult>::create_consumer(source, target);
+
+        // Directly set an empty result for empty inputs.
+        for (size_t i = 0; i < source.size(); ++i) {
+          if (source[i].empty()) {
+            consumer->set_result(i, TranslationResult(_options.num_hypotheses,
+                                                      _options.return_attention,
+                                                      _options.return_scores));
+          }
+        }
+
+        return consumer;
+      }
+
+      std::vector<Batch>
+      create_batches(const std::vector<std::vector<std::string>>& source,
+                     const std::vector<std::vector<std::string>>& target,
+                     size_t max_batch_size,
+                     BatchType batch_type) const override {
+        if (!_options.support_batch_translation()) {
+          max_batch_size = 1;
+          batch_type = BatchType::Examples;
+        }
+        return rebatch_input(source, target, max_batch_size, batch_type);
+      }
+
+      std::unique_ptr<Job>
+      create_job(Batch batch,
+                 std::shared_ptr<JobResultConsumer<TranslationResult>> consumer) const override {
+        return std::make_unique<TranslateJob>(std::move(batch), _options, std::move(consumer));
+      }
 
     private:
       const TranslationOptions _options;
     };
 
     class ScoreJobCreator : public JobCreator<ScoringResult> {
-    public:
-      std::vector<std::future<ScoringResult>>
-      post(TranslatorPool& pool,
-           const std::vector<std::vector<std::string>>& source,
-           const std::vector<std::vector<std::string>>& target,
-           size_t max_batch_size,
-           BatchType batch_type,
-           bool throttle) const override;
+    protected:
+      std::unique_ptr<Job>
+      create_job(Batch batch,
+                 std::shared_ptr<JobResultConsumer<ScoringResult>> consumer) const override {
+        return std::make_unique<ScoreJob>(std::move(batch), std::move(consumer));
+      }
     };
 
     template <typename SourceReader,

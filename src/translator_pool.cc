@@ -137,66 +137,6 @@ namespace ctranslate2 {
     return get_results_from_futures(score_batch_async(source, target, max_batch_size, batch_type));
   }
 
-  TranslatorPool::TranslateJobCreator::TranslateJobCreator(TranslationOptions options)
-    : _options(std::move(options))
-  {
-    _options.validate();
-  }
-
-  std::vector<std::future<TranslationResult>>
-  TranslatorPool::TranslateJobCreator::post(TranslatorPool& pool,
-                                            const std::vector<std::vector<std::string>>& source,
-                                            const std::vector<std::vector<std::string>>& target,
-                                            size_t max_batch_size,
-                                            BatchType batch_type,
-                                            bool throttle) const {
-    if (source.empty())
-      return {};
-
-    // Rebatch the input and post each sub-batch in the translation queue.
-    if (!_options.support_batch_translation()) {
-      max_batch_size = 1;
-      batch_type = BatchType::Examples;
-    }
-    auto batches = rebatch_input(source, target, max_batch_size, batch_type);
-    auto consumer = std::make_shared<JobResultConsumer<TranslationResult>>(source.size());
-    auto futures = consumer->get_futures();
-
-    // Directly set an empty result for empty inputs.
-    for (size_t i = 0; i < source.size(); ++i) {
-      if (source[i].empty()) {
-        consumer->set_result(i, TranslationResult(_options.num_hypotheses,
-                                                  _options.return_attention,
-                                                  _options.return_scores));
-      }
-    }
-
-    for (auto& batch : batches)
-      pool.post_job(std::make_unique<TranslateJob>(std::move(batch), _options, consumer), throttle);
-
-    return futures;
-  }
-
-  std::vector<std::future<ScoringResult>>
-  TranslatorPool::ScoreJobCreator::post(TranslatorPool& pool,
-                                        const std::vector<std::vector<std::string>>& source,
-                                        const std::vector<std::vector<std::string>>& target,
-                                        size_t max_batch_size,
-                                        BatchType batch_type,
-                                        bool throttle) const {
-    if (source.empty())
-      return {};
-
-    auto batches = rebatch_input(source, target, max_batch_size, batch_type, /*filter_empty=*/false);
-    auto consumer = std::make_shared<JobResultConsumer<ScoringResult>>(source.size());
-    auto futures = consumer->get_futures();
-
-    for (auto& batch : batches)
-      pool.post_job(std::make_unique<ScoreJob>(std::move(batch), consumer), throttle);
-
-    return futures;
-  }
-
   template <typename T>
   static bool all_unique(std::vector<T> v) {
     std::sort(v.begin(), v.end());
