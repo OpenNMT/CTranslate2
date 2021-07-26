@@ -20,9 +20,12 @@ namespace ctranslate2 {
 
   class BufferedTranslationWrapper;
 
-  // A pool of Translators running in parallel.
+  // TranslatorPool is the high-level class for running translations. It supports parallel
+  // and asynchronous translations.
   class TranslatorPool {
   public:
+    // num_translators (a.k.a. inter_threads) and num_threads_per_translator (a.k.a. intra_threads)
+    // are forced to 1 when the translator is running on a CUDA device.
     TranslatorPool(size_t num_translators,
                    size_t num_threads_per_translator,
                    const std::string& model_dir,
@@ -40,10 +43,6 @@ namespace ctranslate2 {
 
     ~TranslatorPool();
 
-    // Run a translation job asynchronously.
-    // To benefit from parallelism, you can set max_batch_size to a non zero value:
-    // the input will be split according to this value and each batch will be translated
-    // in parallel.
     std::vector<std::future<TranslationResult>>
     translate_batch_async(const std::vector<std::vector<std::string>>& source,
                           const TranslationOptions& options = TranslationOptions(),
@@ -56,10 +55,6 @@ namespace ctranslate2 {
                           const size_t max_batch_size = 0,
                           const BatchType batch_type = BatchType::Examples);
 
-    // Run a translation synchronously.
-    // To benefit from parallelism, you can set max_batch_size to a non zero value:
-    // the input will be split according to this value and each batch will be translated
-    // in parallel.
     std::vector<TranslationResult>
     translate_batch(const std::vector<std::vector<std::string>>& source,
                     const TranslationOptions& options = TranslationOptions(),
@@ -83,10 +78,8 @@ namespace ctranslate2 {
                 const size_t max_batch_size = 0,
                 const BatchType batch_type = BatchType::Examples);
 
-    // Translate a stream in parallel.
-    // Results will be written in order as they are available so the stream content is
-    // never stored fully in memory
-    // The reader and writer functions do not need to be thread-safe .
+    // Translate a stream.
+    // The reader and writer functions do not need to be thread-safe.
     template <typename Reader, typename Writer>
     void consume_stream(std::istream& in,
                         std::ostream& out,
@@ -132,9 +125,8 @@ namespace ctranslate2 {
                      batch_type);
     }
 
-    // Translate a file in parallel.
+    // Translate a file.
     // These are wrappers around consume_stream that set the appropriate reader and writer.
-    // The returned value is the total number of produced tokens.
     TranslationStats consume_text_file(const std::string& source_file,
                                        const std::string& output_file,
                                        const TranslationOptions& options = TranslationOptions(),
@@ -287,6 +279,8 @@ namespace ctranslate2 {
       return stats;
     }
 
+    // Score a stream.
+    // The reader and writer functions do not need to be thread-safe.
     template <typename SourceReader, typename TargetReader, typename TargetWriter>
     void score_stream(std::istream& source,
                       std::istream& target,
@@ -310,6 +304,8 @@ namespace ctranslate2 {
                      batch_type);
     }
 
+    // Score a file.
+    // These are wrappers around score_stream that set the appropriate reader and writer.
     TranslationStats score_text_file(const std::string& source_file,
                                      const std::string& target_file,
                                      const std::string& output_file,
