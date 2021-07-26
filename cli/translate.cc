@@ -189,8 +189,8 @@ int main(int argc, char* argv[]) {
     delete output;
 
   if (args["log_throughput"].as<bool>()) {
-      std::cerr << static_cast<double>(stats.num_tokens) / (stats.total_time_in_ms / 1000) << std::endl;
-    }
+    std::cerr << static_cast<double>(stats.num_tokens) / (stats.total_time_in_ms / 1000) << std::endl;
+  }
 
   return 0;
 }
