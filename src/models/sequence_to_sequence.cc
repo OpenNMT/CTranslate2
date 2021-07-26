@@ -61,7 +61,7 @@ namespace ctranslate2 {
                                                   StorageView& memory,
                                                   StorageView& memory_lengths) const {
       const auto scoped_device_setter = get_scoped_device_setter();
-      PROFILE("SequenceToSequenceModel::encode");
+      PROFILE("SequenceToSequenceModel::forward_encoder");
       const auto source_ids = _source_vocabulary->to_ids(source,
                                                          _with_source_bos,
                                                          _with_source_eos);
@@ -79,7 +79,7 @@ namespace ctranslate2 {
                                                   const std::vector<std::vector<std::string>>& target,
                                                   StorageView& log_probs) const {
       const auto scoped_device_setter = get_scoped_device_setter();
-      PROFILE("SequenceToSequenceModel::decode");
+      PROFILE("SequenceToSequenceModel::forward_decoder");
       const auto target_ids = _target_vocabulary->to_ids(target,
                                                          /*add_bos=*/true,
                                                          /*add_eos=*/false);
