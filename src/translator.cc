@@ -243,13 +243,11 @@ namespace ctranslate2 {
                 return source[i1].size() > source[i2].size();
               });
 
-    if (filter_empty) {
-      // Ignore empty examples.
-      // As example_index is sorted from longest to shortest, we simply pop empty examples
-      // from the back.
-      while (!example_index.empty() && source[example_index.back()].empty())
-        example_index.pop_back();
-    }
+    // Ignore empty examples.
+    // As example_index is sorted from longest to shortest, we simply pop empty examples
+    // from the back.
+    while (filter_empty && !example_index.empty() && source[example_index.back()].empty())
+      example_index.pop_back();
 
     std::vector<Batch> batches;
     if (example_index.empty())
