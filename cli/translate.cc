@@ -156,15 +156,14 @@ int main(int argc, char* argv[]) {
   ctranslate2::TranslationStats stats;
 
   if (task == "translate") {
-    stats = translator_pool.consume_text_file(
-      *source,
-      *output,
-      options,
-      max_batch_size,
-      read_batch_size,
-      batch_type,
-      args["with_score"].as<bool>(),
-      target);
+    stats = translator_pool.consume_text_file(*source,
+                                              *output,
+                                              options,
+                                              max_batch_size,
+                                              read_batch_size,
+                                              batch_type,
+                                              args["with_score"].as<bool>(),
+                                              target);
   } else if (task == "score") {
     if (source == &std::cin || !target)
       throw std::invalid_argument("Score task requires both arguments --src and --tgt to be set");
