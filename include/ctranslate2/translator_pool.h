@@ -252,15 +252,8 @@ namespace ctranslate2 {
                                            const bool with_scores = false) {
       TranslationStats stats;
 
-      auto source_reader = [this, &source_tokenizer](std::istream& in,
-                                                     std::vector<std::string>& tokens) {
-        return read_next_sequence(in, source_tokenizer, tokens);
-      };
-
-      auto target_reader = [this, &target_tokenizer](std::istream& in,
-                                                     std::vector<std::string>& tokens) {
-        return read_next_sequence(in, target_tokenizer, tokens);
-      };
+      TokensReader<SourceTokenizer> source_reader(source_tokenizer);
+      TokensReader<TargetTokenizer> target_reader(target_tokenizer);
 
       auto writer = [&detokenizer, &stats, &with_scores](std::ostream& out,
                                                          const TranslationResult& result) {
@@ -367,15 +360,8 @@ namespace ctranslate2 {
                              const size_t max_batch_size = 32,
                              const size_t read_batch_size = 0,
                              const BatchType batch_type = BatchType::Examples) {
-      auto source_reader = [this, &source_tokenizer](std::istream& in,
-                                                     std::vector<std::string>& tokens) {
-        return read_next_sequence(in, source_tokenizer, tokens);
-      };
-
-      auto target_reader = [this, &target_tokenizer](std::istream& in,
-                                                     std::vector<std::string>& tokens) {
-        return read_next_sequence(in, target_tokenizer, tokens);
-      };
+      TokensReader<SourceTokenizer> source_reader(source_tokenizer);
+      TokensReader<TargetTokenizer> target_reader(target_tokenizer);
 
       auto writer = [&target_detokenizer](std::ostream& out, const ScoringResult& result) {
         out << result.normalized_score() << " ||| " << target_detokenizer(result.tokens) << '\n';
@@ -646,15 +632,24 @@ namespace ctranslate2 {
     bool _request_end = false;
 
     template <typename Tokenizer>
-    bool read_next_sequence(std::istream& in,
-                            Tokenizer& tokenizer,
-                            std::vector<std::string>& tokens) const {
-      std::string line;
-      if (!std::getline(in, line))
-        return false;
-      tokens = tokenizer(line);
-      return true;
-    }
+    class TokensReader {
+    public:
+      TokensReader(Tokenizer& tokenizer)
+        : _tokenizer(tokenizer)
+      {
+      }
+
+      bool operator()(std::istream& in, std::vector<std::string>& tokens) {
+        std::string line;
+        if (!std::getline(in, line))
+          return false;
+        tokens = _tokenizer(line);
+        return true;
+      }
+
+    private:
+      Tokenizer& _tokenizer;
+    };
   };
 
 }
