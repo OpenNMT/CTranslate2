@@ -103,7 +103,7 @@ namespace ctranslate2 {
   }
 
   template <typename T>
-  std::vector<T> get_futures(std::vector<std::future<T>> futures) {
+  std::vector<T> get_results_from_futures(std::vector<std::future<T>> futures) {
     std::vector<T> results;
     results.reserve(futures.size());
     for (auto& future : futures)
@@ -117,11 +117,11 @@ namespace ctranslate2 {
                                   const TranslationOptions& options,
                                   const size_t max_batch_size,
                                   const BatchType batch_type) {
-    return get_futures(translate_batch_async(source,
-                                             target_prefix,
-                                             options,
-                                             max_batch_size,
-                                             batch_type));
+    return get_results_from_futures(translate_batch_async(source,
+                                                          target_prefix,
+                                                          options,
+                                                          max_batch_size,
+                                                          batch_type));
   }
 
   std::vector<ScoringResult>
@@ -129,7 +129,7 @@ namespace ctranslate2 {
                               const std::vector<std::vector<std::string>>& target,
                               const size_t max_batch_size,
                               const BatchType batch_type) {
-    return get_futures(score_batch_async(source, target, max_batch_size, batch_type));
+    return get_results_from_futures(score_batch_async(source, target, max_batch_size, batch_type));
   }
 
   std::vector<std::future<TranslationResult>>
