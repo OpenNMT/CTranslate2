@@ -119,17 +119,17 @@ namespace ctranslate2 {
                         size_t max_batch_size = 32,
                         size_t read_batch_size = 0,
                         BatchType batch_type = BatchType::Examples) {
-      StreamTranslator processor(options);
-      processor(*this,
-                source,
-                target,
-                output,
-                source_reader,
-                target_reader,
-                target_writer,
-                max_batch_size,
-                read_batch_size,
-                batch_type);
+      TranslateJobCreator job_creator(options);
+      consume_stream(source,
+                     target,
+                     output,
+                     source_reader,
+                     target_reader,
+                     target_writer,
+                     job_creator,
+                     max_batch_size,
+                     read_batch_size,
+                     batch_type);
     }
 
     // Translate a file in parallel.
@@ -280,7 +280,6 @@ namespace ctranslate2 {
                      max_batch_size,
                      read_batch_size,
                      batch_type);
-      output.flush();
 
       const auto t2 = std::chrono::high_resolution_clock::now();
       stats.total_time_in_ms = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(
@@ -298,13 +297,14 @@ namespace ctranslate2 {
                       size_t max_batch_size = 32,
                       size_t read_batch_size = 0,
                       BatchType batch_type = BatchType::Examples) {
-      StreamScorer()(*this,
-                     source,
+      ScoreJobCreator job_creator;
+      consume_stream(source,
                      &target,
                      output,
                      source_reader,
                      &target_reader,
                      target_writer,
+                     job_creator,
                      max_batch_size,
                      read_batch_size,
                      batch_type);
@@ -376,7 +376,6 @@ namespace ctranslate2 {
                    max_batch_size,
                    read_batch_size,
                    batch_type);
-      output.flush();
     }
 
     size_t num_queued_batches();
@@ -487,114 +486,99 @@ namespace ctranslate2 {
     };
 
     template <typename Result>
-    class StreamProcessor {
+    class JobCreator {
     public:
-      virtual ~StreamProcessor() = default;
-
-      template <typename SourceReader, typename TargetReader, typename TargetWriter>
-      void operator()(TranslatorPool& pool,
-                      std::istream& source,
-                      std::istream* target,
-                      std::ostream& output,
-                      SourceReader& source_reader,
-                      TargetReader* target_reader,
-                      TargetWriter& target_writer,
-                      size_t max_batch_size,
-                      size_t read_batch_size,
-                      BatchType batch_type) {
-        std::queue<std::future<Result>> results;
-
-        auto pop_results = [&results, &output, &target_writer](bool blocking) {
-          static const auto zero_sec = std::chrono::seconds(0);
-          while (!results.empty()
-                 && (blocking
-                     || results.front().wait_for(zero_sec) == std::future_status::ready)) {
-            target_writer(output, results.front().get());
-            results.pop();
-          }
-        };
-
-        ParallelBatchReader batch_reader;
-        batch_reader.add(std::make_unique<StreamReader<SourceReader>>(source, source_reader));
-        if (target) {
-          batch_reader.add(std::make_unique<StreamReader<TargetReader>>(*target, *target_reader));
-        }
-
-        if (read_batch_size == 0)
-          read_batch_size = max_batch_size * 16;
-
-        while (true) {
-          auto batch = batch_reader.get_next(read_batch_size, batch_type);
-          if (batch[0].empty())
-            break;
-          auto futures = post_batch(pool,
-                                    batch[0],
-                                    target ? batch[1] : std::vector<std::vector<std::string>>(),
-                                    max_batch_size,
-                                    batch_type,
-                                    /*throttle=*/true);
-          for (auto& future : futures)
-            results.emplace(std::move(future));
-
-          pop_results(/*blocking=*/false);
-        }
-
-        pop_results(/*blocking=*/true);
-      }
-
-    protected:
+      virtual ~JobCreator() = default;
       virtual std::vector<std::future<Result>>
-      post_batch(TranslatorPool& pool,
-                 const std::vector<std::vector<std::string>>& source,
-                 const std::vector<std::vector<std::string>>& target,
-                 size_t max_batch_size,
-                 BatchType batch_type,
-                 bool throttle) = 0;
+      post(TranslatorPool& pool,
+           const std::vector<std::vector<std::string>>& source,
+           const std::vector<std::vector<std::string>>& target,
+           size_t max_batch_size,
+           BatchType batch_type,
+           bool throttle) const = 0;
     };
 
-    class StreamTranslator : public StreamProcessor<TranslationResult> {
+    class TranslateJobCreator : public JobCreator<TranslationResult> {
     public:
-      StreamTranslator(const TranslationOptions& options)
-        : _options(options)
-      {
-      }
+      TranslateJobCreator(TranslationOptions options);
 
-    protected:
       std::vector<std::future<TranslationResult>>
-      post_batch(TranslatorPool& pool,
-                 const std::vector<std::vector<std::string>>& source,
-                 const std::vector<std::vector<std::string>>& target,
-                 size_t max_batch_size,
-                 BatchType batch_type,
-                 bool throttle) override {
-        return pool.post_translate_job(source,
-                                       target,
-                                       _options,
-                                       max_batch_size,
-                                       batch_type,
-                                       throttle);
-      }
+      post(TranslatorPool& pool,
+           const std::vector<std::vector<std::string>>& source,
+           const std::vector<std::vector<std::string>>& target,
+           size_t max_batch_size,
+           BatchType batch_type,
+           bool throttle) const override;
 
     private:
-      const TranslationOptions& _options;
+      const TranslationOptions _options;
     };
 
-    class StreamScorer : public StreamProcessor<ScoringResult> {
-    protected:
+    class ScoreJobCreator : public JobCreator<ScoringResult> {
+    public:
       std::vector<std::future<ScoringResult>>
-      post_batch(TranslatorPool& pool,
-                 const std::vector<std::vector<std::string>>& source,
-                 const std::vector<std::vector<std::string>>& target,
-                 size_t max_batch_size,
-                 BatchType batch_type,
-                 bool throttle) override {
-        return pool.post_score_job(source,
-                                   target,
-                                   max_batch_size,
-                                   batch_type,
-                                   throttle);
-      }
+      post(TranslatorPool& pool,
+           const std::vector<std::vector<std::string>>& source,
+           const std::vector<std::vector<std::string>>& target,
+           size_t max_batch_size,
+           BatchType batch_type,
+           bool throttle) const override;
     };
+
+    template <typename SourceReader,
+              typename TargetReader,
+              typename TargetWriter,
+              typename Result>
+    void consume_stream(std::istream& source,
+                        std::istream* target,
+                        std::ostream& output,
+                        SourceReader& source_reader,
+                        TargetReader* target_reader,
+                        TargetWriter& target_writer,
+                        const JobCreator<Result>& job_creator,
+                        size_t max_batch_size,
+                        size_t read_batch_size,
+                        BatchType batch_type) {
+      std::queue<std::future<Result>> results;
+
+      auto pop_results = [&results, &output, &target_writer](bool blocking) {
+        static const auto zero_sec = std::chrono::seconds(0);
+        while (!results.empty()
+               && (blocking
+                   || results.front().wait_for(zero_sec) == std::future_status::ready)) {
+          target_writer(output, results.front().get());
+          results.pop();
+        }
+      };
+
+      ParallelBatchReader batch_reader;
+      batch_reader.add(std::make_unique<StreamReader<SourceReader>>(source, source_reader));
+      if (target) {
+        batch_reader.add(std::make_unique<StreamReader<TargetReader>>(*target, *target_reader));
+      }
+
+      if (read_batch_size == 0)
+        read_batch_size = max_batch_size * 16;
+
+      while (true) {
+        auto batch = batch_reader.get_next(read_batch_size, batch_type);
+        if (batch[0].empty())
+          break;
+        auto futures = job_creator.post(*this,
+                                        batch[0],
+                                        target ? batch[1] : std::vector<std::vector<std::string>>(),
+                                        max_batch_size,
+                                        batch_type,
+                                        /*throttle=*/true);
+        for (auto& future : futures)
+          results.emplace(std::move(future));
+
+        pop_results(/*blocking=*/false);
+      }
+
+      pop_results(/*blocking=*/true);
+      output.flush();
+    }
 
     void create_translators(size_t num_translators_per_device,
                             size_t num_threads_per_translator,
@@ -604,19 +588,6 @@ namespace ctranslate2 {
                             const ComputeType compute_type);
 
     // With throttle=true it will block if there is already too much work pending.
-    std::vector<std::future<TranslationResult>>
-    post_translate_job(const std::vector<std::vector<std::string>>& source,
-                       const std::vector<std::vector<std::string>>& target_prefix,
-                       const TranslationOptions& options,
-                       size_t max_batch_size,
-                       BatchType batch_type,
-                       bool throttle);
-    std::vector<std::future<ScoringResult>>
-    post_score_job(const std::vector<std::vector<std::string>>& source,
-                   const std::vector<std::vector<std::string>>& target,
-                   size_t max_batch_size,
-                   BatchType batch_type,
-                   bool throttle);
     void post_job(std::unique_ptr<Job> job, bool throttle);
     void work_loop(Translator& translator, size_t num_threads);
 

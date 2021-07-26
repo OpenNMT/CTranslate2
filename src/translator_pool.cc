@@ -65,12 +65,12 @@ namespace ctranslate2 {
                                         const TranslationOptions& options,
                                         const size_t max_batch_size,
                                         const BatchType batch_type) {
-    return post_translate_job(source,
-                              target_prefix,
-                              options,
-                              max_batch_size,
-                              batch_type,
-                              /*throttle=*/false);
+    return TranslateJobCreator(options).post(*this,
+                                             source,
+                                             target_prefix,
+                                             max_batch_size,
+                                             batch_type,
+                                             /*throttle=*/false);
   }
 
   std::vector<std::future<ScoringResult>>
@@ -78,7 +78,12 @@ namespace ctranslate2 {
                                     const std::vector<std::vector<std::string>>& target,
                                     const size_t max_batch_size,
                                     const BatchType batch_type) {
-    return post_score_job(source, target, max_batch_size, batch_type, /*throttle=*/false);
+    return ScoreJobCreator().post(*this,
+                                  source,
+                                  target,
+                                  max_batch_size,
+                                  batch_type,
+                                  /*throttle=*/false);
   }
 
   void TranslatorPool::post_job(std::unique_ptr<Job> job, bool throttle) {
@@ -132,48 +137,53 @@ namespace ctranslate2 {
     return get_results_from_futures(score_batch_async(source, target, max_batch_size, batch_type));
   }
 
-  std::vector<std::future<TranslationResult>>
-  TranslatorPool::post_translate_job(const std::vector<std::vector<std::string>>& source,
-                                     const std::vector<std::vector<std::string>>& target_prefix,
-                                     const TranslationOptions& options,
-                                     size_t max_batch_size,
-                                     BatchType batch_type,
-                                     bool throttle) {
-    options.validate();
+  TranslatorPool::TranslateJobCreator::TranslateJobCreator(TranslationOptions options)
+    : _options(std::move(options))
+  {
+    _options.validate();
+  }
 
+  std::vector<std::future<TranslationResult>>
+  TranslatorPool::TranslateJobCreator::post(TranslatorPool& pool,
+                                            const std::vector<std::vector<std::string>>& source,
+                                            const std::vector<std::vector<std::string>>& target,
+                                            size_t max_batch_size,
+                                            BatchType batch_type,
+                                            bool throttle) const {
     if (source.empty())
       return {};
 
     // Rebatch the input and post each sub-batch in the translation queue.
-    if (!options.support_batch_translation()) {
+    if (!_options.support_batch_translation()) {
       max_batch_size = 1;
       batch_type = BatchType::Examples;
     }
-    auto batches = rebatch_input(source, target_prefix, max_batch_size, batch_type);
+    auto batches = rebatch_input(source, target, max_batch_size, batch_type);
     auto consumer = std::make_shared<JobResultConsumer<TranslationResult>>(source.size());
     auto futures = consumer->get_futures();
 
     // Directly set an empty result for empty inputs.
     for (size_t i = 0; i < source.size(); ++i) {
       if (source[i].empty()) {
-        consumer->set_result(i, TranslationResult(options.num_hypotheses,
-                                                  options.return_attention,
-                                                  options.return_scores));
+        consumer->set_result(i, TranslationResult(_options.num_hypotheses,
+                                                  _options.return_attention,
+                                                  _options.return_scores));
       }
     }
 
     for (auto& batch : batches)
-      post_job(std::make_unique<TranslateJob>(std::move(batch), options, consumer), throttle);
+      pool.post_job(std::make_unique<TranslateJob>(std::move(batch), _options, consumer), throttle);
 
     return futures;
   }
 
   std::vector<std::future<ScoringResult>>
-  TranslatorPool::post_score_job(const std::vector<std::vector<std::string>>& source,
-                                 const std::vector<std::vector<std::string>>& target,
-                                 size_t max_batch_size,
-                                 BatchType batch_type,
-                                 bool throttle) {
+  TranslatorPool::ScoreJobCreator::post(TranslatorPool& pool,
+                                        const std::vector<std::vector<std::string>>& source,
+                                        const std::vector<std::vector<std::string>>& target,
+                                        size_t max_batch_size,
+                                        BatchType batch_type,
+                                        bool throttle) const {
     if (source.empty())
       return {};
 
@@ -182,7 +192,7 @@ namespace ctranslate2 {
     auto futures = consumer->get_futures();
 
     for (auto& batch : batches)
-      post_job(std::make_unique<ScoreJob>(std::move(batch), consumer), throttle);
+      pool.post_job(std::make_unique<ScoreJob>(std::move(batch), consumer), throttle);
 
     return futures;
   }
