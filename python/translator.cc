@@ -51,6 +51,24 @@ using Tokens = std::vector<std::string>;
 using BatchTokens = std::vector<Tokens>;
 using BatchTokensOptional = std::optional<std::vector<std::optional<Tokens>>>;
 
+// This wrapper re-acquires the GIL before calling a Python function.
+template <typename Function>
+class SafeCaller {
+public:
+  SafeCaller(const Function& function)
+    : _function(function)
+  {
+  }
+
+  typename Function::result_type operator()(typename Function::argument_type input) const {
+    py::gil_scoped_acquire acquire;
+    return _function(input);
+  }
+
+private:
+  const Function& _function;
+};
+
 static BatchTokens finalize_optional_batch(const BatchTokensOptional& optional) {
   // Convert missing values to empty vectors.
   BatchTokens batch;
@@ -175,22 +193,9 @@ public:
       options.replace_unknowns = replace_unknowns;
 
       if (source_tokenize_fn && target_detokenize_fn) {
-        // Re-acquire the GIL before calling the tokenization functions.
-        const auto safe_source_tokenize_fn = [&source_tokenize_fn](const std::string& text) {
-          py::gil_scoped_acquire acquire;
-          return source_tokenize_fn(text);
-        };
-
-        const auto safe_target_tokenize_fn = [&target_tokenize_fn](const std::string& text) {
-          py::gil_scoped_acquire acquire;
-          return target_tokenize_fn(text);
-        };
-
-        const auto safe_target_detokenize_fn = [&target_detokenize_fn](const std::vector<std::string>& tokens) {
-          py::gil_scoped_acquire acquire;
-          return target_detokenize_fn(tokens);
-        };
-
+        const SafeCaller<TokenizeFn> safe_source_tokenize_fn(source_tokenize_fn);
+        const SafeCaller<TokenizeFn> safe_target_tokenize_fn(target_tokenize_fn);
+        const SafeCaller<DetokenizeFn> safe_target_detokenize_fn(target_detokenize_fn);
         stats = _translator_pool.consume_raw_text_file(source_path,
                                                        target_path_ptr,
                                                        output_path,
@@ -336,22 +341,9 @@ public:
     const auto batch_type = ctranslate2::str_to_batch_type(batch_type_str);
 
     if (source_tokenize_fn) {
-      // Re-acquire the GIL before calling the tokenization functions.
-      const auto safe_source_tokenize_fn = [&source_tokenize_fn](const std::string& text) {
-        py::gil_scoped_acquire acquire;
-        return source_tokenize_fn(text);
-      };
-
-      const auto safe_target_tokenize_fn = [&target_tokenize_fn](const std::string& text) {
-        py::gil_scoped_acquire acquire;
-        return target_tokenize_fn(text);
-      };
-
-      const auto safe_target_detokenize_fn = [&target_detokenize_fn](const std::vector<std::string>& tokens) {
-        py::gil_scoped_acquire acquire;
-        return target_detokenize_fn(tokens);
-      };
-
+      const SafeCaller<TokenizeFn> safe_source_tokenize_fn(source_tokenize_fn);
+      const SafeCaller<TokenizeFn> safe_target_tokenize_fn(target_tokenize_fn);
+      const SafeCaller<DetokenizeFn> safe_target_detokenize_fn(target_detokenize_fn);
       _translator_pool.score_raw_text_file(source_path,
                                            target_path,
                                            output_path,
