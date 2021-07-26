@@ -49,18 +49,18 @@ namespace ctranslate2 {
       sample(layers::Encoder& encoder,
              layers::Decoder& decoder,
              const std::vector<std::vector<std::string>>& source,
-             const std::vector<std::vector<std::string>>& target_prefix,
-             const SearchStrategy& search_strategy,
-             const Sampler& sampler,
-             const bool use_vmap,
-             const size_t max_length,
-             const size_t min_length,
-             const size_t num_hypotheses,
-             const bool return_alternatives,
-             const bool return_scores,
-             const bool return_attention,
-             const bool replace_unknowns,
-             const bool normalize_scores) const;
+             const std::vector<std::vector<std::string>>& target_prefix = {},
+             const SearchStrategy& search_strategy = GreedySearch(),
+             const Sampler& sampler = BestSampler(),
+             const bool use_vmap = false,
+             const size_t max_length = 250,
+             const size_t min_length = 1,
+             const size_t num_hypotheses = 1,
+             const bool return_alternatives = false,
+             const bool return_scores = false,
+             const bool return_attention = false,
+             const bool replace_unknowns = false,
+             const bool normalize_scores = false) const;
 
       bool with_source_bos() const {
         return _with_source_bos;
