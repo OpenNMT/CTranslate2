@@ -4,7 +4,6 @@
 #include <future>
 #include <fstream>
 #include <mutex>
-#include <numeric>
 #include <queue>
 #include <thread>
 
@@ -379,10 +378,7 @@ namespace ctranslate2 {
       };
 
       auto writer = [&target_detokenizer](std::ostream& out, const ScoringResult& result) {
-        const auto& scores = result.tokens_score;
-        const auto score = (std::accumulate(scores.begin(), scores.end(), 0.f)
-                            / static_cast<float>(scores.size()));
-        out << score << " ||| " << target_detokenizer(result.tokens) << '\n';
+        out << result.normalized_score() << " ||| " << target_detokenizer(result.tokens) << '\n';
       };
 
       score_stream(source,
