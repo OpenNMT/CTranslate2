@@ -24,7 +24,7 @@ namespace ctranslate2 {
       }
       __host__ __device__
       dim_t operator()(const dim_t i) const {
-        const dim_t r = i / _inner_size / _num_tiles;
+        const dim_t r = i / (_inner_size * _num_tiles);
         const dim_t c = i % _inner_size;
         return r * _inner_size + c;
       }
