@@ -34,13 +34,9 @@ namespace ctranslate2 {
   }
 
   static void expand_to_beam_size(StorageView& input, dim_t beam_size) {
-    Shape original_shape(input.shape());
-    Shape tile_shape(input.shape());
-    tile_shape.insert(std::next(tile_shape.begin()), 1);
-    input.reshape(std::move(tile_shape));
-    ops::Tile(/*axis=*/1, /*num_tiles=*/beam_size)(input);
-    original_shape[0] *= beam_size;
-    input.reshape(std::move(original_shape));
+    input.expand_dims(1);
+    ops::Tile(/*axis=*/1, beam_size)(input);
+    merge_batch_beam(input);
   }
 
   static void expand_to_beam_size(layers::DecoderState& state, dim_t beam_size) {
