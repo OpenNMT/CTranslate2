@@ -99,18 +99,26 @@ public:
   {
   }
 
-  T result() {
-    py::gil_scoped_release release;
-    return _future.get();
+  const T& result() {
+    if (!_done) {
+      {
+        py::gil_scoped_release release;
+        _result = _future.get();
+      }
+      _done = true;  // Assign done attribute while the GIL is held.
+    }
+    return _result;
   }
 
   bool done() {
     constexpr std::chrono::seconds zero_sec(0);
-    return _future.wait_for(zero_sec) == std::future_status::ready;
+    return _done || _future.wait_for(zero_sec) == std::future_status::ready;
   }
 
 private:
   std::future<T> _future;
+  T _result;
+  bool _done = false;
 };
 
 
