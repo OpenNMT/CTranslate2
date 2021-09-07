@@ -64,7 +64,7 @@ translator.num_queued_batches  # Number of batches waiting to be translated.
 # * scores (empty if return_scores is set to False)
 # * attention (empty if return_attention is set to False)
 # With asynchronous=True, the function returns a list of AsyncTranslationResult instances.
-# The actual result can retrieved by calling .result() on these instances.
+# The actual TranslationResult instance can be retrieved by calling .result() on the async wrapper.
 results = translator.translate_batch(
     source: list,                      # A list of list of string.
     target_prefix: list = None,        # An optional list of list of string.
