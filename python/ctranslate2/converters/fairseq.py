@@ -89,10 +89,7 @@ class FairseqConverter(Converter):
 
         with torch.no_grad():
             checkpoint = checkpoint_utils.load_checkpoint_to_cpu(self._model_path)
-            if checkpoint["args"]:
-                args = checkpoint["args"]
-            else:
-                args = checkpoint["cfg"]["model"]
+            args = checkpoint["args"] or checkpoint["cfg"]["model"]
 
             args.data = self._data_dir
             if self._fixed_dictionary is not None:
