@@ -79,8 +79,8 @@ class FairseqConverter(Converter):
         self._model_path = model_path
         self._data_dir = data_dir
         self._fixed_dictionary = fixed_dictionary
-        self.source_lang = source_lang
-        self.target_lang = target_lang
+        self._source_lang = source_lang
+        self._target_lang = target_lang
 
     def _load(self):
         import torch
@@ -95,11 +95,11 @@ class FairseqConverter(Converter):
             if self._fixed_dictionary is not None:
                 args.fixed_dictionary = self._fixed_dictionary
 
-            if self.source_lang is not None:
-                args.source_lang = self.source_lang
+            if self._source_lang is not None:
+                args.source_lang = self._source_lang
             
-            if self.target_lang is not None:
-                args.target_lang = self.target_lang
+            if self._target_lang is not None:
+                args.target_lang = self._target_lang
 
             model_spec = _get_model_spec(args)
             model_spec.with_source_eos = True
