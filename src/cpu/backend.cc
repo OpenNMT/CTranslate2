@@ -55,6 +55,8 @@ namespace ctranslate2 {
         return "Accelerate";
       case GemmBackend::OPENBLAS:
         return "OpenBLAS";
+      case GemmBackend::RUY:
+        return "Ruy";
       default:
         return "NONE";
       }
@@ -82,6 +84,12 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_OPENBLAS
       if (compute_type == ComputeType::FLOAT) {
         return GemmBackend::OPENBLAS;
+      }
+#endif
+
+#ifdef CT2_WITH_RUY
+      if (compute_type == ComputeType::INT8) {
+        return GemmBackend::RUY;
       }
 #endif
 

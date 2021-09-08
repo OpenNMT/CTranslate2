@@ -13,6 +13,7 @@ namespace ctranslate2 {
       DNNL,
       ACCELERATE,
       OPENBLAS,
+      RUY,
     };
 
     std::string gemm_backend_to_str(GemmBackend gemm_backend);
