@@ -75,7 +75,14 @@ def _get_vocab(dictionary):
 class FairseqConverter(Converter):
     """Converts models trained with Fairseq."""
 
-    def __init__(self, model_path, data_dir, source_lang=None, target_lang=None, fixed_dictionary=None):
+    def __init__(
+        self,
+        model_path,
+        data_dir,
+        source_lang=None,
+        target_lang=None,
+        fixed_dictionary=None,
+    ):
         self._model_path = model_path
         self._data_dir = data_dir
         self._fixed_dictionary = fixed_dictionary
@@ -97,7 +104,7 @@ class FairseqConverter(Converter):
 
             if self._source_lang is not None:
                 args.source_lang = self._source_lang
-            
+
             if self._target_lang is not None:
                 args.target_lang = self._target_lang
 
@@ -222,11 +229,11 @@ def main():
     )
     parser.add_argument(
         "--source_lang",
-        help="Source language. This argument is used to find dictionary file from `data_dir`."
+        help="Source language. This argument is used to find dictionary file from `data_dir`.",
     )
     parser.add_argument(
         "--target_lang",
-        help="Target language. This argument is used to find dictionary file from `data_dir`."
+        help="Target language. This argument is used to find dictionary file from `data_dir`.",
     )
     Converter.declare_arguments(parser)
     args = parser.parse_args()
