@@ -110,5 +110,11 @@ namespace ctranslate2 {
       return should_pack;
     }
 
+#ifdef CT2_WITH_RUY
+    ruy::Context *get_ruy_context() {
+      static thread_local ruy::Context context;
+      return &context;
+    }
+#endif
   }
 }

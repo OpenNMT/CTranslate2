@@ -4,6 +4,10 @@
 
 #include "ctranslate2/types.h"
 
+#ifdef CT2_WITH_RUY
+#include <ruy/ruy.h>
+#endif
+
 namespace ctranslate2 {
   namespace cpu {
 
@@ -22,6 +26,9 @@ namespace ctranslate2 {
     bool has_gemm_backend(ComputeType compute_type);
     bool prefer_u8s8s32_gemm();
     bool should_pack_gemm_weights();
+#ifdef CT2_WITH_RUY
+    ruy::Context *get_ruy_context();
+#endif
 
   }
 }

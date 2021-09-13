@@ -22,7 +22,6 @@
 #endif
 
 #ifdef CT2_WITH_RUY
-#  include <omp.h>
 #  include <ruy/ruy.h>
 #endif
 
@@ -811,8 +810,7 @@ namespace ctranslate2 {
 
 #ifdef CT2_WITH_RUY
     case cpu::GemmBackend::RUY: {
-      static thread_local ruy::Context context;
-      context.set_max_num_threads(omp_get_max_threads());
+      ruy::Context *context = cpu::get_ruy_context();
 
       const ruy::Order order_a = transpose_a ? ruy::Order::kColMajor : ruy::Order::kRowMajor;
       const ruy::Order order_b = transpose_b ? ruy::Order::kColMajor : ruy::Order::kRowMajor;
@@ -837,7 +835,7 @@ namespace ctranslate2 {
       }
 
       ruy::MulParams<std::int32_t, std::int32_t> mul_params;
-      ruy::Mul(lhs, rhs, mul_params, &context, &dst);
+      ruy::Mul(lhs, rhs, mul_params, context, &dst);
 
       if (alpha != 1.0f) {
         #pragma omp parallel for
