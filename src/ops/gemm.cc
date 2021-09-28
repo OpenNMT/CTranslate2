@@ -86,9 +86,11 @@ namespace ctranslate2 {
       const dim_t ldb = _trans_b ? k : n;
       const dim_t ldc = n;
 
-      Shape output_shape(a.shape());
-      output_shape[output_shape.size() - 1] = n;
-      c.resize(std::move(output_shape));
+      {
+        Shape output_shape(a.shape());
+        output_shape[output_shape.size() - 1] = n;
+        c.resize(std::move(output_shape));
+      }
 
       primitives<D>::gemm(_a_is_packed, _b_is_packed,
                           _trans_a, _trans_b,
