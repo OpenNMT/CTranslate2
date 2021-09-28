@@ -10,7 +10,7 @@ namespace ctranslate2 {
       MatMul(bool trans_a = false, bool trans_b = false, float alpha = 1);
       void operator()(const StorageView& a,
                       const StorageView& b,
-                      StorageView& y) const;
+                      StorageView& c) const;
 
     private:
       bool _trans_a;
@@ -20,7 +20,7 @@ namespace ctranslate2 {
       template <Device D, typename In, typename Out = In>
       void compute(const StorageView& a,
                    const StorageView& b,
-                   StorageView& y) const {
+                   StorageView& c) const {
         dim_t m, k_a;
         if (_trans_a) {
           m = a.dim(-1);
@@ -49,25 +49,40 @@ namespace ctranslate2 {
         if (a_batch_size != b_batch_size)
           throw std::invalid_argument("MatMul: batch dimension of inputs a and b should match");
 
-        const dim_t batch_size = a_batch_size;
-        const float beta = 0;
-
-        if (batch_size > 1) {
+        {
           Shape output_shape(a.shape());
           output_shape[output_shape.size() - 1] = n;
           output_shape[output_shape.size() - 2] = m;
-          y.resize(std::move(output_shape));
-          primitives<D>::gemm_batch(a.data<In>(), b.data<In>(),
-                                    _trans_a, _trans_b,
-                                    batch_size, m, n, k,
-                                    _alpha, beta, y.data<Out>());
+          c.resize(std::move(output_shape));
+        }
+
+        const dim_t batch_size = a_batch_size;
+        const dim_t lda = _trans_a ? m : k;
+        const dim_t ldb = _trans_b ? k : n;
+        const dim_t ldc = n;
+        const float beta = 0;
+
+        if (batch_size > 1) {
+          const dim_t stridea = m * k;
+          const dim_t strideb = k * n;
+          const dim_t stridec = m * n;
+          primitives<D>::gemm_batch_strided(_trans_a, _trans_b,
+                                            m, n, k,
+                                            _alpha,
+                                            a.data<In>(), lda, stridea,
+                                            b.data<In>(), ldb, strideb,
+                                            beta,
+                                            c.data<Out>(), ldc, stridec,
+                                            batch_size);
         } else {
-          y.resize({m, n});
-          primitives<D>::gemm(a.data<In>(), b.data<In>(),
-                              /*a_is_packed=*/false, /*b_is_packed=*/false,
+          primitives<D>::gemm(/*a_is_packed=*/false, /*b_is_packed=*/false,
                               _trans_a, _trans_b,
                               m, n, k,
-                              _alpha, beta, y.data<Out>());
+                              _alpha,
+                              a.data<In>(), lda,
+                              b.data<In>(), ldb,
+                              beta,
+                              c.data<Out>(), ldc);
         }
       }
     };
