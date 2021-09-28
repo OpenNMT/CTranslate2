@@ -39,8 +39,7 @@ namespace ctranslate2 {
       void compute(const StorageView& a,
                    const StorageView& b,
                    StorageView& c,
-                   const StorageView* a_shift_compensation = nullptr) const;
-
+                   const StorageView* a_shift_compensation) const;
     };
 
   }
