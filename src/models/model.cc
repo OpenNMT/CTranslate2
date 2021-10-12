@@ -35,14 +35,16 @@ namespace ctranslate2 {
     T* consume(std::istream& in, size_t n, T* data = nullptr) {
       if (n == 0)
         return nullptr;
-      if (data == nullptr)
-        data = new T[n];
       const std::streampos position = in.tellg();
       const size_t read_size = n * sizeof (T);
-      in.read(reinterpret_cast<char*>(data), read_size);
-      if (!in)
+      T* dst = data ? data : new T[n];
+      in.read(reinterpret_cast<char*>(dst), read_size);
+      if (!in) {
+        if (dst != data)
+          delete [] dst;
         report_stream_error(position, read_size, "buffer");
-      return data;
+      }
+      return dst;
     }
 
     template<>
