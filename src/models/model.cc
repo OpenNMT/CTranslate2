@@ -10,10 +10,24 @@ namespace ctranslate2 {
 
     static const std::string binary_file = "model.bin";
 
+    static inline void report_stream_error(const std::streampos position,
+                                           const size_t read_size,
+                                           const std::string& read_type) {
+      throw std::runtime_error("File " + binary_file + " is incomplete: "
+                               + "failed to read a " + read_type + " of size "
+                               + std::to_string(read_size)
+                               + " at position "
+                               + std::to_string(position));
+    }
+
     template <typename T>
     T consume(std::istream& in) {
+      const std::streampos position = in.tellg();
+      const size_t read_size = sizeof (T);
       T val;
-      in.read(reinterpret_cast<char*>(&val), sizeof (T));
+      in.read(reinterpret_cast<char*>(&val), read_size);
+      if (!in)
+        report_stream_error(position, read_size, "value");
       return val;
     }
 
@@ -23,7 +37,11 @@ namespace ctranslate2 {
         return nullptr;
       if (data == nullptr)
         data = new T[n];
-      in.read(reinterpret_cast<char*>(data), n * sizeof (T));
+      const std::streampos position = in.tellg();
+      const size_t read_size = n * sizeof (T);
+      in.read(reinterpret_cast<char*>(data), read_size);
+      if (!in)
+        report_stream_error(position, read_size, "buffer");
       return data;
     }
 
