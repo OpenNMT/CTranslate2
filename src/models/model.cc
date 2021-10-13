@@ -533,6 +533,8 @@ namespace ctranslate2 {
         const auto name = consume<std::string>(model_file);
         const size_t rank = consume<uint8_t>(model_file);
         const auto* dimensions = consume<uint32_t>(model_file, rank);
+        Shape shape(dimensions, dimensions + rank);
+        delete [] dimensions;
 
         DataType dtype;
         dim_t num_bytes = 0;
@@ -546,11 +548,9 @@ namespace ctranslate2 {
           num_bytes = consume<uint32_t>(model_file) * item_size;
         }
 
-        StorageView variable({dimensions, dimensions + rank}, dtype);
+        StorageView variable(std::move(shape), dtype);
         consume<char>(model_file, num_bytes, static_cast<char*>(variable.buffer()));
         model->register_variable(name, variable);
-
-        delete [] dimensions;
       }
 
       model->finalize();
