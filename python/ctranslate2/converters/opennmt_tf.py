@@ -54,7 +54,7 @@ def _load_vocab(vocab, unk_token="<unk>"):
         raise TypeError("Invalid vocabulary type")
 
     if unk_token not in tokens:
-        vocab.append(unk_token)
+        tokens.append(unk_token)
     return tokens
 
 
