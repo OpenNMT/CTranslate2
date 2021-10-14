@@ -37,6 +37,7 @@ namespace ctranslate2 {
     bool has_gpu();
     const cudaDeviceProp& get_device_properties(int device = -1);
     bool gpu_supports_int8(int device = -1);
+    bool gpu_supports_fp16(int device = -1);
     bool gpu_has_int8_tensor_cores(int device = -1);
     bool gpu_has_fp16_tensor_cores(int device = -1);
 

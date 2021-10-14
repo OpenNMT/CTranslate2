@@ -109,6 +109,13 @@ namespace ctranslate2 {
       return device_prop.major > 6 || (device_prop.major == 6 && device_prop.minor == 1);
     }
 
+    bool gpu_supports_fp16(int device) {
+      const cudaDeviceProp& device_prop = get_device_properties(device);
+      return (device_prop.major >= 7
+              || (device_prop.major == 6 && device_prop.minor != 1)
+              || (device_prop.major == 5 && device_prop.minor == 3));
+    }
+
     bool gpu_has_int8_tensor_cores(int device) {
       const cudaDeviceProp& device_prop = get_device_properties(device);
       return device_prop.major > 7 || (device_prop.major == 7 && device_prop.minor >= 2);

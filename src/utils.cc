@@ -103,7 +103,7 @@ namespace ctranslate2 {
     case Device::CUDA: {
 #ifdef CT2_WITH_CUDA
       static const bool allow_float16 = read_bool_from_env("CT2_CUDA_ALLOW_FP16");
-      return allow_float16 || cuda::gpu_has_fp16_tensor_cores(device_index);
+      return allow_float16 || cuda::supports_fp16(device_index);
 #else
       (void)device_index;
       return false;
