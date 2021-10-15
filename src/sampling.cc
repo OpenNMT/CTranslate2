@@ -79,7 +79,7 @@ namespace ctranslate2 {
     const ops::Multinomial multinomial_op(num_samples);
     multinomial_op(probs, sampled_ids);
 
-    if (_from_topk > 0)  // Return ids relative to the initial distribution.
+    if (top_ids)  // Return ids relative to the initial distribution.
       ops::Gather(-1, top_ids.rank() - 1)(top_ids, sampled_ids, sampled_ids);
     ops::Gather(-1, scores.rank() - 1)(scores, sampled_ids, sampled_scores);
   }
