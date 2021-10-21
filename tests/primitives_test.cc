@@ -17,10 +17,11 @@ TEST_P(PrimitiveTest, PenalizeTokens) {
   const Device device = GetParam();
   const float penalty = 1.2f;
   StorageView ids({2}, std::vector<int32_t>{2, 1}, device);
-  StorageView scores(
-    {2, 4}, std::vector<float>{0.6, 0.2, -1.2, 0.1, 0.3, 0.5, -1.3, 0.2}, device);
-  StorageView expected(
-    {2, 4}, std::vector<float>{0.6, 0.2, -1.2 * penalty, 0.1, 0.3, 0.5 / penalty, -1.3, 0.2}, device);
+  StorageView scores({2, 4}, std::vector<float>{0.6, 0.2, -1.2, 0.1, 0.3, 0.5, -1.3, 0.2});
+  StorageView expected = scores;
+  expected.at<float>({0, 2}) *= penalty;
+  expected.at<float>({1, 1}) /= penalty;
+  scores = scores.to(device);
   DEVICE_DISPATCH(device, primitives<D>::penalize_tokens(scores.data<float>(),
                                                          ids.data<int32_t>(),
                                                          penalty, 2, 4));
