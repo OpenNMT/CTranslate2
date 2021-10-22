@@ -339,7 +339,6 @@ namespace ctranslate2 {
                                                 T penalty,
                                                 dim_t batch_size,
                                                 dim_t vocabulary_size) {
-    #pragma omp parallel for
     for (dim_t i = 0; i < batch_size; ++i) {
       auto& score = scores[i * vocabulary_size + ids[i]];
       score = (score < T(0) ? score * penalty : score / penalty);
