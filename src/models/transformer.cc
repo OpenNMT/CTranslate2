@@ -66,7 +66,7 @@ namespace ctranslate2 {
 
     void TransformerModel::register_variable_alias(std::string alias, std::string variable_name) {
       if (_spec_revision == 1) {
-        name = map_v1_variable_name(name);
+        alias = map_v1_variable_name(alias);
         variable_name = map_v1_variable_name(variable_name);
       }
       SequenceToSequenceModel::register_variable_alias(std::move(alias), std::move(variable_name));
