@@ -60,14 +60,14 @@ namespace ctranslate2 {
 
     void TransformerModel::register_variable(std::string name, StorageView variable) {
       if (_spec_revision == 1)
-        name = map_v1_variable_name(name);
+        name = map_v1_variable_name(std::move(name));
       SequenceToSequenceModel::register_variable(std::move(name), std::move(variable));
     }
 
     void TransformerModel::register_variable_alias(std::string alias, std::string variable_name) {
       if (_spec_revision == 1) {
-        alias = map_v1_variable_name(alias);
-        variable_name = map_v1_variable_name(variable_name);
+        alias = map_v1_variable_name(std::move(alias));
+        variable_name = map_v1_variable_name(std::move(variable_name));
       }
       SequenceToSequenceModel::register_variable_alias(std::move(alias), std::move(variable_name));
     }
