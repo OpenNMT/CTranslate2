@@ -24,7 +24,6 @@ namespace ctranslate2 {
       return std::make_unique<BeamSearch>(options.beam_size,
                                           options.length_penalty,
                                           options.coverage_penalty,
-                                          options.repetition_penalty,
                                           options.prefix_bias_beta,
                                           options.allow_early_exit);
   }
@@ -136,7 +135,8 @@ namespace ctranslate2 {
                                                   options.return_scores,
                                                   options.return_attention,
                                                   options.replace_unknowns,
-                                                  options.normalize_scores);
+                                                  options.normalize_scores,
+                                                  options.repetition_penalty);
 
       for (size_t i = 0; i < batch_results.size(); ++i)
         results[batch.example_index[i]] = std::move(batch_results[i]);
