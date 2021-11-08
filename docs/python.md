@@ -60,7 +60,7 @@ translator.device              # Device this translator is running on.
 translator.device_index        # List of device IDs where this translator is running on.
 translator.num_translators     # Number of translators backing this instance.
 translator.num_queued_batches  # Number of batches waiting to be translated.
-translator.num_active_batches  # Number of batches waiting to be translated and currently translated.
+translator.num_active_batches  # Number of batches waiting to be translated or currently in translation.
 
 # results is a list of TranslationResult instances that have the following properties:
 # * hypotheses
