@@ -99,9 +99,9 @@ namespace ctranslate2 {
     // locked again here
 
     _work.emplace(std::move(job));
+    _num_active_jobs++;
 
     lock.unlock();
-    _num_active_jobs++;
     _can_get_job.notify_one();
   }
 
