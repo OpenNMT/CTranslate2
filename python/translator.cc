@@ -401,10 +401,14 @@ public:
     if (to_cpu && _device == ctranslate2::Device::CPU)
       return;
 
+    // Do not unload the model if some batches are still being processed.
+    if (_translator_pool.num_active_batches() > 0)
+      return;
+
     // If the lock is not acquired immediately it means the model is being used
     // in another thread and we can't unload it at this time.
     std::unique_lock lock(_mutex, std::try_to_lock);
-    if (!lock || !_model_is_loaded || _translator_pool.num_active_batches() > 0)
+    if (!lock || !_model_is_loaded)
       return;
 
     const auto& translators = _translator_pool.get_translators();
