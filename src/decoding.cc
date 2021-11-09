@@ -78,7 +78,7 @@ namespace ctranslate2 {
         continue;
 
       for (dim_t k = 0; k < beam_size; ++k) {
-        const dim_t flat_index = i * beams_size + k;
+        const dim_t flat_index = i * beam_size + k;
         auto& sampled_id = sampled_ids.at<int32_t>(flat_index);
         int32_t new_id = -1;
         float new_score = 0;
