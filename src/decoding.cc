@@ -109,6 +109,13 @@ namespace ctranslate2 {
     }
   }
 
+  static inline void convert_to_original_word_ids(StorageView& ids,
+                                                  const std::vector<size_t>& output_ids_map) {
+    auto* ids_data = ids.data<int32_t>();
+    for (dim_t i = 0; i < ids.size(); ++i)
+      ids_data[i] = output_ids_map[ids_data[i]];
+  }
+
   template <typename T>
   static void initialize_beam_scores(StorageView& scores,
                                      const dim_t batch_size,
@@ -401,8 +408,6 @@ namespace ctranslate2 {
         auto beam_id = flat_id / vocabulary_size;
         auto word_id = flat_id % vocabulary_size;
         auto batch_id = i / _beam_size;
-        if (output_ids_map)
-          word_id = output_ids_map->at(word_id);
 
         topk_ids.at<int32_t>(i) = word_id;
         // On the first step, batches are not yet replicated beam_size times.
@@ -411,6 +416,8 @@ namespace ctranslate2 {
                                          : batch_id);
       }
 
+      if (output_ids_map)
+        convert_to_original_word_ids(topk_ids, *output_ids_map);
       if (prefix_ids) {
         if (use_hard_prefix) {
           update_sample_with_prefix(step,
@@ -609,6 +616,8 @@ namespace ctranslate2 {
         disable_token(log_probs, end_id);
 
       sampler(log_probs, best_ids, best_probs);
+      if (output_ids_map)
+        convert_to_original_word_ids(best_ids, *output_ids_map);
       if (prefix_ids)
         update_sample_with_prefix(step, best_ids, best_probs, *prefix_ids, end_id, batch_offset);
       if (return_attention)
@@ -619,21 +628,18 @@ namespace ctranslate2 {
       non_finished_index.reserve(cur_batch_size);
 
       for (dim_t i = 0; i < cur_batch_size; ++i) {
-        int32_t true_id = best_ids.scalar_at<int32_t>({i});
-        if (output_ids_map)
-          true_id = output_ids_map->at(true_id);
-        dim_t batch_id = batch_offset[i];
-        results[batch_id].hypotheses[0].push_back(true_id);
-        if (return_scores) {
-          results[batch_id].scores[0] += best_probs.scalar_at<float>({i});
-        }
+        const size_t word_id = best_ids.at<int32_t>(i);
+        const size_t batch_id = batch_offset[i];
+        results[batch_id].hypotheses[0].push_back(word_id);
+        if (return_scores)
+          results[batch_id].scores[0] += best_probs.at<float>(i);
         if (return_attention) {
           const auto* attn = attention_step.index<float>({i});
           results[batch_id].attention[0].emplace_back(attn, attn + attention_step.dim(-1));
         }
-        if (true_id != static_cast<int32_t>(end_id)) {
+        if (word_id != end_id) {
           non_finished_index.emplace_back(i);
-          sample_from.at<int32_t>(i) = true_id;
+          sample_from.at<int32_t>(i) = word_id;
         }
       }
 
