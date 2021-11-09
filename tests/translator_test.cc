@@ -2,6 +2,7 @@
 #include <ctranslate2/decoding.h>
 
 #include <algorithm>
+#include <unordered_set>
 
 #include "test_utils.h"
 
@@ -257,6 +258,17 @@ TEST_P(SearchVariantTest, ReplaceUnknowns) {
   std::vector<std::string> expected = {"ت", "t", "z", "m", "o", "n" };
   auto result = translator.translate_with_prefix(input, prefix, options);
   EXPECT_EQ(result.output(), expected);
+}
+
+TEST_P(SearchVariantTest, RepetitionPenalty) {
+  const auto beam_size = GetParam();
+  Translator translator = default_translator();
+  TranslationOptions options;
+  options.beam_size = beam_size;
+  options.repetition_penalty = 100;  // Force the decoding to produce unique symbols.
+  const auto result = translator.translate({"ن", "ن", "ن", "ن", "ن"}, options);
+  const std::unordered_set<std::string> tokens(result.output().begin(), result.output().end());
+  EXPECT_EQ(tokens.size(), result.output().size());
 }
 
 static void check_normalized_score(const std::vector<std::string>& input,
