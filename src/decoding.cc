@@ -62,38 +62,48 @@ namespace ctranslate2 {
                                                             log_probs.dim(-1)));
   }
 
-  static void update_sample_with_prefix(const dim_t step,
+  static void update_sample_with_prefix(const size_t step,
                                         StorageView& sampled_ids,
                                         StorageView& sampled_scores,
                                         const std::vector<std::vector<size_t>>& prefix_ids,
                                         const size_t end_id,
-                                        const std::vector<dim_t>& batch_offset) {
+                                        const std::vector<dim_t>& batch_offset,
+                                        StorageView* beam_origins = nullptr,
+                                        const bool is_expanded = true) {
     const dim_t batch_size = sampled_scores.dim(0);
     const dim_t beam_size = sampled_scores.dim(1);
     for (dim_t i = 0; i < batch_size; ++i) {
-      const dim_t batch_id = batch_offset[i];
-      const auto& prefix = prefix_ids[batch_id];
-      const dim_t prefix_length = prefix.size();
-      if (step < prefix_length) {
-        for (dim_t k = 0; k < beam_size; ++k) {
-          sampled_ids.at<int32_t>({i, k}) = prefix[step];
-          // Set the highest log score for the first beam and penalize the others.
-          TYPE_DISPATCH(sampled_scores.dtype(),
-                        sampled_scores.at<T>({i, k}) = (k == 0 ? 0 : T(-1e10)));
+      const auto& prefix = prefix_ids[batch_offset[i]];
+      if (step > prefix.size())
+        continue;
+
+      for (dim_t k = 0; k < beam_size; ++k) {
+        const dim_t flat_index = i * beams_size + k;
+        auto& sampled_id = sampled_ids.at<int32_t>(flat_index);
+        int32_t new_id = -1;
+        float new_score = 0;
+
+        // When step < prefix_length, we override the sampled ids with the prefix ids
+        // and set the highest probability to the first beam.
+        if (step < prefix.size()) {
+          new_id = prefix[step];
+          new_score = (k == 0 ? 0 : -1e10);
+
+        // When step == prefix_length (the first unconstrained decoding step),
+        // only the first beam is expanded. It happens that </s> appears in the topk,
+        // especially when k is large. This can produce incorrect and short predictions
+        // that dominate others when no length normalization is used (see issue #277).
+        // To mitigate this issue, we penalize </s> in secondary beams.
+        } else if (k > 0 && static_cast<size_t>(sampled_id) == end_id) {
+          new_id = 0;
+          new_score = -1e10;
         }
-      } else if (step == prefix_length) {
-        // At the first unconstrained decoding step, only the first beam is expanded.
-        // It happens that </s> appears in the topk, especially when k is large. This
-        // can produce incorrect and short predictions that dominate others (see issue
-        // #277). To mitigate this issue, we penalize </s> in secondary beams.
-        for (dim_t k = 1; k < beam_size; ++k) {
-          auto& sampled_id = sampled_ids.at<int32_t>({i, k});
-          if (static_cast<size_t>(sampled_id) == end_id) {
-            // Assign a token different than </s> and with a low probability.
-            sampled_id = 0;
-            TYPE_DISPATCH(sampled_scores.dtype(),
-                          sampled_scores.at<T>({i, k}) = T(-1e10));
-          }
+
+        if (new_id >= 0) {
+          sampled_id = new_id;
+          TYPE_DISPATCH(sampled_scores.dtype(), sampled_scores.at<T>(flat_index) = T(new_score));
+          if (beam_origins)
+            beam_origins->at<int32_t>(flat_index) = (is_expanded ? i * beam_size : i);
         }
       }
     }
@@ -383,8 +393,6 @@ namespace ctranslate2 {
 
       // TopK candidates.
       sampler(log_probs, topk_ids, topk_scores, _beam_size);
-      if (use_hard_prefix)
-        update_sample_with_prefix(step, topk_ids, topk_scores, *prefix_ids, end_id, batch_offset);
 
       // Unflatten the ids.
       gather_indices.resize({cur_batch_size * _beam_size});
@@ -403,12 +411,24 @@ namespace ctranslate2 {
                                          : batch_id);
       }
 
-      if (bias_towards_prefix)
-        beams_diverged_from_prefix = get_beams_divergence_from_prefix(beams_diverged_from_prefix,
-                                                                      step,
-                                                                      topk_ids,
-                                                                      *prefix_ids,
-                                                                      batch_offset);
+      if (prefix_ids) {
+        if (use_hard_prefix) {
+          update_sample_with_prefix(step,
+                                    topk_ids,
+                                    topk_scores,
+                                    *prefix_ids,
+                                    end_id,
+                                    batch_offset,
+                                    &gather_indices,
+                                    is_expanded);
+        } else if (bias_towards_prefix) {
+          beams_diverged_from_prefix = get_beams_divergence_from_prefix(beams_diverged_from_prefix,
+                                                                        step,
+                                                                        topk_ids,
+                                                                        *prefix_ids,
+                                                                        batch_offset);
+        }
+      }
 
       // Append last prediction.
       append_step_output(alive_seq, topk_ids, gather_indices);
