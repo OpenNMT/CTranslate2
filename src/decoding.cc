@@ -615,6 +615,9 @@ namespace ctranslate2 {
               &logits,
               return_attention ? &attention_step_device : nullptr);
 
+      if (repetition_penalty != 1 && alive_seq)
+        penalize_previous_tokens(logits, alive_seq.to(device), repetition_penalty);
+
       // Compute log probs only if scores should be returned.
       StorageView log_probs(dtype, device);
       if (return_scores)
@@ -624,8 +627,6 @@ namespace ctranslate2 {
       // Prevent the generation of end_id until the minimum length is reached.
       if (step < min_step)
         disable_token(log_probs, end_id);
-      if (repetition_penalty != 1 && alive_seq)
-        penalize_previous_tokens(log_probs, alive_seq.to(device), repetition_penalty);
 
       sampler(log_probs, best_ids, best_probs);
       if (output_ids_map)
