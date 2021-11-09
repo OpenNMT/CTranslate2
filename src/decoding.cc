@@ -370,6 +370,12 @@ namespace ctranslate2 {
       const dim_t cur_batch_size = is_expanded ? logits.dim(0) / _beam_size : logits.dim(0);
       const dim_t vocabulary_size = logits.dim(-1);
 
+      if (repetition_penalty != 1 && alive_seq) {
+        merge_batch_beam(alive_seq);
+        penalize_previous_tokens(logits, alive_seq.to(device), repetition_penalty);
+        split_batch_beam(alive_seq, _beam_size);
+      }
+
       StorageView log_probs(dtype, device);
       if (bias_towards_prefix) {
         biased_decoder->decode(_prefix_bias_beta,
@@ -388,11 +394,6 @@ namespace ctranslate2 {
       // Prevent the generation of end_id until the minimum length is reached.
       if (step < min_step)
         disable_token(log_probs, end_id);
-      if (repetition_penalty != 1 && alive_seq) {
-        merge_batch_beam(alive_seq);
-        penalize_previous_tokens(log_probs, alive_seq.to(device), repetition_penalty);
-        split_batch_beam(alive_seq, _beam_size);
-      }
 
       // Multiply by the current beam log probs.
       if (is_expanded) {
