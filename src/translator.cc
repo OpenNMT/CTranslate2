@@ -44,6 +44,8 @@ namespace ctranslate2 {
       throw std::invalid_argument("max_decoding_length must be > 0");
     if (repetition_penalty <= 0)
       throw std::invalid_argument("repetition_penalty must be > 0");
+    if (repetition_penalty != 1 && use_vmap)
+      throw std::invalid_argument("repetition_penalty is currently not supported with use_vmap");
     if (prefix_bias_beta >= 1)
       throw std::invalid_argument("prefix_bias_beta must be less than 1.0");
     if (prefix_bias_beta > 0 && return_alternatives)
