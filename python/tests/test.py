@@ -288,7 +288,7 @@ def test_hard_target_prefix():
 def test_hard_target_prefix_with_vmap(tmpdir, beam_size):
     model_dir = str(tmpdir.join("model"))
     shutil.copytree(_get_model_path(), model_dir)
-    with open(os.path.join(model_dir, "vmap.txt"), "w") as vmap:
+    with open(os.path.join(model_dir, "vmap.txt"), "w", encoding="utf-8") as vmap:
         vmap.write("ن\tt z m o n\n")
 
     translator = ctranslate2.Translator(model_dir)
