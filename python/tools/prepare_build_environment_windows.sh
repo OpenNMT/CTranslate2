@@ -11,7 +11,7 @@ rm webimage.exe
 
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/compiler/lib/intel64_win" -DCMAKE_CXX_FLAGS='/openmp' -DBUILD_CLI=OFF -DWITH_DNNL=ON ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/compiler/lib/intel64_win" '-DCMAKE_CXX_FLAGS=/openmp' -DBUILD_CLI=OFF -DWITH_DNNL=ON ..
 cmake --build . --config Release --target install --parallel 2
 cd ..
 rm -r build
