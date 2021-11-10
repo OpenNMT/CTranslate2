@@ -267,8 +267,9 @@ TEST_P(SearchVariantTest, RepetitionPenalty) {
   options.beam_size = beam_size;
   options.repetition_penalty = 100;  // Force the decoding to produce unique symbols.
   const auto result = translator.translate({"ن", "ن", "ن", "ن", "ن"}, options);
-  const std::unordered_set<std::string> tokens(result.output().begin(), result.output().end());
-  EXPECT_EQ(tokens.size(), result.output().size());
+  const auto& tokens = result.output();
+  const std::unordered_set<std::string> unique_tokens(tokens.begin(), tokens.end());
+  EXPECT_EQ(unique_tokens.size(), tokens.size());
 }
 
 static void check_normalized_score(const std::vector<std::string>& input,
