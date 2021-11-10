@@ -490,6 +490,7 @@ skip_if_data_missing = pytest.mark.skipif(
 )
 skip_on_windows = pytest.mark.skipif(
     sys.platform == "win32", reason="Test case disabled on Windows"
+)
 
 
 @skip_if_data_missing
