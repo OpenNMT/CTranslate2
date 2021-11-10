@@ -19,6 +19,7 @@ DNNL_BUILD=467
 yum-config-manager --add-repo https://yum.repos.intel.com/oneapi
 rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
 yum install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION-$MKL_BUILD intel-oneapi-dnnl-devel-$ONEAPI_VERSION-$DNNL_BUILD
+echo "/opt/intel/oneapi/compiler/latest/linux/compiler/lib/intel64_lin" > /etc/ld.so.conf.d/libiomp5.conf
 echo "/opt/intel/oneapi/dnnl/latest/cpu_iomp/lib" > /etc/ld.so.conf.d/intel-dnnl.conf
 ldconfig
 
