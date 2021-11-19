@@ -6,13 +6,15 @@
 namespace ctranslate2 {
   namespace ops {
 
+    constexpr dim_t num_threads = 256;
+
     template <typename T, typename AccumT>
     __global__ void mean_kernel(const T* input,
                                 const cuda::index_t outer_size,
                                 const cuda::index_t axis_size,
                                 const cuda::index_t inner_size,
                                 T* output) {
-      typedef cub::BlockReduce<AccumT, 256> BlockReduce;
+      typedef cub::BlockReduce<AccumT, num_threads> BlockReduce;
       __shared__ typename BlockReduce::TempStorage temp_storage;
 
       const cuda::index_t i = blockIdx.x / inner_size;
@@ -37,8 +39,7 @@ namespace ctranslate2 {
                        const dim_t inner_size,
                        StorageView& output) const {
       const dim_t blocks = std::min(outer_size * inner_size, cuda::max_blocks);
-      const dim_t threads = 256;
-      mean_kernel<cuda::device_type<T>, float><<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
+      mean_kernel<cuda::device_type<T>, float><<<blocks, num_threads, 0, cuda::get_cuda_stream()>>>(
         cuda::device_cast(input.data<T>()),
         outer_size,
         axis_size,
