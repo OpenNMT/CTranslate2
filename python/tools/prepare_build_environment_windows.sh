@@ -11,12 +11,12 @@ rm webimage.exe
 
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/compiler/lib/intel64_win" -DBUILD_CLI=OFF -DWITH_DNNL=ON ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="$ONEAPI_ROOT/compiler/latest/windows/compiler/lib/intel64_win" -DBUILD_CLI=OFF -DWITH_DNNL=ON ..
 cmake --build . --config Release --target install --parallel 2
 cd ..
 rm -r build
 
 cp README.md python/
 cp $CTRANSLATE2_ROOT/bin/ctranslate2.dll python/ctranslate2/
-cp "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/redist/intel64_win/compiler/libiomp5md.dll" python/ctranslate2/
-cp "C:/Program Files (x86)/Intel/oneAPI/dnnl/latest/cpu_iomp/bin/dnnl.dll" python/ctranslate2/
+cp "$ONEAPI_ROOT/compiler/latest/windows/redist/intel64_win/compiler/libiomp5md.dll" python/ctranslate2/
+cp "$ONEAPI_ROOT/dnnl/latest/cpu_iomp/bin/dnnl.dll" python/ctranslate2/
