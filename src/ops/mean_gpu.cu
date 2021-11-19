@@ -20,12 +20,12 @@ namespace ctranslate2 {
       const cuda::index_t i = blockIdx.x / inner_size;
       const cuda::index_t j = blockIdx.x % inner_size;
 
-      AccumT block_sum = 0;
+      AccumT thread_sum = 0;
       for (cuda::index_t k = threadIdx.x; k < axis_size; k += blockDim.x) {
-        block_sum += AccumT(input[i * axis_size * inner_size + k * inner_size + j]);
+        thread_sum += AccumT(input[i * axis_size * inner_size + k * inner_size + j]);
       }
 
-      AccumT sum = BlockReduce(temp_storage).Sum(block_sum);
+      AccumT sum = BlockReduce(temp_storage).Sum(thread_sum);
 
       if (threadIdx.x == 0) {
         output[blockIdx.x] = sum / AccumT(axis_size);
