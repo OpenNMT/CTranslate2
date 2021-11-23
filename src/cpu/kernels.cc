@@ -59,68 +59,43 @@ namespace ctranslate2 {
       }
     }
 
-    template <CpuIsa ISA,
-              typename T,
-              typename VecMapFunc,
-              typename VecReduceFunc,
-              typename ScalarMapFunc,
-              typename ScalarReduceFunc>
+
+    template <CpuIsa ISA, typename T, typename MapFunc, typename ReduceFunc, typename VecReduceFunc>
     static T vectorized_map_reduce_all(const T* x,
                                        dim_t size,
                                        T init,
-                                       const VecMapFunc& vec_map_func,
-                                       const VecReduceFunc& vec_reduce_func,
-                                       const ScalarMapFunc& scalar_map_func,
-                                       const ScalarReduceFunc& scalar_reduce_func) {
-      if (Vec<T, ISA>::width == 1 || size <= Vec<T, ISA>::width) {
-        T accu = init;
-        for (dim_t i = 0; i < size; ++i) {
-          accu = scalar_reduce_func(accu, scalar_map_func(x[i]));
-        }
-        return accu;
-      }
-
+                                       const MapFunc& map_func,
+                                       const ReduceFunc& reduce_func,
+                                       const VecReduceFunc& vec_reduce_func) {
       const dim_t remaining = size % Vec<T, ISA>::width;
       size -= remaining;
 
-      auto vec_accu = Vec<T, ISA>::load(init);
+      auto accu = map_func(Vec<T, ISA>::load(init));
       for (dim_t i = 0; i < size; i += Vec<T, ISA>::width) {
         auto v = Vec<T, ISA>::load(x + i);
-        vec_accu = vec_reduce_func(vec_accu, vec_map_func(v));
+        accu = reduce_func(accu, map_func(v));
       }
 
-      T values[Vec<T, ISA>::width];
-      Vec<T, ISA>::store(vec_accu, values);
-      const auto accu = vectorized_map_reduce_all<ISA>(values,
-                                                       Vec<T, ISA>::width,
-                                                       init,
-                                                       identity(),
-                                                       vec_reduce_func,
-                                                       identity(),
-                                                       scalar_reduce_func);
+      if (remaining != 0) {
+        auto v = Vec<T, ISA>::load(x + size, remaining, init);
+        accu = reduce_func(accu, map_func(v));
+      }
 
-      return vectorized_map_reduce_all<ISA>(x + size,
-                                            remaining,
-                                            accu,
-                                            vec_map_func,
-                                            vec_reduce_func,
-                                            scalar_map_func,
-                                            scalar_reduce_func);
+      return vec_reduce_func(accu);
     }
 
-    template <CpuIsa ISA, typename T, typename VecReduceFunc, typename ScalarReduceFunc>
+    template <CpuIsa ISA, typename T, typename ReduceFunc, typename VecReduceFunc>
     static T vectorized_reduce_all(const T* x,
                                    dim_t size,
                                    T init,
-                                   const VecReduceFunc& vec_reduce_func,
-                                   const ScalarReduceFunc& scalar_reduce_func) {
+                                   const ReduceFunc& reduce_func,
+                                   const VecReduceFunc& vec_reduce_func) {
       return vectorized_map_reduce_all<ISA>(x,
                                             size,
                                             init,
                                             identity(),
-                                            vec_reduce_func,
-                                            identity(),
-                                            scalar_reduce_func);
+                                            reduce_func,
+                                            vec_reduce_func);
     }
 
     template <CpuIsa ISA, typename T>
@@ -224,7 +199,7 @@ namespace ctranslate2 {
                                         size,
                                         static_cast<T>(0),
                                         Vec<T, ISA>::add,
-                                        Vec<T>::add);
+                                        reduce_sum<T, ISA>);
     }
 
     template <CpuIsa ISA, typename T>
@@ -233,7 +208,7 @@ namespace ctranslate2 {
                                         size,
                                         std::numeric_limits<T>::lowest(),
                                         Vec<T, ISA>::max,
-                                        Vec<T>::max);
+                                        reduce_max<T, ISA>);
     }
 
     template <CpuIsa ISA, typename T>
@@ -243,8 +218,7 @@ namespace ctranslate2 {
                                             static_cast<T>(0),
                                             Vec<T, ISA>::abs,
                                             Vec<T, ISA>::max,
-                                            Vec<T>::abs,
-                                            Vec<T>::max);
+                                            reduce_max<T, ISA>);
     }
 
 #define DECLARE_IMPL(T)                                                 \
@@ -298,9 +272,6 @@ namespace ctranslate2 {
         const auto x_max = reduce_max<TARGET_ISA>(x, size);
         const auto vec_x_max = VecType::load(x_max);
 
-        const auto scalar_exp_func = [x_max](vec_type<float> v) {
-                                       return Vec<float>::exp(Vec<float>::sub(v, x_max));
-                                     };
         const auto vec_exp_func = [vec_x_max](vec_type<float, TARGET_ISA> v) {
                                     return VecType::exp(VecType::sub(v, vec_x_max));
                                   };
@@ -309,11 +280,10 @@ namespace ctranslate2 {
           const auto exp_sum = vectorized_map_reduce_all<TARGET_ISA>(
             x,
             size,
-            static_cast<float>(0),
+            std::numeric_limits<float>::lowest(),
             vec_exp_func,
             VecType::add,
-            scalar_exp_func,
-            Vec<float>::add);
+            reduce_sum<float, TARGET_ISA>);
           add<TARGET_ISA>(-x_max - std::log(exp_sum), x, y, size);
         } else {
           vectorized_unary_transform<TARGET_ISA>(x, y, size, vec_exp_func);
