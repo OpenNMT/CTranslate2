@@ -90,7 +90,7 @@ namespace ctranslate2 {
     Translator(const std::shared_ptr<const models::Model>& model);
 
     // Copy constructor.
-    // The copy shares the same model instance, but it can be safely used in another thread.
+    // The copy shares the same model weights, but it can be safely used in another thread.
     Translator(const Translator& other);
 
     // WARNING: The translator methods are not thread-safe. To run multiple translations in
@@ -148,8 +148,6 @@ namespace ctranslate2 {
     void register_current_allocator();
 
     std::shared_ptr<const models::Model> _model;
-    std::unique_ptr<layers::Encoder> _encoder;
-    std::unique_ptr<layers::Decoder> _decoder;
     const models::SequenceToSequenceModel* _seq2seq_model = nullptr;
     Allocator* _allocator = nullptr;
   };

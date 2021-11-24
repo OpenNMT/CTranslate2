@@ -30,6 +30,10 @@ namespace ctranslate2 {
                                                int device_index,
                                                const std::string& compute_type);
 
+      // Clone this model instance.
+      // The cloned model shares the model weights but it can be safely used in parallel.
+      std::shared_ptr<const Model> clone() const;
+
       virtual ~Model() = default;
       virtual size_t current_spec_revision() const;
 
@@ -97,7 +101,14 @@ namespace ctranslate2 {
       // (e.g. a variable name changed in a newer spec revision).
       virtual void register_variable(std::string name, StorageView variable);
       virtual void register_variable_alias(std::string alias, std::string variable_name);
+
+      // Finalize the model configuration after all model variables have been loaded.
       virtual void finalize();
+
+      // Build the model layers.
+      virtual void build() {};
+
+      virtual std::unique_ptr<Model> copy_instance() const = 0;
 
       Device _device;
       int _device_index;
@@ -120,7 +131,7 @@ namespace ctranslate2 {
     };
 
     // Load a model replica on each device ID configured in device_indices.
-    // Replicas on the same device ID will reference the same model instance.
+    // Replicas on the same device ID will use the same model weights.
     std::vector<std::shared_ptr<const Model>>
     load_replicas(const std::string& model_path,
                   const Device device,

@@ -125,6 +125,13 @@ namespace ctranslate2 {
       : _spec_revision(spec_revision) {
     }
 
+    std::shared_ptr<const Model> Model::clone() const {
+      const auto scoped_device_setter = get_scoped_device_setter();
+      auto model = copy_instance();
+      model->build();
+      return model;
+    }
+
     size_t Model::current_spec_revision() const {
       return 1;
     }
@@ -291,8 +298,6 @@ namespace ctranslate2 {
     }
 
     void Model::finalize() {
-      auto scoped_device_setter = get_scoped_device_setter();
-
       std::vector<std::string> variables_to_remove;
       std::unordered_map<std::string, StorageView> variables_to_add;
 
@@ -525,6 +530,7 @@ namespace ctranslate2 {
         model->register_variable(std::move(name), std::move(variable));
       }
 
+      const auto scoped_device_setter = model->get_scoped_device_setter();
       model->finalize();
 
       // Register aliases, which are shallow copies of finalized variables.
@@ -540,6 +546,7 @@ namespace ctranslate2 {
       }
 
       model->process_linear_weights();
+      model->build();
       return model;
     }
 
@@ -566,7 +573,7 @@ namespace ctranslate2 {
         const auto main_replica_on_device = device_to_main_replica.find(device_index);
 
         if (main_replica_on_device != device_to_main_replica.end()) {
-          models.emplace_back(models[main_replica_on_device->second]);
+          models.emplace_back(models[main_replica_on_device->second]->clone());
         } else {
           models.emplace_back(Model::load(model_path, device, device_index, compute_type));
           device_to_main_replica.emplace(device_index, i);

@@ -89,6 +89,10 @@ namespace ctranslate2 {
       _alignment_heads = get_attribute_with_default<int16_t>("alignment_heads", 1);
     }
 
+    std::unique_ptr<Model> TransformerModel::copy_instance() const {
+      return std::make_unique<TransformerModel>(*this);
+    }
+
     std::unique_ptr<layers::Encoder> TransformerModel::make_encoder() const {
       return std::make_unique<layers::TransformerEncoder>(*this,
                                                           "encoder",

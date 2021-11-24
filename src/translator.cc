@@ -72,7 +72,7 @@ namespace ctranslate2 {
 
   Translator::Translator(const Translator& other) {
     if (other._model)
-      set_model(other._model);
+      set_model(other._model->clone());
   }
 
   TranslationResult
@@ -122,9 +122,7 @@ namespace ctranslate2 {
 
     const size_t max_batch_size = options.support_batch_translation() ? 0 : 1;
     for (const auto& batch : rebatch_input(source, target_prefix, max_batch_size)) {
-      auto batch_results = _seq2seq_model->sample(*_encoder,
-                                                  *_decoder,
-                                                  batch.source,
+      auto batch_results = _seq2seq_model->sample(batch.source,
                                                   batch.target,
                                                   *make_search_strategy(options),
                                                   *make_sampler(options),
@@ -155,7 +153,7 @@ namespace ctranslate2 {
     register_current_allocator();
     if (source.empty())
       return {};
-    return _seq2seq_model->score(*_encoder, *_decoder, source, target, options.max_input_length);
+    return _seq2seq_model->score(source, target, options.max_input_length);
   }
 
   Device Translator::device() const {
@@ -196,17 +194,12 @@ namespace ctranslate2 {
       throw std::invalid_argument("Translator expects a model of type SequenceToSequenceModel");
     _model = model;
     _seq2seq_model = seq2seq_model;
-    auto scoped_device_setter = _model->get_scoped_device_setter();
-    _encoder = seq2seq_model->make_encoder();
-    _decoder = seq2seq_model->make_decoder();
   }
 
   void Translator::detach_model() {
     if (!_model)
       return;
     auto scoped_device_setter = _model->get_scoped_device_setter();
-    _encoder.reset();
-    _decoder.reset();
     _model.reset();
     _seq2seq_model = nullptr;
   }

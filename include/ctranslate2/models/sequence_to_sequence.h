@@ -17,39 +17,25 @@ namespace ctranslate2 {
       const Vocabulary& get_target_vocabulary() const;
       const VocabularyMap* get_vocabulary_map() const;
 
-      // Makes new graph to execute this model. Graphs returned by these function
-      // should support being executed in parallel without duplicating the model
-      // data (i.e. the weights).
-      virtual std::unique_ptr<layers::Encoder> make_encoder() const = 0;
-      virtual std::unique_ptr<layers::Decoder> make_decoder() const = 0;
-
-      void forward_encoder(layers::Encoder& encoder,
-                           const std::vector<std::vector<std::string>>& source,
+      void forward_encoder(const std::vector<std::vector<std::string>>& source,
                            StorageView& memory,
                            StorageView& memory_lengths) const;
 
-      void forward_decoder(layers::Decoder& decoder,
-                           layers::DecoderState& state,
+      void forward_decoder(layers::DecoderState& state,
                            const std::vector<std::vector<std::string>>& target,
                            StorageView& logits) const;
 
-      void forward(layers::Encoder& encoder,
-                   layers::Decoder& decoder,
-                   const std::vector<std::vector<std::string>>& source,
+      void forward(const std::vector<std::vector<std::string>>& source,
                    const std::vector<std::vector<std::string>>& target,
                    StorageView& logits) const;
 
       std::vector<ScoringResult>
-      score(layers::Encoder& encoder,
-            layers::Decoder& decoder,
-            const std::vector<std::vector<std::string>>& source,
+      score(const std::vector<std::vector<std::string>>& source,
             const std::vector<std::vector<std::string>>& target,
             const size_t max_input_length = 0) const;
 
       std::vector<GenerationResult<std::string>>
-      sample(layers::Encoder& encoder,
-             layers::Decoder& decoder,
-             const std::vector<std::vector<std::string>>& source,
+      sample(const std::vector<std::vector<std::string>>& source,
              const std::vector<std::vector<std::string>>& target_prefix = {},
              const SearchStrategy& search_strategy = GreedySearch(),
              const Sampler& sampler = BestSampler(),
@@ -65,26 +51,22 @@ namespace ctranslate2 {
              const bool normalize_scores = false,
              const float repetition_penalty = 1) const;
 
-      bool with_source_bos() const {
-        return _with_source_bos;
-      }
-
-      bool with_source_eos() const {
-        return _with_source_eos;
-      }
-
-      bool with_target_bos() const {
-        return _with_target_bos;
-      }
-
     protected:
       SequenceToSequenceModel(ModelReader& model_reader, size_t spec_revision);
+      SequenceToSequenceModel(const SequenceToSequenceModel& model);
       virtual void finalize() override;
+      virtual void build() override;
+
+      virtual std::unique_ptr<layers::Encoder> make_encoder() const = 0;
+      virtual std::unique_ptr<layers::Decoder> make_decoder() const = 0;
+
+      std::unique_ptr<layers::Encoder> _encoder;
+      std::unique_ptr<layers::Decoder> _decoder;
 
     private:
       std::shared_ptr<const Vocabulary> _source_vocabulary;
       std::shared_ptr<const Vocabulary> _target_vocabulary;
-      std::unique_ptr<const VocabularyMap> _vocabulary_map;
+      std::shared_ptr<const VocabularyMap> _vocabulary_map;
 
       bool _with_source_bos = false;
       bool _with_source_eos = false;

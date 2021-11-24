@@ -14,8 +14,6 @@ namespace ctranslate2 {
     public:
       TransformerModel(ModelReader& model_reader, size_t spec_revision, size_t num_heads = 0);
       size_t current_spec_revision() const override;
-      std::unique_ptr<layers::Encoder> make_encoder() const override;
-      std::unique_ptr<layers::Decoder> make_decoder() const override;
 
     protected:
       bool is_quantizable(const std::string& variable_name) const override;
@@ -24,6 +22,9 @@ namespace ctranslate2 {
       void register_variable(std::string name, StorageView variable) override;
       void register_variable_alias(std::string alias, std::string variable_name) override;
       void finalize() override;
+      std::unique_ptr<Model> copy_instance() const override;
+      std::unique_ptr<layers::Encoder> make_encoder() const override;
+      std::unique_ptr<layers::Decoder> make_decoder() const override;
 
     private:
       size_t _num_heads;

@@ -43,9 +43,20 @@ namespace ctranslate2 {
       {
         auto vmap = model_reader.get_file(vmap_file);
         if (vmap) {
-          _vocabulary_map = std::make_unique<VocabularyMap>(*vmap, get_target_vocabulary());
+          _vocabulary_map = std::make_shared<VocabularyMap>(*vmap, get_target_vocabulary());
         }
       }
+    }
+
+    SequenceToSequenceModel::SequenceToSequenceModel(const SequenceToSequenceModel& model)
+      : Model(model)
+      , _source_vocabulary(model._source_vocabulary)
+      , _target_vocabulary(model._target_vocabulary)
+      , _vocabulary_map(model._vocabulary_map)
+      , _with_source_bos(model._with_source_bos)
+      , _with_source_eos(model._with_source_eos)
+      , _with_target_bos(model._with_target_bos)
+    {
     }
 
     void SequenceToSequenceModel::finalize() {
@@ -53,6 +64,12 @@ namespace ctranslate2 {
       _with_source_bos = get_flag_with_default("with_source_bos", false);
       _with_source_eos = get_flag_with_default("with_source_eos", false);
       _with_target_bos = get_flag_with_default("with_target_bos", true);
+    }
+
+    void SequenceToSequenceModel::build() {
+      Model::build();
+      _encoder = make_encoder();
+      _decoder = make_decoder();
     }
 
     const Vocabulary& SequenceToSequenceModel::get_source_vocabulary() const {
@@ -67,8 +84,7 @@ namespace ctranslate2 {
       return _vocabulary_map && !_vocabulary_map->empty() ? _vocabulary_map.get() : nullptr;
     }
 
-    void SequenceToSequenceModel::forward_encoder(layers::Encoder& encoder,
-                                                  const std::vector<std::vector<std::string>>& source,
+    void SequenceToSequenceModel::forward_encoder(const std::vector<std::vector<std::string>>& source,
                                                   StorageView& memory,
                                                   StorageView& memory_lengths) const {
       const auto scoped_device_setter = get_scoped_device_setter();
@@ -82,11 +98,10 @@ namespace ctranslate2 {
                                                                    _device,
                                                                    _preferred_size_multiple);
 
-      encoder(ids, memory_lengths, memory);
+      (*_encoder)(ids, memory_lengths, memory);
     }
 
-    void SequenceToSequenceModel::forward_decoder(layers::Decoder& decoder,
-                                                  layers::DecoderState& state,
+    void SequenceToSequenceModel::forward_decoder(layers::DecoderState& state,
                                                   const std::vector<std::vector<std::string>>& target,
                                                   StorageView& logits) const {
       const auto scoped_device_setter = get_scoped_device_setter();
@@ -102,30 +117,26 @@ namespace ctranslate2 {
                                                             _preferred_size_multiple);
 
 
-      decoder(ids, lengths, state, logits);
+      (*_decoder)(ids, lengths, state, logits);
     }
 
-    void SequenceToSequenceModel::forward(layers::Encoder& encoder,
-                                          layers::Decoder& decoder,
-                                          const std::vector<std::vector<std::string>>& source,
+    void SequenceToSequenceModel::forward(const std::vector<std::vector<std::string>>& source,
                                           const std::vector<std::vector<std::string>>& target,
                                           StorageView& logits) const {
       const auto scoped_device_setter = get_scoped_device_setter();
       PROFILE("SequenceToSequenceModel::forward");
-      StorageView memory(encoder.output_type(), _device);
+      StorageView memory(_encoder->output_type(), _device);
       StorageView memory_lengths(DataType::INT32, _device);
-      forward_encoder(encoder, source, memory, memory_lengths);
+      forward_encoder(source, memory, memory_lengths);
 
-      layers::DecoderState state = decoder.initial_state(/*iterative_decoding=*/false);
+      layers::DecoderState state = _decoder->initial_state(/*iterative_decoding=*/false);
       state.emplace("memory", std::move(memory));
       state.emplace("memory_lengths", std::move(memory_lengths));
-      forward_decoder(decoder, state, target, logits);
+      forward_decoder(state, target, logits);
     }
 
     std::vector<ScoringResult>
-    SequenceToSequenceModel::score(layers::Encoder& encoder,
-                                   layers::Decoder& decoder,
-                                   const std::vector<std::vector<std::string>>& source,
+    SequenceToSequenceModel::score(const std::vector<std::vector<std::string>>& source,
                                    const std::vector<std::vector<std::string>>& target,
                                    const size_t max_input_length) const {
       const auto scoped_device_setter = get_scoped_device_setter();
@@ -138,8 +149,8 @@ namespace ctranslate2 {
         target_inputs = truncate_inputs(target_inputs, max_input_length);
       }
 
-      StorageView logits(decoder.output_type(), _device);
-      forward(encoder, decoder, source_inputs, target_inputs, logits);
+      StorageView logits(_decoder->output_type(), _device);
+      forward(source_inputs, target_inputs, logits);
       StorageView log_probs = std::move(logits);
       ops::LogSoftMax()(log_probs);
 
@@ -191,9 +202,7 @@ namespace ctranslate2 {
     }
 
     std::vector<GenerationResult<std::string>>
-    SequenceToSequenceModel::sample(layers::Encoder& encoder,
-                                    layers::Decoder& decoder,
-                                    const std::vector<std::vector<std::string>>& source,
+    SequenceToSequenceModel::sample(const std::vector<std::vector<std::string>>& source,
                                     const std::vector<std::vector<std::string>>& target_prefix,
                                     const SearchStrategy& search_strategy,
                                     const Sampler& sampler,
@@ -219,11 +228,11 @@ namespace ctranslate2 {
       }
 
       // Encode the sequence.
-      StorageView memory(encoder.output_type(), _device);
+      StorageView memory(_encoder->output_type(), _device);
       StorageView memory_lengths(DataType::INT32, _device);
-      forward_encoder(encoder, source_inputs, memory, memory_lengths);
+      forward_encoder(source_inputs, memory, memory_lengths);
 
-      layers::DecoderState state = decoder.initial_state();
+      layers::DecoderState state = _decoder->initial_state();
       state.emplace("memory", std::move(memory));
       state.emplace("memory_lengths", std::move(memory_lengths));
 
@@ -240,12 +249,12 @@ namespace ctranslate2 {
         while (output_ids_map.size() % _preferred_size_multiple != 0)
           output_ids_map.push_back(0);
 
-        decoder.set_vocabulary_mask(
+        _decoder->set_vocabulary_mask(
           StorageView({static_cast<dim_t>(output_ids_map.size())},
                       std::vector<int32_t>(output_ids_map.begin(), output_ids_map.end()),
                       _device));
       } else {
-        decoder.reset_vocabulary_mask();
+        _decoder->reset_vocabulary_mask();
       }
 
       // Decode.
@@ -257,7 +266,7 @@ namespace ctranslate2 {
       const size_t batch_size = source.size();
       const std::vector<size_t> start_ids(batch_size, start_id);
       std::vector<GenerationResult<size_t>> results = decode(
-        decoder,
+        *_decoder,
         state,
         search_strategy,
         sampler,
