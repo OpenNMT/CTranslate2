@@ -125,7 +125,7 @@ namespace ctranslate2 {
       : _spec_revision(spec_revision) {
     }
 
-    std::shared_ptr<const Model> Model::clone() const {
+    std::unique_ptr<const Model> Model::clone() const {
       const auto scoped_device_setter = get_scoped_device_setter();
       auto model = copy_instance();
       model->build();

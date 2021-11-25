@@ -32,7 +32,7 @@ namespace ctranslate2 {
 
       // Clone this model instance.
       // The cloned model shares the model weights but it can be safely used in parallel.
-      std::shared_ptr<const Model> clone() const;
+      std::unique_ptr<const Model> clone() const;
 
       virtual ~Model() = default;
       virtual size_t current_spec_revision() const;
