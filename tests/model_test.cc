@@ -12,7 +12,7 @@ TEST(ModelTest, LoadReplicas) {
                                               {0, 0},
                                               ComputeType::DEFAULT);
 
-  // The replicas should use the same model weights but be different models instances.
+  // The replicas should use the same model weights but be different model instances.
   ASSERT_EQ(replicas.size(), 2);
   EXPECT_NE(replicas[0], replicas[1]);
 
