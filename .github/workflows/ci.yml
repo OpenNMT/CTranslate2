@@ -153,8 +153,14 @@ jobs:
         with:
           submodules: recursive
 
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v1
+        with:
+          platforms: all
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.1.3
+        uses: pypa/cibuildwheel@v2.3.0
         with:
           package-dir: python
           output-dir: python/wheelhouse
@@ -165,7 +171,10 @@ jobs:
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows.sh
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
-          CIBW_ARCHS: auto64
+          CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_MACOS: "auto"
+          CIBW_ARCHS_WINDOWS: "auto"
           CIBW_SKIP: pp*
 
       - name: Upload Python wheels
