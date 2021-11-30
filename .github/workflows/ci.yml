@@ -172,16 +172,10 @@ jobs:
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
-          CIBW_ARCHS_LINUX: "x86_64 aarch64"
+          CIBW_ARCHS_LINUX: "aarch64"
           CIBW_ARCHS_MACOS: "auto"
           CIBW_ARCHS_WINDOWS: "auto"
           CIBW_SKIP: pp*
-
-      - name: Upload Python wheels
-        uses: actions/upload-artifact@v2
-        with:
-          name: python-wheels
-          path: python/wheelhouse
 
 
   # We could test the Python wheels using cibuildwheel but we prefer to run the tests outside
