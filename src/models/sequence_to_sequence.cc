@@ -1,5 +1,6 @@
 #include "ctranslate2/models/sequence_to_sequence.h"
 
+#include <algorithm>
 #include <numeric>
 
 namespace ctranslate2 {
@@ -240,12 +241,9 @@ namespace ctranslate2 {
       // reduced vocabulary instead of handling that during decoding.
       const size_t unk_id = _target_vocabulary->to_id(Vocabulary::unk_token);
       if (disable_unk && !output_ids_map.empty()) {
-        for (auto it = output_ids_map.begin(); it != output_ids_map.end(); ++it) {
-          if (*it == unk_id) {
-            output_ids_map.erase(it);
-            break;
-          }
-        }
+        auto it = std::lower_bound(output_ids_map.begin(), output_ids_map.end(), unk_id);
+        if (it != output_ids_map.end() && *it == unk_id)
+          output_ids_map.erase(it);
         disable_unk = false;
       }
 
