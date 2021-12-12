@@ -546,7 +546,7 @@ namespace ctranslate2 {
     }
 
     std::vector<std::shared_ptr<const Model>>
-    load_replicas(const std::string& model_path,
+    load_replicas(models::ModelReader& model_reader,
                   const Device device,
                   const std::vector<int>& device_indices,
                   const ComputeType compute_type) {
@@ -566,7 +566,7 @@ namespace ctranslate2 {
         if (main_replica_on_device != device_to_main_replica.end()) {
           models.emplace_back(models[main_replica_on_device->second]);
         } else {
-          models.emplace_back(Model::load(model_path, device, device_index, compute_type));
+          models.emplace_back(Model::load(model_reader, device, device_index, compute_type));
           device_to_main_replica.emplace(device_index, i);
         }
       }
