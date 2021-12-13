@@ -574,11 +574,10 @@ namespace ctranslate2 {
       return models;
     }
 
-    std::vector<std::shared_ptr<const Model> > load_replicas(const std::string &model_path,
+    std::vector<std::shared_ptr<const Model> > load_replicas(const std::string& model_path,
                                                              const Device device,
                                                              const std::vector<int>& device_indices,
-                                                             const ComputeType compute_type)
-    {
+                                                             const ComputeType compute_type) {
       ctranslate2::models::ModelFileReader model_reader(model_path);
       return load_replicas(model_reader, device, device_indices, compute_type);
     }
