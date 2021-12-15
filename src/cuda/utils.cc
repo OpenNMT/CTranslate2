@@ -52,17 +52,21 @@ namespace ctranslate2 {
           is_main_thread = false;
           _stream = cudaStreamDefault;
         } else {
+          CUDA_CHECK(cudaGetDevice(&_device));
           CUDA_CHECK(cudaStreamCreate(&_stream));
         }
       }
       ~CudaStream() {
-        if (_stream != cudaStreamDefault)
+        if (_stream != cudaStreamDefault) {
+          ScopedDeviceSetter scoped_device_setter(Device::CUDA, _device);
           cudaStreamDestroy(_stream);
+        }
       }
       cudaStream_t get() const {
         return _stream;
       }
     private:
+      int _device;
       cudaStream_t _stream;
     };
 
