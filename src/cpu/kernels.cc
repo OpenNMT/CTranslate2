@@ -67,11 +67,16 @@ namespace ctranslate2 {
                                        const MapFunc& map_func,
                                        const ReduceFunc& reduce_func,
                                        const VecReduceFunc& vec_reduce_func) {
+      if (size <= Vec<T, ISA>::width) {
+        auto v = Vec<T, ISA>::load(x, size, init);
+        return vec_reduce_func(map_func(v));
+      }
+
       const dim_t remaining = size % Vec<T, ISA>::width;
       size -= remaining;
 
-      auto accu = map_func(Vec<T, ISA>::load(init));
-      for (dim_t i = 0; i < size; i += Vec<T, ISA>::width) {
+      auto accu = map_func(Vec<T, ISA>::load(x));
+      for (dim_t i = Vec<T, ISA>::width; i < size; i += Vec<T, ISA>::width) {
         auto v = Vec<T, ISA>::load(x + i);
         accu = reduce_func(accu, map_func(v));
       }
