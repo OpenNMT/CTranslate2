@@ -434,18 +434,22 @@ namespace ctranslate2 {
       virtual void run(Translator& translator) = 0;
     };
 
-    // Base class for consuming job results.
     template <typename Result>
-    class JobResultConsumer {
+    class JobWithResult : public Job {
     public:
-      JobResultConsumer(size_t num_results)
+      JobWithResult(size_t num_results)
         : _promises(num_results)
       {
       }
 
-      JobResultConsumer(std::vector<std::promise<Result>> promises)
-        : _promises(std::move(promises))
-      {
+      void set_promise(size_t index, std::promise<Result> promise) {
+        _promises.at(index) = std::move(promise);
+      }
+
+      void set_promises(const std::vector<size_t>& indices,
+                        std::vector<std::promise<Result>>& promises) {
+        for (size_t i = 0; i < indices.size(); ++i)
+          set_promise(i, std::move(promises[indices[i]]));
       }
 
       std::vector<std::future<Result>> get_futures() {
@@ -456,81 +460,72 @@ namespace ctranslate2 {
         return futures;
       }
 
-      void set_result(size_t index, Result result) {
-        _promises[index].set_value(std::move(result));
-      }
-
-      void set_exception(size_t index, std::exception_ptr exception) {
-        _promises[index].set_exception(exception);
-      }
-
-    private:
-      std::vector<std::promise<Result>> _promises;
-    };
-
-    template <typename Result>
-    class BatchJob : public Job {
-    public:
-      BatchJob(Batch batch, std::shared_ptr<JobResultConsumer<Result>> consumer)
-        : _batch(std::move(batch))
-        , _consumer(std::move(consumer))
-      {
-      }
-
       void run(Translator& translator) override {
         std::vector<Result> results;
         std::exception_ptr exception;
 
         try {
-          results = get_results(translator, _batch);
+          results = get_results(translator);
         } catch (...) {
           exception = std::current_exception();
         }
 
-        for (size_t i = 0; i < _batch.source.size(); ++i) {
-          const size_t index = (_batch.example_index.empty() ? i : _batch.example_index[i]);
+        for (size_t i = 0; i < _promises.size(); ++i) {
+          auto& promise = _promises[i];
           if (exception)
-            _consumer->set_exception(index, exception);
+            promise.set_exception(exception);
           else
-            _consumer->set_result(index, std::move(results[i]));
+            promise.set_value(std::move(results[i]));
         }
       }
 
     protected:
-      virtual std::vector<Result>
-      get_results(Translator& translator, const Batch& batch) const = 0;
+      virtual std::vector<Result> get_results(Translator& translator) const = 0;
 
     private:
-      const Batch _batch;
-      const std::shared_ptr<JobResultConsumer<Result>> _consumer;
+      std::vector<std::promise<Result>> _promises;
     };
 
-    class TranslateJob : public BatchJob<TranslationResult> {
+    class TranslateJob : public JobWithResult<TranslationResult> {
     public:
-      TranslateJob(Batch batch,
-                   TranslationOptions options,
-                   std::shared_ptr<JobResultConsumer<TranslationResult>> consumer);
+      TranslateJob(TranslationOptions options,
+                   std::vector<std::vector<std::string>> source,
+                   std::vector<std::vector<std::string>> target_prefix)
+        : JobWithResult(source.size())
+        , _options(options)
+        , _source(std::move(source))
+        , _target_prefix(std::move(target_prefix))
+      {
+      }
 
     protected:
-      std::vector<TranslationResult>
-      get_results(Translator& translator, const Batch& batch) const override;
+      std::vector<TranslationResult> get_results(Translator& translator) const override;
 
     private:
       const TranslationOptions _options;
+      const std::vector<std::vector<std::string>> _source;
+      const std::vector<std::vector<std::string>> _target_prefix;
     };
 
-    class ScoreJob : public BatchJob<ScoringResult> {
+    class ScoreJob : public JobWithResult<ScoringResult> {
     public:
-      ScoreJob(Batch batch,
-               ScoringOptions options,
-               std::shared_ptr<JobResultConsumer<ScoringResult>> consumer);
+      ScoreJob(ScoringOptions options,
+               std::vector<std::vector<std::string>> source,
+               std::vector<std::vector<std::string>> target)
+        : JobWithResult(source.size())
+        , _options(options)
+        , _source(std::move(source))
+        , _target(std::move(target))
+      {
+      }
 
     protected:
-      std::vector<ScoringResult>
-      get_results(Translator& translator, const Batch& batch) const override;
+      std::vector<ScoringResult> get_results(Translator& translator) const override;
 
     private:
       const ScoringOptions _options;
+      const std::vector<std::vector<std::string>> _source;
+      const std::vector<std::vector<std::string>> _target;
     };
 
     template <typename Result>
@@ -548,21 +543,28 @@ namespace ctranslate2 {
           return {};
 
         auto batches = create_batches(source, target, max_batch_size, batch_type);
-        auto consumer = create_consumer(source, target);
-        auto futures = consumer->get_futures();
+        auto promises = create_promises(source, target);
 
-        for (auto& batch : batches)
-          pool.post_job(create_job(std::move(batch), consumer), throttle);
+        std::vector<std::future<Result>> futures;
+        futures.reserve(promises.size());
+        for (auto& promise : promises)
+          futures.emplace_back(promise.get_future());
+
+        for (auto& batch : batches) {
+          auto job = create_job(std::move(batch.source), std::move(batch.target));
+          job->set_promises(batch.example_index, promises);
+          pool.post_job(std::move(job), throttle);
+        }
 
         return futures;
       }
 
     protected:
-      virtual std::shared_ptr<JobResultConsumer<Result>>
-      create_consumer(const std::vector<std::vector<std::string>>& source,
+      virtual std::vector<std::promise<Result>>
+      create_promises(const std::vector<std::vector<std::string>>& source,
                       const std::vector<std::vector<std::string>>& target) const {
         (void)target;
-        return std::make_shared<JobResultConsumer<Result>>(source.size());
+        return std::vector<std::promise<Result>>(source.size());
       }
 
       virtual std::vector<Batch>
@@ -573,8 +575,9 @@ namespace ctranslate2 {
         return rebatch_input(source, target, max_batch_size, batch_type, /*filter_empty=*/false);
       }
 
-      virtual std::unique_ptr<Job>
-      create_job(Batch batch, std::shared_ptr<JobResultConsumer<Result>> consumer) const = 0;
+      virtual std::unique_ptr<JobWithResult<Result>>
+      create_job(std::vector<std::vector<std::string>> source,
+                 std::vector<std::vector<std::string>> target) const = 0;
     };
 
     class TranslateJobCreator : public JobCreator<TranslationResult> {
@@ -586,21 +589,21 @@ namespace ctranslate2 {
       }
 
     protected:
-      std::shared_ptr<JobResultConsumer<TranslationResult>>
-      create_consumer(const std::vector<std::vector<std::string>>& source,
+      std::vector<std::promise<TranslationResult>>
+      create_promises(const std::vector<std::vector<std::string>>& source,
                       const std::vector<std::vector<std::string>>& target) const override {
-        auto consumer = JobCreator<TranslationResult>::create_consumer(source, target);
+        auto promises = JobCreator<TranslationResult>::create_promises(source, target);
 
         // Directly set an empty result for empty inputs.
         for (size_t i = 0; i < source.size(); ++i) {
           if (source[i].empty()) {
-            consumer->set_result(i, TranslationResult(_options.num_hypotheses,
-                                                      _options.return_attention,
-                                                      _options.return_scores));
+            promises[i].set_value(TranslationResult(_options.num_hypotheses,
+                                                    _options.return_attention,
+                                                    _options.return_scores));
           }
         }
 
-        return consumer;
+        return promises;
       }
 
       std::vector<Batch>
@@ -615,10 +618,10 @@ namespace ctranslate2 {
         return rebatch_input(source, target, max_batch_size, batch_type);
       }
 
-      std::unique_ptr<Job>
-      create_job(Batch batch,
-                 std::shared_ptr<JobResultConsumer<TranslationResult>> consumer) const override {
-        return std::make_unique<TranslateJob>(std::move(batch), _options, std::move(consumer));
+      std::unique_ptr<JobWithResult<TranslationResult>>
+      create_job(std::vector<std::vector<std::string>> source,
+                 std::vector<std::vector<std::string>> target) const override {
+        return std::make_unique<TranslateJob>(_options, std::move(source), std::move(target));
       }
 
     private:
@@ -632,10 +635,10 @@ namespace ctranslate2 {
       {
       }
     protected:
-      std::unique_ptr<Job>
-      create_job(Batch batch,
-                 std::shared_ptr<JobResultConsumer<ScoringResult>> consumer) const override {
-        return std::make_unique<ScoreJob>(std::move(batch), _options, std::move(consumer));
+      std::unique_ptr<JobWithResult<ScoringResult>>
+      create_job(std::vector<std::vector<std::string>> source,
+                 std::vector<std::vector<std::string>> target) const override {
+        return std::make_unique<ScoreJob>(_options, std::move(source), std::move(target));
       }
     private:
       const ScoringOptions _options;

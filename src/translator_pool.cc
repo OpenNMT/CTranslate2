@@ -280,34 +280,18 @@ namespace ctranslate2 {
     }
   }
 
-  TranslatorPool::TranslateJob::TranslateJob(Batch batch,
-                                             TranslationOptions options,
-                                             std::shared_ptr<JobResultConsumer<TranslationResult>> consumer)
-    : BatchJob(std::move(batch), std::move(consumer))
-    , _options(options)
-  {
-  }
-
   std::vector<TranslationResult>
-  TranslatorPool::TranslateJob::get_results(Translator& translator, const Batch& batch) const {
-    spdlog::debug("Running batch translation on {} examples", batch.source.size());
-    auto results = translator.translate_batch_with_prefix(batch.source, batch.target, _options);
+  TranslatorPool::TranslateJob::get_results(Translator& translator) const {
+    spdlog::debug("Running batch translation on {} examples", _source.size());
+    auto results = translator.translate_batch_with_prefix(_source, _target_prefix, _options);
     spdlog::debug("Finished batch translation");
     return results;
   }
 
-  TranslatorPool::ScoreJob::ScoreJob(Batch batch,
-                                     ScoringOptions options,
-                                     std::shared_ptr<JobResultConsumer<ScoringResult>> consumer)
-    : BatchJob(std::move(batch), std::move(consumer))
-    , _options(options)
-  {
-  }
-
   std::vector<ScoringResult>
-  TranslatorPool::ScoreJob::get_results(Translator& translator, const Batch& batch) const {
-    spdlog::debug("Running batch scoring on {} examples", batch.source.size());
-    auto results = translator.score_batch(batch.source, batch.target, _options);
+  TranslatorPool::ScoreJob::get_results(Translator& translator) const {
+    spdlog::debug("Running batch scoring on {} examples", _source.size());
+    auto results = translator.score_batch(_source, _target, _options);
     spdlog::debug("Finished batch scoring");
     return results;
   }
