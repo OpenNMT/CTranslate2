@@ -213,8 +213,32 @@ namespace ctranslate2 {
       const auto scoped_device_setter = get_scoped_device_setter();
       PROFILE("SequenceToSequenceModel::sample");
 
+      const size_t original_batch_size = source.size();
+      if (original_batch_size == 0)
+        return {};
+
+      std::vector<GenerationResult<std::string>> final_results(
+        original_batch_size,
+        GenerationResult<std::string>(num_hypotheses, return_attention, return_scores));
+
+      std::vector<size_t> non_empty_index;
+      non_empty_index.reserve(original_batch_size);
+      for (size_t i = 0; i < original_batch_size; ++i) {
+        if (!source[i].empty())
+          non_empty_index.emplace_back(i);
+      }
+
+      const size_t batch_size = non_empty_index.size();
+      if (batch_size == 0)
+        return final_results;
+
       auto source_inputs = source;
       auto target_prefix_inputs = target_prefix;
+      if (batch_size != original_batch_size) {
+        source_inputs = index_vector(source_inputs, non_empty_index);
+        if (!target_prefix.empty())
+          target_prefix_inputs = index_vector(target_prefix_inputs, non_empty_index);
+      }
       if (max_input_length > 0) {
         source_inputs = truncate_inputs(source_inputs, max_input_length);
         target_prefix_inputs = truncate_inputs(target_prefix_inputs, max_input_length);
@@ -266,7 +290,6 @@ namespace ctranslate2 {
                                                         ? Vocabulary::bos_token
                                                         : Vocabulary::eos_token);
       const size_t end_id = _target_vocabulary->to_id(Vocabulary::eos_token);
-      const size_t batch_size = source.size();
       const std::vector<size_t> start_ids(batch_size, start_id);
       std::vector<GenerationResult<size_t>> results = decode(
         decoder,
@@ -289,39 +312,37 @@ namespace ctranslate2 {
         disable_unk);
 
       // Convert generated ids to tokens.
-      std::vector<GenerationResult<std::string>> final_results;
-      final_results.reserve(results.size());
-
       for (size_t i = 0; i < batch_size; ++i) {
+        const size_t original_index = non_empty_index[i];
         GenerationResult<size_t>& result = results[i];
         auto hypotheses = _target_vocabulary->to_tokens(result.hypotheses);
 
         if (result.has_attention()) {
           // Remove padding and special tokens in attention vectors.
           const size_t offset = size_t(_with_source_bos);
-          const size_t source_original_length = source[i].size();
-          const size_t source_input_length = source_inputs[i].size();
+          const auto& source_original = source[original_index];
+          const auto& source_input = source_inputs[i];
 
           for (size_t h = 0; h < result.attention.size(); ++h) {
             auto& attention = result.attention[h];
 
             for (auto& vector : attention) {
               vector = std::vector<float>(vector.begin() + offset,
-                                          vector.begin() + offset + source_input_length);
-              vector.resize(source_original_length, 0);
+                                          vector.begin() + offset + source_input.size());
+              vector.resize(source_original.size(), 0);
             }
 
             if (replace_unknowns)
-              replace_unknown_tokens(source[i], hypotheses[h], attention);
+              replace_unknown_tokens(source_original, hypotheses[h], attention);
           }
 
           if (!return_attention)
             result.attention.clear();
         }
 
-        final_results.emplace_back(std::move(hypotheses),
-                                   std::move(result.scores),
-                                   std::move(result.attention));
+        final_results[original_index] = GenerationResult<std::string>(std::move(hypotheses),
+                                                                      std::move(result.scores),
+                                                                      std::move(result.attention));
       }
 
       return final_results;

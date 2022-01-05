@@ -4,8 +4,6 @@
 #  include <cuda_runtime.h>
 #endif
 
-#include "ctranslate2/batch_reader.h"
-
 namespace ctranslate2 {
 
   void TranslationOptions::validate() const {
@@ -95,7 +93,11 @@ namespace ctranslate2 {
   Translator::translate_with_prefix(const std::vector<std::string>& source,
                                     const std::vector<std::string>& target_prefix,
                                     const TranslationOptions& options) {
-    return translate_batch_with_prefix({source}, {target_prefix}, options)[0];
+    std::vector<std::vector<std::string>> batch_source(1, source);
+    std::vector<std::vector<std::string>> batch_target_prefix;
+    if (!target_prefix.empty())
+      batch_target_prefix.emplace_back(target_prefix);
+    return translate_batch_with_prefix(batch_source, batch_target_prefix, options)[0];
   }
 
   std::vector<TranslationResult>
@@ -120,37 +122,36 @@ namespace ctranslate2 {
     if (source.empty())
       return {};
 
-    const TranslationResult empty_result(options.num_hypotheses,
-                                         options.return_attention,
-                                         options.return_scores);
-    std::vector<TranslationResult> results(source.size(), empty_result);
-
-    const size_t max_batch_size = options.support_batch_translation() ? 0 : 1;
-    for (const auto& batch : rebatch_input(load_examples({source, target_prefix}), max_batch_size)) {
-      auto batch_results = _seq2seq_model->sample(*_encoder,
-                                                  *_decoder,
-                                                  batch.get_stream(0),
-                                                  batch.get_stream(1),
-                                                  *options.make_search_strategy(),
-                                                  *options.make_sampler(),
-                                                  options.use_vmap,
-                                                  options.max_input_length,
-                                                  options.max_decoding_length,
-                                                  options.min_decoding_length,
-                                                  options.num_hypotheses,
-                                                  options.return_alternatives,
-                                                  options.return_scores,
-                                                  options.return_attention,
-                                                  options.replace_unknowns,
-                                                  options.normalize_scores,
-                                                  options.repetition_penalty,
-                                                  options.disable_unk);
-
-      for (size_t i = 0; i < batch_results.size(); ++i)
-        results[batch.example_index[i]] = std::move(batch_results[i]);
+    if (source.size() > 1 && !options.support_batch_translation()) {
+      std::vector<TranslationResult> results;
+      results.reserve(source.size());
+      for (size_t i = 0; i < source.size(); ++i)
+        results.emplace_back(translate_with_prefix(source[i],
+                                                   target_prefix.empty()
+                                                   ? std::vector<std::string>()
+                                                   : target_prefix[i],
+                                                   options));
+      return results;
     }
 
-    return results;
+    return _seq2seq_model->sample(*_encoder,
+                                  *_decoder,
+                                  source,
+                                  target_prefix,
+                                  *options.make_search_strategy(),
+                                  *options.make_sampler(),
+                                  options.use_vmap,
+                                  options.max_input_length,
+                                  options.max_decoding_length,
+                                  options.min_decoding_length,
+                                  options.num_hypotheses,
+                                  options.return_alternatives,
+                                  options.return_scores,
+                                  options.return_attention,
+                                  options.replace_unknowns,
+                                  options.normalize_scores,
+                                  options.repetition_penalty,
+                                  options.disable_unk);
   }
 
   std::vector<ScoringResult>

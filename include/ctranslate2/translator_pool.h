@@ -566,7 +566,7 @@ namespace ctranslate2 {
       create_batches(const std::vector<Example>& examples,
                      size_t max_batch_size,
                      BatchType batch_type) const {
-        return rebatch_input(examples, max_batch_size, batch_type, /*filter_empty=*/false);
+        return rebatch_input(examples, max_batch_size, batch_type);
       }
 
       virtual std::unique_ptr<Job>
@@ -582,22 +582,6 @@ namespace ctranslate2 {
       }
 
     protected:
-      std::shared_ptr<JobResultConsumer<TranslationResult>>
-      create_consumer(const std::vector<Example>& examples) const override {
-        auto consumer = JobCreator<TranslationResult>::create_consumer(examples);
-
-        // Directly set an empty result for empty inputs.
-        for (size_t i = 0; i < examples.size(); ++i) {
-          if (examples[i].length() == 0) {
-            consumer->set_result(i, TranslationResult(_options.num_hypotheses,
-                                                      _options.return_attention,
-                                                      _options.return_scores));
-          }
-        }
-
-        return consumer;
-      }
-
       std::vector<Batch>
       create_batches(const std::vector<Example>& examples,
                      size_t max_batch_size,
@@ -606,7 +590,7 @@ namespace ctranslate2 {
           max_batch_size = 1;
           batch_type = BatchType::Examples;
         }
-        return rebatch_input(examples, max_batch_size, batch_type);
+        return JobCreator::create_batches(examples, max_batch_size, batch_type);
       }
 
       std::unique_ptr<Job>
