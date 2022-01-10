@@ -111,26 +111,26 @@ namespace ctranslate2 {
 
     static std::unique_ptr<Allocator> create_allocator() {
       const bool cuda_malloc_async_is_supported = support_cuda_malloc_async();
-      const auto allocator_str = read_string_from_env("CT2_CUDA_ALLOCATOR",
-                                                      cuda_malloc_async_is_supported
-                                                      ? "cuda_malloc_async"
-                                                      : "cub_caching");
+      const auto allocator_name = read_string_from_env("CT2_CUDA_ALLOCATOR",
+                                                       cuda_malloc_async_is_supported
+                                                       ? "cuda_malloc_async"
+                                                       : "cub_caching");
 
       std::unique_ptr<Allocator> allocator;
 
-      if (allocator_str == "cub_caching") {
+      if (allocator_name == "cub_caching") {
         allocator = std::make_unique<CubCachingAllocator>();
-      } else if (allocator_str == "cuda_malloc_async") {
+      } else if (allocator_name == "cuda_malloc_async") {
         if (!cuda_malloc_async_is_supported)
           throw std::runtime_error("The asynchronous CUDA allocator requires CUDA >= 11.2");
         allocator = std::make_unique<CudaAsyncAllocator>();
       } else {
-        throw std::invalid_argument("Invalid CUDA allocator " + allocator_str);
+        throw std::invalid_argument("Invalid CUDA allocator " + allocator_name);
       }
 
       static std::once_flag log_once_flag;
-      std::call_once(log_once_flag, [&allocator_str]() {
-        spdlog::info("Using CUDA allocator: {}", allocator_str);
+      std::call_once(log_once_flag, [&allocator_name]() {
+        spdlog::info("Using CUDA allocator: {}", allocator_name);
       });
 
       return allocator;
