@@ -120,13 +120,13 @@ namespace ctranslate2 {
 
 
   std::vector<Example>
-  load_examples(std::initializer_list<std::vector<std::vector<std::string>>> streams) {
+  load_examples(std::vector<std::vector<std::vector<std::string>>> streams) {
     ParallelBatchReader reader;
 
-    for (const auto& stream : streams) {
+    for (auto& stream : streams) {
       if (stream.empty())
         continue;
-      reader.add(std::make_unique<VectorReader>(stream));
+      reader.add(std::make_unique<VectorReader>(std::move(stream)));
     }
 
     const size_t num_examples = reader.num_examples();

@@ -131,7 +131,7 @@ namespace ctranslate2 {
 
 
   std::vector<Example>
-  load_examples(std::initializer_list<std::vector<std::vector<std::string>>> streams);
+  load_examples(std::vector<std::vector<std::vector<std::string>>> streams);
 
   // Rebatch the input with a new batch size.
   // This function also reorders the examples to improve efficiency.
