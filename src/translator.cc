@@ -31,10 +31,6 @@ namespace ctranslate2 {
       throw std::invalid_argument("prefix_bias_beta is not compatible with greedy-search");
   }
 
-  bool TranslationOptions::support_batch_translation() const {
-    return !return_alternatives;
-  }
-
   std::unique_ptr<const Sampler> TranslationOptions::make_sampler() const {
     if (sampling_topk == 1)
       return std::make_unique<BestSampler>();
@@ -117,23 +113,7 @@ namespace ctranslate2 {
                                           const TranslationOptions& options) {
     assert_has_model();
     register_current_allocator();
-
     options.validate();
-    if (source.empty())
-      return {};
-
-    if (source.size() > 1 && !options.support_batch_translation()) {
-      std::vector<TranslationResult> results;
-      results.reserve(source.size());
-      for (size_t i = 0; i < source.size(); ++i)
-        results.emplace_back(translate_with_prefix(source[i],
-                                                   target_prefix.empty()
-                                                   ? std::vector<std::string>()
-                                                   : target_prefix[i],
-                                                   options));
-      return results;
-    }
-
     return _seq2seq_model->sample(*_encoder,
                                   *_decoder,
                                   source,
@@ -160,8 +140,6 @@ namespace ctranslate2 {
                           const ScoringOptions& options) {
     assert_has_model();
     register_current_allocator();
-    if (source.empty())
-      return {};
     return _seq2seq_model->score(*_encoder, *_decoder, source, target, options.max_input_length);
   }
 

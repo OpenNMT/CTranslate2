@@ -132,6 +132,9 @@ namespace ctranslate2 {
       const auto scoped_device_setter = get_scoped_device_setter();
       PROFILE("SequenceToSequenceModel::score");
 
+      if (source.empty())
+        return {};
+
       auto source_inputs = source;
       auto target_inputs = target;
       if (max_input_length > 0) {
@@ -216,6 +219,38 @@ namespace ctranslate2 {
       const size_t original_batch_size = source.size();
       if (original_batch_size == 0)
         return {};
+
+      // return_alternatives mode does not support batch sampling
+      // so compute the result for each example independently.
+      if (return_alternatives && original_batch_size > 1) {
+        std::vector<GenerationResult<std::string>> results;
+        results.reserve(original_batch_size);
+        for (size_t i = 0; i < original_batch_size; ++i) {
+          std::vector<std::vector<std::string>> source_i(1, source[i]);
+          std::vector<std::vector<std::string>> target_prefix_i;
+          if (!target_prefix.empty())
+            target_prefix_i.emplace_back(target_prefix[i]);
+          results.emplace_back(sample(encoder,
+                                      decoder,
+                                      source_i,
+                                      target_prefix_i,
+                                      search_strategy,
+                                      sampler,
+                                      use_vmap,
+                                      max_input_length,
+                                      max_output_length,
+                                      min_output_length,
+                                      num_hypotheses,
+                                      return_alternatives,
+                                      return_scores,
+                                      return_attention,
+                                      replace_unknowns,
+                                      normalize_scores,
+                                      repetition_penalty,
+                                      disable_unk)[0]);
+        }
+        return results;
+      }
 
       std::vector<GenerationResult<std::string>> final_results(
         original_batch_size,
