@@ -10,6 +10,7 @@ namespace ctranslate2 {
     static const std::string source_vocabulary_file = "source_vocabulary.txt";
     static const std::string target_vocabulary_file = "target_vocabulary.txt";
     static const std::string vmap_file = "vmap.txt";
+    static const std::string features_separator = "￨";
 
     template <typename T>
     static std::vector<std::vector<T>>
@@ -37,7 +38,7 @@ namespace ctranslate2 {
         }
 
         for (const auto& token : tokens) {
-          auto fields = split_string(token, "￨");
+          auto fields = split_string(token, features_separator);
           if (fields.size() != num_features)
             throw std::invalid_argument("Expected " + std::to_string(num_features)
                                         + " input features, but token '" + token
