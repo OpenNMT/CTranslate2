@@ -68,6 +68,8 @@ class LayerSpec(object):
                 # Use float32 as the working floating point type.
                 if value.dtype in (np.float16, np.float64):
                     setattr(spec, attr_name, value.astype(np.float32))
+            elif isinstance(value, float):
+                setattr(spec, attr_name, np.dtype("float32").type(value))
             elif isinstance(value, bool):
                 # Convert bool to an integer type.
                 setattr(spec, attr_name, np.dtype("int8").type(value))

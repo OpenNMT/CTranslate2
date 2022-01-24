@@ -133,10 +133,21 @@ namespace ctranslate2 {
     build_embeddings_scale(const models::Model& model,
                            const std::string& scope,
                            const Layer& embeddings) {
-      if (!model.get_flag_with_default(scope + "/scale_embeddings", false))
+      const auto* scale = model.get_variable_if_exists(scope + "/scale_embeddings");
+      if (!scale)
         return nullptr;
-      const StorageView scale(std::sqrt(static_cast<float>(embeddings.output_size())));
-      return std::make_unique<StorageView>(scale.to(embeddings.output_type()));
+
+      StorageView value;
+
+      // The attribute can either be the actual scale value or a boolean flag.
+      if (scale->dtype() == DataType::FLOAT && scale->as_scalar<float>() != 1.f)
+        value = *scale;
+      if (scale->dtype() == DataType::INT8 && scale->as_scalar<int8_t>())
+        value = StorageView(std::sqrt(static_cast<float>(embeddings.output_size())));
+      else
+        return nullptr;
+
+      return std::make_unique<StorageView>(value.to(embeddings.output_type()));
     }
 
 
