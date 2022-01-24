@@ -120,7 +120,7 @@ namespace ctranslate2 {
     static std::unique_ptr<PositionEncoder>
     build_position_encoder(const models::Model& model,
                            const std::string& scope,
-                           const Embeddings& embeddings) {
+                           const Layer& embeddings) {
       if (model.get_variable_if_exists(scope + "/encodings"))
         return std::make_unique<PositionEmbedding>(model, scope);
       else
@@ -129,14 +129,26 @@ namespace ctranslate2 {
                                                            model.device());
     }
 
+    static std::unique_ptr<const StorageView>
+    build_embeddings_scale(const models::Model& model,
+                           const std::string& scope,
+                           const Layer& embeddings) {
+      if (!model.get_flag_with_default(scope + "/scale_embeddings", false))
+        return nullptr;
+      const StorageView scale(std::sqrt(static_cast<float>(embeddings.output_size())));
+      return std::make_unique<StorageView>(scale.to(embeddings.output_type()));
+    }
+
 
     TransformerEncoder::TransformerEncoder(const models::Model& model,
                                            const std::string& scope,
                                            const size_t num_heads,
                                            const bool with_position_encoding,
                                            const bool pre_norm,
-                                           const ops::ActivationType activation_type)
-      : _embeddings(model, scope + "/embeddings")
+                                           const ops::ActivationType activation_type,
+                                           const EmbeddingsMerge embeddings_merge)
+      : _embeddings(model, scope + "/embeddings", embeddings_merge)
+      , _embeddings_scale(build_embeddings_scale(model, scope, _embeddings))
       , _num_heads(num_heads)
       , _compute_type(model.effective_compute_type())
       , _position_encoder(with_position_encoding
@@ -163,12 +175,14 @@ namespace ctranslate2 {
       }
     }
 
-    void TransformerEncoder::operator()(const StorageView& ids,
+    void TransformerEncoder::operator()(const std::vector<StorageView>& ids,
                                         const StorageView& lengths,
                                         StorageView& output) {
       PROFILE("TransformerEncoder");
       StorageView input(output.dtype(), output.device());
       _embeddings(ids, input);
+      if (_embeddings_scale)
+        ops::Mul()(input, *_embeddings_scale, input);
       if (_position_encoder)
         (*_position_encoder)(input);
 
@@ -211,6 +225,7 @@ namespace ctranslate2 {
       , _num_heads(num_heads)
       , _compute_type(model.effective_compute_type())
       , _embeddings(model, scope + "/embeddings")
+      , _embeddings_scale(build_embeddings_scale(model, scope, _embeddings))
       , _position_encoder(with_position_encoding
                           ? build_position_encoder(model, scope + "/position_encodings", _embeddings)
                           : nullptr)
@@ -296,6 +311,8 @@ namespace ctranslate2 {
       StorageView layer_out(output_type(), ids.device());
 
       _embeddings(ids, layer_in);
+      if (_embeddings_scale)
+        ops::Mul()(layer_in, *_embeddings_scale, layer_in);
       if (layer_in.rank() == 2)
         layer_in.expand_dims(1);
       if (_position_encoder)

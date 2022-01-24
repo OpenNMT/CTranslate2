@@ -23,8 +23,9 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         activation=common_spec.Activation.RELU,
         alignment_layer=-1,
         alignment_heads=1,
+        num_source_embeddings=1,
+        embeddings_merge=common_spec.EmbeddingsMerge.CONCAT,
     ):
-        super().__init__()
         if isinstance(num_layers, (list, tuple)):
             num_encoder_layers, num_decoder_layers = num_layers
         else:
@@ -35,8 +36,17 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         self.alignment_layer = np.dtype("int16").type(alignment_layer)
         self.alignment_heads = np.dtype("int16").type(alignment_heads)
         self.with_relative_position = with_relative_position
-        self.encoder = TransformerEncoderSpec(num_encoder_layers, pre_norm=pre_norm)
+        self.embeddings_merge = np.dtype("int8").type(embeddings_merge)
+        self.encoder = TransformerEncoderSpec(
+            num_encoder_layers,
+            pre_norm=pre_norm,
+            num_source_embeddings=num_source_embeddings,
+        )
         self.decoder = TransformerDecoderSpec(num_decoder_layers, pre_norm=pre_norm)
+        super().__init__(
+            source_embeddings_specs=self.encoder.embeddings,
+            target_embeddings_specs=[self.decoder.embeddings],
+        )
 
     @property
     def name(self):
@@ -44,19 +54,15 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
 
     @property
     def revision(self):
-        return 3
-
-    @property
-    def vocabulary_size(self):
-        return {
-            "source": self.encoder.embeddings.weight.shape[0],
-            "target": self.decoder.embeddings.weight.shape[0],
-        }
+        return 4
 
 
 class TransformerEncoderSpec(model_spec.LayerSpec):
-    def __init__(self, num_layers, pre_norm=True):
-        self.embeddings = common_spec.EmbeddingsSpec()
+    def __init__(self, num_layers, pre_norm=True, num_source_embeddings=1):
+        self.embeddings = [
+            common_spec.EmbeddingsSpec() for _ in range(num_source_embeddings)
+        ]
+        self.scale_embeddings = True
         self.position_encodings = PositionEncoderSpec()
         self.layer_norm = (
             common_spec.LayerNormSpec() if pre_norm else model_spec.OPTIONAL
@@ -67,6 +73,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
 class TransformerDecoderSpec(model_spec.LayerSpec):
     def __init__(self, num_layers, pre_norm=True):
         self.embeddings = common_spec.EmbeddingsSpec()
+        self.scale_embeddings = True
         self.position_encodings = PositionEncoderSpec()
         self.layer_norm = (
             common_spec.LayerNormSpec() if pre_norm else model_spec.OPTIONAL
