@@ -239,6 +239,12 @@ class SequenceToSequenceModelSpec(ModelSpec):
     """Base specification for sequence to sequence models."""
 
     def __init__(self, source_embeddings_specs, target_embeddings_specs):
+        """Initializes a sequence to sequence model specification.
+
+        Args:
+          source_embeddings_specs: List of source EmbeddingsSpec modules.
+          target_embeddings_specs: List of target EmbeddingsSpec modules.
+        """
         self.with_source_bos = False
         self.with_source_eos = False
         self.with_target_bos = True

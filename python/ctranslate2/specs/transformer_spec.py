@@ -26,6 +26,21 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         num_source_embeddings=1,
         embeddings_merge=common_spec.EmbeddingsMerge.CONCAT,
     ):
+        """Initializes a Transformer model specification.
+
+        Args:
+          num_layers: Number of encoder and decoder layers, or a 2-tuple if the
+            number is different.
+          num_heads: Number of attention heads.
+          with_relative_position: Enable relative position representations modules.
+          pre_norm: Enable the pre-norm Transformer architecture.
+          activation: Activation to apply in the feed-forward network.
+          alignment_layer: Layer index selected for alignment.
+          alignment_heads: Number of attention heads selected for alignment.
+          num_source_embeddings: Number of source embeddings.
+          embeddings_merge: When num_source_embeddings > 1, specify how the
+            embeddings are merged.
+        """
         if isinstance(num_layers, (list, tuple)):
             num_encoder_layers, num_decoder_layers = num_layers
         else:
