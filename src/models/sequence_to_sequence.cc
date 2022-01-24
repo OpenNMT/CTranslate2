@@ -24,12 +24,14 @@ namespace ctranslate2 {
     }
 
     static std::vector<std::vector<std::vector<std::string>>>
-    extract_features(const std::vector<std::vector<std::string>>& batch, size_t num_features) {
-      if (num_features == 1)
-        return {batch};
-
+    extract_features(std::vector<std::vector<std::string>> batch, size_t num_features) {
       std::vector<std::vector<std::vector<std::string>>> features;
       features.resize(num_features);
+
+      if (num_features == 1) {
+        features[0] = std::move(batch);
+        return features;
+      }
 
       for (const auto& tokens : batch) {
         for (auto& stream : features) {
@@ -199,7 +201,8 @@ namespace ctranslate2 {
         target_inputs = truncate_inputs(target_inputs, max_input_length);
       }
 
-      const auto source_features = extract_features(source_inputs, encoder.num_input_features());
+      const auto source_features = extract_features(std::move(source_inputs),
+                                                    encoder.num_input_features());
 
       StorageView logits(decoder.output_type(), _device);
       forward(encoder, decoder, source_features, target_inputs, logits);
@@ -281,7 +284,8 @@ namespace ctranslate2 {
         target_prefix_inputs = truncate_inputs(target_prefix_inputs, max_input_length);
       }
 
-      const auto source_features = extract_features(source_inputs, encoder.num_input_features());
+      const auto source_features = extract_features(std::move(source_inputs),
+                                                    encoder.num_input_features());
 
       // Encode the sequence.
       StorageView memory(encoder.output_type(), _device);
@@ -363,7 +367,7 @@ namespace ctranslate2 {
           // Remove padding and special tokens in attention vectors.
           const size_t offset = size_t(_with_source_bos);
           const size_t source_original_length = source[i].size();
-          const size_t source_input_length = source_inputs[i].size();
+          const size_t source_input_length = source_features[0][i].size();
 
           for (size_t h = 0; h < result.attention.size(); ++h) {
             auto& attention = result.attention[h];
