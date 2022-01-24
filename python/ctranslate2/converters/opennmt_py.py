@@ -139,6 +139,7 @@ def set_input_layers(spec, variables, scope, relative=False):
     except KeyError:
         if not relative:
             raise
+        # See https://github.com/OpenNMT/OpenNMT-py/issues/1722
         spec.scale_embeddings = False
 
     embeddings_specs = spec.embeddings
