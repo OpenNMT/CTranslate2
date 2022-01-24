@@ -139,11 +139,11 @@ namespace ctranslate2 {
 
       StorageView value;
 
-      // The attribute can either be the actual scale value or a boolean flag.
-      if (scale->dtype() == DataType::FLOAT && scale->as_scalar<float>() != 1.f)
-        value = *scale;
+      // The attribute can either be a boolean flag or the actual scale value.
       if (scale->dtype() == DataType::INT8 && scale->as_scalar<int8_t>())
         value = StorageView(std::sqrt(static_cast<float>(embeddings.output_size())));
+      else if (scale->dtype() != DataType::INT8 && scale->as_scalar<float>() != 1.f)
+        value = *scale;
       else
         return nullptr;
 

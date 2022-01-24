@@ -155,7 +155,7 @@ def set_input_layers(spec, module):
         spec.embeddings[0] if isinstance(spec.embeddings, list) else spec.embeddings,
         module.embed_tokens,
     )
-    spec.scale_embeddings = module.embed_scale != 1.0
+    spec.scale_embeddings = module.embed_scale
 
 
 def set_transformer_encoder_layer(spec, module):
