@@ -9,6 +9,7 @@ import struct
 import numpy as np
 
 OPTIONAL = "optional"
+CURRENT_BINARY_VERSION = 5
 
 
 def _join_scope(scope, name):
@@ -210,7 +211,7 @@ class ModelSpec(LayerSpec):
                 model.write(string.encode("utf-8"))
                 model.write(struct.pack("B", 0))
 
-            model.write(struct.pack("I", 5))  # Binary version.
+            model.write(struct.pack("I", CURRENT_BINARY_VERSION))
             _write_string(self.name)
             model.write(struct.pack("I", self.revision))
             model.write(struct.pack("I", len(variables)))
