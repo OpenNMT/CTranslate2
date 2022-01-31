@@ -33,7 +33,7 @@ namespace ctranslate2 {
 
       cpu::parallel_unary_transform(
         x, y, size, /*work_size=*/5,
-        [scale, &round_func](float v) {
+        [scale, int16_min, int16_max, &round_func](float v) {
           return std::max(std::min(round_func(v * scale), int16_max), int16_min);
         });
     }
