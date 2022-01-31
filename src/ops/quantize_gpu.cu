@@ -34,7 +34,7 @@ namespace ctranslate2 {
       __device__ __forceinline__ rescale_func(float scale)
         : _scale(scale) {
       }
-      __device__ __forceinline__ int8_t operator()(float v) const {
+      __device__ __forceinline__ float operator()(float v) const {
         return v * _scale;
       }
     private:
@@ -45,7 +45,7 @@ namespace ctranslate2 {
       __device__ __forceinline__ rescale_and_round_func(float scale)
         : _scale(scale) {
       }
-      __device__ __forceinline__ int8_t operator()(float v) const {
+      __device__ __forceinline__ float operator()(float v) const {
         return nearbyintf(v * _scale);
       }
     private:
