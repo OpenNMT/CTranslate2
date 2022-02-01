@@ -31,15 +31,6 @@ namespace ctranslate2 {
                                                const std::string& compute_type);
 
       virtual ~Model() = default;
-
-      size_t binary_version() const {
-        return _binary_version;
-      }
-
-      size_t spec_revision() const {
-        return _spec_revision;
-      }
-
       virtual size_t current_spec_revision() const;
 
       Device device() const {
