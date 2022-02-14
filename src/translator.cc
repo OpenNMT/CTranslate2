@@ -206,7 +206,6 @@ namespace ctranslate2 {
   void Translator::detach_model() {
     if (!_model)
       return;
-    auto scoped_device_setter = _model->get_scoped_device_setter();
     _encoder.reset();
     _decoder.reset();
     _model.reset();
