@@ -8,18 +8,22 @@
 namespace ctranslate2 {
   namespace layers {
 
-    std::pair<StorageView, StorageView>
+    StorageView
     make_sequence_inputs(const std::vector<std::vector<size_t>>& ids,
                          const Device device,
-                         const dim_t length_multiple_of) {
+                         const dim_t length_multiple_of,
+                         StorageView* lengths) {
       const dim_t batch_size = ids.size();
+
+      if (lengths)
+        *lengths = StorageView({batch_size}, DataType::INT32);
 
       // Record lengths and maximum length.
       dim_t max_length = 0;
-      StorageView lengths({batch_size}, DataType::INT32);
       for (dim_t i = 0; i < batch_size; ++i) {
         const dim_t length = ids[i].size();
-        lengths.at<int32_t>(i) = length;
+        if (lengths)
+          lengths->at<int32_t>(i) = length;
         max_length = std::max(max_length, length);
       }
 
@@ -35,7 +39,9 @@ namespace ctranslate2 {
           input.at<int32_t>({i, t}) = ids[i][t];
       }
 
-      return std::make_pair(input.to(device), lengths.to(device));
+      if (lengths)
+        *lengths = lengths->to(device);
+      return input.to(device);
     }
 
 
@@ -78,6 +84,84 @@ namespace ctranslate2 {
 
       if (_scale)
         ops::Mul()(output, *_scale, output);
+    }
+
+
+    ParallelEmbeddings::ParallelEmbeddings(const models::Model& model,
+                                           const std::string& scope,
+                                           const EmbeddingsMerge merge)
+      : _merge(merge)
+    {
+      const bool compat_mode = model.get_variable_if_exists(scope + "/weight");
+      if (compat_mode) {
+        _layers.emplace_back(std::make_unique<Embeddings>(model, scope));
+      } else {
+        for (size_t i = 0;; ++i) {
+          const std::string layer_scope = scope + "_" + std::to_string(i);
+          try {
+            _layers.emplace_back(std::make_unique<Embeddings>(model, layer_scope));
+          } catch (...) {
+            if (i == 0)
+              throw;
+            else
+              break;
+          }
+        }
+      }
+    }
+
+    DataType ParallelEmbeddings::output_type() const {
+      return _layers[0]->output_type();
+    }
+
+    dim_t ParallelEmbeddings::output_size() const {
+      dim_t size = 0;
+
+      switch (_merge) {
+      case EmbeddingsMerge::Concat:
+        for (const auto& layer : _layers)
+          size += layer->output_size();
+        break;
+      case EmbeddingsMerge::Add:
+        size = _layers[0]->output_size();
+        break;
+      };
+
+      return size;
+    }
+
+    void ParallelEmbeddings::operator()(const std::vector<StorageView>& ids,
+                                        StorageView& output) const {
+      if (ids.size() != _layers.size())
+        throw std::invalid_argument("Expected "
+                                    + std::to_string(_layers.size())
+                                    + " input features (including the main tokens), but got "
+                                    + std::to_string(ids.size())
+                                    + " input features instead");
+
+      for (size_t i = 0; i < _layers.size(); ++i) {
+        StorageView intermediate(output.device(), output.dtype());
+        (*_layers[i])(ids[i], intermediate);
+
+        if (i == 0) {
+          output = std::move(intermediate);
+        } else {
+
+          switch (_merge) {
+          case EmbeddingsMerge::Add: {
+            ops::Add()(intermediate, output, output);
+            break;
+          }
+
+          case EmbeddingsMerge::Concat: {
+            StorageView tmp = std::move(output);
+            ops::Concat(-1)({&tmp, &intermediate}, output);
+            break;
+          }
+          }
+
+        }
+      }
     }
 
 
@@ -209,7 +293,8 @@ namespace ctranslate2 {
                  _packed_weight,
                  _quantized_gemm ? nullptr : activation_type)
       , _quantize_op(/*int16_scale_type=*/ops::Quantize::ScaleType::GLOBAL,
-                     /*shift_to_uint8=*/bool(_u8_shift_compensation))
+                     /*shift_to_uint8=*/bool(_u8_shift_compensation),
+                     /*round_before_cast=*/model.round_before_cast_in_quantization())
       , _dequantize_op(activation_type)
     {
     }

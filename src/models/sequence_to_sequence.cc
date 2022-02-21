@@ -10,6 +10,7 @@ namespace ctranslate2 {
     static const std::string source_vocabulary_file = "source_vocabulary.txt";
     static const std::string target_vocabulary_file = "target_vocabulary.txt";
     static const std::string vmap_file = "vmap.txt";
+    static const std::string features_separator = "￨";
 
     template <typename T>
     static std::vector<std::vector<T>>
@@ -22,18 +23,67 @@ namespace ctranslate2 {
       return truncated_inputs;
     }
 
+    static std::vector<std::vector<std::vector<std::string>>>
+    extract_features(std::vector<std::vector<std::string>> batch, size_t num_features) {
+      std::vector<std::vector<std::vector<std::string>>> features;
+      features.resize(num_features);
+
+      if (num_features == 1) {
+        features[0] = std::move(batch);
+        return features;
+      }
+
+      for (const auto& tokens : batch) {
+        for (auto& stream : features) {
+          stream.emplace_back();
+          stream.back().reserve(tokens.size());
+        }
+
+        for (const auto& token : tokens) {
+          auto fields = split_string(token, features_separator);
+          if (fields.size() != num_features)
+            throw std::invalid_argument("Expected " + std::to_string(num_features)
+                                        + " input features, but token '" + token
+                                        + "' has " + std::to_string(fields.size())
+                                        + " features");
+
+          for (size_t i = 0; i < fields.size(); ++i)
+            features[i].back().emplace_back(std::move(fields[i]));
+        }
+      }
+
+      return features;
+    }
+
+
     SequenceToSequenceModel::SequenceToSequenceModel(ModelReader& model_reader, size_t spec_revision)
       : Model(model_reader, spec_revision) {
       {
         auto shared_vocabulary = model_reader.get_file(shared_vocabulary_file);
         if (shared_vocabulary) {
-          _source_vocabulary = std::make_shared<Vocabulary>(*shared_vocabulary);
-          _target_vocabulary = _source_vocabulary;
+          _target_vocabulary = std::make_shared<Vocabulary>(*shared_vocabulary);
+          _source_vocabularies.emplace_back(_target_vocabulary);
         } else {
+
           {
-            auto source_vocabulary = model_reader.get_required_file(source_vocabulary_file);
-            _source_vocabulary = std::make_shared<Vocabulary>(*source_vocabulary);
+            auto source_vocabulary = model_reader.get_file(source_vocabulary_file);
+            if (source_vocabulary)
+              _source_vocabularies.emplace_back(std::make_shared<Vocabulary>(*source_vocabulary));
+            else {
+              for (size_t i = 1;; i++) {
+                const std::string filename = "source_" + std::to_string(i) + "_vocabulary.txt";
+                const auto vocabulary_file = model_reader.get_file(filename);
+                if (!vocabulary_file)
+                  break;
+                _source_vocabularies.emplace_back(std::make_shared<Vocabulary>(*vocabulary_file));
+              }
+            }
+
+            // If no source vocabularies were loaded, raise an error for the first filename.
+            if (_source_vocabularies.empty())
+              model_reader.get_required_file(source_vocabulary_file);
           }
+
           {
             auto target_vocabulary = model_reader.get_required_file(target_vocabulary_file);
             _target_vocabulary = std::make_shared<Vocabulary>(*target_vocabulary);
@@ -57,7 +107,7 @@ namespace ctranslate2 {
     }
 
     const Vocabulary& SequenceToSequenceModel::get_source_vocabulary() const {
-      return *_source_vocabulary;
+      return *_source_vocabularies[0];
     }
 
     const Vocabulary& SequenceToSequenceModel::get_target_vocabulary() const {
@@ -69,19 +119,32 @@ namespace ctranslate2 {
     }
 
     void SequenceToSequenceModel::forward_encoder(layers::Encoder& encoder,
-                                                  const std::vector<std::vector<std::string>>& source,
+                                                  const std::vector<std::vector<std::vector<std::string>>>& source,
                                                   StorageView& memory,
                                                   StorageView& memory_lengths) const {
       const auto scoped_device_setter = get_scoped_device_setter();
       PROFILE("SequenceToSequenceModel::forward_encoder");
-      const auto source_ids = _source_vocabulary->to_ids(source,
-                                                         _with_source_bos,
-                                                         _with_source_eos);
 
-      StorageView ids;
-      std::tie(ids, memory_lengths) = layers::make_sequence_inputs(source_ids,
-                                                                   _device,
-                                                                   _preferred_size_multiple);
+      const size_t num_input_features = source.size();
+      if (_source_vocabularies.size() != source.size())
+        throw std::runtime_error("The encoder expects "
+                                 + std::to_string(num_input_features)
+                                 + " input features, but "
+                                 + std::to_string(_source_vocabularies.size())
+                                 + " source vocabularies are loaded");
+
+      std::vector<StorageView> ids;
+      ids.reserve(num_input_features);
+
+      for (size_t i = 0; i < num_input_features; ++i) {
+        const auto tokens_ids = _source_vocabularies[i]->to_ids(source[i],
+                                                                _with_source_bos,
+                                                                _with_source_eos);
+        ids.emplace_back(layers::make_sequence_inputs(tokens_ids,
+                                                      _device,
+                                                      _preferred_size_multiple,
+                                                      i == 0 ? &memory_lengths : nullptr));
+      }
 
       encoder(ids, memory_lengths, memory);
     }
@@ -96,19 +159,18 @@ namespace ctranslate2 {
                                                          /*add_bos=*/true,
                                                          /*add_eos=*/false);
 
-      StorageView ids;
       StorageView lengths;
-      std::tie(ids, lengths) = layers::make_sequence_inputs(target_ids,
-                                                            _device,
-                                                            _preferred_size_multiple);
-
+      const StorageView ids = layers::make_sequence_inputs(target_ids,
+                                                           _device,
+                                                           _preferred_size_multiple,
+                                                           &lengths);
 
       decoder(ids, lengths, state, logits);
     }
 
     void SequenceToSequenceModel::forward(layers::Encoder& encoder,
                                           layers::Decoder& decoder,
-                                          const std::vector<std::vector<std::string>>& source,
+                                          const std::vector<std::vector<std::vector<std::string>>>& source,
                                           const std::vector<std::vector<std::string>>& target,
                                           StorageView& logits) const {
       const auto scoped_device_setter = get_scoped_device_setter();
@@ -142,8 +204,11 @@ namespace ctranslate2 {
         target_inputs = truncate_inputs(target_inputs, max_input_length);
       }
 
+      const auto source_features = extract_features(std::move(source_inputs),
+                                                    encoder.num_input_features());
+
       StorageView logits(decoder.output_type(), _device);
-      forward(encoder, decoder, source_inputs, target_inputs, logits);
+      forward(encoder, decoder, source_features, target_inputs, logits);
       StorageView log_probs = std::move(logits);
       ops::LogSoftMax()(log_probs);
 
@@ -151,10 +216,9 @@ namespace ctranslate2 {
                                                              /*add_bos=*/false,
                                                              /*add_eos=*/true);
 
-      StorageView gather_ids;
-      std::tie(gather_ids, std::ignore) = layers::make_sequence_inputs(target_ids_out,
-                                                                       _device,
-                                                                       _preferred_size_multiple);
+      const StorageView gather_ids = layers::make_sequence_inputs(target_ids_out,
+                                                                  _device,
+                                                                  _preferred_size_multiple);
 
       StorageView scores(log_probs.dtype(), _device);
       ops::Gather(/*axis=*/-1, /*batch_dims=*/2)(log_probs, gather_ids, scores);
@@ -279,10 +343,13 @@ namespace ctranslate2 {
         target_prefix_inputs = truncate_inputs(target_prefix_inputs, max_input_length);
       }
 
+      const auto source_features = extract_features(std::move(source_inputs),
+                                                    encoder.num_input_features());
+
       // Encode the sequence.
       StorageView memory(encoder.output_type(), _device);
       StorageView memory_lengths(DataType::INT32, _device);
-      forward_encoder(encoder, source_inputs, memory, memory_lengths);
+      forward_encoder(encoder, source_features, memory, memory_lengths);
 
       layers::DecoderState state = decoder.initial_state();
       state.emplace("memory", std::move(memory));
@@ -290,7 +357,7 @@ namespace ctranslate2 {
 
       std::vector<size_t> output_ids_map;
       if (use_vmap && _vocabulary_map) {
-        output_ids_map = _vocabulary_map->get_candidates(source);
+        output_ids_map = _vocabulary_map->get_candidates(source_features[0]);
       } else if (_target_vocabulary->size() % _preferred_size_multiple != 0) {
         output_ids_map.resize(_target_vocabulary->size());
         std::iota(output_ids_map.begin(), output_ids_map.end(), size_t(0));
@@ -356,7 +423,7 @@ namespace ctranslate2 {
           // Remove padding and special tokens in attention vectors.
           const size_t offset = size_t(_with_source_bos);
           const auto& source_original = source[original_index];
-          const auto& source_input = source_inputs[i];
+          const auto& source_input = source_features[0][i];
 
           for (size_t h = 0; h < result.attention.size(); ++h) {
             auto& attention = result.attention[h];
@@ -368,7 +435,7 @@ namespace ctranslate2 {
             }
 
             if (replace_unknowns)
-              replace_unknown_tokens(source_original, hypotheses[h], attention);
+              replace_unknown_tokens(source_input, hypotheses[h], attention);
           }
 
           if (!return_attention)

@@ -9,7 +9,7 @@
 namespace ctranslate2 {
   namespace models {
 
-    static const size_t current_binary_version = 4;
+    static const size_t current_binary_version = 5;
 
     // Checks whether the provided path could contain a CTranslate2 model.
     bool contains_model(const std::string& path);
@@ -30,7 +30,16 @@ namespace ctranslate2 {
                                                int device_index,
                                                const std::string& compute_type);
 
-      virtual ~Model() = default;
+      virtual ~Model();
+
+      size_t binary_version() const {
+        return _binary_version;
+      }
+
+      size_t spec_revision() const {
+        return _spec_revision;
+      }
+
       virtual size_t current_spec_revision() const;
 
       Device device() const {
@@ -53,6 +62,10 @@ namespace ctranslate2 {
 
       dim_t preferred_size_multiple() const {
         return _preferred_size_multiple;
+      }
+
+      bool round_before_cast_in_quantization() const {
+        return _binary_version >= 5;
       }
 
       ScopedDeviceSetter get_scoped_device_setter() const {
@@ -97,10 +110,12 @@ namespace ctranslate2 {
       // (e.g. a variable name changed in a newer spec revision).
       virtual void register_variable(std::string name, StorageView variable);
       virtual void register_variable_alias(std::string alias, std::string variable_name);
+      virtual void remove_variable(const std::string& name);
       virtual void finalize();
 
       Device _device;
       int _device_index;
+      size_t _binary_version;
       size_t _spec_revision;
       ComputeType _compute_type = ComputeType::DEFAULT;
       ComputeType _effective_compute_type = ComputeType::DEFAULT;
@@ -111,9 +126,7 @@ namespace ctranslate2 {
       void set_compute_type(ComputeType type);
       void ensure_dtype(const std::string& name,
                         StorageView& variable,
-                        const DataType target_dtype,
-                        std::unordered_map<std::string, StorageView>& variables_to_add,
-                        std::vector<std::string>& variables_to_remove);
+                        const DataType target_dtype);
       ComputeType infer_compute_type() const;
 
       std::unordered_map<std::string, std::shared_ptr<StorageView>> _variable_index;
