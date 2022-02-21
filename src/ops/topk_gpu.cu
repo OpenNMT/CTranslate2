@@ -116,7 +116,6 @@ namespace ctranslate2 {
 */
 
 #include <cub/block/block_reduce.cuh>
-#include <cub/util_type.cuh>
 
 namespace fastertransformer {
 
