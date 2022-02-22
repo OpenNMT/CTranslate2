@@ -72,6 +72,8 @@ namespace ctranslate2 {
     static void move_variables(VariablesCollection& variables,
                                const Device src_device, const int src_device_index,
                                const Device dst_device, const int dst_device_index) {
+      if (variables.empty())
+        return;
       if (src_device == dst_device && src_device_index == dst_device_index)
         return;
 
@@ -86,6 +88,8 @@ namespace ctranslate2 {
         ScopedDeviceSetter scoped_device_setter(dst_device, dst_device_index);
         move_variables_to_device(variables, dst_device);
       }
+
+      synchronize_device(src_device, src_device_index);  // Wait for asynchronous deallocations.
     }
 
     template <typename T>
@@ -137,10 +141,7 @@ namespace ctranslate2 {
     }
 
     void Model::set_device(const Device device, const int index) {
-      if (!_variable_index.empty()) {
-        move_variables(_variable_index, _device, _device_index, device, index);
-        synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
-      }
+      move_variables(_variable_index, _device, _device_index, device, index);
       _device = device;
       _device_index = index;
     }
