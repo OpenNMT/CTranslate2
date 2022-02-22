@@ -72,8 +72,6 @@ namespace ctranslate2 {
     static void move_variables(VariablesCollection& variables,
                                const Device src_device, const int src_device_index,
                                const Device dst_device, const int dst_device_index) {
-      if (variables.empty())
-        return;
       if (src_device == dst_device && src_device_index == dst_device_index)
         return;
 
@@ -128,8 +126,10 @@ namespace ctranslate2 {
     }
 
     Model::~Model() {
-      _variable_index.clear();
-      synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
+      if (!_variable_index.empty()) {
+        _variable_index.clear();
+        synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
+      }
     }
 
     size_t Model::current_spec_revision() const {
@@ -137,8 +137,10 @@ namespace ctranslate2 {
     }
 
     void Model::set_device(const Device device, const int index) {
-      move_variables(_variable_index, _device, _device_index, device, index);
-      synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
+      if (!_variable_index.empty()) {
+        move_variables(_variable_index, _device, _device_index, device, index);
+        synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
+      }
       _device = device;
       _device_index = index;
     }
