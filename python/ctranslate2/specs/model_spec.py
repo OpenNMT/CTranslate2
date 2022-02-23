@@ -74,6 +74,8 @@ class LayerSpec(object):
             elif isinstance(value, bool):
                 # Convert bool to an integer type.
                 setattr(spec, attr_name, np.dtype("int8").type(value))
+            elif isinstance(value, int):
+                setattr(spec, attr_name, np.dtype("int32").type(value))
 
         self.visit(_check)
 
@@ -248,9 +250,15 @@ class SequenceToSequenceModelSpec(ModelSpec):
           source_embeddings_specs: List of source EmbeddingsSpec modules.
           target_embeddings_specs: List of target EmbeddingsSpec modules.
         """
+
+        # Whether <s> and </s> should be added to the source sequences.
         self.with_source_bos = False
         self.with_source_eos = False
-        self.with_target_bos = True
+
+        # The token ID to start the decoding (default: index of <s>).
+        # Set -1 to require the user to pass the start tokens.
+        self.decoder_start_token_id = OPTIONAL
+
         self._embeddings_specs = {
             "source": source_embeddings_specs,
             "target": target_embeddings_specs,
