@@ -274,7 +274,7 @@ namespace ctranslate2 {
 
       std::vector<size_t> start_ids;
       start_ids.reserve(target_prefix.size());
-      bool prefix_has_only_bos = true;
+      bool prefix_has_only_start_token = true;
 
       for (auto& prefix : target_prefix) {
         if (prefix.empty())
@@ -284,10 +284,10 @@ namespace ctranslate2 {
         prefix.erase(prefix.begin());
 
         if (!prefix.empty())
-          prefix_has_only_bos = false;
+          prefix_has_only_start_token = false;
       }
 
-      if (prefix_has_only_bos)
+      if (prefix_has_only_start_token)
         target_prefix.clear();
 
       return start_ids;
