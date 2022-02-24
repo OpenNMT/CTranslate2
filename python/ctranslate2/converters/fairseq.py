@@ -113,6 +113,7 @@ class FairseqConverter(Converter):
 
             model_spec = _get_model_spec(args)
             model_spec.with_source_eos = True
+            model_spec.with_target_bos = False
 
             task = fairseq.tasks.setup_task(args)
             model = fairseq.models.build_model(args, task)
@@ -122,7 +123,6 @@ class FairseqConverter(Converter):
             set_transformer_spec(model_spec, model)
             model_spec.register_source_vocabulary(_get_vocab(task.source_dictionary))
             model_spec.register_target_vocabulary(_get_vocab(task.target_dictionary))
-            model_spec.decoder_start_token_id = task.target_dictionary.eos()
             return model_spec
 
 

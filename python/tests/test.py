@@ -792,7 +792,7 @@ def test_fairseq_user_start_token(tmpdir):
     class _CustomFairseqConverter(ctranslate2.converters.FairseqConverter):
         def _load(self):
             model_spec = super()._load()
-            model_spec.decoder_start_token_id = -1
+            model_spec.user_decoder_start_tokens = True
             return model_spec
 
     data_dir = os.path.join(

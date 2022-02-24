@@ -103,14 +103,8 @@ namespace ctranslate2 {
       Model::finalize();
       _with_source_bos = get_flag_with_default("with_source_bos", false);
       _with_source_eos = get_flag_with_default("with_source_eos", false);
-
-      const auto bos_id = _target_vocabulary->to_id(Vocabulary::bos_token);
-      const auto eos_id = _target_vocabulary->to_id(Vocabulary::eos_token);
-      _decoder_start_token_id = get_attribute_with_default<int32_t>("decoder_start_token_id", bos_id);
-
-      // Backward compatibility with false value of attribute with_target_bos.
-      if (!get_flag_with_default("with_target_bos", true))
-        _decoder_start_token_id = eos_id;
+      _with_target_bos = get_flag_with_default("with_target_bos", true);
+      _user_decoder_start_tokens = get_flag_with_default("user_decoder_start_tokens", false);
     }
 
     const Vocabulary& SequenceToSequenceModel::get_source_vocabulary() const {
@@ -367,14 +361,17 @@ namespace ctranslate2 {
 
       // Decode.
       auto target_prefix_ids = _target_vocabulary->to_ids(target_prefix_inputs);
+      const size_t start_id = _target_vocabulary->to_id(_with_target_bos
+                                                        ? Vocabulary::bos_token
+                                                        : Vocabulary::eos_token);
       const size_t end_id = _target_vocabulary->to_id(Vocabulary::eos_token);
       const size_t batch_size = source.size();
 
       std::vector<size_t> start_ids;
-      if (_decoder_start_token_id < 0)
+      if (_user_decoder_start_tokens)
         start_ids = get_start_ids_from_prefix(target_prefix_ids);
       else
-        start_ids.assign(batch_size, _decoder_start_token_id);
+        start_ids.assign(batch_size, start_id);
 
       std::vector<GenerationResult<size_t>> results = decode(
         decoder,
