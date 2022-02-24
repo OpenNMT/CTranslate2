@@ -298,10 +298,10 @@ namespace ctranslate2 {
   template<>
   template<>
   void primitives<Device::CPU>::swish(const float* x, float* y, dim_t size) {
-    CPU_ISA_DISPATCH((cpu::parallel_for(0, size, /*work_size=*/10,
-                                        [x, y](dim_t begin, dim_t end) {
-                                          cpu::swish<ISA>(x + begin, y + begin, end - begin);
-                                        })));
+    cpu::parallel_for(0, size, /*work_size=*/10,
+                      [x, y](dim_t begin, dim_t end) {
+                        CPU_ISA_DISPATCH((cpu::swish<ISA>(x + begin, y + begin, end - begin)));
+                      });
   }
 
   template<>
