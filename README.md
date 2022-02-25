@@ -114,7 +114,7 @@ wget https://object.pouta.csc.fi/OPUS-MT-models/en-de/opus-2020-02-26.zip
 unzip opus-2020-02-26.zip
 
 ct2-marian-converter --model_path opus.spm32k-spm32k.transformer-align.model1.npz.best-perplexity.npz \
-    --vocab_paths opus.spm32k-spm32k.vocab.yml opus.spm32k-spm32k.vocab.yml
+    --vocab_paths opus.spm32k-spm32k.vocab.yml opus.spm32k-spm32k.vocab.yml \
     --output_dir ende_ctranslate2
 
 # For OPUS-MT models, you can use ct2-opus-mt-converter instead:
