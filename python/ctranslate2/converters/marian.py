@@ -102,7 +102,7 @@ class MarianConverter(Converter):
 
 def _get_model_config(model):
     config = model["special:model.yml"]
-    config = config[:-1].tobytes()
+    config = config[:-1].tobytes().decode("utf-8")
     config = yaml.safe_load(config)
     return config
 
