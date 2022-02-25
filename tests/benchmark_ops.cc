@@ -53,14 +53,6 @@ void benchmark_softmax(Device device) {
   BENCHMARK(softmax_op(x, y), 10000);
 }
 
-void benchmark_swish(Device device) {
-  std::vector<float> x_ = rand_vector(100 * 512);
-  StorageView x({100, 512}, x_, device);
-  StorageView y(x.device());
-  const ops::Swish swish_op{};
-  BENCHMARK(swish_op(x, y), 10000);
-}
-
 void benchmark_masked_softmax(Device device) {
   const dim_t batch_size = 32;
   const dim_t num_heads = 8;
@@ -148,8 +140,6 @@ int main(int argc, char* argv[]) {
     benchmark_quantize(device, dtype);
   else if (op == "dequantize")
     benchmark_dequantize(device);
-  else if (op == "swish")
-    benchmark_swish(device);
 
   return 0;
 }
