@@ -102,14 +102,14 @@ class MarianConverter(Converter):
 
 def _get_model_config(model):
     config = model["special:model.yml"]
-    config = config[:-1].tobytes().decode("utf-8")
+    config = config[:-1].tobytes()
     config = yaml.safe_load(config)
     return config
 
 
 def _load_vocab(path):
     # pyyaml skips some entries so we manually parse the vocabulary file.
-    with open(path) as vocab:
+    with open(path, encoding="utf-8") as vocab:
         tokens = []
         for i, line in enumerate(vocab):
             line = line.rstrip("\n\r")
