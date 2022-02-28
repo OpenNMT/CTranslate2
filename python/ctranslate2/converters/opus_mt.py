@@ -10,7 +10,9 @@ class OpusMTConverter(MarianConverter):
     """Converts models trained with OPUS-MT."""
 
     def __init__(self, model_dir):
-        with open(os.path.join(model_dir, "decoder.yml")) as decoder_file:
+        with open(
+            os.path.join(model_dir, "decoder.yml"), encoding="utf-8"
+        ) as decoder_file:
             decoder_config = yaml.safe_load(decoder_file)
 
         model_path = os.path.join(model_dir, decoder_config["models"][0])
