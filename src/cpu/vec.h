@@ -91,7 +91,7 @@ namespace ctranslate2 {
         return a / b;
       }
 
-      static inline T reduce_sum(value_type a) {
+      static inline T reduce_add(value_type a) {
         return a;
       }
 

@@ -59,7 +59,6 @@ namespace ctranslate2 {
       }
     }
 
-
     template <CpuIsa ISA, typename T, typename MapFunc, typename ReduceFunc, typename VecReduceFunc>
     static T vectorized_map_reduce_all(const T* x,
                                        dim_t size,
@@ -204,7 +203,7 @@ namespace ctranslate2 {
                                         size,
                                         static_cast<T>(0),
                                         Vec<T, ISA>::add,
-                                        Vec<T, ISA>::reduce_sum);
+                                        Vec<T, ISA>::reduce_add);
     }
 
     template <CpuIsa ISA, typename T>
@@ -288,7 +287,7 @@ namespace ctranslate2 {
             std::numeric_limits<float>::lowest(),
             vec_exp_func,
             VecType::add,
-            VecType::reduce_sum);
+            VecType::reduce_add);
           add<TARGET_ISA>(-x_max - std::log(exp_sum), x, y, size);
         } else {
           vectorized_unary_transform<TARGET_ISA>(x, y, size, vec_exp_func);

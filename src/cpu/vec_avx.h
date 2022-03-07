@@ -108,7 +108,7 @@ namespace ctranslate2 {
         return _mm256_div_ps(a, b);
       }
 
-      static inline float reduce_sum(value_type a) {
+      static inline float reduce_add(value_type a) {
         return vec_reduce<float, TARGET_ISA>(a, Vec<float>::add);
       }
 
