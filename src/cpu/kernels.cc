@@ -204,7 +204,7 @@ namespace ctranslate2 {
                                         size,
                                         static_cast<T>(0),
                                         Vec<T, ISA>::add,
-                                        reduce_sum<T, ISA>);
+                                        Vec<T, ISA>::reduce_sum);
     }
 
     template <CpuIsa ISA, typename T>
@@ -213,7 +213,7 @@ namespace ctranslate2 {
                                         size,
                                         std::numeric_limits<T>::lowest(),
                                         Vec<T, ISA>::max,
-                                        reduce_max<T, ISA>);
+                                        Vec<T, ISA>::reduce_max);
     }
 
     template <CpuIsa ISA, typename T>
@@ -223,7 +223,7 @@ namespace ctranslate2 {
                                             static_cast<T>(0),
                                             Vec<T, ISA>::abs,
                                             Vec<T, ISA>::max,
-                                            reduce_max<T, ISA>);
+                                            Vec<T, ISA>::reduce_max);
     }
 
 #define DECLARE_IMPL(T)                                                 \
@@ -288,7 +288,7 @@ namespace ctranslate2 {
             std::numeric_limits<float>::lowest(),
             vec_exp_func,
             VecType::add,
-            reduce_sum<float, TARGET_ISA>);
+            VecType::reduce_sum);
           add<TARGET_ISA>(-x_max - std::log(exp_sum), x, y, size);
         } else {
           vectorized_unary_transform<TARGET_ISA>(x, y, size, vec_exp_func);

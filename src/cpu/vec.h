@@ -91,29 +91,27 @@ namespace ctranslate2 {
         return a / b;
       }
 
+      static inline T reduce_sum(value_type a) {
+        return a;
+      }
+
+      static inline T reduce_max(value_type a) {
+        return a;
+      }
+
     };
 
     template <typename T, CpuIsa ISA = CpuIsa::GENERIC>
     using vec_type = typename Vec<T, ISA>::value_type;
 
     template <typename T, CpuIsa ISA, typename ReduceOp>
-    T reduce(vec_type<T, ISA> a, const ReduceOp& reduce_op) {
+    T vec_reduce(vec_type<T, ISA> a, const ReduceOp& reduce_op) {
       T values[Vec<T, ISA>::width];
       Vec<T, ISA>::store(a, values);
 
       for (dim_t i = 1; i < Vec<T, ISA>::width; ++i)
         values[0] = reduce_op(values[0], values[i]);
       return values[0];
-    }
-
-    template <typename T, CpuIsa ISA>
-    T reduce_max(vec_type<T, ISA> a) {
-      return reduce<T, ISA>(a, Vec<T>::max);
-    }
-
-    template <typename T, CpuIsa ISA>
-    T reduce_sum(vec_type<T, ISA> a) {
-      return reduce<T, ISA>(a, Vec<T>::add);
     }
 
   }
