@@ -7,6 +7,7 @@ CTranslate2 is a fast and full-featured inference engine for Transformer models.
 * [OpenNMT-py](https://github.com/OpenNMT/OpenNMT-py)
 * [OpenNMT-tf](https://github.com/OpenNMT/OpenNMT-tf)
 * [Fairseq](https://github.com/pytorch/fairseq/)
+* [Marian](https://github.com/marian-nmt/marian)
 
 The project is production-oriented and comes with [backward compatibility guarantees](#what-is-the-state-of-this-project), but it also includes experimental features related to model compression and inference acceleration.
 
@@ -66,7 +67,7 @@ pip install --upgrade pip
 pip install ctranslate2
 ```
 
-**2\. [Convert](#converting-models) a Transformer model trained with OpenNMT-py, OpenNMT-tf, or Fairseq:**
+**2\. [Convert](#converting-models) a Transformer model trained with OpenNMT-py, OpenNMT-tf, Fairseq, or Marian:**
 
 *a. OpenNMT-py*
 
@@ -106,6 +107,20 @@ ct2-fairseq-converter --model_path wmt16.en-de.joined-dict.transformer/model.pt 
     --output_dir ende_ctranslate2
 ```
 
+*d. Marian*
+
+```bash
+wget https://object.pouta.csc.fi/OPUS-MT-models/en-de/opus-2020-02-26.zip
+unzip opus-2020-02-26.zip
+
+ct2-marian-converter --model_path opus.spm32k-spm32k.transformer-align.model1.npz.best-perplexity.npz \
+    --vocab_paths opus.spm32k-spm32k.vocab.yml opus.spm32k-spm32k.vocab.yml \
+    --output_dir ende_ctranslate2
+
+# For OPUS-MT models, you can use ct2-opus-mt-converter instead:
+ct2-opus-mt-converter --model_dir . --output_dir ende_ctranslate2
+```
+
 **3\. [Translate](#translating) tokenized inputs with the Python API:**
 
 ```python
@@ -113,11 +128,11 @@ import ctranslate2
 
 translator = ctranslate2.Translator("ende_ctranslate2/", device="cpu")
 
-# The OpenNMT-py and OpenNMT-tf models use a SentencePiece tokenization:
-translator.translate_batch([["▁H", "ello", "▁world", "!"]])
+batch = [["▁H", "ello", "▁world", "!"]]      # OpenNMT model input
+# batch = [["H@@", "ello", "world@@", "!"]]  # Fairseq model input
+# batch = [["▁Hello", "▁world", "!"]]        # Marian model input
 
-# The Fairseq model uses a BPE tokenization:
-translator.translate_batch([["H@@", "ello", "world@@", "!"]])
+translator.translate_batch(batch)
 ```
 
 ## Installation
@@ -163,10 +178,10 @@ The core CTranslate2 implementation is framework agnostic. The framework specifi
 
 The following frameworks and models are currently supported:
 
-|     | OpenNMT-tf | OpenNMT-py | Fairseq |
-| --- | :---: | :---: | :---: |
-| Transformer ([Vaswani et al. 2017](https://arxiv.org/abs/1706.03762)) | ✓ | ✓ | ✓ |
-| + relative position representations ([Shaw et al. 2018](https://arxiv.org/abs/1803.02155)) | ✓ | ✓ | |
+|     | OpenNMT-tf | OpenNMT-py | Fairseq | Marian |
+| --- | :---: | :---: | :---: | :---: |
+| Transformer ([Vaswani et al. 2017](https://arxiv.org/abs/1706.03762)) | ✓ | ✓ | ✓ | ✓ |
+| + relative position representations ([Shaw et al. 2018](https://arxiv.org/abs/1803.02155)) | ✓ | ✓ | | |
 
 *If you are using a model that is not listed above, consider opening an issue to discuss future integration.*
 
@@ -175,6 +190,8 @@ The Python package includes a [conversion API](docs/python.md#model-conversion-a
 * `ct2-opennmt-py-converter`
 * `ct2-opennmt-tf-converter`
 * `ct2-fairseq-converter`
+* `ct2-marian-converter`
+* `ct2-opus-mt-converter` (based on `ct2-marian-converter`)
 
 The conversion should be run in the same environment as the selected training framework.
 
@@ -397,9 +414,13 @@ Depending on your build configuration, you might need to set `LD_LIBRARY_PATH` i
 
 ### Performance
 
-For a fair comparison, we restrict the benchmark to toolkits compatible with the pretrained English-German Transformer model from [OpenNMT-py](https://opennmt.net/Models-py/) or [OpenNMT-tf](https://opennmt.net/Models-tf/).
+We translate the En->De test set *newstest2014* with multiple models:
 
-We translate the test set *newstest2014* and report the number of target tokens generated per second. The results are aggregated over multiple runs (see the [benchmark scripts](tools/benchmark) for more details).
+* [OpenNMT-tf WMT14](https://opennmt.net/Models-tf/#translation): a base Transformer trained with OpenNMT-tf on the WMT14 dataset (4.5M lines)
+* [OpenNMT-py WMT14](https://opennmt.net/Models-py/#translation): a base Transformer trained with OpenNMT-py on the WMT14 dataset (4.5M lines)
+* [OPUS-MT](https://github.com/Helsinki-NLP/OPUS-MT-train/tree/master/models/en-de#opus-2020-02-26zip): a base Transformer trained with Marian on all OPUS data available on 2020-02-26 (81.9M lines)
+
+The benchmark reports the number of target tokens generated per second (higher is better). The results are aggregated over multiple runs. See the [benchmark scripts](tools/benchmark) for more details and reproduce these numbers.
 
 **Please note that the results presented below are only valid for the configuration used during this benchmark: absolute and relative performance may change with different settings.**
 
@@ -407,13 +428,22 @@ We translate the test set *newstest2014* and report the number of target tokens 
 
 | | Tokens per second | Max. memory | BLEU |
 | --- | --- | --- | --- |
-| OpenNMT-tf 2.24.0 (with TensorFlow 2.7.0) | 335.9 | 2679MB | 26.93 |
-| OpenNMT-py 2.2.0 (with PyTorch 1.9.1) | 462.3 | 1650MB | 26.77 |
-| - int8 | 500.6 | 1527MB | 26.72 |
-| CTranslate2 2.11.0 | 1218.6 | 1069MB | 26.77 |
-| - int16 | 1593.0 | 973MB | 26.84 |
-| - int8 | 1872.7 | 854MB | 26.88 |
-| - int8 + vmap | 2312.3 | 726MB | 26.65 |
+| **OpenNMT-tf WMT14 model** | | | |
+| OpenNMT-tf 2.25.0 (with TensorFlow 2.8.0) | 342.4 | 2600MB | 26.93 |
+| **OpenNMT-py WMT14 model** | | | |
+| OpenNMT-py 2.2.0 (with PyTorch 1.9.1) | 458.8 | 1734MB | 26.77 |
+| - int8 | 500.1 | 1612MB | 26.72 |
+| CTranslate2 2.13.1 | 1217.8 | 1068MB | 26.77 |
+| - int16 | 1530.9 | 989MB | 26.82 |
+| - int8 | 1787.3 | 773MB | 26.89 |
+| - int8 + vmap | 2179.2 | 789MB | 26.62 |
+| **OPUS-MT model** | | | |
+| Marian 1.11.0 | 756.7 | 13819MB | 27.93 |
+| - int16 | 723.6 | 10393MB | 27.65 |
+| - int8 | 857.3 | 8169MB | 27.27 |
+| CTranslate2 2.13.1 | 993.5 | 901MB | 27.92 |
+| - int16 | 1290.4 | 921MB | 27.51 |
+| - int8 | 1486.5 | 748MB | 27.71 |
 
 Executed with 8 threads on a [*c5.metal*](https://aws.amazon.com/ec2/instance-types/c5/) Amazon EC2 instance equipped with an Intel(R) Xeon(R) Platinum 8275CL CPU.
 
@@ -421,20 +451,29 @@ Executed with 8 threads on a [*c5.metal*](https://aws.amazon.com/ec2/instance-ty
 
 | | Tokens per second | Max. GPU memory | Max. CPU memory | BLEU |
 | --- | --- | --- | --- | --- |
-| OpenNMT-tf 2.24.0 (with TensorFlow 2.7.0) | 1424.2 | 2670MB | 2377MB | 26.93 |
-| OpenNMT-py 2.2.0 (with PyTorch 1.9.1) | 1373.2 | 3082MB | 3965MB | 26.77 |
-| FasterTransformer 4.0 | 3263.5 | 5868MB | 2633MB | 26.77 |
-| - float16 | 6750.7 | 3916MB | 2613MB | 26.83 |
-| CTranslate2 2.11.0 | 3906.8 | 1264MB | 673MB | 26.77 |
-| - int8 | 5586.3 | 976MB | 562MB | 26.90 |
-| - float16 | 5805.0 | 816MB | 599MB | 26.78 |
-| - int8 + float16 | 6409.9 | 688MB | 560MB | 26.88 |
+| **OpenNMT-tf WMT14 model** | | | | |
+| OpenNMT-tf 2.25.0 (with TensorFlow 2.8.0) | 1285.7 | 2666MB | 2364MB | 26.93 |
+| **OpenNMT-py WMT14 model** | | | | |
+| OpenNMT-py 2.2.0 (with PyTorch 1.9.1) | 1220.9 | 3082MB | 3900MB | 26.77 |
+| FasterTransformer 4.0 | 2950.8 | 5868MB | 2436MB | 26.77 |
+| - float16 | 6499.3 | 3916MB | 2423MB | 26.83 |
+| CTranslate2 2.13.1 | 3747.1 | 1264MB | 676MB | 26.77 |
+| - int8 | 5306.4 | 976MB | 561MB | 26.83 |
+| - float16 | 5367.8 | 816MB | 607MB | 26.78 |
+| - int8 + float16 | 6158.7 | 688MB | 563MB | 26.80 |
+| **OPUS-MT model** | | | | |
+| Marian 1.11.0 | 2221.5 | 3128MB | 1932MB | 27.92 |
+| - float16 | 2832.7 | 2986MB | 1713MB | 27.93 |
+| CTranslate2 2.13.1 | 3136.3 | 1200MB | 481MB | 27.92 |
+| - int8 | 4634.4 | 1008MB | 519MB | 27.89 |
+| - float16 | 4708.7 | 816MB | 560MB | 27.85 |
+| - int8 + float16 | 5320.3 | 720MB | 515MB | 27.81 |
 
 Executed with CUDA 11 on a [*g4dn.xlarge*](https://aws.amazon.com/ec2/instance-types/g4/) Amazon EC2 instance equipped with a NVIDIA T4 GPU (driver version: 470.82.01).
 
 ### Model size
 
-The table below compares the model size on disk of the pretrained Transformer models which are "base" Transformers without shared embeddings and a vocabulary of size 32k:
+The table below compares the model size on disk of the OpenNMT WMT14 models which are "base" Transformers without shared embeddings and a vocabulary of size 32k:
 
 | | Model size |
 | --- | --- |
@@ -480,8 +519,10 @@ The implementation has been generously tested in [production environment](https:
 * Python symbols:
   * `ctranslate2.Translator`
   * `ctranslate2.converters.FairseqConverter`
+  * `ctranslate2.converters.MarianConverter`
   * `ctranslate2.converters.OpenNMTPyConverter`
   * `ctranslate2.converters.OpenNMTTFConverter`
+  * `ctranslate2.converters.OpusMTConverter`
 * C++ symbols:
   * `ctranslate2::models::Model`
   * `ctranslate2::TranslationOptions`

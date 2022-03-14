@@ -1,4 +1,5 @@
 import argparse
+import os
 
 from ctranslate2.converters import utils
 from ctranslate2.converters.converter import Converter
@@ -7,6 +8,11 @@ from ctranslate2.specs import transformer_spec
 
 
 _SUPPORTED_ARCHS = {
+    "bart_base",
+    "bart_large",
+    "mbart_base",
+    "mbart_base_wmt20",
+    "mbart_large",
     "transformer",
     "transformer_align",
     "transformer_iwslt_de_en",
@@ -25,42 +31,43 @@ _SUPPORTED_ACTIVATIONS = {
     "gelu_accurate": common_spec.Activation.GELU,
     "gelu_fast": common_spec.Activation.GELU,
     "relu": common_spec.Activation.RELU,
+    "swish": common_spec.Activation.SWISH,
 }
 
 
 def _get_model_spec(args):
     activation_fn = getattr(args, "activation_fn", "relu")
 
-    reasons = []
-    if args.arch not in _SUPPORTED_ARCHS:
-        reasons.append(
-            "Option --arch %s is not supported (supported architectures are: %s)"
-            % (args.arch, ", ".join(_SUPPORTED_ARCHS))
-        )
-    if args.encoder_normalize_before != args.decoder_normalize_before:
-        reasons.append(
-            "Options --encoder-normalize-before and --decoder-normalize-before "
-            "must have the same value"
-        )
-    if args.encoder_attention_heads != args.decoder_attention_heads:
-        reasons.append(
-            "Options --encoder-attention-heads and --decoder-attention-heads must "
-            "have the same value"
-        )
-    if activation_fn not in _SUPPORTED_ACTIVATIONS.keys():
-        reasons.append(
-            "Option --activation-fn %s is not supported (supported activations are: %s)"
-            % (activation_fn, ", ".join(_SUPPORTED_ACTIVATIONS.keys()))
-        )
-    if getattr(args, "no_token_positional_embeddings", False):
-        reasons.append("Option --no-token-positional-embeddings is not supported")
-    if getattr(args, "layernorm_embedding", False):
-        reasons.append("Option --layernorm-embedding is not supported")
-    if getattr(args, "lang_tok_replacing_bos_eos", False):
-        reasons.append("Option --lang-tok-replacing-bos-eos is not supported")
-
-    if reasons:
-        utils.raise_unsupported(reasons)
+    check = utils.ConfigurationChecker()
+    check(
+        args.arch in _SUPPORTED_ARCHS,
+        "Option --arch %s is not supported (supported architectures are: %s)"
+        % (args.arch, ", ".join(_SUPPORTED_ARCHS)),
+    )
+    check(
+        args.encoder_normalize_before == args.decoder_normalize_before,
+        "Options --encoder-normalize-before and --decoder-normalize-before "
+        "must have the same value",
+    )
+    check(
+        args.encoder_attention_heads == args.decoder_attention_heads,
+        "Options --encoder-attention-heads and --decoder-attention-heads "
+        "must have the same value",
+    )
+    check(
+        activation_fn in _SUPPORTED_ACTIVATIONS,
+        "Option --activation-fn %s is not supported (supported activations are: %s)"
+        % (activation_fn, ", ".join(_SUPPORTED_ACTIVATIONS.keys())),
+    )
+    check(
+        not getattr(args, "no_token_positional_embeddings", False),
+        "Option --no-token-positional-embeddings is not supported",
+    )
+    check(
+        not getattr(args, "lang_tok_replacing_bos_eos", False),
+        "Option --lang-tok-replacing-bos-eos is not supported",
+    )
+    check.validate()
 
     return transformer_spec.TransformerSpec(
         (args.encoder_layers, args.decoder_layers),
@@ -69,6 +76,7 @@ def _get_model_spec(args):
         activation=_SUPPORTED_ACTIVATIONS[activation_fn],
         alignment_layer=getattr(args, "alignment_layer", -1),
         alignment_heads=getattr(args, "alignment_heads", 0),
+        layernorm_embedding=getattr(args, "layernorm_embedding", False),
     )
 
 
@@ -86,12 +94,14 @@ class FairseqConverter(Converter):
         source_lang=None,
         target_lang=None,
         fixed_dictionary=None,
+        no_default_special_tokens=False,
     ):
         self._model_path = model_path
         self._data_dir = data_dir
         self._fixed_dictionary = fixed_dictionary
         self._source_lang = source_lang
         self._target_lang = target_lang
+        self._no_default_special_tokens = no_default_special_tokens
 
     def _load(self):
         import torch
@@ -105,6 +115,10 @@ class FairseqConverter(Converter):
             args.data = self._data_dir
             if self._fixed_dictionary is not None:
                 args.fixed_dictionary = self._fixed_dictionary
+            if hasattr(args, "lang_dict") and args.lang_dict:
+                args.lang_dict = os.path.join(
+                    self._data_dir, os.path.basename(args.lang_dict)
+                )
 
             if self._source_lang is not None:
                 args.source_lang = self._source_lang
@@ -113,8 +127,12 @@ class FairseqConverter(Converter):
                 args.target_lang = self._target_lang
 
             model_spec = _get_model_spec(args)
-            model_spec.with_source_eos = True
-            model_spec.with_target_bos = False
+
+            if self._no_default_special_tokens:
+                model_spec.user_decoder_start_tokens = True
+            else:
+                model_spec.with_source_eos = True
+                model_spec.with_target_bos = False
 
             task = fairseq.tasks.setup_task(args)
             model = fairseq.models.build_model(args, task)
@@ -138,6 +156,8 @@ def set_transformer_encoder(spec, module):
         set_transformer_encoder_layer(layer_spec, layer)
     if module.layer_norm is not None:
         set_layer_norm(spec.layer_norm, module.layer_norm)
+    if module.layernorm_embedding is not None:
+        set_layer_norm(spec.layernorm_embedding, module.layernorm_embedding)
 
 
 def set_transformer_decoder(spec, module):
@@ -147,6 +167,8 @@ def set_transformer_decoder(spec, module):
         set_transformer_decoder_layer(layer_spec, layer)
     if module.layer_norm is not None:
         set_layer_norm(spec.layer_norm, module.layer_norm)
+    if module.layernorm_embedding is not None:
+        set_layer_norm(spec.layernorm_embedding, module.layernorm_embedding)
 
 
 def set_input_layers(spec, module):
@@ -238,6 +260,14 @@ def main():
         "--target_lang",
         help="Target language. This argument is used to find dictionary file from `data_dir`.",
     )
+    parser.add_argument(
+        "--no_default_special_tokens",
+        action="store_true",
+        help=(
+            "Require all special tokens to be provided by the user during inference, "
+            "including the decoder start token."
+        ),
+    )
     Converter.declare_arguments(parser)
     args = parser.parse_args()
     converter = FairseqConverter(
@@ -246,6 +276,7 @@ def main():
         source_lang=args.source_lang,
         target_lang=args.target_lang,
         fixed_dictionary=args.fixed_dictionary,
+        no_default_special_tokens=args.no_default_special_tokens,
     )
     converter.convert_from_args(args)
 

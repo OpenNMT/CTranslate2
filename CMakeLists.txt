@@ -123,6 +123,7 @@ set(SOURCES
   src/ops/softmax_cpu.cc
   src/ops/split.cc
   src/ops/sub.cc
+  src/ops/swish.cc
   src/ops/tile.cc
   src/ops/tile_cpu.cc
   src/ops/topk.cc
@@ -132,6 +133,7 @@ set(SOURCES
   src/profiler.cc
   src/sampling.cc
   src/storage_view.cc
+  src/translation.cc
   src/translator.cc
   src/translator_pool.cc
   src/types.cc
@@ -159,9 +161,12 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(amd64)|(AMD64)")
   add_definitions(-DCT2_X86_BUILD)
   set(CT2_BUILD_ARCH "x86_64")
 
+  if(BUILD_SHARED_LIBS)
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+  endif()
   set(BUILD_SHARED_LIBS_SAVED "${BUILD_SHARED_LIBS}")
   set(BUILD_SHARED_LIBS OFF)
-  set(BUILD_PIC ON)
+  set(BUILD_TESTING OFF)
   add_subdirectory(third_party/cpu_features EXCLUDE_FROM_ALL)
   set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_SAVED}")
   list(APPEND LIBRARIES cpu_features)

@@ -32,15 +32,15 @@ def _write_tokens(batch_tokens, path):
 
 
 def test_invalid_model_path():
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="open file"):
         ctranslate2.Translator("xxx")
 
 
 def test_invalid_device_settings():
     model_path = _get_model_path()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="device index"):
         ctranslate2.Translator(model_path, device_index=[])
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="device index"):
         ctranslate2.Translator(model_path, device_index=[0, 1])
 
 
@@ -69,9 +69,9 @@ def test_translator_properties():
 
 def test_compute_type():
     model_path = _get_model_path()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="compute type"):
         ctranslate2.Translator(model_path, compute_type="float64")
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="incompatible constructor arguments"):
         ctranslate2.Translator(model_path, compute_type=["int8", "int16"])
     ctranslate2.Translator(model_path, compute_type="int8")
     ctranslate2.Translator(model_path, compute_type={"cuda": "float16", "cpu": "int8"})
@@ -163,11 +163,11 @@ def test_raw_file_translation(tmpdir):
     tokenize_fn = lambda text: list(text)
     detokenize_fn = lambda tokens: "".join(tokens)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="target_detokenize_fn"):
         translator.translate_file(
             input_path, output_path, source_tokenize_fn=tokenize_fn
         )
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="source_tokenize_fn"):
         translator.translate_file(
             input_path, output_path, target_detokenize_fn=detokenize_fn
         )
@@ -199,7 +199,7 @@ def test_file_translation_with_prefix(tmpdir):
 
     translator = _get_transliterator()
 
-    with pytest.raises(RuntimeError):
+    with pytest.raises(RuntimeError, match="has less examples"):
         # One line is missing from target_path.
         translator.translate_file(
             source_path,
@@ -241,7 +241,7 @@ def test_raw_file_translation_with_prefix(tmpdir):
     target_tokenize_fn = lambda text: list(reversed(list(text)))
     detokenize_fn = lambda tokens: "".join(tokens)
 
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="target_tokenize_fn"):
         # Target tokenization is missing.
         translator.translate_file(
             source_path,
@@ -273,7 +273,7 @@ def test_empty_translation():
 
 def test_invalid_translation_options():
     translator = _get_transliterator()
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="is greater than"):
         translator.translate_batch(
             [["آ", "ت", "ز", "م", "و", "ن"]],
             min_decoding_length=10,
@@ -615,12 +615,13 @@ def test_opennmt_tf_model_conversion_invalid_vocab(tmpdir):
         model_path=model_path,
     )
     output_dir = str(tmpdir.join("ctranslate2_model"))
-    with pytest.raises(ValueError):
+    with pytest.raises(ValueError, match="expected a vocabulary of size"):
         converter.convert(output_dir)
 
 
-def _build_model_with_shared_embeddings(tmpdir):
+def _create_checkpoint(model, tmpdir):
     import opennmt
+    import tensorflow as tf
 
     vocab = opennmt.data.Vocab()
     for i in range(10):
@@ -628,37 +629,36 @@ def _build_model_with_shared_embeddings(tmpdir):
     vocab_path = str(tmpdir.join("vocab.txt"))
     vocab.serialize(vocab_path)
 
-    num_layers = 3
-    num_heads = 4
-    model = opennmt.models.Transformer(
-        opennmt.inputters.WordEmbedder(32),
-        opennmt.inputters.WordEmbedder(32),
-        num_layers,
-        num_units=32,
-        num_heads=num_heads,
-        ffn_inner_dim=64,
-        share_embeddings=opennmt.models.EmbeddingsSharingLevel.ALL,
-    )
     model.initialize({"source_vocabulary": vocab_path, "target_vocabulary": vocab_path})
     model.create_variables()
-    return model, vocab_path
+
+    checkpoint_prefix = str(tmpdir.join("ckpt"))
+    checkpoint = tf.train.Checkpoint(model=model)
+    checkpoint_path = checkpoint.write(checkpoint_prefix)
+    return checkpoint_path, vocab_path
 
 
 def test_opennmt_tf_shared_embeddings_conversion(tmpdir):
     # Issue https://github.com/OpenNMT/CTranslate2/issues/118
-    import tensorflow as tf
+    import opennmt
 
-    model, vocab_path = _build_model_with_shared_embeddings(tmpdir)
+    model = opennmt.models.Transformer(
+        opennmt.inputters.WordEmbedder(32),
+        opennmt.inputters.WordEmbedder(32),
+        num_layers=3,
+        num_units=32,
+        num_heads=4,
+        ffn_inner_dim=64,
+        share_embeddings=opennmt.models.EmbeddingsSharingLevel.ALL,
+    )
 
-    checkpoint_prefix = str(tmpdir.join("ckpt"))
-    checkpoint = tf.train.Checkpoint(model=model)
-    checkpoint.write(checkpoint_prefix)
+    model_path, vocab_path = _create_checkpoint(model, tmpdir)
 
     converter = ctranslate2.converters.OpenNMTTFConverter(
         model.ctranslate2_spec,
         vocab_path,
         vocab_path,
-        model_path=checkpoint_prefix,
+        model_path=model_path,
     )
     output_dir = str(tmpdir.join("ctranslate2_model"))
     converter.convert(output_dir)
@@ -668,6 +668,30 @@ def test_opennmt_tf_shared_embeddings_conversion(tmpdir):
     # Check that the translation runs.
     translator = ctranslate2.Translator(output_dir)
     translator.translate_batch([["1", "2", "3"]], max_decoding_length=10)
+
+
+def test_opennmt_tf_postnorm_transformer_conversion(tmpdir):
+    import opennmt
+
+    model = opennmt.models.Transformer(
+        opennmt.inputters.WordEmbedder(32),
+        opennmt.inputters.WordEmbedder(32),
+        num_layers=3,
+        num_units=32,
+        num_heads=4,
+        ffn_inner_dim=64,
+        pre_norm=False,
+    )
+
+    model_path, vocab_path = _create_checkpoint(model, tmpdir)
+    converter = ctranslate2.converters.OpenNMTTFConverter(
+        model.ctranslate2_spec,
+        vocab_path,
+        vocab_path,
+        model_path=model_path,
+    )
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    converter.convert(output_dir)
 
 
 @skip_if_data_missing
@@ -784,6 +808,42 @@ def test_fairseq_model_conversion(tmpdir):
     translator = ctranslate2.Translator(output_dir)
     output = translator.translate_batch([["آ", "ت", "ز", "م", "و", "ن"]])
     assert output[0].hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
+
+
+@skip_if_data_missing
+@skip_on_windows
+def test_fairseq_user_start_token(tmpdir):
+    data_dir = os.path.join(
+        _TEST_DATA_DIR,
+        "models",
+        "transliteration-aren-all",
+        "fairseq",
+    )
+    converter = ctranslate2.converters.FairseqConverter(
+        os.path.join(data_dir, "model.pt"), data_dir, no_default_special_tokens=True
+    )
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    converter.convert(output_dir)
+    translator = ctranslate2.Translator(output_dir)
+    tokens = ["آ", "ت", "ز", "م", "و", "ن"]
+    tokens += ["</s>"]
+
+    with pytest.raises(ValueError, match="start token"):
+        translator.translate_batch([tokens])
+
+    output = translator.translate_batch([tokens], target_prefix=[["</s>"]])
+    assert output[0].hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
+
+
+@skip_if_data_missing
+def test_marian_model_conversion(tmpdir):
+    model_dir = os.path.join(_TEST_DATA_DIR, "models", "opus-mt-ende")
+    converter = ctranslate2.converters.OpusMTConverter(model_dir)
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    converter.convert(output_dir)
+    translator = ctranslate2.Translator(output_dir)
+    output = translator.translate_batch([["▁Hello", "▁world", "!"]])
+    assert output[0].hypotheses[0] == ["▁Hallo", "▁Welt", "!"]
 
 
 def test_layer_spec_validate():

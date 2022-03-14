@@ -2,50 +2,6 @@
 
 namespace ctranslate2 {
 
-  void TranslationOptions::validate() const {
-    if (num_hypotheses == 0)
-      throw std::invalid_argument("num_hypotheses must be > 0");
-    if (beam_size == 0)
-      throw std::invalid_argument("beam_size must be > 0");
-    if (num_hypotheses > beam_size && !return_alternatives)
-      throw std::invalid_argument("The number of hypotheses can not be greater than the beam size");
-    if (sampling_topk != 1 && beam_size != 1)
-      throw std::invalid_argument("Random sampling should be used with beam_size = 1");
-    if (min_decoding_length > max_decoding_length)
-      throw std::invalid_argument("min_decoding_length is greater than max_decoding_length");
-    if (max_decoding_length == 0)
-      throw std::invalid_argument("max_decoding_length must be > 0");
-    if (repetition_penalty <= 0)
-      throw std::invalid_argument("repetition_penalty must be > 0");
-    if (repetition_penalty != 1 && use_vmap)
-      throw std::invalid_argument("repetition_penalty is currently not supported with use_vmap");
-    if (prefix_bias_beta >= 1)
-      throw std::invalid_argument("prefix_bias_beta must be less than 1.0");
-    if (prefix_bias_beta > 0 && return_alternatives)
-      throw std::invalid_argument("prefix_bias_beta is not compatible with return_alternatives");
-    if (prefix_bias_beta > 0 && beam_size <= 1)
-      throw std::invalid_argument("prefix_bias_beta is not compatible with greedy-search");
-  }
-
-  std::unique_ptr<const Sampler> TranslationOptions::make_sampler() const {
-    if (sampling_topk == 1)
-      return std::make_unique<BestSampler>();
-    else
-      return std::make_unique<RandomSampler>(sampling_topk, sampling_temperature);
-  }
-
-  std::unique_ptr<const SearchStrategy> TranslationOptions::make_search_strategy() const {
-    if (beam_size == 1)
-      return std::make_unique<GreedySearch>();
-    else
-      return std::make_unique<BeamSearch>(beam_size,
-                                          length_penalty,
-                                          coverage_penalty,
-                                          prefix_bias_beta,
-                                          allow_early_exit);
-  }
-
-
   Translator::Translator(const std::string& model_dir,
                          Device device,
                          int device_index,
@@ -110,24 +66,24 @@ namespace ctranslate2 {
     assert_has_model();
     register_current_allocator();
     options.validate();
-    return _seq2seq_model->sample(*_encoder,
-                                  *_decoder,
-                                  source,
-                                  target_prefix,
-                                  *options.make_search_strategy(),
-                                  *options.make_sampler(),
-                                  options.use_vmap,
-                                  options.max_input_length,
-                                  options.max_decoding_length,
-                                  options.min_decoding_length,
-                                  options.num_hypotheses,
-                                  options.return_alternatives,
-                                  options.return_scores,
-                                  options.return_attention,
-                                  options.replace_unknowns,
-                                  options.normalize_scores,
-                                  options.repetition_penalty,
-                                  options.disable_unk);
+    return _model->sample(*_encoder,
+                          *_decoder,
+                          source,
+                          target_prefix,
+                          *options.make_search_strategy(),
+                          *options.make_sampler(),
+                          options.use_vmap,
+                          options.max_input_length,
+                          options.max_decoding_length,
+                          options.min_decoding_length,
+                          options.num_hypotheses,
+                          options.return_alternatives,
+                          options.return_scores,
+                          options.return_attention,
+                          options.replace_unknowns,
+                          options.normalize_scores,
+                          options.repetition_penalty,
+                          options.disable_unk);
   }
 
   std::vector<ScoringResult>
@@ -136,7 +92,7 @@ namespace ctranslate2 {
                           const ScoringOptions& options) {
     assert_has_model();
     register_current_allocator();
-    return _seq2seq_model->score(*_encoder, *_decoder, source, target, options.max_input_length);
+    return _model->score(*_encoder, *_decoder, source, target, options.max_input_length);
   }
 
   Device Translator::device() const {
@@ -172,14 +128,12 @@ namespace ctranslate2 {
   }
 
   void Translator::set_model(const std::shared_ptr<const models::Model>& model) {
-    const auto* seq2seq_model = dynamic_cast<const models::SequenceToSequenceModel*>(model.get());
-    if (!seq2seq_model)
+    _model = std::dynamic_pointer_cast<const models::SequenceToSequenceModel>(model);
+    if (!_model)
       throw std::invalid_argument("Translator expects a model of type SequenceToSequenceModel");
-    _model = model;
-    _seq2seq_model = seq2seq_model;
     auto scoped_device_setter = _model->get_scoped_device_setter();
-    _encoder = seq2seq_model->make_encoder();
-    _decoder = seq2seq_model->make_decoder();
+    _encoder = _model->make_encoder();
+    _decoder = _model->make_decoder();
   }
 
   std::shared_ptr<const models::Model> Translator::detach_model() {
@@ -187,7 +141,6 @@ namespace ctranslate2 {
     _encoder.reset();
     _decoder.reset();
     _model.reset();
-    _seq2seq_model = nullptr;
     return model;
   }
 

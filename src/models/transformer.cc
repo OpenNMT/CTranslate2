@@ -59,13 +59,13 @@ namespace ctranslate2 {
     }
 
     void TransformerModel::register_variable(std::string name, StorageView variable) {
-      if (_spec_revision == 1)
+      if (spec_revision() == 1)
         name = map_v1_variable_name(std::move(name));
       SequenceToSequenceModel::register_variable(std::move(name), std::move(variable));
     }
 
     void TransformerModel::register_variable_alias(std::string alias, std::string variable_name) {
-      if (_spec_revision == 1) {
+      if (spec_revision() == 1) {
         alias = map_v1_variable_name(std::move(alias));
         variable_name = map_v1_variable_name(std::move(variable_name));
       }
@@ -83,6 +83,7 @@ namespace ctranslate2 {
         get_attribute_with_default<int8_t>("embeddings_merge", 0));
       _alignment_layer = get_attribute_with_default<int16_t>("alignment_layer", -1);
       _alignment_heads = get_attribute_with_default<int16_t>("alignment_heads", 1);
+      _layernorm_embedding = get_flag_with_default("layernorm_embedding", false);
     }
 
     std::unique_ptr<layers::Encoder> TransformerModel::make_encoder() const {
@@ -92,7 +93,8 @@ namespace ctranslate2 {
                                                           !_with_relative_position,
                                                           _pre_norm,
                                                           _activation_type,
-                                                          _embeddings_merge);
+                                                          _embeddings_merge,
+                                                          _layernorm_embedding);
     }
 
     std::unique_ptr<layers::Decoder> TransformerModel::make_decoder() const {
@@ -104,7 +106,8 @@ namespace ctranslate2 {
                                                           _pre_norm,
                                                           _activation_type,
                                                           _alignment_layer,
-                                                          _alignment_heads);
+                                                          _alignment_heads,
+                                                          _layernorm_embedding);
     }
 
   }
