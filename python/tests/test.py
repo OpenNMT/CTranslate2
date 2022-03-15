@@ -833,7 +833,7 @@ def test_fairseq_model_conversion(tmpdir):
         -0.044970035552978516,
     ]
 
-    assert scores[0] == pytest.approx(expected_scores, 1e-6)
+    assert scores[0] == pytest.approx(expected_scores, 1e-5)
 
 
 @skip_if_data_missing
@@ -873,7 +873,7 @@ def test_fairseq_user_start_token(tmpdir):
         -0.044970035552978516,
     ]
 
-    assert scores[0] == pytest.approx(expected_scores, 1e-6)
+    assert scores[0] == pytest.approx(expected_scores, 1e-5)
 
 
 @skip_if_data_missing
