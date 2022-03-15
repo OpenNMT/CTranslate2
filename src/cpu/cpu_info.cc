@@ -14,6 +14,10 @@ namespace ctranslate2 {
       return vendor;
     }
 
+    bool cpu_supports_sse41() {
+      return info.features.sse4_1;
+    }
+
     bool cpu_supports_avx() {
       return info.features.avx;
     }

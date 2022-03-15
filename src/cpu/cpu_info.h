@@ -9,6 +9,7 @@ namespace ctranslate2 {
 
     const std::string& cpu_vendor();
 #if defined(CT2_X86_BUILD)
+    bool cpu_supports_sse41();
     bool cpu_supports_avx();
     bool cpu_supports_avx2();
 #elif defined(CT2_ARM64_BUILD)
