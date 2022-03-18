@@ -551,9 +551,9 @@ def test_opennmt_tf_model_conversion(
     tgt_vocab_path = os.path.join(output_dir, "target_vocabulary.txt")
 
     # Check lines end with \n on all platforms.
-    with open(src_vocab_path, newline="") as vocab_file:
+    with open(src_vocab_path, encoding="utf-8", newline="") as vocab_file:
         assert vocab_file.readline() == "<blank>\n"
-    with open(tgt_vocab_path, newline="") as vocab_file:
+    with open(tgt_vocab_path, encoding="utf-8", newline="") as vocab_file:
         assert vocab_file.readline() == "<blank>\n"
 
     translator = ctranslate2.Translator(output_dir)
