@@ -1,13 +1,10 @@
 #pragma once
 
 #include <chrono>
-#include <future>
 #include <fstream>
-#include <mutex>
-#include <queue>
-#include <thread>
 
 #include "batch_reader.h"
+#include "thread_pool.h"
 #include "translator.h"
 
 namespace ctranslate2 {
@@ -54,8 +51,6 @@ namespace ctranslate2 {
                    const Device device,
                    const std::vector<int>& device_indices,
                    const ComputeType compute_type = ComputeType::DEFAULT);
-
-    ~TranslatorPool();
 
     std::vector<std::future<TranslationResult>>
     translate_batch_async(const std::vector<std::vector<std::string>>& source,
@@ -428,12 +423,6 @@ namespace ctranslate2 {
   private:
     friend class BufferedTranslationWrapper;
 
-    class Job {
-    public:
-      virtual ~Job() = default;
-      virtual void run(Translator& translator) = 0;
-    };
-
     // Base class for consuming job results.
     template <typename Result>
     class JobResultConsumer {
@@ -468,8 +457,26 @@ namespace ctranslate2 {
       std::vector<std::promise<Result>> _promises;
     };
 
+    class TranslatorJob : public Job {
+    public:
+      void set_translator(Translator& translator) {
+        _translator = &translator;
+      }
+
+      void run() override {
+        if (!_translator)
+          throw std::invalid_argument("No translator was assigned to this job");
+        run(*_translator);
+      }
+
+    protected:
+      virtual void run(Translator& translator) = 0;
+
+      Translator* _translator = nullptr;
+    };
+
     template <typename Result>
-    class BatchJob : public Job {
+    class BatchJob : public TranslatorJob {
     public:
       BatchJob(Batch batch, std::shared_ptr<JobResultConsumer<Result>> consumer)
         : _batch(std::move(batch))
@@ -477,6 +484,7 @@ namespace ctranslate2 {
       {
       }
 
+    protected:
       void run(Translator& translator) override {
         std::vector<Result> results;
         std::exception_ptr exception;
@@ -496,7 +504,6 @@ namespace ctranslate2 {
         }
       }
 
-    protected:
       virtual std::vector<Result>
       get_results(Translator& translator, const Batch& batch) const = 0;
 
@@ -538,7 +545,7 @@ namespace ctranslate2 {
     public:
       virtual ~JobCreator() = default;
 
-      std::vector<std::future<Result>> post(TranslatorPool& pool,
+      std::vector<std::future<Result>> post(ThreadPool& pool,
                                             const std::vector<Example>& examples,
                                             size_t max_batch_size,
                                             BatchType batch_type,
@@ -551,7 +558,7 @@ namespace ctranslate2 {
         auto futures = consumer->get_futures();
 
         for (auto& batch : batches)
-          pool.post_job(create_job(std::move(batch), consumer), throttle);
+          pool.post(create_job(std::move(batch), consumer), throttle);
 
         return futures;
       }
@@ -639,7 +646,7 @@ namespace ctranslate2 {
         auto examples = batch_reader->get_next(read_batch_size, batch_type);
         if (examples.empty())
           break;
-        auto futures = job_creator.post(*this,
+        auto futures = job_creator.post(*_thread_pool,
                                         examples,
                                         max_batch_size,
                                         batch_type,
@@ -654,6 +661,20 @@ namespace ctranslate2 {
       output.flush();
     }
 
+    class TranslatorWorker : public Worker {
+    public:
+      TranslatorWorker(Translator& translator, size_t num_threads);
+
+    protected:
+      void initialize() override;
+      void run_job(std::unique_ptr<Job> job) override;
+      void finalize() override;
+
+    private:
+      Translator& _translator;
+      const size_t _num_threads;
+    };
+
     void create_translators(size_t num_translators_per_device,
                             size_t num_threads_per_translator,
                             models::ModelReader& model_reader,
@@ -661,21 +682,11 @@ namespace ctranslate2 {
                             std::vector<int> device_indices,
                             const ComputeType compute_type);
 
-    // With throttle=true it will block if there is already too much work pending.
-    void post_job(std::unique_ptr<Job> job, bool throttle);
-    void work_loop(Translator& translator, size_t num_threads);
-
     void open_input_file(const std::string& file, std::ifstream& stream) const;
     void open_output_file(const std::string& file, std::ofstream& stream) const;
 
-    std::condition_variable _can_add_job;
-    std::condition_variable _can_get_job;
-    std::queue<std::unique_ptr<Job>> _work;
-    std::vector<std::thread> _workers;
     std::vector<Translator> _translators;
-    std::atomic<size_t> _num_active_jobs;
-    std::mutex _mutex;
-    bool _request_end = false;
+    std::unique_ptr<ThreadPool> _thread_pool;
 
     template <typename Tokenizer>
     class TokensReader {
