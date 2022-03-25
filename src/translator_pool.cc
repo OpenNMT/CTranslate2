@@ -203,17 +203,19 @@ namespace ctranslate2 {
     set_num_threads(num_threads_per_translator);
     const auto models = models::load_replicas(model_reader, device, device_indices, compute_type);
 
+    static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
+
     const size_t num_translators = models.size();
     std::vector<std::unique_ptr<Worker>> workers;
     workers.reserve(models.size());
     _translators.reserve(num_translators);
-    for (const auto& model : models) {
+    for (size_t i = 0; i < num_translators; ++i) {
+      const auto& model = models[i];
       _translators.emplace_back(model);
       workers.emplace_back(std::make_unique<TranslatorWorker>(_translators.back(),
                                                               num_threads_per_translator));
     }
 
-    static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
     _thread_pool = std::make_unique<ThreadPool>(std::move(workers),
                                                 2 * num_translators,
                                                 core_offset);
