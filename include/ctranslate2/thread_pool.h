@@ -61,9 +61,6 @@ namespace ctranslate2 {
     // Called before the work loop.
     virtual void initialize() {}
 
-    // Runs a job.
-    virtual void run_job(std::unique_ptr<Job> job);
-
     // Called after the work loop.
     virtual void finalize() {}
 

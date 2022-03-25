@@ -420,6 +420,9 @@ namespace ctranslate2 {
     size_t num_translators() const;
     const std::vector<Translator>& get_translators() const;
 
+    // Return the translator local to the current thread.
+    static Translator* get_translator();
+
   private:
     friend class BufferedTranslationWrapper;
 
@@ -457,26 +460,8 @@ namespace ctranslate2 {
       std::vector<std::promise<Result>> _promises;
     };
 
-    class TranslatorJob : public Job {
-    public:
-      void set_translator(Translator& translator) {
-        _translator = &translator;
-      }
-
-      void run() override {
-        if (!_translator)
-          throw std::invalid_argument("No translator was assigned to this job");
-        run(*_translator);
-      }
-
-    protected:
-      virtual void run(Translator& translator) = 0;
-
-      Translator* _translator = nullptr;
-    };
-
     template <typename Result>
-    class BatchJob : public TranslatorJob {
+    class BatchJob : public Job {
     public:
       BatchJob(Batch batch, std::shared_ptr<JobResultConsumer<Result>> consumer)
         : _batch(std::move(batch))
@@ -484,13 +469,12 @@ namespace ctranslate2 {
       {
       }
 
-    protected:
-      void run(Translator& translator) override {
+      void run() override {
         std::vector<Result> results;
         std::exception_ptr exception;
 
         try {
-          results = get_results(translator, _batch);
+          results = get_results();
         } catch (...) {
           exception = std::current_exception();
         }
@@ -504,11 +488,11 @@ namespace ctranslate2 {
         }
       }
 
-      virtual std::vector<Result>
-      get_results(Translator& translator, const Batch& batch) const = 0;
+    protected:
+      virtual std::vector<Result> get_results() const = 0;
+      const Batch _batch;
 
     private:
-      const Batch _batch;
       const std::shared_ptr<JobResultConsumer<Result>> _consumer;
     };
 
@@ -519,8 +503,7 @@ namespace ctranslate2 {
                    std::shared_ptr<JobResultConsumer<TranslationResult>> consumer);
 
     protected:
-      std::vector<TranslationResult>
-      get_results(Translator& translator, const Batch& batch) const override;
+      std::vector<TranslationResult> get_results() const override;
 
     private:
       const TranslationOptions _options;
@@ -533,8 +516,7 @@ namespace ctranslate2 {
                std::shared_ptr<JobResultConsumer<ScoringResult>> consumer);
 
     protected:
-      std::vector<ScoringResult>
-      get_results(Translator& translator, const Batch& batch) const override;
+      std::vector<ScoringResult> get_results() const override;
 
     private:
       const ScoringOptions _options;
@@ -667,7 +649,6 @@ namespace ctranslate2 {
 
     protected:
       void initialize() override;
-      void run_job(std::unique_ptr<Job> job) override;
       void finalize() override;
 
     private:

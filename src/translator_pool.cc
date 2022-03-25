@@ -228,11 +228,11 @@ namespace ctranslate2 {
   }
 
   std::vector<TranslationResult>
-  TranslatorPool::TranslateJob::get_results(Translator& translator, const Batch& batch) const {
-    spdlog::debug("Running batch translation on {} examples", batch.num_examples());
-    auto results = translator.translate_batch_with_prefix(batch.get_stream(0),
-                                                          batch.get_stream(1),
-                                                          _options);
+  TranslatorPool::TranslateJob::get_results() const {
+    spdlog::debug("Running batch translation on {} examples", _batch.num_examples());
+    auto results = TranslatorPool::get_translator()->translate_batch_with_prefix(_batch.get_stream(0),
+                                                                                 _batch.get_stream(1),
+                                                                                 _options);
     spdlog::debug("Finished batch translation");
     return results;
   }
@@ -246,9 +246,11 @@ namespace ctranslate2 {
   }
 
   std::vector<ScoringResult>
-  TranslatorPool::ScoreJob::get_results(Translator& translator, const Batch& batch) const {
-    spdlog::debug("Running batch scoring on {} examples", batch.num_examples());
-    auto results = translator.score_batch(batch.get_stream(0), batch.get_stream(1), _options);
+  TranslatorPool::ScoreJob::get_results() const {
+    spdlog::debug("Running batch scoring on {} examples", _batch.num_examples());
+    auto results = TranslatorPool::get_translator()->score_batch(_batch.get_stream(0),
+                                                                 _batch.get_stream(1),
+                                                                 _options);
     spdlog::debug("Finished batch scoring");
     return results;
   }
@@ -390,6 +392,12 @@ namespace ctranslate2 {
     return _translators;
   }
 
+  static thread_local Translator* local_translator = nullptr;
+
+  Translator* TranslatorPool::get_translator() {
+    return local_translator;
+  }
+
 
   TranslatorPool::TranslatorWorker::TranslatorWorker(Translator& translator, size_t num_threads)
     : _translator(translator)
@@ -400,11 +408,7 @@ namespace ctranslate2 {
   void TranslatorPool::TranslatorWorker::initialize() {
     // Set the number of OpenMP threads for the current thread.
     set_num_threads(_num_threads);
-  }
-
-  void TranslatorPool::TranslatorWorker::run_job(std::unique_ptr<Job> job) {
-    static_cast<TranslatorJob&>(*job).set_translator(_translator);
-    job->run();
+    local_translator = &_translator;
   }
 
   void TranslatorPool::TranslatorWorker::finalize() {

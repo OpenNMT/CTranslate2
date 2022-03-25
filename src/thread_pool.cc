@@ -85,14 +85,10 @@ namespace ctranslate2 {
       auto job = job_queue.get();
       if (!job)
         break;
-      run_job(std::move(job));
+      job->run();
     }
 
     finalize();
-  }
-
-  void Worker::run_job(std::unique_ptr<Job> job) {
-    job->run();
   }
 
 
