@@ -207,7 +207,7 @@ namespace ctranslate2 {
 
     const size_t num_translators = models.size();
     std::vector<std::unique_ptr<Worker>> workers;
-    workers.reserve(models.size());
+    workers.reserve(num_translators);
     _translators.reserve(num_translators);
     for (size_t i = 0; i < num_translators; ++i) {
       const auto& model = models[i];
