@@ -53,10 +53,9 @@ namespace ctranslate2 {
   // A worker processes jobs in a thread.
   class Worker {
   public:
-    virtual ~Worker() = default;
+    virtual ~Worker();  // The job queue should be closed before calling this constructor.
 
-    // Consumes and runs jobs in a loop. The method exits when the queue is closed.
-    void run(JobQueue& job_queue);
+    void start(JobQueue& job_queue, int thread_affinity = -1);
 
   protected:
     // Called before the work loop.
@@ -67,6 +66,11 @@ namespace ctranslate2 {
 
     // Called after the work loop.
     virtual void finalize() {}
+
+  private:
+    void run(JobQueue& job_queue);
+
+    std::thread _thread;
   };
 
   // A pool of threads.
@@ -97,12 +101,10 @@ namespace ctranslate2 {
     size_t num_active_jobs() const;
 
   private:
-    void start_threads();
+    void start_workers(int core_offset);
 
     JobQueue _queue;
-    const int _core_offset;
     std::vector<std::unique_ptr<Worker>> _workers;
-    std::vector<std::thread> _threads;
     std::atomic<size_t> _num_active_jobs;
   };
 
