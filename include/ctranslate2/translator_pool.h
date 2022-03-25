@@ -166,10 +166,8 @@ namespace ctranslate2 {
                                            const size_t read_batch_size = 0,
                                            const BatchType batch_type = BatchType::Examples,
                                            const bool with_scores = false) {
-      std::ifstream in;
-      open_input_file(in_file, in);
-      std::ofstream out;
-      open_output_file(out_file, out);
+      auto in = open_file<std::ifstream>(in_file);
+      auto out = open_file<std::ofstream>(out_file);
       return consume_raw_text_file(in,
                                    out,
                                    tokenizer,
@@ -217,16 +215,11 @@ namespace ctranslate2 {
                                            const size_t read_batch_size = 0,
                                            const BatchType batch_type = BatchType::Examples,
                                            const bool with_scores = false) {
-      std::ifstream source;
-      open_input_file(source_file, source);
-      std::ofstream output;
-      open_output_file(output_file, output);
-
-      std::unique_ptr<std::ifstream> target;
-      if (target_file) {
-        target = std::make_unique<std::ifstream>();
-        open_input_file(*target_file, *target);
-      }
+      auto source = open_file<std::ifstream>(source_file);
+      auto output = open_file<std::ofstream>(output_file);
+      auto target = (target_file
+                     ? std::make_unique<std::ifstream>(open_file<std::ifstream>(*target_file))
+                     : nullptr);
 
       return consume_raw_text_file(source,
                                    target.get(),
@@ -347,12 +340,9 @@ namespace ctranslate2 {
                                          const size_t read_batch_size = 0,
                                          const BatchType batch_type = BatchType::Examples,
                                          bool with_tokens_score = false) {
-      std::ifstream source;
-      open_input_file(source_file, source);
-      std::ifstream target;
-      open_input_file(target_file, target);
-      std::ofstream output;
-      open_output_file(output_file, output);
+      auto source = open_file<std::ifstream>(source_file);
+      auto target = open_file<std::ifstream>(target_file);
+      auto output = open_file<std::ofstream>(output_file);
       return score_raw_text_file(source,
                                  target,
                                  output,
@@ -662,9 +652,6 @@ namespace ctranslate2 {
                             const Device device,
                             std::vector<int> device_indices,
                             const ComputeType compute_type);
-
-    void open_input_file(const std::string& file, std::ifstream& stream) const;
-    void open_output_file(const std::string& file, std::ofstream& stream) const;
 
     std::vector<Translator> _translators;
     std::unique_ptr<ThreadPool> _thread_pool;
