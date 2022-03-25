@@ -68,14 +68,14 @@ namespace ctranslate2 {
   }
 
 
-  Worker::~Worker() {
-    _thread.join();
-  }
-
   void Worker::start(JobQueue& job_queue, int thread_affinity) {
     _thread = std::thread(&Worker::run, this, std::ref(job_queue));
     if (thread_affinity >= 0)
       set_thread_affinity(_thread, thread_affinity);
+  }
+
+  void Worker::join() {
+    _thread.join();
   }
 
   void Worker::run(JobQueue& job_queue) {
@@ -115,6 +115,8 @@ namespace ctranslate2 {
 
   ThreadPool::~ThreadPool() {
     _queue.close();
+    for (auto& worker : _workers)
+      worker->join();
   }
 
   void ThreadPool::start_workers(int core_offset) {
@@ -137,6 +139,10 @@ namespace ctranslate2 {
 
   size_t ThreadPool::num_active_jobs() const {
     return _num_active_jobs;
+  }
+
+  Worker& ThreadPool::get_worker(size_t index) {
+    return *_workers.at(index);
   }
 
 }

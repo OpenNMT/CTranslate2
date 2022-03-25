@@ -82,11 +82,12 @@ static BatchTokens finalize_optional_batch(const BatchTokensOptional& optional) 
 }
 
 static inline std::vector<int>
-get_translators_location(const std::vector<ctranslate2::Translator>& translators) {
+get_translators_location(const ctranslate2::TranslatorPool& translator_pool) {
+  const size_t num_translators = translator_pool.num_translators();
   std::vector<int> ids;
-  ids.reserve(translators.size());
-  for (const auto& translator : translators)
-    ids.emplace_back(translator.device_index());
+  ids.reserve(num_translators);
+  for (size_t i = 0; i < num_translators; ++i)
+    ids.emplace_back(translator_pool.get_translator(i).device_index());
   return ids;
 }
 
@@ -140,7 +141,7 @@ public:
                        _device,
                        std::visit(DeviceIndexResolver(), device_index),
                        _compute_type)
-    , _device_index(get_translators_location(_translator_pool.get_translators()))
+    , _device_index(get_translators_location(_translator_pool))
     , _model_is_loaded(true) {
   }
 
@@ -415,11 +416,13 @@ public:
     if (!lock || !_model_is_loaded)
       return;
 
-    const auto& translators = _translator_pool.get_translators();
+    const size_t num_translators = _translator_pool.num_translators();
     if (to_cpu)
-      _cached_models.reserve(translators.size());
+      _cached_models.reserve(num_translators);
 
-    for (const auto& translator : translators) {
+    for (size_t i = 0; i < num_translators; ++i) {
+      const auto& translator = _translator_pool.get_translator(i);
+
       {
         const auto model = const_cast<ctranslate2::Translator&>(translator).detach_model();
 
@@ -428,12 +431,11 @@ public:
           _cached_models.emplace_back(model);
         }
       }
-
-      // Clear cache of memory allocator associated with this translator.
-      auto* allocator = translator.get_allocator();
-      if (allocator && _device == ctranslate2::Device::CUDA)
-        allocator->clear_cache();
     }
+
+    // We clear the CUDA allocator cache to further reduce the memory after unloading the model.
+    if (_device == ctranslate2::Device::CUDA)
+      _translator_pool.clear_cache();
 
     _model_is_loaded = false;
   }
@@ -450,11 +452,9 @@ public:
                                                           _compute_type);
     }
 
-    const auto& translators = _translator_pool.get_translators();
-
     for (size_t i = 0; i < _cached_models.size(); ++i) {
       const auto& model = _cached_models[i];
-      const auto& translator = translators[i];
+      const auto& translator = _translator_pool.get_translator(i);
 
       // If the model was unloaded to the system memory, move it back to the initial device.
       if (model->device() != _device)

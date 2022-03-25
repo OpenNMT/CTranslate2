@@ -408,10 +408,12 @@ namespace ctranslate2 {
     size_t num_active_batches() const;
 
     size_t num_translators() const;
-    const std::vector<Translator>& get_translators() const;
+    const Translator& get_translator(size_t index) const;
 
     // Return the translator local to the current thread.
     static Translator* get_translator();
+
+    void clear_cache() const;
 
   private:
     friend class BufferedTranslationWrapper;
@@ -635,16 +637,28 @@ namespace ctranslate2 {
 
     class TranslatorWorker : public Worker {
     public:
-      TranslatorWorker(Translator& translator, size_t num_threads);
+      TranslatorWorker(const std::shared_ptr<const models::Model>& model, size_t num_threads);
+
+      Translator& translator() {
+        return _translator;
+      }
+
+      Allocator* allocator() {
+        return _allocator;
+      }
 
     protected:
       void initialize() override;
       void finalize() override;
 
     private:
-      Translator& _translator;
+      Translator _translator;
+      Allocator* _allocator;
+      const Device _device;
       const size_t _num_threads;
     };
+
+    TranslatorWorker& get_worker(size_t index) const;
 
     void create_translators(size_t num_translators_per_device,
                             size_t num_threads_per_translator,

@@ -53,9 +53,10 @@ namespace ctranslate2 {
   // A worker processes jobs in a thread.
   class Worker {
   public:
-    virtual ~Worker();  // The job queue should be closed before calling this constructor.
+    virtual ~Worker() = default;
 
     void start(JobQueue& job_queue, int thread_affinity = -1);
+    void join();
 
   protected:
     // Called before the work loop.
@@ -96,6 +97,8 @@ namespace ctranslate2 {
 
     // Number of jobs in the queue and currently processed by a worker.
     size_t num_active_jobs() const;
+
+    Worker& get_worker(size_t index);
 
   private:
     void start_workers(int core_offset);

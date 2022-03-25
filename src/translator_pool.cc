@@ -203,21 +203,15 @@ namespace ctranslate2 {
     set_num_threads(num_threads_per_translator);
     const auto models = models::load_replicas(model_reader, device, device_indices, compute_type);
 
-    static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
-
-    const size_t num_translators = models.size();
+    const size_t num_workers = models.size();
     std::vector<std::unique_ptr<Worker>> workers;
-    workers.reserve(num_translators);
-    _translators.reserve(num_translators);
-    for (size_t i = 0; i < num_translators; ++i) {
-      const auto& model = models[i];
-      _translators.emplace_back(model);
-      workers.emplace_back(std::make_unique<TranslatorWorker>(_translators.back(),
-                                                              num_threads_per_translator));
-    }
+    workers.reserve(num_workers);
+    for (const auto& model : models)
+      workers.emplace_back(std::make_unique<TranslatorWorker>(model, num_threads_per_translator));
 
+    static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
     _thread_pool = std::make_unique<ThreadPool>(std::move(workers),
-                                                2 * num_translators,
+                                                2 * num_workers,
                                                 core_offset);
   }
 
@@ -367,11 +361,23 @@ namespace ctranslate2 {
   }
 
   size_t TranslatorPool::num_translators() const {
-    return _translators.size();
+    return _thread_pool->num_threads();
   }
 
-  const std::vector<Translator>& TranslatorPool::get_translators() const {
-    return _translators;
+  TranslatorPool::TranslatorWorker& TranslatorPool::get_worker(size_t index) const {
+    return static_cast<TranslatorWorker&>(_thread_pool->get_worker(index));
+  }
+
+  const Translator& TranslatorPool::get_translator(size_t index) const {
+    return get_worker(index).translator();
+  }
+
+  void TranslatorPool::clear_cache() const {
+    for (size_t i = 0; i < num_translators(); ++i) {
+      auto* allocator = get_worker(i).allocator();
+      if (allocator)
+        allocator->clear_cache();
+    }
   }
 
   static thread_local Translator* local_translator = nullptr;
@@ -381,8 +387,11 @@ namespace ctranslate2 {
   }
 
 
-  TranslatorPool::TranslatorWorker::TranslatorWorker(Translator& translator, size_t num_threads)
-    : _translator(translator)
+  TranslatorPool::TranslatorWorker::TranslatorWorker(const std::shared_ptr<const models::Model>& model,
+                                                     size_t num_threads)
+    : _translator(model)
+    , _allocator(nullptr)
+    , _device(model->device())
     , _num_threads(num_threads)
   {
   }
@@ -390,6 +399,10 @@ namespace ctranslate2 {
   void TranslatorPool::TranslatorWorker::initialize() {
     // Set the number of OpenMP threads for the current thread.
     set_num_threads(_num_threads);
+
+    // Register the memory allocator used in this thread.
+    _allocator = &get_allocator(_device);
+
     local_translator = &_translator;
   }
 
@@ -397,6 +410,8 @@ namespace ctranslate2 {
     // The CUDA context is destroyed when the thread exits, so we clear the translation
     // resources now when the CUDA context is still active.
     _translator.detach_model();
+
+    local_translator = nullptr;
   }
 
 }
