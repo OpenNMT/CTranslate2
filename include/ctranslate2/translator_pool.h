@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <future>
 #include <fstream>
 
 #include "batch_reader.h"

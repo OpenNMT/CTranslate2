@@ -1,7 +1,7 @@
 #pragma once
 
+#include <atomic>
 #include <condition_variable>
-#include <future>
 #include <memory>
 #include <mutex>
 #include <queue>
