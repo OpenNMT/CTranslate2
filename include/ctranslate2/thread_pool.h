@@ -44,7 +44,7 @@ namespace ctranslate2 {
   private:
     mutable std::mutex _mutex;
     std::queue<std::unique_ptr<Job>> _queue;
-    std::condition_variable _can_add_job;
+    std::condition_variable _can_put_job;
     std::condition_variable _can_get_job;
     size_t _maximum_size;
     bool _request_end;

@@ -33,7 +33,7 @@ namespace ctranslate2 {
   void JobQueue::put(std::unique_ptr<Job> job, bool throttle) {
     std::unique_lock<std::mutex> lock(_mutex);
     if (throttle)
-      _can_add_job.wait(lock, [this]{ return _queue.size() < _maximum_size; });
+      _can_put_job.wait(lock, [this]{ return _queue.size() < _maximum_size; });
 
     _queue.emplace(std::move(job));
     lock.unlock();
@@ -48,7 +48,7 @@ namespace ctranslate2 {
       auto job = std::move(_queue.front());
       _queue.pop();
       lock.unlock();
-      _can_add_job.notify_one();
+      _can_put_job.notify_one();
       return job;
     }
 
