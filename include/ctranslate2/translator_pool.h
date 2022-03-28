@@ -667,7 +667,6 @@ namespace ctranslate2 {
                             std::vector<int> device_indices,
                             const ComputeType compute_type);
 
-    std::vector<Translator> _translators;
     std::unique_ptr<ThreadPool> _thread_pool;
 
     template <typename Tokenizer>
