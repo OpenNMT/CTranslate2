@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <condition_variable>
+#include <limits>
 #include <memory>
 #include <mutex>
 #include <queue>
@@ -26,16 +27,15 @@ namespace ctranslate2 {
   // A thread-safe queue of jobs.
   class JobQueue {
   public:
-    JobQueue(size_t maximum_size = 0);
+    JobQueue(size_t maximum_size);
     ~JobQueue();
 
     size_t size() const;
 
-    // Puts a job in the queue.
-    // If throttle=true, the method blocks until a free slot is available.
-    void put(std::unique_ptr<Job> job, bool throttle = true);
+    // Puts a job in the queue. The method blocks until a free slot is available.
+    void put(std::unique_ptr<Job> job);
 
-    // Gets a job from the queue. The method block until a job is available.
+    // Gets a job from the queue. The method blocks until a job is available.
     // If the queue is closed, the method returns a null pointer.
     std::unique_ptr<Job> get();
 
@@ -76,19 +76,18 @@ namespace ctranslate2 {
   public:
     // Default thread workers.
     ThreadPool(size_t num_threads,
-               size_t maximum_queue_size = 0,
+               size_t maximum_queue_size = std::numeric_limits<size_t>::max(),
                int core_offset = -1);
 
     // User-defined thread workers.
     ThreadPool(std::vector<std::unique_ptr<Worker>> workers,
-               size_t maximum_queue_size = 0,
+               size_t maximum_queue_size = std::numeric_limits<size_t>::max(),
                int core_offset = -1);
 
     ~ThreadPool();
 
-    // Posts a new job.
-    // If throttle=true, the method blocks until a free slot is available.
-    void post(std::unique_ptr<Job> job, bool throttle = true);
+    // Posts a new job. The method blocks if the job queue is full.
+    void post(std::unique_ptr<Job> job);
 
     size_t num_threads() const;
 

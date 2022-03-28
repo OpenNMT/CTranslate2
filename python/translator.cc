@@ -131,7 +131,8 @@ public:
                     const std::variant<int, std::vector<int>>& device_index,
                     const StringOrMap& compute_type,
                     size_t inter_threads,
-                    size_t intra_threads)
+                    size_t intra_threads,
+                    long max_queued_batches)
     : _model_path(model_path)
     , _device(ctranslate2::str_to_device(device))
     , _compute_type(std::visit(ComputeTypeResolver(device), compute_type))
@@ -140,7 +141,8 @@ public:
                        model_path,
                        _device,
                        std::visit(DeviceIndexResolver(), device_index),
-                       _compute_type)
+                       _compute_type,
+                       max_queued_batches)
     , _device_index(get_translators_location(_translator_pool))
     , _model_is_loaded(true) {
   }
@@ -563,7 +565,8 @@ PYBIND11_MODULE(translator, m)
          py::arg("device_index")=0,
          py::arg("compute_type")="default",
          py::arg("inter_threads")=1,
-         py::arg("intra_threads")=0)
+         py::arg("intra_threads")=0,
+         py::arg("max_queued_batches")=0)
     .def_property_readonly("device", &TranslatorWrapper::device)
     .def_property_readonly("device_index", &TranslatorWrapper::device_index)
     .def_property_readonly("num_translators", &TranslatorWrapper::num_translators)

@@ -30,10 +30,9 @@ namespace ctranslate2 {
     return _queue.size();
   }
 
-  void JobQueue::put(std::unique_ptr<Job> job, bool throttle) {
+  void JobQueue::put(std::unique_ptr<Job> job) {
     std::unique_lock<std::mutex> lock(_mutex);
-    if (throttle)
-      _can_put_job.wait(lock, [this]{ return _queue.size() < _maximum_size; });
+    _can_put_job.wait(lock, [this]{ return _queue.size() < _maximum_size; });
 
     _queue.emplace(std::move(job));
     lock.unlock();
@@ -124,9 +123,9 @@ namespace ctranslate2 {
       _workers[i]->start(_queue, core_offset >= 0 ? core_offset + i : core_offset);
   }
 
-  void ThreadPool::post(std::unique_ptr<Job> job, bool throttle) {
+  void ThreadPool::post(std::unique_ptr<Job> job) {
     job->set_job_counter(_num_active_jobs);
-    _queue.put(std::move(job), throttle);
+    _queue.put(std::move(job));
   }
 
   size_t ThreadPool::num_threads() const {

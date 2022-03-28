@@ -15,7 +15,8 @@ namespace ctranslate2 {
                                  const std::string& model_dir,
                                  const Device device,
                                  const int device_index,
-                                 const ComputeType compute_type)
+                                 const ComputeType compute_type,
+                                 const long max_queued_batches)
   {
     models::ModelFileReader model_reader(model_dir);
     create_translators(num_translators,
@@ -23,7 +24,8 @@ namespace ctranslate2 {
                        model_reader,
                        device,
                        {device_index},
-                       compute_type);
+                       compute_type,
+                       max_queued_batches);
   }
 
   TranslatorPool::TranslatorPool(size_t num_translators,
@@ -31,14 +33,16 @@ namespace ctranslate2 {
                                  models::ModelReader& model_reader,
                                  const Device device,
                                  const int device_index,
-                                 const ComputeType compute_type)
+                                 const ComputeType compute_type,
+                                 const long max_queued_batches)
   {
     create_translators(num_translators,
                        num_threads_per_translator,
                        model_reader,
                        device,
                        {device_index},
-                       compute_type);
+                       compute_type,
+                       max_queued_batches);
   }
 
   TranslatorPool::TranslatorPool(size_t num_translators_per_device,
@@ -46,7 +50,8 @@ namespace ctranslate2 {
                                  const std::string& model_dir,
                                  const Device device,
                                  const std::vector<int>& device_indices,
-                                 const ComputeType compute_type)
+                                 const ComputeType compute_type,
+                                 const long max_queued_batches)
   {
     models::ModelFileReader model_reader(model_dir);
     create_translators(num_translators_per_device,
@@ -54,7 +59,8 @@ namespace ctranslate2 {
                        model_reader,
                        device,
                        device_indices,
-                       compute_type);
+                       compute_type,
+                       max_queued_batches);
   }
 
   TranslatorPool::TranslatorPool(size_t num_translators_per_device,
@@ -62,14 +68,16 @@ namespace ctranslate2 {
                                  models::ModelReader& model_reader,
                                  const Device device,
                                  const std::vector<int>& device_indices,
-                                 const ComputeType compute_type)
+                                 const ComputeType compute_type,
+                                 const long max_queued_batches)
   {
     create_translators(num_translators_per_device,
                        num_threads_per_translator,
                        model_reader,
                        device,
                        device_indices,
-                       compute_type);
+                       compute_type,
+                       max_queued_batches);
   }
 
   std::vector<std::future<TranslationResult>>
@@ -89,8 +97,7 @@ namespace ctranslate2 {
     return TranslateJobCreator(options).post(*_thread_pool,
                                              load_examples({source, target_prefix}),
                                              max_batch_size,
-                                             batch_type,
-                                             /*throttle=*/false);
+                                             batch_type);
   }
 
   std::vector<std::future<ScoringResult>>
@@ -102,8 +109,7 @@ namespace ctranslate2 {
     return ScoreJobCreator(options).post(*_thread_pool,
                                          load_examples({source, target}),
                                          max_batch_size,
-                                         batch_type,
-                                         /*throttle=*/false);
+                                         batch_type);
   }
 
   std::vector<TranslationResult>
@@ -184,7 +190,8 @@ namespace ctranslate2 {
                                           models::ModelReader& model_reader,
                                           const Device device,
                                           std::vector<int> device_indices,
-                                          const ComputeType compute_type) {
+                                          const ComputeType compute_type,
+                                          const long max_queued_batches) {
     if (device_indices.empty())
       throw std::invalid_argument("At least one device index should be set");
 
@@ -210,9 +217,14 @@ namespace ctranslate2 {
       workers.emplace_back(std::make_unique<TranslatorWorker>(model, num_threads_per_translator));
 
     static const int core_offset = read_int_from_env("CT2_TRANSLATORS_CORE_OFFSET", -1);
-    _thread_pool = std::make_unique<ThreadPool>(std::move(workers),
-                                                2 * num_workers,
-                                                core_offset);
+
+    size_t max_queue_size = std::numeric_limits<size_t>::max();
+    if (max_queued_batches == 0)
+      max_queue_size = 4 * num_workers;
+    else if (max_queued_batches > 0)
+      max_queue_size = max_queued_batches;
+
+    _thread_pool = std::make_unique<ThreadPool>(std::move(workers), max_queue_size, core_offset);
   }
 
   TranslatorPool::TranslateJob::TranslateJob(Batch batch,

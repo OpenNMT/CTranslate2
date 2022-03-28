@@ -27,7 +27,8 @@ namespace ctranslate2 {
                    const std::string& model_dir,
                    const Device device = Device::CPU,
                    const int device_index = 0,
-                   const ComputeType compute_type = ComputeType::DEFAULT);
+                   const ComputeType compute_type = ComputeType::DEFAULT,
+                   const long max_queued_batches = 0);
 
     // Constructor with ModelReader.
     TranslatorPool(size_t num_translators,
@@ -35,7 +36,8 @@ namespace ctranslate2 {
                    models::ModelReader& model_reader,
                    const Device device,
                    const int device_index,
-                   const ComputeType compute_type = ComputeType::DEFAULT);
+                   const ComputeType compute_type = ComputeType::DEFAULT,
+                   const long max_queued_batches = 0);
 
     // Multi-device constructor.
     TranslatorPool(size_t num_translators_per_device,
@@ -43,7 +45,8 @@ namespace ctranslate2 {
                    const std::string& model_dir,
                    const Device device,
                    const std::vector<int>& device_indices,
-                   const ComputeType compute_type = ComputeType::DEFAULT);
+                   const ComputeType compute_type = ComputeType::DEFAULT,
+                   const long max_queued_batches = 0);
 
     // Multi-device constructor with ModelReader.
     TranslatorPool(size_t num_translators_per_device,
@@ -51,7 +54,8 @@ namespace ctranslate2 {
                    models::ModelReader& model_reader,
                    const Device device,
                    const std::vector<int>& device_indices,
-                   const ComputeType compute_type = ComputeType::DEFAULT);
+                   const ComputeType compute_type = ComputeType::DEFAULT,
+                   const long max_queued_batches = 0);
 
     std::vector<std::future<TranslationResult>>
     translate_batch_async(const std::vector<std::vector<std::string>>& source,
@@ -523,8 +527,7 @@ namespace ctranslate2 {
       std::vector<std::future<Result>> post(ThreadPool& pool,
                                             const std::vector<Example>& examples,
                                             size_t max_batch_size,
-                                            BatchType batch_type,
-                                            bool throttle) const {
+                                            BatchType batch_type) const {
         if (examples.empty())
           return {};
 
@@ -533,7 +536,7 @@ namespace ctranslate2 {
         auto futures = consumer->get_futures();
 
         for (auto& batch : batches)
-          pool.post(create_job(std::move(batch), consumer), throttle);
+          pool.post(create_job(std::move(batch), consumer));
 
         return futures;
       }
@@ -624,8 +627,7 @@ namespace ctranslate2 {
         auto futures = job_creator.post(*_thread_pool,
                                         examples,
                                         max_batch_size,
-                                        batch_type,
-                                        /*throttle=*/true);
+                                        batch_type);
         for (auto& future : futures)
           results.emplace(std::move(future));
 
@@ -666,7 +668,8 @@ namespace ctranslate2 {
                             models::ModelReader& model_reader,
                             const Device device,
                             std::vector<int> device_indices,
-                            const ComputeType compute_type);
+                            const ComputeType compute_type,
+                            const long max_queued_batches);
 
     std::unique_ptr<ThreadPool> _thread_pool;
 
