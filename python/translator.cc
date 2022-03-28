@@ -558,7 +558,7 @@ PYBIND11_MODULE(translator, m)
   declare_async_wrapper<ctranslate2::TranslationResult>(m, "AsyncTranslationResult");
 
   py::class_<TranslatorWrapper>(m, "Translator")
-    .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t>(),
+    .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long>(),
          py::arg("model_path"),
          py::arg("device")="cpu",
          py::kw_only(),
