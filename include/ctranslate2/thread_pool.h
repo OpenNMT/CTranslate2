@@ -50,7 +50,7 @@ namespace ctranslate2 {
     bool _request_end;
   };
 
-  // A worker processes jobs in a thread.
+  // A worker processing jobs in a thread.
   class Worker {
   public:
     virtual ~Worker() = default;

@@ -65,7 +65,7 @@ translator = ctranslate2.Translator(
                                     # Set 0 to use a default value.
 
     max_queued_batches: int = 0,    # Maximum number of batches in the translation queue (set -1 for unlimited, 0 for an automatic value).
-                                    # When the queue is full, future requests block until a free slot is available.
+                                    # When the queue is full, future requests will block until a free slot is available.
 )
 
 # Properties:
