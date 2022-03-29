@@ -2,11 +2,11 @@
 
 #include <spdlog/spdlog.h>
 
-#include "ctranslate2/utils.h"
-
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
 #endif
+
+#include "env.h"
 
 namespace ctranslate2 {
 

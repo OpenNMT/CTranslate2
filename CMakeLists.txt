@@ -86,6 +86,7 @@ set(SOURCES
   src/cpu/primitives.cc
   src/decoding.cc
   src/devices.cc
+  src/env.cc
   src/layers/attention.cc
   src/layers/common.cc
   src/layers/decoder.cc
