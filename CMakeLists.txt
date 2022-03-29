@@ -131,6 +131,7 @@ set(SOURCES
   src/ops/transpose.cc
   src/padder.cc
   src/profiler.cc
+  src/random.cc
   src/sampling.cc
   src/scoring.cc
   src/storage_view.cc

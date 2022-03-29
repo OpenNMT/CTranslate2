@@ -1,7 +1,6 @@
 #pragma once
 
 #include <fstream>
-#include <random>
 #include <string>
 #include <thread>
 #include <vector>
@@ -61,10 +60,6 @@ namespace ctranslate2 {
         sequence.resize(max_length);
     }
   }
-
-  void set_random_seed(const unsigned int seed);
-  unsigned int get_random_seed();
-  std::mt19937& get_random_generator();
 
 #ifdef NDEBUG
 #  define THROW_EXCEPTION(EXCEPTION, MESSAGE) throw EXCEPTION(MESSAGE)
