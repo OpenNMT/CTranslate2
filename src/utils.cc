@@ -143,20 +143,6 @@ namespace ctranslate2 {
     }
   }
 
-  dim_t get_preferred_size_multiple(ComputeType compute_type, Device device, int device_index) {
-#ifdef CT2_WITH_CUDA
-    if (device == Device::CUDA) {
-      if (compute_type == ComputeType::FLOAT16 && cuda::gpu_has_fp16_tensor_cores(device_index))
-        return 8;
-    }
-#else
-    (void)compute_type;
-    (void)device;
-    (void)device_index;
-#endif
-    return 1;
-  }
-
   static inline size_t get_default_num_threads() {
     constexpr size_t default_num_threads = 4;
     const size_t max_num_threads = std::thread::hardware_concurrency();

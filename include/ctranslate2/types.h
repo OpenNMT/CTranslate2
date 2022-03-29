@@ -46,4 +46,9 @@ namespace ctranslate2 {
   // Gets the default floating point type for the given compute type.
   DataType get_default_float_type(const ComputeType compute_type);
 
+  // Gets the preferred size multiple for this compute type.
+  dim_t get_preferred_size_multiple(const ComputeType compute_type,
+                                    const Device device,
+                                    const int device_index = 0);
+
 }

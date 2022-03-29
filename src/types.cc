@@ -4,6 +4,10 @@
 
 #include "ctranslate2/utils.h"
 
+#ifdef CT2_WITH_CUDA
+#  include "./cuda/utils.h"
+#endif
+
 namespace ctranslate2 {
 
   std::string dtype_name(DataType type) {
@@ -195,6 +199,22 @@ namespace ctranslate2 {
     default:
       throw std::invalid_argument("resolve_compute_type should be called first");
     }
+  }
+
+  dim_t get_preferred_size_multiple(const ComputeType compute_type,
+                                    const Device device,
+                                    const int device_index) {
+#ifdef CT2_WITH_CUDA
+    if (device == Device::CUDA) {
+      if (compute_type == ComputeType::FLOAT16 && cuda::gpu_has_fp16_tensor_cores(device_index))
+        return 8;
+    }
+#else
+    (void)compute_type;
+    (void)device;
+    (void)device_index;
+#endif
+    return 1;
   }
 
 }
