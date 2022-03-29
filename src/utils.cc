@@ -157,14 +157,6 @@ namespace ctranslate2 {
     return 1;
   }
 
-  int get_gpu_count() {
-#ifdef CT2_WITH_CUDA
-    return cuda::get_gpu_count();
-#else
-    return 0;
-#endif
-  }
-
   static inline size_t get_default_num_threads() {
     constexpr size_t default_num_threads = 4;
     const size_t max_num_threads = std::thread::hardware_concurrency();
