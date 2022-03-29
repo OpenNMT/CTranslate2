@@ -287,20 +287,6 @@ namespace ctranslate2 {
                              target.get());
   }
 
-  static std::vector<std::string> split_tokens(const std::string& text) {
-    return split_string(text, ' ');
-  }
-
-  static std::string join_tokens(const std::vector<std::string>& tokens) {
-    std::string text;
-    for (const auto& token : tokens) {
-      if (!text.empty())
-        text += ' ';
-      text += token;
-    }
-    return text;
-  }
-
   TranslationStats TranslatorPool::consume_text_file(std::istream& source,
                                                      std::ostream& output,
                                                      const TranslationOptions& options,

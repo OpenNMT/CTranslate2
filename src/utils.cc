@@ -238,6 +238,20 @@ namespace ctranslate2 {
     return parts;
   }
 
+  std::vector<std::string> split_tokens(const std::string& text) {
+    return split_string(text, ' ');
+  }
+
+  std::string join_tokens(const std::vector<std::string>& tokens) {
+    std::string text;
+    for (const auto& token : tokens) {
+      if (!text.empty())
+        text += ' ';
+      text += token;
+    }
+    return text;
+  }
+
   constexpr unsigned int default_seed = static_cast<unsigned int>(-1);
   static std::atomic<unsigned int> g_seed(default_seed);
 
