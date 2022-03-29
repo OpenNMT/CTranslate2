@@ -102,47 +102,6 @@ namespace ctranslate2 {
     }
   } logger_init;
 
-  bool mayiuse_float16(Device device, int device_index) {
-    switch (device) {
-    case Device::CUDA: {
-#ifdef CT2_WITH_CUDA
-      static const bool allow_float16 = read_bool_from_env("CT2_CUDA_ALLOW_FP16");
-      return allow_float16 || cuda::gpu_has_fp16_tensor_cores(device_index);
-#else
-      (void)device_index;
-      return false;
-#endif
-    }
-    default:
-      return false;
-    }
-  }
-
-  bool mayiuse_int16(Device device, int) {
-    switch (device) {
-    case Device::CPU:
-      return cpu::has_gemm_backend(ComputeType::INT16);
-    default:
-      return false;
-    }
-  }
-
-  bool mayiuse_int8(Device device, int device_index) {
-    switch (device) {
-    case Device::CUDA:
-#ifdef CT2_WITH_CUDA
-      return cuda::gpu_supports_int8(device_index);
-#else
-      (void)device_index;
-      return false;
-#endif
-    case Device::CPU:
-      return cpu::has_gemm_backend(ComputeType::INT8);
-    default:
-      return false;
-    }
-  }
-
   static inline size_t get_default_num_threads() {
     constexpr size_t default_num_threads = 4;
     const size_t max_num_threads = std::thread::hardware_concurrency();

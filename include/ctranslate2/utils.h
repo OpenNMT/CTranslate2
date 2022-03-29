@@ -5,19 +5,12 @@
 #include <thread>
 #include <vector>
 
-#include "devices.h"
-
 namespace ctranslate2 {
 
   bool string_to_bool(const std::string& str);
   std::string read_string_from_env(const char* var, const std::string& default_value = "");
   bool read_bool_from_env(const char* var, const bool default_value = false);
   int read_int_from_env(const char* var, const int default_value = 0);
-
-  // Check feature support.
-  bool mayiuse_float16(Device device, int device_index = 0);
-  bool mayiuse_int16(Device device, int device_index = 0);
-  bool mayiuse_int8(Device device, int device_index = 0);
 
   void set_num_threads(size_t num_threads);
   void set_thread_affinity(std::thread& thread, int index);
