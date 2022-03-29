@@ -2,7 +2,6 @@
 
 #include <fstream>
 #include <string>
-#include <thread>
 #include <vector>
 
 namespace ctranslate2 {
@@ -10,7 +9,6 @@ namespace ctranslate2 {
   bool string_to_bool(const std::string& str);
 
   void set_num_threads(size_t num_threads);
-  void set_thread_affinity(std::thread& thread, int index);
 
   bool ends_with(const std::string& str, const std::string& suffix);
   bool starts_with(const std::string& str, const std::string& prefix);
