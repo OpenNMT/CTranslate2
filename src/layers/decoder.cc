@@ -92,12 +92,10 @@ namespace ctranslate2 {
         std::iota(ids.begin(), ids.end(), size_t(0));
       }
 
-      if (!exclude_ids.empty()) {
-        ids.erase(
-          std::remove_if(ids.begin(), ids.end(), [&exclude_ids](size_t id) {
-            return std::find(exclude_ids.begin(), exclude_ids.end(), id) != exclude_ids.end();
-          }),
-          ids.end());
+      for (const size_t exclude_id : exclude_ids) {
+        const auto it = std::lower_bound(ids.begin(), ids.end(), exclude_id);
+        if (it != ids.end() && *it == exclude_id)
+          ids.erase(it);
       }
 
       // Pad size to the next multiple.

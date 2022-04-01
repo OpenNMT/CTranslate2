@@ -37,6 +37,7 @@ namespace ctranslate2 {
       void gather_state(DecoderState& state, const StorageView& indices) const;
 
       // Restrict the output layer to a set of ids and/or resize it to a preferred size multiple.
+      // Elements in include_ids and exclude_ids must be unique and sorted.
       // If the output layer is updated, the returned vector is not null and maps new indices
       // to original indices.
       const std::vector<size_t>*
