@@ -64,12 +64,9 @@ namespace ctranslate2 {
       if (_vocabulary_size == 0)
         _vocabulary_size = current_output_size;
 
-      std::vector<size_t> ids;
+      std::vector<size_t> ids = include_ids;
 
-      if (!include_ids.empty()) {
-        ids = include_ids;
-
-      } else {
+      if (ids.empty()) {
         dim_t target_output_size = _vocabulary_size - exclude_ids.size();
         if (target_output_size % size_multiple != 0)
           target_output_size += size_multiple - (target_output_size % size_multiple);
