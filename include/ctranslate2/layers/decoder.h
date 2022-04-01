@@ -67,6 +67,7 @@ namespace ctranslate2 {
 
     private:
       std::vector<size_t> _output_layer_index;
+      std::vector<size_t> _previous_exclude_ids;
       dim_t _vocabulary_size = 0;
     };
 

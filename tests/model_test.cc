@@ -26,6 +26,10 @@ TEST(ModelTest, UpdateDecoderOutputLayer) {
   EXPECT_NE(decoder->update_output_layer(43, {}, {1}), nullptr);
   EXPECT_EQ(decoder->output_size(), 43);
 
+  // Reset output layer.
+  EXPECT_EQ(decoder->update_output_layer(), nullptr);
+  EXPECT_EQ(decoder->output_size(), 43);
+
   // Restrict to {0, 1, 2, 5} - {1} and pad to a multiple of 5.
   EXPECT_EQ(*decoder->update_output_layer(5, {0, 1, 2, 5}, {1}),
             (std::vector<size_t>{0, 2, 5, 0, 0}));

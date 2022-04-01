@@ -75,15 +75,14 @@ namespace ctranslate2 {
           target_output_size += size_multiple - (target_output_size % size_multiple);
 
         // Do not update the layer if the output size is unchanged.
-        // If the output layer is already updated, we assume the excluded ids
-        // and size multiple were the same in previous calls.
-        if (target_output_size == current_output_size)
+        if (target_output_size == current_output_size && exclude_ids == _previous_exclude_ids)
           return _output_layer_index.empty() ? nullptr : &_output_layer_index;
 
         // Reset the output layer if the output size is the vocabulary size.
         if (target_output_size == _vocabulary_size && exclude_ids.empty()) {
           output_layer().select_weights(nullptr);
           _output_layer_index.clear();
+          _previous_exclude_ids.clear();
           return nullptr;
         }
 
@@ -113,6 +112,7 @@ namespace ctranslate2 {
       output_layer().select_weights(&index);
 
       _output_layer_index = std::move(ids);
+      _previous_exclude_ids = exclude_ids;
       return &_output_layer_index;
     }
 
