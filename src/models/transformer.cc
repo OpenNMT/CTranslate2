@@ -1,6 +1,7 @@
 #include "ctranslate2/models/transformer.h"
 
 #include "ctranslate2/layers/transformer.h"
+#include "ctranslate2/ops/activation.h"
 
 namespace ctranslate2 {
   namespace models {
@@ -65,42 +66,41 @@ namespace ctranslate2 {
       SequenceToSequenceModel::register_variable_alias(std::move(alias), std::move(variable_name));
     }
 
-    void TransformerModel::initialize(ModelReader& model_reader) {
-      SequenceToSequenceModel::initialize(model_reader);
-      _num_heads = get_attribute_with_default<int8_t>("num_heads", _num_heads);
-      _with_relative_position = get_flag_with_default("with_relative_position", false);
-      _pre_norm = get_flag_with_default("pre_norm", true);
-      _activation_type = static_cast<ops::ActivationType>(
+    std::unique_ptr<SequenceToSequenceReplica> TransformerModel::as_sequence_to_sequence() const {
+      const size_t num_heads = get_attribute_with_default<int8_t>("num_heads", _num_heads);
+      const bool with_relative_position = get_flag_with_default("with_relative_position", false);
+      const bool pre_norm = get_flag_with_default("pre_norm", true);
+      const auto activation_type = static_cast<ops::ActivationType>(
         get_attribute_with_default<int8_t>("activation", 0));
-      _embeddings_merge = static_cast<layers::EmbeddingsMerge>(
+      const auto embeddings_merge = static_cast<layers::EmbeddingsMerge>(
         get_attribute_with_default<int8_t>("embeddings_merge", 0));
-      _alignment_layer = get_attribute_with_default<int16_t>("alignment_layer", -1);
-      _alignment_heads = get_attribute_with_default<int16_t>("alignment_heads", 1);
-      _layernorm_embedding = get_flag_with_default("layernorm_embedding", false);
-    }
+      const dim_t alignment_layer = get_attribute_with_default<int16_t>("alignment_layer", -1);
+      const dim_t alignment_heads = get_attribute_with_default<int16_t>("alignment_heads", 1);
+      const bool layernorm_embedding = get_flag_with_default("layernorm_embedding", false);
 
-    std::unique_ptr<layers::Encoder> TransformerModel::make_encoder() const {
-      return std::make_unique<layers::TransformerEncoder>(*this,
-                                                          "encoder",
-                                                          _num_heads,
-                                                          !_with_relative_position,
-                                                          _pre_norm,
-                                                          _activation_type,
-                                                          _embeddings_merge,
-                                                          _layernorm_embedding);
-    }
+      const auto scoped_device_setter = get_scoped_device_setter();
 
-    std::unique_ptr<layers::Decoder> TransformerModel::make_decoder() const {
-      return std::make_unique<layers::TransformerDecoder>(*this,
-                                                          "decoder",
-                                                          _num_heads,
-                                                          !_with_relative_position,
-                                                          /*with_encoder_attention=*/true,
-                                                          _pre_norm,
-                                                          _activation_type,
-                                                          _alignment_layer,
-                                                          _alignment_heads,
-                                                          _layernorm_embedding);
+      auto encoder = std::make_unique<layers::TransformerEncoder>(*this,
+                                                                  "encoder",
+                                                                  num_heads,
+                                                                  !with_relative_position,
+                                                                  pre_norm,
+                                                                  activation_type,
+                                                                  embeddings_merge,
+                                                                  layernorm_embedding);
+      auto decoder = std::make_unique<layers::TransformerDecoder>(*this,
+                                                                  "decoder",
+                                                                  num_heads,
+                                                                  !with_relative_position,
+                                                                  /*with_encoder_attention=*/true,
+                                                                  pre_norm,
+                                                                  activation_type,
+                                                                  alignment_layer,
+                                                                  alignment_heads,
+                                                                  layernorm_embedding);
+
+      const auto model = std::static_pointer_cast<const TransformerModel>(shared_from_this());
+      return std::make_unique<EncoderDecoderReplica>(model, std::move(encoder), std::move(decoder));
     }
 
   }
