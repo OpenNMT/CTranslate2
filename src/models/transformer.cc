@@ -1,7 +1,6 @@
 #include "ctranslate2/models/transformer.h"
 
 #include "ctranslate2/layers/transformer.h"
-#include "ctranslate2/ops/activation.h"
 
 namespace ctranslate2 {
   namespace models {
