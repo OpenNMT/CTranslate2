@@ -74,7 +74,7 @@ namespace ctranslate2 {
       _activation_type = static_cast<ops::ActivationType>(
         get_attribute_with_default<int8_t>("activation", 0));
       _embeddings_merge = static_cast<layers::EmbeddingsMerge>(
-         get_attribute_with_default<int8_t>("embeddings_merge", 0));
+        get_attribute_with_default<int8_t>("embeddings_merge", 0));
       _alignment_layer = get_attribute_with_default<int16_t>("alignment_layer", -1);
       _alignment_heads = get_attribute_with_default<int16_t>("alignment_heads", 1);
       _layernorm_embedding = get_flag_with_default("layernorm_embedding", false);
