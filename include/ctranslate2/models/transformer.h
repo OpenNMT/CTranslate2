@@ -2,6 +2,8 @@
 
 #include "sequence_to_sequence.h"
 
+#include "ctranslate2/ops/activation.h"
+
 namespace ctranslate2 {
   namespace models {
 
@@ -16,9 +18,17 @@ namespace ctranslate2 {
       bool is_packable(const std::string& variable_name) const override;
       void register_variable(std::string name, StorageView variable) override;
       void register_variable_alias(std::string alias, std::string variable_name) override;
+      void initialize(ModelReader& model_reader) override;
 
     private:
       size_t _num_heads;
+      bool _with_relative_position;
+      bool _pre_norm;
+      ops::ActivationType _activation_type;
+      dim_t _alignment_layer;
+      dim_t _alignment_heads;
+      layers::EmbeddingsMerge _embeddings_merge;
+      bool _layernorm_embedding;
     };
 
   }
