@@ -7,11 +7,11 @@ pip install "cmake==3.18.4"
 
 mkdir build-release && cd build-release
 
-CMAKE_COMMON_OPTIONS='-DCMAKE_BUILD_TYPE=Release -DBUILD_CLI=OFF -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument"'
+CMAKE_EXTRA_OPTIONS=''
 
 if [ "$CIBW_ARCHS" == "arm64" ]; then
 
-    cmake $CMAKE_COMMON_OPTIONS -DCMAKE_OSX_ARCHITECTURES="arm64" -DWITH_ACCELERATE=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=NONE  ..
+    CMAKE_EXTRA_OPTIONS='-DCMAKE_OSX_ARCHITECTURES=arm64 -DWITH_ACCELERATE=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=NONE'
 
 else
 
@@ -26,10 +26,9 @@ else
     # not ship with the header file.
     brew install libomp
 
-    cmake $CMAKE_COMMON_OPTIONS ..
-
 fi
 
+cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_CLI=OFF -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument" $CMAKE_EXTRA_OPTIONS ..
 VERBOSE=1 make -j$(sysctl -n hw.physicalcpu_max) install
 cd ..
 rm -r build-release
