@@ -776,17 +776,6 @@ TEST(TranslatorTest, AlternativesFromFullTarget) {
   EXPECT_EQ(result.hypotheses[0], (std::vector<std::string>{"a", "t", "z", "m", "o", "n", "e"}));
 }
 
-TEST(TranslatorTest, DetachModel) {
-  const std::vector<std::string> input = {"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"};
-  Translator translator = default_translator();
-  translator.detach_model();
-  EXPECT_THROW(translator.translate(input), std::runtime_error);
-  Translator clone(translator);
-  EXPECT_THROW(clone.translate(input), std::runtime_error);
-  translator.set_model(models::Model::load(default_model_dir()));
-  translator.translate(input);
-}
-
 TEST(TranslatorTest, InvalidNumHypotheses) {
   Translator translator = default_translator();
   TranslationOptions options;

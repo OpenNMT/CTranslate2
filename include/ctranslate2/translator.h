@@ -59,8 +59,8 @@ namespace ctranslate2 {
     int device_index() const;
     ComputeType compute_type() const;
 
-    std::shared_ptr<const models::Model> get_model() const {
-      return _replica ? _replica->model() : nullptr;
+    const std::shared_ptr<const models::Model>& get_model() const {
+      return _replica->model();
     }
 
     // Change the model while keeping the same device and compute type as the previous model.
@@ -68,12 +68,7 @@ namespace ctranslate2 {
     void set_model(models::ModelReader& model_reader);
     void set_model(const std::shared_ptr<const models::Model>& model);
 
-    // Detach the model from this translator, which becomes unusable until set_model is called.
-    std::shared_ptr<const models::Model> detach_model();
-
   private:
-    void assert_has_model() const;
-
     std::unique_ptr<models::SequenceToSequenceReplica> _replica;
   };
 

@@ -6,24 +6,35 @@
 
 namespace ctranslate2 {
 
-  static thread_local Translator* local_translator = nullptr;
-
-  Translator* TranslatorPool::get_translator() {
-    return local_translator;
-  }
+  class TranslatorWorker;
+  static thread_local TranslatorWorker* local_worker = nullptr;
 
   class TranslatorWorker : public Worker {
   public:
     TranslatorWorker(const std::shared_ptr<const models::Model>& model, size_t num_threads)
-      : _translator(model)
-      , _allocator(nullptr)
+      : _allocator(nullptr)
       , _device(model->device())
       , _num_threads(num_threads)
     {
+      set_model(model);
     }
 
-    Translator& translator() {
-      return _translator;
+    models::SequenceToSequenceReplica& replica() {
+      if (!_replica)
+        throw std::runtime_error("No model replica is available in this thread");
+      return *_replica;
+    }
+
+    void set_model(const std::shared_ptr<const models::Model>& model) {
+      _replica = model->as_sequence_to_sequence();
+    }
+
+    std::shared_ptr<const models::Model> detach_model() {
+      if (!_replica)
+        return nullptr;
+      auto model = _replica->model();
+      _replica.reset();
+      return model;
     }
 
     Allocator* allocator() {
@@ -38,19 +49,19 @@ namespace ctranslate2 {
       // Register the memory allocator used in this thread.
       _allocator = &get_allocator(_device);
 
-      local_translator = &_translator;
+      local_worker = this;
     }
 
     void finalize() override {
-      // The CUDA context is destroyed when the thread exits, so we clear the translation
+      // The CUDA context is destroyed when the thread exits, so we clear the model
       // resources now when the CUDA context is still active.
-      _translator.detach_model();
+      _replica.reset();
 
-      local_translator = nullptr;
+      local_worker = nullptr;
     }
 
   private:
-    Translator _translator;
+    std::unique_ptr<models::SequenceToSequenceReplica> _replica;
     Allocator* _allocator;
     const Device _device;
     const size_t _num_threads;
@@ -336,8 +347,8 @@ namespace ctranslate2 {
     std::vector<std::shared_ptr<const models::Model>> models;
     models.reserve(num_translators());
     for (size_t i = 0; i < num_translators(); ++i) {
-      auto& translator = static_cast<TranslatorWorker&>(_thread_pool->get_worker(i)).translator();
-      models.emplace_back(translator.detach_model());
+      auto& worker = static_cast<TranslatorWorker&>(_thread_pool->get_worker(i));
+      models.emplace_back(worker.detach_model());
     }
     return models;
   }
@@ -348,8 +359,8 @@ namespace ctranslate2 {
                                   "of parallel translators");
 
     for (size_t i = 0; i < num_translators(); ++i) {
-      auto& translator = static_cast<TranslatorWorker&>(_thread_pool->get_worker(i)).translator();
-      translator.set_model(models[i]);
+      auto& worker = static_cast<TranslatorWorker&>(_thread_pool->get_worker(i));
+      worker.set_model(models[i]);
     }
   }
 
@@ -373,10 +384,9 @@ namespace ctranslate2 {
   protected:
     std::vector<TranslationResult> get_results(const Batch& batch) const override {
       spdlog::debug("Running batch translation on {} examples", batch.num_examples());
-      auto results = TranslatorPool::get_translator()->translate_batch_with_prefix(
-        batch.get_stream(0),
-        batch.get_stream(1),
-        _options);
+      auto results = local_worker->replica().translate(batch.get_stream(0),
+                                                       batch.get_stream(1),
+                                                       _options);
       spdlog::debug("Finished batch translation");
       return results;
     }
@@ -408,9 +418,9 @@ namespace ctranslate2 {
   protected:
     std::vector<ScoringResult> get_results(const Batch& batch) const override {
       spdlog::debug("Running batch scoring on {} examples", batch.num_examples());
-      auto results = TranslatorPool::get_translator()->score_batch(batch.get_stream(0),
-                                                                   batch.get_stream(1),
-                                                                   _options);
+      auto results = local_worker->replica().score(batch.get_stream(0),
+                                                   batch.get_stream(1),
+                                                   _options);
       spdlog::debug("Finished batch scoring");
       return results;
     }

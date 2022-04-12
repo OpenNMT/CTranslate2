@@ -22,8 +22,7 @@ namespace ctranslate2 {
   }
 
   Translator::Translator(const Translator& other) {
-    if (other._replica)
-      set_model(other._replica->model());
+    set_model(other.get_model());
   }
 
   TranslationResult
@@ -63,7 +62,6 @@ namespace ctranslate2 {
   Translator::translate_batch_with_prefix(const std::vector<std::vector<std::string>>& source,
                                           const std::vector<std::vector<std::string>>& target_prefix,
                                           const TranslationOptions& options) {
-    assert_has_model();
     return _replica->translate(source, target_prefix, options);
   }
 
@@ -71,22 +69,18 @@ namespace ctranslate2 {
   Translator::score_batch(const std::vector<std::vector<std::string>>& source,
                           const std::vector<std::vector<std::string>>& target,
                           const ScoringOptions& options) {
-    assert_has_model();
     return _replica->score(source, target, options);
   }
 
   Device Translator::device() const {
-    assert_has_model();
     return get_model()->device();
   }
 
   int Translator::device_index() const {
-    assert_has_model();
     return get_model()->device_index();
   }
 
   ComputeType Translator::compute_type() const {
-    assert_has_model();
     return get_model()->compute_type();
   }
 
@@ -96,32 +90,11 @@ namespace ctranslate2 {
   }
 
   void Translator::set_model(models::ModelReader& model_reader) {
-    Device device = Device::CPU;
-    int device_index = 0;
-    ComputeType compute_type = ComputeType::DEFAULT;
-    if (_replica) {
-      device = this->device();
-      device_index = this->device_index();
-      compute_type = this->compute_type();
-    }
-    set_model(models::Model::load(model_reader, device, device_index, compute_type));
+    set_model(models::Model::load(model_reader, device(), device_index(), compute_type()));
   }
 
   void Translator::set_model(const std::shared_ptr<const models::Model>& model) {
     _replica = model->as_sequence_to_sequence();
-  }
-
-  std::shared_ptr<const models::Model> Translator::detach_model() {
-    if (!_replica)
-      return nullptr;
-    auto model = _replica->model();
-    _replica.reset();
-    return model;
-  }
-
-  void Translator::assert_has_model() const {
-    if (!_replica)
-      throw std::runtime_error("No model is attached to this translator");
   }
 
 }
