@@ -16,7 +16,8 @@ namespace ctranslate2 {
 
       template <typename DataType, typename IndexType>
       __device__ DataType operator()(DataType value, IndexType id) const {
-        return value - static_cast<DataType>(logf(curand_uniform(_states + id)));
+        const float z = -logf(curand_uniform(_states + id));
+        return float(value) + z;
       }
 
     private:
