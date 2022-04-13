@@ -17,8 +17,10 @@ namespace ctranslate2 {
       T* dst = y.data<T>();
 
       std::uniform_real_distribution<float> distribution(std::numeric_limits<float>::min(), 1.f);
-      for (dim_t i = 0; i < x.size(); ++i)
-        dst[i] = src[i] - static_cast<T>(std::log(distribution(generator)));
+      for (dim_t i = 0; i < x.size(); ++i) {
+        const float z = -std::log(distribution(generator));
+        dst[i] = src[i] + z;
+      }
     }
 
 #define DECLARE_IMPL(T)                                                 \
