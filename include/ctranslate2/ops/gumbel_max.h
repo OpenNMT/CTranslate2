@@ -18,7 +18,6 @@ namespace ctranslate2 {
 
       template <Device D, typename T>
       void add_gumbel_noise(const StorageView& x, StorageView& y) const;
-
     };
 
   }
