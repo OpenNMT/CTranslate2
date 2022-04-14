@@ -78,8 +78,8 @@ namespace ctranslate2 {
     }
 
     TranslationResult(std::vector<std::vector<std::string>> hypotheses_,
-                     std::vector<float> scores_,
-                     std::vector<std::vector<std::vector<float>>> attention_)
+                      std::vector<float> scores_,
+                      std::vector<std::vector<std::vector<float>>> attention_)
       : hypotheses(std::move(hypotheses_))
       , scores(std::move(scores_))
       , attention(std::move(attention_))
@@ -88,8 +88,8 @@ namespace ctranslate2 {
 
     // Construct an empty result.
     TranslationResult(const size_t num_hypotheses,
-                     const bool with_attention,
-                     const bool with_score)
+                      const bool with_attention,
+                      const bool with_score)
       : hypotheses(num_hypotheses)
       , scores(with_score ? num_hypotheses : 0, static_cast<float>(0))
       , attention(with_attention ? num_hypotheses : 0)
