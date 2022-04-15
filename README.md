@@ -2,7 +2,12 @@
 
 # CTranslate2
 
-CTranslate2 is a C++ and Python library for efficient inference with Transformer models. The library includes methods for text translation and text generation. Several Transformer variants are supported and can be converted from the supported training frameworks:
+CTranslate2 is a C++ and Python library for efficient inference with Transformer models. The project implements a custom runtime that applies many performance optimization techniques such as weights quantization, layers fusion, batch reordering, etc., to accelerate and reduce the memory usage of Transformer models on CPU and GPU. The following model types are currently supported:
+
+* Encoder-decoder models: Transformer base/big, M2M-100, BART, mBART
+* Decoder-only models: GPT-2
+
+Compatible models should be first converted into an optimized model format. The library includes converters for multiple frameworks:
 
 * [OpenNMT-py](https://github.com/OpenNMT/OpenNMT-py)
 * [OpenNMT-tf](https://github.com/OpenNMT/OpenNMT-tf)
@@ -27,7 +32,7 @@ The project is production-oriented and comes with [backward compatibility guaran
 
 ## Key features
 
-* **Fast and efficient execution on CPU and GPU**<br/>The execution [is significantly faster and requires less resources](#benchmarks) than general-purpose deep learning frameworks on supported models and tasks thanks to many advanced optimizations: padding removal, batch reordering, in-place operations, caching mechanism, etc.
+* **Fast and efficient execution on CPU and GPU**<br/>The execution [is significantly faster and requires less resources](#benchmarks) than general-purpose deep learning frameworks on supported models and tasks thanks to many advanced optimizations: layer fusion, padding removal, batch reordering, in-place operations, caching mechanism, etc.
 * **Quantization and reduced precision**<br/>The model serialization and computation support weights with [reduced precision](docs/quantization.md): 16-bit floating points (FP16), 16-bit integers (INT16), and 8-bit integers (INT8).
 * **Multiple CPU architectures support**<br/>The project supports x86-64 and AArch64/ARM64 processors and integrates multiple backends that are optimized for these platforms: [Intel MKL](https://software.intel.com/content/www/us/en/develop/tools/oneapi/components/onemkl.html), [oneDNN](https://github.com/oneapi-src/oneDNN), [OpenBLAS](https://www.openblas.net/), [Ruy](https://github.com/google/ruy), and [Apple Accelerate](https://developer.apple.com/documentation/accelerate).
 * **Automatic CPU detection and code dispatch**<br/>One binary can include multiple backends (e.g. Intel MKL and oneDNN) and instruction set architectures (e.g. AVX, AVX2) that are automatically selected at runtime based on the CPU information.
@@ -166,15 +171,6 @@ See [Building](#building).
 ## Converting models
 
 The core CTranslate2 implementation is framework agnostic. The framework specific logic is moved to a conversion step that serializes trained models into a simple binary format.
-
-The following frameworks and models are currently supported:
-
-|     | OpenNMT-tf | OpenNMT-py | Fairseq | Marian |
-| --- | :---: | :---: | :---: | :---: |
-| Transformer ([Vaswani et al. 2017](https://arxiv.org/abs/1706.03762)) | ✓ | ✓ | ✓ | ✓ |
-| + relative position representations ([Shaw et al. 2018](https://arxiv.org/abs/1803.02155)) | ✓ | ✓ | | |
-
-*If you are using a model that is not listed above, consider opening an issue to discuss future integration.*
 
 The Python package includes a [conversion API](docs/python.md#model-conversion-api) and conversion scripts:
 
