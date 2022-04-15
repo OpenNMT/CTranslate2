@@ -7,6 +7,8 @@ from ctranslate2.specs import common_spec, model_spec, transformer_spec
 
 
 class OpenAIGPT2Converter(Converter):
+    """Converts GPT-2 models from https://github.com/openai/gpt-2."""
+
     def __init__(self, model_dir):
         self._model_dir = model_dir
 

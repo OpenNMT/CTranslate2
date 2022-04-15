@@ -8,6 +8,7 @@
 
 namespace ctranslate2 {
 
+  // Base class to implement a pool of model replicas that can run in parallel.
   class ReplicaPool {
   public:
     virtual ~ReplicaPool() = default;
@@ -90,6 +91,7 @@ namespace ctranslate2 {
   };
 
 
+  // Helper functions to create multiple workers for a model.
   template <typename WorkerClass>
   std::vector<std::unique_ptr<Worker>>
   create_workers(size_t num_replicas_per_device,

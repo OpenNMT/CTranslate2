@@ -5,6 +5,8 @@
 
 namespace ctranslate2 {
 
+  // GeneratorPool is the high-level class for running generation with language models.
+  // It supports parallel and asynchronous generation.
   class GeneratorPool : public ReplicaPool {
   public:
     GeneratorPool(size_t num_generators_per_device,
