@@ -1,5 +1,8 @@
 #pragma once
 
+#include <vector>
+#include <string>
+
 namespace ctranslate2 {
 
   struct GenerationOptions {
