@@ -208,13 +208,13 @@ namespace ctranslate2 {
       int max_layer_id = -1;
       for (const auto& pair : _variable_index) {
         const auto& name = pair.first;
-        if (starts_with(name, prefix)) {
-          const auto suffix = name.substr(prefix.length());
-          if (suffix.empty() || !std::isdigit(suffix[0]))
-            continue;
-          const int layer_id = std::stoi(suffix);
-          max_layer_id = std::max(max_layer_id, layer_id);
-        }
+        if (!starts_with(name, prefix))
+          continue;
+        const auto suffix = name.substr(prefix.length());
+        if (suffix.empty() || !std::isdigit(suffix[0]))
+          continue;
+        const int layer_id = std::stoi(suffix);
+        max_layer_id = std::max(max_layer_id, layer_id);
       }
       return max_layer_id + 1;
     }
