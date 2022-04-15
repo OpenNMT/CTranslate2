@@ -31,9 +31,9 @@ namespace ctranslate2 {
     std::vector<ScoringResult>
     DecoderReplica::score(const std::vector<std::vector<std::string>>& tokens,
                           const ScoringOptions& options) {
+      PROFILE("DecoderReplica::score");
       const auto scoped_device_setter = _model->get_scoped_device_setter();
       const auto& vocabulary = _model->get_vocabulary();
-      PROFILE("DecoderReplica::score");
 
       std::vector<std::vector<size_t>> ids = vocabulary.to_ids(tokens);
       if (options.max_input_length > 0)
@@ -50,9 +50,9 @@ namespace ctranslate2 {
     std::vector<GenerationResult>
     DecoderReplica::generate(const std::vector<std::vector<std::string>>& start_tokens,
                              const GenerationOptions& options) {
+      PROFILE("DecoderReplica::generate");
       const auto scoped_device_setter = _model->get_scoped_device_setter();
       const auto& vocabulary = _model->get_vocabulary();
-      PROFILE("DecoderReplica::generate");
 
       std::vector<size_t> include_ids;
       std::vector<size_t> exclude_ids;
