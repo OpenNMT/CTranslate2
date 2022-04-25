@@ -97,7 +97,7 @@ translator.num_active_batches  # Number of batches waiting to be translated or c
 ### Batch translation
 
 ```python
-results = translator.translate_batch(
+translator.translate_batch(
     source: list,                      # A list of list of string.
     target_prefix: list = None,        # An optional list of list of string.
     *,
@@ -124,10 +124,10 @@ results = translator.translate_batch(
     sampling_topk: int = 1,            # Randomly sample predictions from the top K candidates.
     sampling_temperature: float = 1,   # Sampling temperature to generate more random samples.
     replace_unknowns: bool = False,    # Replace unknown target tokens by the source token with the highest attention.
-)
+) -> Union[List[ctranslate2.TranslationResult], List[ctranslate2.AsyncTranslationResult]]
 ```
 
-The returned value is a list of `ctranslate2.TranslationResult` instances that have the following properties:
+The result `ctranslate2.TranslationResult` has the following properties:
 
 * `hypotheses`
 * `scores` (empty if `return_scores` is set to `False`)
@@ -140,7 +140,7 @@ Also see the [`TranslationOptions`](../include/ctranslate2/translation.h) struct
 ### File translation
 
 ```python
-stats = translator.translate_file(
+translator.translate_file(
     source_path: str,               # Source file.
     output_path: str,               # Output file.
     target_path: str = None,        # Target prefix file.
@@ -168,10 +168,10 @@ stats = translator.translate_file(
     source_tokenize_fn: callable = None,   # Function with signature: string -> list of strings
     target_tokenize_fn: callable = None,   # Function with signature: string -> list of strings
     target_detokenize_fn: callable = None, # Function with signature: list of strings -> string
-)
+) -> ctranslate2.TranslationStats
 ```
 
-The returned value is `ctranslate2.TranslationStats` instance that has the following properties:
+The returned statistics object has the following properties:
 
 * `num_tokens`: the number of generated target tokens
 * `num_examples`: the number of translated examples
@@ -180,14 +180,14 @@ The returned value is `ctranslate2.TranslationStats` instance that has the follo
 ### Batch scoring
 
 ```python
-scores = translator.score_batch(
+translator.score_batch(
     source: List[List[str]],
     target: List[List[str]],
     *,
     max_batch_size: int = 0,       # Maximum batch size to run the model on.
     batch_type: str = "examples",  # Whether max_batch_size is the number of examples or tokens.
     max_input_length: int = 1024,  # Truncate inputs after this many tokens (set 0 to disable).
-)
+) -> List[List[float]]
 ```
 
 The returned score sequences include the score of the end of sentence token `</s>`.
@@ -195,7 +195,7 @@ The returned score sequences include the score of the end of sentence token `</s
 ### File scoring
 
 ```python
-stats = translator.score_file(
+translator.score_file(
     source_path: str,              # Source file.
     target_path: str,              # Target file.
     output_path: str,              # Output file.
@@ -208,7 +208,7 @@ stats = translator.score_file(
     source_tokenize_fn: callable = None,   # Function with signature: string -> list of strings
     target_tokenize_fn: callable = None,   # Function with signature: string -> list of strings
     target_detokenize_fn: callable = None, # Function with signature: list of strings -> string
-)
+) -> ctranslate2.TranslationStats
 ```
 
 Each line in `output_path` will have the format:
@@ -217,7 +217,7 @@ Each line in `output_path` will have the format:
 <score> ||| <target>
 ```
 
-The score is normalized by the target length which includes the end of sentence token `</s>`. The returned `stats` object has the following properties:
+The score is normalized by the target length which includes the end of sentence token `</s>`. The returned statistics object has the following properties:
 
 * `num_tokens`: the number of scored target tokens
 * `num_examples`: the number of scored examples
@@ -270,7 +270,7 @@ generator.num_active_batches  # Number of batches waiting to be processed or cur
 ### Batch generation
 
 ```python
-results = generator.generate_batch(
+generator.generate_batch(
     start_tokens: List[List[str]],     # A list of list of string.
     *,
     max_batch_size: int = 0,           # Maximum batch size to run the model on.
@@ -290,10 +290,10 @@ results = generator.generate_batch(
     return_alternatives: bool = False, # Return alternatives at the first unconstrained decoding position.
     sampling_topk: int = 1,            # Randomly sample predictions from the top K candidates.
     sampling_temperature: float = 1,   # Sampling temperature to generate more random samples.
-)
+) -> Union[List[ctranslate2.GenerationResult], List[ctranslate2.AsyncGenerationResult]]
 ```
 
-The returned value is a list of `ctranslate2.GenerationResult` instances that have the following properties:
+The result `ctranslate2.GenerationResult` has the following properties:
 
 * `sequences`
 * `scores` (empty if `return_scores` is set to `False`)
@@ -305,16 +305,16 @@ Also see the [`GenerationOptions`](../include/ctranslate2/generation.h) structur
 ### Batch scoring
 
 ```python
-scores = generator.score_batch(
+generator.score_batch(
     tokens: List[List[str]],
     *,
     max_batch_size: int = 0,       # Maximum batch size to run the model on.
     batch_type: str = "examples",  # Whether max_batch_size is the number of examples or tokens.
     max_input_length: int = 1024,  # Truncate inputs after this many tokens (set 0 to disable).
-)
+) -> List[List[float]]
 ```
 
-The returned score sequences include the score of the end of sentence token `</s>`.
+Contrary to scoring with a translator, no special tokens are added to the input. If the model expects start or end tokens, the input should include these tokens.
 
 ## Utilities API
 
