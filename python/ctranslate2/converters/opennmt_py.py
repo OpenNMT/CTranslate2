@@ -92,9 +92,7 @@ def _get_model_spec_seq2seq(
     return model_spec
 
 
-def _get_model_spec_lm(
-    opt, variables, src_vocabs, tgt_vocabs, num_source_embeddings
-):
+def _get_model_spec_lm(opt, variables, src_vocabs, tgt_vocabs, num_source_embeddings):
     """Creates a model specification from the model options."""
     with_relative_position = getattr(opt, "max_relative_positions", 0) > 0
     activation_fn = getattr(opt, "pos_ffn_activation_fn", "relu")
@@ -240,9 +238,7 @@ def set_transformer_encoder_layer(spec, variables, scope, relative=False):
         self_attention=True,
         relative=relative,
     )
-    set_layer_norm(
-        spec.self_attention.layer_norm, variables, "%s.layer_norm" % scope
-    )
+    set_layer_norm(spec.self_attention.layer_norm, variables, "%s.layer_norm" % scope)
 
 
 def set_transformer_decoder_layer(
@@ -256,16 +252,10 @@ def set_transformer_decoder_layer(
         self_attention=True,
         relative=relative,
     )
-    set_layer_norm(
-        spec.self_attention.layer_norm, variables, "%s.layer_norm_1" % scope
-    )
+    set_layer_norm(spec.self_attention.layer_norm, variables, "%s.layer_norm_1" % scope)
     if with_encoder_attention:
-        set_multi_head_attention(
-            spec.attention, variables, "%s.context_attn" % scope
-        )
-        set_layer_norm(
-            spec.attention.layer_norm, variables, "%s.layer_norm_2" % scope
-        )
+        set_multi_head_attention(spec.attention, variables, "%s.context_attn" % scope)
+        set_layer_norm(spec.attention.layer_norm, variables, "%s.layer_norm_2" % scope)
 
 
 def set_ffn(spec, variables, scope):
