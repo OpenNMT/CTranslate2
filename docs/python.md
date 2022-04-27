@@ -269,6 +269,8 @@ generator.num_active_batches  # Number of batches waiting to be processed or cur
 
 ### Batch generation
 
+If the decoder starts from a special start token like `<s>`, this token should be included in the start tokens.
+
 ```python
 generator.generate_batch(
     start_tokens: List[List[str]],     # A list of list of string.
@@ -304,6 +306,8 @@ Also see the [`GenerationOptions`](../include/ctranslate2/generation.h) structur
 
 ### Batch scoring
 
+Contrary to scoring with a translator, no special tokens are added to the input. If the model expects start or end tokens, the input should include these tokens.
+
 ```python
 generator.score_batch(
     tokens: List[List[str]],
@@ -313,8 +317,6 @@ generator.score_batch(
     max_input_length: int = 1024,  # Truncate inputs after this many tokens (set 0 to disable).
 ) -> List[List[float]]
 ```
-
-Contrary to scoring with a translator, no special tokens are added to the input. If the model expects start or end tokens, the input should include these tokens.
 
 ## Utilities API
 
