@@ -109,7 +109,7 @@ def _get_model_spec_lm(
     set_transformer_decoder(
         model_spec.decoder,
         variables,
-        model_spec.with_relative_position,
+        with_relative_position,
         with_encoder_attention=False,
     )
 
@@ -240,7 +240,9 @@ def set_transformer_encoder_layer(spec, variables, scope, relative=False):
         self_attention=True,
         relative=relative,
     )
-    set_layer_norm(spec.self_attention.layer_norm, variables, "%s.layer_norm" % scope)
+    set_layer_norm(
+        spec.self_attention.layer_norm, variables, "%s.layer_norm" % scope
+    )
 
 
 def set_transformer_decoder_layer(
