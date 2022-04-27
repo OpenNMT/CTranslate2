@@ -35,6 +35,7 @@ converter = ctranslate2.converters.FairseqConverter(
     target_lang: str = None,      # Target language (may be required if not declared in the model).
     fixed_dictionary: str = None, # Path to the fixed dictionary for multilingual models.
     no_default_special_tokens: bool = False,  # Require all special tokens to be provided by the user.
+    user_dir: str = None,         # Path to the user module containing custom extensions.
 )
 
 converter = ctranslate2.converters.MarianConverter(
@@ -269,6 +270,8 @@ generator.num_active_batches  # Number of batches waiting to be processed or cur
 
 ### Batch generation
 
+If the decoder starts from a special start token like `<s>`, this token should be included in the start tokens.
+
 ```python
 generator.generate_batch(
     start_tokens: List[List[str]],     # A list of list of string.
@@ -304,6 +307,8 @@ Also see the [`GenerationOptions`](../include/ctranslate2/generation.h) structur
 
 ### Batch scoring
 
+Contrary to scoring with a translator, no special tokens are added to the input. If the model expects start or end tokens, the input should include these tokens.
+
 ```python
 generator.score_batch(
     tokens: List[List[str]],
@@ -313,8 +318,6 @@ generator.score_batch(
     max_input_length: int = 1024,  # Truncate inputs after this many tokens (set 0 to disable).
 ) -> List[List[float]]
 ```
-
-Contrary to scoring with a translator, no special tokens are added to the input. If the model expects start or end tokens, the input should include these tokens.
 
 ## Utilities API
 
