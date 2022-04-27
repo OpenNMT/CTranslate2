@@ -1,0 +1,4 @@
+ctranslate2.get_supported_compute_types
+=======================================
+
+.. autofunction:: ctranslate2.get_supported_compute_types

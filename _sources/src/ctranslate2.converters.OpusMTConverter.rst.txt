@@ -1,0 +1,9 @@
+ctranslate2.converters.OpusMTConverter
+======================================
+
+.. autoclass:: ctranslate2.converters.OpusMTConverter
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.converters.MarianConverter`

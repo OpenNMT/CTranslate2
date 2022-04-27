@@ -1,0 +1,13 @@
+ctranslate2.specs.LayerSpec
+===========================
+
+.. autoclass:: ctranslate2.specs.LayerSpec
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`builtins.object`
+
+    **Extended by:**
+
+    - :class:`ctranslate2.specs.ModelSpec`

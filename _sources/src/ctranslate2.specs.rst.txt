@@ -1,0 +1,17 @@
+ctranslate2.specs module
+========================
+
+.. automodule:: ctranslate2.specs
+
+
+Classes
+-------
+
+.. toctree::
+
+   ctranslate2.specs.Activation
+   ctranslate2.specs.EmbeddingsMerge
+   ctranslate2.specs.LayerSpec
+   ctranslate2.specs.ModelSpec
+   ctranslate2.specs.TransformerDecoderModelSpec
+   ctranslate2.specs.TransformerSpec
