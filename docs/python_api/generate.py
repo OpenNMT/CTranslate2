@@ -106,20 +106,6 @@ def document_module(module, module_path, module_map, output_dir):
         doc.write("\n\n")
         doc.write(".. automodule:: %s\n\n" % module_path)
 
-        if submodules:
-            submodules = list(
-                filter(
-                    lambda x: document_module(x[1], x[0], module_map, output_dir),
-                    submodules,
-                )
-            )
-            if submodules:
-                doc.write("Submodules\n")
-                doc.write("----------\n\n")
-                doc.write(".. toctree::\n\n")
-                for module_path, module in submodules:
-                    doc.write("   %s\n" % module_path)
-
         if classes:
             doc.write("\nClasses\n")
             doc.write("-------\n\n")
@@ -159,6 +145,21 @@ def document_module(module, module_path, module_map, output_dir):
             doc.write("---------\n\n")
             for constant_path in constants:
                 doc.write("* %s\n" % constant_path)
+
+        if submodules:
+            submodules = list(
+                filter(
+                    lambda x: document_module(x[1], x[0], module_map, output_dir),
+                    submodules,
+                )
+            )
+
+            if submodules:
+                doc.write("Submodules\n")
+                doc.write("----------\n\n")
+                doc.write(".. toctree::\n\n")
+                for module_path, module in submodules:
+                    doc.write("   %s\n" % module_path)
 
         return True
 
