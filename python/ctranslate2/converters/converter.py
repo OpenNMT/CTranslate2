@@ -77,7 +77,7 @@ class Converter(abc.ABC):
         Raises:
           RuntimeError: If the output directory already exists and :obj:`force`
             is not set.
-          NotImplementedError: If the converted cannot convert this model to the
+          NotImplementedError: If the converter cannot convert this model to the
             CTranslate2 format.
         """
         if os.path.exists(output_dir) and not force:
