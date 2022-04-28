@@ -3,13 +3,6 @@ ctranslate2 module
 
 .. automodule:: ctranslate2
 
-Submodules
-----------
-
-.. toctree::
-
-   ctranslate2.converters
-   ctranslate2.specs
 
 Classes
 -------
@@ -33,3 +26,10 @@ Functions
    ctranslate2.get_cuda_device_count
    ctranslate2.get_supported_compute_types
    ctranslate2.set_random_seed
+Submodules
+----------
+
+.. toctree::
+
+   ctranslate2.converters
+   ctranslate2.specs
