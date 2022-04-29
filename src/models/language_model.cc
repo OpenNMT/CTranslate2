@@ -86,9 +86,15 @@ namespace ctranslate2 {
 
       std::vector<GenerationResult> final_results;
       final_results.reserve(results.size());
-      for (auto& result : results) {
-        final_results.emplace_back(vocabulary.to_tokens(result.hypotheses),
-                                   std::move(result.scores));
+      for (size_t i = 0; i < results.size(); ++i) {
+        final_results.emplace_back(vocabulary.to_tokens(results[i].hypotheses),
+                                   std::move(results[i].scores));
+
+        // Forward the start token to the output if it is not the special BOS token.
+        if (start_tokens[i][0] != vocabulary.bos_token()) {
+          for (auto& sequence : final_results.back().sequences)
+            sequence.insert(sequence.begin(), start_tokens[i][0]);
+        }
       }
 
       return final_results;
