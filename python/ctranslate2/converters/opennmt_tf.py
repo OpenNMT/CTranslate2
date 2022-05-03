@@ -356,7 +356,8 @@ class OpenNMTTFConverter(Converter):
 
     Warning:
       This converter is deprecated because it has limited support for custom models and
-      configurations. Please use the new :class:`ctranslate2.converters.OpenNMTTFConverterV2` instead.
+      configurations. Please use the new :class:`ctranslate2.converters.OpenNMTTFConverterV2`
+      instead.
     """
 
     def __init__(
