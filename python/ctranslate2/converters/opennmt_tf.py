@@ -36,8 +36,8 @@ class OpenNMTTFConverterV2(Converter):
         Arguments:
           config: Path to the YAML configuration, or a dictionary with the loaded configuration.
           auto_config: Whether the model automatic configuration values should be used.
-          checkpoint_path: Path to the checkpoint to load. If not set, the latest checkpoint
-            from the model directory is loaded.
+          checkpoint_path: Path to the checkpoint or checkpoint directory to load. If not set,
+            the latest checkpoint from the model directory is loaded.
           model: If the model instance cannot be resolved from the model directory, this argument
              can be set to either the name of the model in the catalog or the path to the model
              configuration.
