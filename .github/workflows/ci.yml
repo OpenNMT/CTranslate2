@@ -154,7 +154,6 @@ jobs:
         run: |
           wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/cuda-keyring_1.0-1_all.deb
           sudo dpkg -i cuda-keyring*.deb
-          echo "deb https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64 /" | sudo tee /etc/apt/sources.list.d/cuda.list
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends cuda-libraries-dev-10-0 cuda-minimal-build-10-0
 
