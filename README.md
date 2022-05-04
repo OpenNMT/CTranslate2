@@ -519,6 +519,7 @@ The implementation has been generously tested in [production environment](https:
   * `ctranslate2.converters.OpenNMTTFConverterV2`
   * `ctranslate2.converters.OpusMTConverter`
   * `ctranslate2.converters.OpenAIGPT2Converter`
+  * `ctranslate2.converters.TransformersConverter`
 * C++ symbols:
   * `ctranslate2::models::Model`
   * `ctranslate2::TranslationOptions`
