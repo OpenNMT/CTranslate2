@@ -969,6 +969,112 @@ def test_marian_model_conversion(tmpdir):
     assert output[0].hypotheses[0] == ["▁Hallo", "▁Welt", "!"]
 
 
+@pytest.fixture
+def clear_transformers_cache():
+    """Clears the Transformers model cache after each test when running in a CI."""
+    import transformers
+
+    yield
+
+    if os.environ.get("CI") == "true":
+        shutil.rmtree(transformers.utils.default_cache_path)
+
+
+_TRANSFORMERS_TRANSLATION_TESTS = [
+    (
+        "Helsinki-NLP/opus-mt-en-de",
+        "▁Hello ▁world ! </s>",
+        "",
+        "▁Hallo ▁Welt !",
+    ),
+    (
+        "facebook/m2m100_418M",
+        "__en__ ▁Hello ▁world ! </s>",
+        "__de__",
+        "__de__ ▁Hallo ▁der ▁Welt !",
+    ),
+    (
+        "facebook/mbart-large-50-many-to-many-mmt",
+        "en_XX ▁Hello ▁world ! </s>",
+        "de_DE",
+        "de_DE ▁Hallo ▁Welt !",
+    ),
+    (
+        "facebook/mbart-large-en-ro",
+        "▁UN ▁Chief ▁Say s ▁There ▁Is ▁No ▁Militar y ▁Solution ▁in ▁Syria </s> en_XX",
+        "ro_RO",
+        "▁Şe ful ▁ONU ▁de cla ră ▁că ▁nu ▁există ▁o ▁solu ţie ▁militar ă ▁în ▁Siria",
+    ),
+    (
+        "facebook/bart-base",
+        "<s> UN ĠChief ĠSays ĠThere ĠIs ĠNo <mask> Ġin ĠSyria </s>",
+        "",
+        "<s> UN ĠChief ĠSays ĠThere ĠIs ĠNo ĠWar Ġin ĠSyria",
+    ),
+]
+
+
+@skip_on_windows
+@pytest.mark.parametrize(
+    "model,source_tokens,target_tokens,expected_tokens",
+    _TRANSFORMERS_TRANSLATION_TESTS,
+    ids=[args[0] for args in _TRANSFORMERS_TRANSLATION_TESTS],
+)
+def test_transformers_translation(
+    clear_transformers_cache,
+    tmpdir,
+    model,
+    source_tokens,
+    target_tokens,
+    expected_tokens,
+):
+    converter = ctranslate2.converters.TransformersConverter(model)
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    output_dir = converter.convert(output_dir)
+
+    translator = ctranslate2.Translator(output_dir)
+    results = translator.translate_batch(
+        [source_tokens.split()],
+        target_prefix=[target_tokens.split()] if target_tokens else None,
+    )
+    output_tokens = results[0].hypotheses[0]
+    assert output_tokens == expected_tokens.split()
+
+
+_TRANSFORMERS_GENERATION_TESTS = [
+    (
+        "gpt2",
+        "<|endoftext|>",
+        10,
+        "Ċ The Ġfirst Ġtime ĠI Ġsaw Ġthe Ġnew Ġversion Ġof",
+    ),
+]
+
+
+@skip_on_windows
+@pytest.mark.parametrize(
+    "model,start_tokens,max_length,expected_tokens",
+    _TRANSFORMERS_GENERATION_TESTS,
+    ids=[args[0] for args in _TRANSFORMERS_GENERATION_TESTS],
+)
+def test_transformers_generation(
+    clear_transformers_cache,
+    tmpdir,
+    model,
+    start_tokens,
+    max_length,
+    expected_tokens,
+):
+    converter = ctranslate2.converters.TransformersConverter(model)
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    output_dir = converter.convert(output_dir)
+
+    generator = ctranslate2.Generator(output_dir)
+    results = generator.generate_batch([start_tokens.split()], max_length=max_length)
+    output_tokens = results[0].sequences[0]
+    assert output_tokens == expected_tokens.split()
+
+
 def test_layer_spec_validate():
     class SubSpec(ctranslate2.specs.LayerSpec):
         def __init__(self):
