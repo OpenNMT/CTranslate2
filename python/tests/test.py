@@ -515,6 +515,9 @@ skip_if_data_missing = pytest.mark.skipif(
 skip_on_windows = pytest.mark.skipif(
     sys.platform == "win32", reason="Test case disabled on Windows"
 )
+only_on_linux = pytest.mark.skipif(
+    sys.platform != "linux", reason="Test case only running on Linux"
+)
 
 
 @skip_if_data_missing
@@ -1014,7 +1017,7 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
 ]
 
 
-@skip_on_windows
+@only_on_linux
 @pytest.mark.parametrize(
     "model,source_tokens,target_tokens,expected_tokens",
     _TRANSFORMERS_TRANSLATION_TESTS,
@@ -1051,7 +1054,7 @@ _TRANSFORMERS_GENERATION_TESTS = [
 ]
 
 
-@skip_on_windows
+@only_on_linux
 @pytest.mark.parametrize(
     "model,start_tokens,max_length,expected_tokens",
     _TRANSFORMERS_GENERATION_TESTS,
