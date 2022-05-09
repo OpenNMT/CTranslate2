@@ -1,6 +1,6 @@
 # OPUS-MT
 
-[OPUS-MT](https://github.com/Helsinki-NLP/OPUS-MT) contains a collection of 1000+ pretrained models. Since the models are Transformers trained with [Marian](https://github.com/marian-nmt/marian), they are compatible with CTranslate2.
+[OPUS-MT](https://github.com/Helsinki-NLP/OPUS-MT) contains a collection of 1000+ pretrained models. Since the models are Transformer models trained with [Marian](https://github.com/marian-nmt/marian), they are compatible with CTranslate2.
 
 The [Marian guide](marian.md) also applies for these models, but a separate converter is provided for convenience:
 

@@ -61,7 +61,7 @@ make -j4
 make install
 ```
 
-By default, the library is compiled with the [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) backend which should be installed separately. See {ref}`installation:build options` to select or add another backend.
+By default, the library is compiled with the [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) backend which should be installed separately. See the {ref}`installation:build options` to select or add another backend.
 
 ### Compile the Python wrapper
 
@@ -106,7 +106,7 @@ Some build options require additional dependencies. See their respective documen
 
 * `-DWITH_CUDA=ON` requires [CUDA](https://developer.nvidia.com/cuda-toolkit) >=10.0
 * `-DWITH_MKL=ON` requires [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) >=2019.5
-* `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) (>=1.5)
+* `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) >=1.5
 * `-DWITH_ACCELERATE=ON` requires [Accelerate](https://developer.apple.com/documentation/accelerate)
 * `-DWITH_OPENBLAS=ON` requires [OpenBLAS](https://github.com/xianyi/OpenBLAS)
 

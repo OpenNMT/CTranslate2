@@ -8,7 +8,7 @@ ct2-opennmt-tf-converter --config config.yml --output_dir ct2_model
 ```
 
 ```{tip}
-See other conversion options with `ct2-opennmt-tf-converter -h`.
+If you don't have access to the configuration or want to select a checkpoint outside the model directory, see the other conversion options with `ct2-opennmt-tf-converter -h`.
 ```
 
 Alternatively, you can also convert the model directly from OpenNMT-tf. See the corresponding [documentation](https://opennmt.net/OpenNMT-tf/serving.html#ctranslate2) in OpenNMT-tf.

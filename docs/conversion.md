@@ -2,7 +2,15 @@
 
 The core CTranslate2 implementation is framework agnostic. The logic that is specific to each framework is moved to a conversion step that loads supported models into a unified representation. The model weights are then saved into an optimized binary format.
 
-The Python package includes a [conversion API](python/ctranslate2.converters.rst) and conversion scripts for multiple frameworks. The conversion produces a model directory with the following structure:
+The Python package includes a [conversion API](python/ctranslate2.converters.rst) and conversion scripts for multiple frameworks.
+
+```{tip}
+See the **Guides** section for conversion examples from different frameworks.
+```
+
+## Model structure
+
+The conversion produces a model directory with the following base structure:
 
 ```text
 model.bin
@@ -10,8 +18,10 @@ source_vocabulary.txt
 target_vocabulary.txt
 ```
 
+There could be more or less vocabulary files depending on the model.
+
 ```{tip}
-See the *Guides* section for various model conversion examples.
+The Python API exposes the function [`ctranslate2.contains_model`](python/ctranslate2.contains_model.rst) to check if a directory is a CTranslate2 model.
 ```
 
 ## Quantization and reduced precision
@@ -28,11 +38,11 @@ Forward compatibility is not guaranteed, however. The version loading the model 
 
 ## Portability
 
-Converted models are portable in the sense they can be loaded on another machine using a different operating system or CPU architecture. However, the 2 machines must use the same [endianness](https://en.wikipedia.org/wiki/Endianness).
+Converted models are portable in the sense they can be loaded on another machine using a different operating system or CPU architecture. However, the 2 machines must use the same [endianness](https://en.wikipedia.org/wiki/Endianness) which is usually the case nowadays.
 
-## Add your own converter
+## Add a new converter
 
-You can write your own converter as long as the trained model architecture is supported by CTranslate2. The converter should populate a model specification with trained weights.
+You can write your own converter as long as the model architecture is supported by CTranslate2. The converter should populate a model specification with trained weights.
 
 ```{tip}
 See the [existing converters](https://github.com/OpenNMT/CTranslate2/tree/master/python/ctranslate2/converters) which could be used as templates.

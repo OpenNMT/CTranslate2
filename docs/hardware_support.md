@@ -11,6 +11,10 @@ The information below is only valid for the prebuilt binaries. If you compiled t
 
 On x86-64, prebuilt binaries are configured to automatically select the best backend and instruction set architecture for the platform (AVX, AVX2, or AVX512). In particular, they are compiled with both [Intel MKL](https://software.intel.com/en-us/mkl) and [oneDNN](https://github.com/oneapi-src/oneDNN) so that Intel MKL is only used on Intel processors where it performs best, whereas oneDNN is used on other x86-64 processors such as AMD.
 
+```{tip}
+See the [environment variables](environment_variables.md) `CT2_USE_MKL` and `CT2_FORCE_CPU_ISA` to control this behavior.
+```
+
 ## GPU
 
 * NVIDIA GPUs with a Compute Capability greater or equal to 3.5

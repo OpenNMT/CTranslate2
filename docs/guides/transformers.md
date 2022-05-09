@@ -28,6 +28,8 @@ However, these special tokens are not implicitly added for Transformers models s
 ['▁Hello', '▁world', '!', '</s>']
 ```
 
+If you are not using the Hugging Face tokenizers, make sure to add these special tokens when required.
+
 ## MarianMT
 
 ```bash
@@ -84,7 +86,8 @@ generator = ctranslate2.Generator("gpt2_ct2")
 tokenizer = transformers.AutoTokenizer.from_pretrained("gpt2")
 
 # Unconditional generation.
-results = generator.generate_batch([[tokenizer.bos_token]], max_length=30, sampling_topk=10)
+start_tokens = [tokenizer.bos_token]
+results = generator.generate_batch([start_tokens], max_length=30, sampling_topk=10)
 output = results[0].sequences[0]
 print(tokenizer.decode(tokenizer.convert_tokens_to_ids(output)))
 

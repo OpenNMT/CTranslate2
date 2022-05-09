@@ -22,19 +22,16 @@ The documentation includes installation instructions, usage guides, and API refe
    generation.md
    decoding.md
    parallel.md
+   memory.md
    performance.md
    environment_variables.md
 
 .. toctree::
    :caption: Guides
    :maxdepth: 1
+   :glob:
 
-   guides/opennmt_py.md
-   guides/opennmt_tf.md
-   guides/fairseq.md
-   guides/transformers.md
-   guides/marian.md
-   guides/opus_mt.md
+   guides/*
 
 .. toctree::
    :caption: API

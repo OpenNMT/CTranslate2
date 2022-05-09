@@ -40,3 +40,9 @@ output_text = sp.decode(output_tokens)
 
 print(output_text)
 ```
+
+This code should print the sentence:
+
+> Hallo Welt!
+
+If that's the case, you successfully converted and executed a translation model with CTranslate2! Consider browsing the other sections for more information and examples.
