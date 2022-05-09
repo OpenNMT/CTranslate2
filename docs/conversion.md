@@ -1,24 +1,28 @@
 # Model conversion
 
-The core CTranslate2 implementation is framework agnostic. The logic that is specific to each framework is moved to a conversion step that loads supported models into a unified representation. The model weights are then saved into an optimized binary format.
+The core CTranslate2 implementation is framework agnostic. The logic that is specific to each framework is moved to a conversion step that loads supported models into a unified representation. The weights can then be quantized and saved into an optimized binary format.
 
-The Python package includes a [conversion API](python/ctranslate2.converters.rst) and conversion scripts for multiple frameworks.
+## Supported frameworks
 
-```{tip}
-See the **Guides** section for conversion examples from different frameworks.
+The Python module includes a [conversion API](python/ctranslate2.converters.rst) and conversion scripts for multiple frameworks:
+
+```{eval-rst}
+.. toctree::
+   :maxdepth: 1
+   :glob:
+
+   guides/*
 ```
 
 ## Model structure
 
-The conversion produces a model directory with the following base structure:
+The conversion produces a model directory containing a binary model file and one or more vocabulary files:
 
 ```text
 model.bin
 source_vocabulary.txt
 target_vocabulary.txt
 ```
-
-There could be more or less vocabulary files depending on the model.
 
 ```{tip}
 The Python API exposes the function [`ctranslate2.contains_model`](python/ctranslate2.contains_model.rst) to check if a directory is a CTranslate2 model.

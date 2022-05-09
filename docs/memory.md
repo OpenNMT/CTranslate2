@@ -1,6 +1,6 @@
 # Memory management
 
-## Python
+## From Python
 
 To release the resources used by [`Translator`](python/ctranslate2.Translator.rst) and [`Generator`](python/ctranslate2.Generator.rst) instances, you can simply delete the object, e.g.:
 
