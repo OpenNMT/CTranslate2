@@ -15,9 +15,9 @@ pip install transformers[torch]
 ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 ```
 
-## Special source tokens
+## Special tokens in translation
 
-For other frameworks, CTranslate2 implicitly adds special tokens to the source input when required. For example, models converted from Fairseq or Marian will implicitly append `</s>` to the source tokens.
+For other frameworks, the `Translator` methods implicitly add special tokens to the source input when required. For example, models converted from Fairseq or Marian will implicitly append `</s>` to the source tokens.
 
 However, these special tokens are not implicitly added for Transformers models since they are already returned by the corresponding tokenizer:
 
@@ -31,6 +31,8 @@ However, these special tokens are not implicitly added for Transformers models s
 If you are not using the Hugging Face tokenizers, make sure to add these special tokens when required.
 
 ## MarianMT
+
+This example uses the English-German model from [MarianMT](https://huggingface.co/docs/transformers/model_doc/marian).
 
 ```bash
 ct2-transformers-converter --model Helsinki-NLP/opus-mt-en-de --output_dir opus-mt-en-de
@@ -51,6 +53,8 @@ print(tokenizer.decode(tokenizer.convert_tokens_to_ids(target)))
 ```
 
 ## M2M-100
+
+This example uses the [M2M-100](https://huggingface.co/docs/transformers/model_doc/m2m_100) multilingual model.
 
 ```bash
 ct2-transformers-converter --model facebook/m2m100_418M --output_dir m2m100_418
@@ -73,6 +77,8 @@ print(tokenizer.decode(tokenizer.convert_tokens_to_ids(target)))
 ```
 
 ## GPT-2
+
+This example uses the small [GPT-2](https://huggingface.co/docs/transformers/model_doc/gpt2) model.
 
 ```bash
 ct2-transformers-converter --model gpt2 --output_dir gpt2_ct2

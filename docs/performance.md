@@ -9,14 +9,14 @@ Below are some general recommendations to further improve performance. Many of t
 * Prefer the "tokens" `batch_type` to make the total number of elements in a batch more constant
 * Consider using {ref}`translation:dynamic vocabulary reduction` for translation
 
-**On CPU:**
+**On CPU**
 
 * Use an Intel CPU supporting AVX512
 * If you are processing a large volume of data, prefer increasing `inter_threads` over `intra_threads` to improve throughput
 * Avoid the total number of threads `inter_threads * intra_threads` to be larger than the number of physical cores
 * For single core execution on Intel CPUs, consider enabling packed GEMM (set the environment variable `CT2_USE_EXPERIMENTAL_PACKED_GEMM=1`)
 
-**On GPU:**
+**On GPU**
 
 * Use a larger batch size
 * Use a NVIDIA GPU with Tensor Cores (Compute Capability >= 7.0)

@@ -28,15 +28,15 @@ translator = ctranslate2.Translator(model_path, device="cuda", device_index=[0, 
 translator = ctranslate2.Translator(model_path, device="cuda", inter_threads=4)
 ```
 
-Parallel translations are enabled in the following cases:
+Multiple batches should be submitted concurrently to enable this parallelization. Parallel translations are enabled in the following cases:
 
-* When calling `{translate,score}_file`.
+* When calling `{translate,score}_file`
 * When calling `{translate,score,generate}_batch` and setting `max_batch_size`: the input will be split according to `max_batch_size` and each sub-batch will be translated in parallel.
 * When calling `{translate,score,generate}_batch` from multiple Python threads.
 * When calling `{translate,generate}_batch` multiple times with `asynchronous=True`.
 
 ```{note}
-All computation methods release the [Python GIL](https://wiki.python.org/moin/GlobalInterpreterLock).
+Parallelization with multiple Python threads is possible because all computation methods release the [Python GIL](https://wiki.python.org/moin/GlobalInterpreterLock).
 ```
 
 ## Asynchronous execution
@@ -50,4 +50,8 @@ for batch in batch_generator():
 
 for async_result in async_results:
     print(async_result.result())  # This method blocks until the result is available.
+```
+
+```{attention}
+The `Translator` and `Generator` objects have a limited queue size by default. When the queue of batches is full, the method will block even in asynchronous mode. See the parameter `max_queued_batches` in their constructor to configure the queue size.
 ```
