@@ -37,7 +37,7 @@ The documentation includes installation instructions, usage guides, and API refe
    :caption: API
    :maxdepth: 1
 
-   python/ctranslate2
+   python/overview
 
 .. toctree::
    :caption: Other information
