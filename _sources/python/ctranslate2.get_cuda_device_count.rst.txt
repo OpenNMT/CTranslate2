@@ -1,0 +1,4 @@
+get_cuda_device_count
+=====================
+
+.. autofunction:: ctranslate2.get_cuda_device_count

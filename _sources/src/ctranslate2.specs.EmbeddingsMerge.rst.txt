@@ -1,9 +1,0 @@
-ctranslate2.specs.EmbeddingsMerge
-=================================
-
-.. autoclass:: ctranslate2.specs.EmbeddingsMerge
-    :members:
-    :undoc-members:
-    :inherited-members:
-
-    **Inherits from:** :class:`enum.IntEnum`

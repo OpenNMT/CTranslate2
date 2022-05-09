@@ -1,9 +1,0 @@
-ctranslate2.converters.FairseqConverter
-=======================================
-
-.. autoclass:: ctranslate2.converters.FairseqConverter
-    :members:
-    :undoc-members:
-    :inherited-members:
-
-    **Inherits from:** :class:`ctranslate2.converters.Converter`

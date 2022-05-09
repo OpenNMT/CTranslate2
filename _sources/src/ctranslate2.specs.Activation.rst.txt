@@ -1,9 +1,0 @@
-ctranslate2.specs.Activation
-============================
-
-.. autoclass:: ctranslate2.specs.Activation
-    :members:
-    :undoc-members:
-    :inherited-members:
-
-    **Inherits from:** :class:`enum.IntEnum`

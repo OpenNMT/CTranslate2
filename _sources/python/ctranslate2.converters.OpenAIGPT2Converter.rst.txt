@@ -1,0 +1,9 @@
+OpenAIGPT2Converter
+===================
+
+.. autoclass:: ctranslate2.converters.OpenAIGPT2Converter
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.converters.Converter`

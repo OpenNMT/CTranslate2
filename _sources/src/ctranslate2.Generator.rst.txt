@@ -1,9 +1,0 @@
-ctranslate2.Generator
-=====================
-
-.. autoclass:: ctranslate2.Generator
-    :members:
-    :undoc-members:
-    :inherited-members:
-
-    **Inherits from:** :class:`pybind11_builtins.pybind11_object`

@@ -1,0 +1,9 @@
+GenerationResult
+================
+
+.. autoclass:: ctranslate2.GenerationResult
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`

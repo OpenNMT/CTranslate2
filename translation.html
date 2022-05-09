@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Text translation &mdash; CTranslate2 2.17.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Text generation" href="generation.html" />
+    <link rel="prev" title="Quantization" href="quantization.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> CTranslate2
+          </a>
+              <div class="version">
+                2.17
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="conversion.html">Model conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Text translation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#examples">Examples</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#python">Python</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#c">C++</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#translation-client">Translation client</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#source-factors">Source factors</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#dynamic-vocabulary-reduction">Dynamic vocabulary reduction</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="performance.html">Performance tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment_variables.html">Environment variables</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/transformers.html">Transformers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="python/overview.html">Python</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Other information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="hardware_support.html">Hardware support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="versioning.html">Versioning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CTranslate2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Text translation</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="text-translation">
+<h1>Text translation<a class="headerlink" href="#text-translation" title="Permalink to this headline"></a></h1>
+<p>CTranslate2 exposes high-level classes to run text translation from Python and C++. The main entrypoint in Python is the <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> class which provides methods to translate files or batches as well as methods to score existing translations.</p>
+<section id="examples">
+<h2>Examples<a class="headerlink" href="#examples" title="Permalink to this headline"></a></h2>
+<p>Here are some translation examples using the model converted in the <a class="reference internal" href="quickstart.html"><span class="doc std std-doc">quickstart</span></a>.</p>
+<section id="python">
+<h3>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h3>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[</span><span class="s2">&quot;▁H&quot;</span><span class="p">,</span> <span class="s2">&quot;ello&quot;</span><span class="p">,</span> <span class="s2">&quot;▁world&quot;</span><span class="p">,</span> <span class="s2">&quot;!&quot;</span><span class="p">]])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> class documentation for available options.</p>
+</section>
+<section id="c">
+<h3>C++<a class="headerlink" href="#c" title="Permalink to this headline"></a></h3>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctranslate2/translator_pool.h&gt;</span><span class="cp"></span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">num_translators</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">num_threads_per_translator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">TranslatorPool</span><span class="w"> </span><span class="n">translator</span><span class="p">(</span><span class="n">num_translators</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                         </span><span class="n">num_threads_per_translator</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                         </span><span class="s">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span><span class="w"></span>
+<span class="w">                                         </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Device</span><span class="o">::</span><span class="n">CPU</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;▁H&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ello&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;▁world&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;!&quot;</span><span class="p">}};</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">TranslationResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translator</span><span class="p">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">);</span><span class="w"></span>
+
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">output</span><span class="p">())</span><span class="w"></span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span><span class="w"></span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
+<span class="p">}</span><span class="w"></span>
+</pre></div>
+</div>
+<p>See the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/blob/master/include/ctranslate2/translator_pool.h"><code class="docutils literal notranslate"><span class="pre">TranslatorPool</span></code></a> class for more advanced usages such as asynchronous translations.*</p>
+</section>
+<section id="translation-client">
+<h3>Translation client<a class="headerlink" href="#translation-client" title="Permalink to this headline"></a></h3>
+<p>The translation client can be used via the Docker image:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span> <span class="s2">&quot;▁H ello ▁world !&quot;</span> <span class="p">|</span> docker run -i --rm -v <span class="nv">$PWD</span>:/data <span class="se">\</span>
+    opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2 --model /data/ende_ctranslate2 --device cpu
+</pre></div>
+</div>
+<p>To translate on GPU, use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--gpus</span> <span class="pre">all</span></code> and set the option <code class="docutils literal notranslate"><span class="pre">--device</span> <span class="pre">cuda</span></code>. Use <code class="docutils literal notranslate"><span class="pre">--help</span></code> to see the list of available options.</p>
+</section>
+</section>
+<section id="source-factors">
+<h2>Source factors<a class="headerlink" href="#source-factors" title="Permalink to this headline"></a></h2>
+<p>Models using additional source factors (a.k.a. source features) are supported. The factors should be added directly to the source input tokens using the special separator ￨ in both the file and batch translations APIs.</p>
+<p>In API:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[</span><span class="s2">&quot;hello￨C&quot;</span><span class="p">,</span> <span class="s2">&quot;world￨L&quot;</span><span class="p">,</span> <span class="s2">&quot;!￨N&quot;</span><span class="p">]])</span>
+</pre></div>
+</div>
+<p>In text file:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>hello￨C world￨L !￨N
+</pre></div>
+</div>
+<p>An error is raised if the number of factors does not match what the model expects.</p>
+</section>
+<section id="dynamic-vocabulary-reduction">
+<h2>Dynamic vocabulary reduction<a class="headerlink" href="#dynamic-vocabulary-reduction" title="Permalink to this headline"></a></h2>
+<p>The target vocabulary can be dynamically reduced to increase the translation speed. A source-target vocabulary mapping file (a.k.a. <em>vmap</em>) should be passed to the converter option <code class="docutils literal notranslate"><span class="pre">--vocab_mapping</span></code> and enabled during translation with <code class="docutils literal notranslate"><span class="pre">use_vmap</span></code>.</p>
+<p>The vocabulary mapping file maps source N-grams to a list of candidate target tokens. During translation, the target vocabulary will be dynamically reduced to the union of all target tokens associated with the N-grams from the batch to translate.</p>
+<p>It is a text file where each line has the following format:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>src_1 src_2 ... src_N&lt;TAB&gt;tgt_1 tgt_2 ... tgt_K
+</pre></div>
+</div>
+<p>If the source N-gram is empty (N = 0), the assiocated target tokens will always be included in the reduced vocabulary.</p>
+<div class="admonition hint">
+<p class="admonition-title">Hint</p>
+<p>See <a class="reference external" href="https://github.com/OpenNMT/papers/tree/master/WNMT2018/vmap">here</a> for an example on how to generate this file.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="quantization.html" class="btn btn-neutral float-left" title="Quantization" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="generation.html" class="btn btn-neutral float-right" title="Text generation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p></p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

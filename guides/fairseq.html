@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Fairseq &mdash; CTranslate2 2.17.0 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/doctools.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Marian" href="marian.html" />
+    <link rel="prev" title="Model conversion" href="../conversion.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> CTranslate2
+          </a>
+              <div class="version">
+                2.17
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../conversion.html">Model conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance.html">Performance tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment_variables.html">Environment variables</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Fairseq</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#beam-search-equivalence">Beam search equivalence</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wmt16-english-german">WMT16 English-German</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mbart-50">MBART-50</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="marian.html">Marian</a></li>
+<li class="toctree-l1"><a class="reference internal" href="opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l1"><a class="reference internal" href="opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="transformers.html">Transformers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../python/overview.html">Python</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Other information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../hardware_support.html">Hardware support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../versioning.html">Versioning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CTranslate2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+          <li><a href="../conversion.html">Model conversion</a> &raquo;</li>
+      <li>Fairseq</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="fairseq">
+<h1>Fairseq<a class="headerlink" href="#fairseq" title="Permalink to this headline"></a></h1>
+<p>CTranslate2 supports some Transformer models trained with <a class="reference external" href="https://github.com/pytorch/fairseq/">Fairseq</a>. The following model names are currently supported:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">bart</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">multilingual_transformer</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transformer</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transformer_align</span></code></p></li>
+</ul>
+<p>The conversion minimally requires the PyTorch model path and the Fairseq data directory which contains the vocabulary files:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install fairseq
+ct2-fairseq-converter --model_path model.pt --data_dir data-bin/ --output_dir ct2_model
+</pre></div>
+</div>
+<section id="beam-search-equivalence">
+<h2>Beam search equivalence<a class="headerlink" href="#beam-search-equivalence" title="Permalink to this headline"></a></h2>
+<p>The default beam search parameters in CTranslate2 are different than Fairseq. Set the following parameters to match the Fairseq behavior:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">allow_early_exit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">normalize_scores</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="wmt16-english-german">
+<h2>WMT16 English-German<a class="headerlink" href="#wmt16-english-german" title="Permalink to this headline"></a></h2>
+<p>Download and convert the pretrained <a class="reference external" href="https://github.com/pytorch/fairseq/tree/main/examples/translation">WMT16 English-German model</a>:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://dl.fbaipublicfiles.com/fairseq/models/wmt16.en-de.joined-dict.transformer.tar.bz2
+tar xf wmt16.en-de.joined-dict.transformer.tar.bz2
+
+ct2-fairseq-converter --model_path wmt16.en-de.joined-dict.transformer/model.pt <span class="se">\</span>
+    --data_dir wmt16.en-de.joined-dict.transformer <span class="se">\</span>
+    --output_dir ende_ctranslate2
+</pre></div>
+</div>
+<p>The converted model can then be used on tokenized inputs:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[</span><span class="s2">&quot;H@@&quot;</span><span class="p">,</span> <span class="s2">&quot;ello&quot;</span><span class="p">,</span> <span class="s2">&quot;world@@&quot;</span><span class="p">,</span> <span class="s2">&quot;!&quot;</span><span class="p">]])</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For simplicity, this example does not show how to tokenize the text. The tokens are obtained by running <code class="docutils literal notranslate"><span class="pre">sacremoses</span></code> and applying the BPE codes included in the model.</p>
+</div>
+</section>
+<section id="m2m-100">
+<h2>M2M-100<a class="headerlink" href="#m2m-100" title="Permalink to this headline"></a></h2>
+<p>The pretrained multilingual model <a class="reference external" href="https://github.com/pytorch/fairseq/tree/main/examples/m2m_100">M2M-100</a> can also be used in CTranslate2. The conversion option <code class="docutils literal notranslate"><span class="pre">--fixed_dictionary</span></code> is required for this model that uses a single vocabulary file:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 418M parameters:</span>
+wget https://dl.fbaipublicfiles.com/m2m_100/418M_last_checkpoint.pt
+
+<span class="c1"># 1.2B parameters:</span>
+wget https://dl.fbaipublicfiles.com/m2m_100/1.2B_last_checkpoint.pt
+
+wget https://dl.fbaipublicfiles.com/m2m_100/model_dict.128k.txt
+wget https://dl.fbaipublicfiles.com/m2m_100/spm.128k.model
+
+ct2-fairseq-converter --data_dir . --model_path 418M_last_checkpoint.pt <span class="se">\</span>
+    --fixed_dictionary model_dict.128k.txt <span class="se">\</span>
+    --output_dir m2m_100_418m_ct2
+</pre></div>
+</div>
+<p>For translation, the language tokens should prefix the source and target sequences. Language tokens have the format <code class="docutils literal notranslate"><span class="pre">__X__</span></code> where <code class="docutils literal notranslate"><span class="pre">X</span></code> is the language code. See the end of the fixed dictionary file for the list of accepted languages.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">sentencepiece</span> <span class="k">as</span> <span class="nn">spm</span>
+
+<span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">()</span>
+<span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;spm.128k.model&quot;</span><span class="p">)</span>
+
+<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;__en__&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;__de__&quot;</span><span class="p">]</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;m2m_100_418m_ct2&quot;</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">],</span> <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">target_prefix</span><span class="p">])</span>
+
+<span class="n">output</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="mbart-50">
+<h2>MBART-50<a class="headerlink" href="#mbart-50" title="Permalink to this headline"></a></h2>
+<p><a class="reference external" href="https://github.com/pytorch/fairseq/blob/main/examples/multilingual/README.md">MBART-50</a> is another pretrained multilingual translation model.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://dl.fbaipublicfiles.com/fairseq/models/mbart50/mbart50.ft.nn.tar.gz
+tar xf mbart50.ft.nn.tar.gz
+
+ct2-fairseq-converter --data_dir mbart50.ft.nn/ --model_path mbart50.ft.nn/model.pt <span class="se">\</span>
+    --output_dir mbart50_ct2
+</pre></div>
+</div>
+<p>Similar to M2M-100, the language tokens should prefix the source and target sequences. The list of language tokens is defined in the file <code class="docutils literal notranslate"><span class="pre">mbart50.ft.nn/ML50_langs.txt</span></code>.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">sentencepiece</span> <span class="k">as</span> <span class="nn">spm</span>
+
+<span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">()</span>
+<span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;mbart50.ft.nn/sentence.bpe.model&quot;</span><span class="p">)</span>
+
+<span class="n">source</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;UN Chief Says There Is No Military Solution in Syria&quot;</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;en_XX&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">source</span>
+<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ro_RO&quot;</span><span class="p">]</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;mbart50_ct2&quot;</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">],</span> <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">target_prefix</span><span class="p">])</span>
+
+<span class="n">output</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../conversion.html" class="btn btn-neutral float-left" title="Model conversion" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="marian.html" class="btn btn-neutral float-right" title="Marian" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p></p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

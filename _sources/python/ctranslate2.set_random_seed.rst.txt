@@ -1,0 +1,4 @@
+set_random_seed
+===============
+
+.. autofunction:: ctranslate2.set_random_seed

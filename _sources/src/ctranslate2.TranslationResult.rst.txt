@@ -1,9 +1,0 @@
-ctranslate2.TranslationResult
-=============================
-
-.. autoclass:: ctranslate2.TranslationResult
-    :members:
-    :undoc-members:
-    :inherited-members:
-
-    **Inherits from:** :class:`pybind11_builtins.pybind11_object`

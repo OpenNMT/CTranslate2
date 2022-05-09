@@ -1,0 +1,9 @@
+OpenNMTPyConverter
+==================
+
+.. autoclass:: ctranslate2.converters.OpenNMTPyConverter
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.converters.Converter`

@@ -1,0 +1,16 @@
+ctranslate2.converters
+======================
+
+.. automodule:: ctranslate2.converters
+
+.. toctree::
+
+   ctranslate2.converters.Converter
+   ctranslate2.converters.FairseqConverter
+   ctranslate2.converters.MarianConverter
+   ctranslate2.converters.OpenAIGPT2Converter
+   ctranslate2.converters.OpenNMTPyConverter
+   ctranslate2.converters.OpenNMTTFConverter
+   ctranslate2.converters.OpenNMTTFConverterV2
+   ctranslate2.converters.OpusMTConverter
+   ctranslate2.converters.TransformersConverter

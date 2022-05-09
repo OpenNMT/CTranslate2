@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Model conversion &mdash; CTranslate2 2.17.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Fairseq" href="guides/fairseq.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> CTranslate2
+          </a>
+              <div class="version">
+                2.17
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Model conversion</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#supported-frameworks">Supported frameworks</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
+<li class="toctree-l3"><a class="reference internal" href="guides/marian.html">Marian</a></li>
+<li class="toctree-l3"><a class="reference internal" href="guides/opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l3"><a class="reference internal" href="guides/opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l3"><a class="reference internal" href="guides/opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l3"><a class="reference internal" href="guides/transformers.html">Transformers</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#model-structure">Model structure</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#quantization-and-reduced-precision">Quantization and reduced precision</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#backward-compatibility">Backward compatibility</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#portability">Portability</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#add-a-new-converter">Add a new converter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#model-specification">Model specification</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#model-serialization">Model serialization</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="performance.html">Performance tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment_variables.html">Environment variables</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/transformers.html">Transformers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="python/overview.html">Python</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Other information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="hardware_support.html">Hardware support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="versioning.html">Versioning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CTranslate2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Model conversion</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="model-conversion">
+<h1>Model conversion<a class="headerlink" href="#model-conversion" title="Permalink to this headline"></a></h1>
+<p>The core CTranslate2 implementation is framework agnostic. The logic that is specific to each framework is moved to a conversion step that loads supported models into a unified representation. The weights can then be quantized and saved into an optimized binary format.</p>
+<section id="supported-frameworks">
+<h2>Supported frameworks<a class="headerlink" href="#supported-frameworks" title="Permalink to this headline"></a></h2>
+<p>The Python module includes a <a class="reference internal" href="python/ctranslate2.converters.html"><span class="doc std std-doc">conversion API</span></a> and conversion scripts for multiple frameworks:</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/transformers.html">Transformers</a></li>
+</ul>
+</div>
+</section>
+<section id="model-structure">
+<h2>Model structure<a class="headerlink" href="#model-structure" title="Permalink to this headline"></a></h2>
+<p>The conversion produces a model directory containing a binary model file and one or more vocabulary files:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>model.bin
+source_vocabulary.txt
+target_vocabulary.txt
+</pre></div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>The Python API exposes the function <a class="reference internal" href="python/ctranslate2.contains_model.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">ctranslate2.contains_model</span></code></span></a> to check if a directory is a CTranslate2 model.</p>
+</div>
+</section>
+<section id="quantization-and-reduced-precision">
+<h2>Quantization and reduced precision<a class="headerlink" href="#quantization-and-reduced-precision" title="Permalink to this headline"></a></h2>
+<p>The converters support reducing the weights precision to save on space and possibly accelerate the model execution. See the <a class="reference internal" href="quantization.html"><span class="doc std std-doc">Quantization</span></a> documentation.</p>
+</section>
+<section id="backward-compatibility">
+<h2>Backward compatibility<a class="headerlink" href="#backward-compatibility" title="Permalink to this headline"></a></h2>
+<p>Converted models are backward compatibility. This compatibility is rarely broken, even for major versions.</p>
+<div class="admonition attention">
+<p class="admonition-title">Attention</p>
+<p>Forward compatibility is not guaranteed, however. The version loading the model should not be older than the version that converted the model.</p>
+</div>
+</section>
+<section id="portability">
+<h2>Portability<a class="headerlink" href="#portability" title="Permalink to this headline"></a></h2>
+<p>Converted models are portable in the sense they can be loaded on another machine using a different operating system or CPU architecture. However, the 2 machines must use the same <a class="reference external" href="https://en.wikipedia.org/wiki/Endianness">endianness</a> which is usually the case nowadays.</p>
+</section>
+<section id="add-a-new-converter">
+<h2>Add a new converter<a class="headerlink" href="#add-a-new-converter" title="Permalink to this headline"></a></h2>
+<p>You can write your own converter as long as the model architecture is supported by CTranslate2. The converter should populate a model specification with trained weights.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>See the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/tree/master/python/ctranslate2/converters">existing converters</a> which could be used as templates.</p>
+</div>
+<section id="model-specification">
+<h3>Model specification<a class="headerlink" href="#model-specification" title="Permalink to this headline"></a></h3>
+<p>A model specification defines the structures and names of the model weights. Converters should fill out this specification with weights coming from a trained model.</p>
+<p>In the Python code, a model specification is represented as nested <a class="reference internal" href="python/ctranslate2.specs.LayerSpec.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">LayerSpec</span></code></span></a> objects, where intermediate objects define weights scopes and leaf objects define the weights name and value. This is similar to how you would define a model in PyTorch (using <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code>) or TensorFlow (using <code class="docutils literal notranslate"><span class="pre">tf.Module</span></code>).</p>
+<p>The final structure defines the full name of each weight that the C++ code should read when building the model. For example, a weight that can be accessed with <code class="docutils literal notranslate"><span class="pre">root.encoder.embeddings.weight</span></code> (where <code class="docutils literal notranslate"><span class="pre">root</span></code> is the top-level <code class="docutils literal notranslate"><span class="pre">LayerSpec</span></code> object) will have for name <code class="docutils literal notranslate"><span class="pre">encoder/embeddings/weight</span></code> in the serialized model.</p>
+<p>Changes in this structure are tracked by a revision number (see next section).</p>
+</section>
+<section id="model-serialization">
+<h3>Model serialization<a class="headerlink" href="#model-serialization" title="Permalink to this headline"></a></h3>
+<p>The model serialization is defined in the Python file <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/blob/master/python/ctranslate2/specs/model_spec.py"><code class="docutils literal notranslate"><span class="pre">model_spec.py</span></code></a>. It is a simple binary serialization that is easy and fast to load from C++.</p>
+<p>Converted models have 2 levels of versioning to manage backward compatibility:</p>
+<ol class="arabic simple">
+<li><p>Binary version: the structure of the binary file</p></li>
+<li><p>Model specification revision: the variable names expected by each model.</p></li>
+</ol>
+<p>For example, adding a new field in the binary file will increment (1), but changing a variable name will increment (2).</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="guides/fairseq.html" class="btn btn-neutral float-right" title="Fairseq" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p></p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

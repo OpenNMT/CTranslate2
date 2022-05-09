@@ -1,4 +1,0 @@
-ctranslate2.contains_model
-==========================
-
-.. autofunction:: ctranslate2.contains_model

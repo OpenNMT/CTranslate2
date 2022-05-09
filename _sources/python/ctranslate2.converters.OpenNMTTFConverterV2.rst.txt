@@ -1,0 +1,9 @@
+OpenNMTTFConverterV2
+====================
+
+.. autoclass:: ctranslate2.converters.OpenNMTTFConverterV2
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.converters.Converter`

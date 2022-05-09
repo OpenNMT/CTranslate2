@@ -1,0 +1,9 @@
+TransformersConverter
+=====================
+
+.. autoclass:: ctranslate2.converters.TransformersConverter
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.converters.Converter`

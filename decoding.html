@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Decoding features &mdash; CTranslate2 2.17.0 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/doctools.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Multithreading and parallelism" href="parallel.html" />
+    <link rel="prev" title="Text generation" href="generation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> CTranslate2
+          </a>
+              <div class="version">
+                2.17
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="conversion.html">Model conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Decoding features</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#greedy-search">Greedy search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#beam-search">Beam search</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#length-constraints">Length constraints</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#autocompletion">Autocompletion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#biased-decoding">Biased decoding</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#alternatives-at-a-position">Alternatives at a position</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#random-sampling">Random sampling</a></li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="performance.html">Performance tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment_variables.html">Environment variables</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/transformers.html">Transformers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="python/overview.html">Python</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Other information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="hardware_support.html">Hardware support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="versioning.html">Versioning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CTranslate2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Decoding features</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="decoding-features">
+<h1>Decoding features<a class="headerlink" href="#decoding-features" title="Permalink to this headline"></a></h1>
+<p>This page describes CTranslate2 decoding features. The text translation API is used for demonstration but most features are also available for text generation.</p>
+<p>The examples use the following symbols that are left unspecified:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">translator</span></code>: a <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">ctranslate2.Translator</span></code></span></a> instance</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">tokenize</span></code>: a function taking a string and returning a list of string</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">detokenize</span></code>: a function taking a list of string and returning a string</p></li>
+</ul>
+<p>This <code class="docutils literal notranslate"><span class="pre">input</span></code> sentence will be used as an example:</p>
+<blockquote>
+<div><p>This project is geared towards efficient serving of standard translation models but is also a place for experimentation around model compression and inference acceleration.</p>
+</div></blockquote>
+<section id="greedy-search">
+<h2>Greedy search<a class="headerlink" href="#greedy-search" title="Permalink to this headline"></a></h2>
+<p>Greedy search is the most basic and fastest decoding strategy. It simply takes the token that has the highest probability at each timestep.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>Dieses Projekt ist auf die effiziente Bedienung von Standard-Übersetzungsmodellen ausgerichtet, aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+</div></blockquote>
+</section>
+<section id="beam-search">
+<h2>Beam search<a class="headerlink" href="#beam-search" title="Permalink to this headline"></a></h2>
+<p>Beam search is a common decoding strategy for sequence models. The algorithm keeps N hypotheses at all times. This negatively impacts decoding speed and memory but allows finding a better final hypothesis.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>Dieses Projekt ist auf die effiziente Bedienung von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+</div></blockquote>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>More hypotheses can be returned by setting the <code class="docutils literal notranslate"><span class="pre">num_hypotheses</span></code> argument.</p>
+</div>
+<p>By default, the beam search compares cumulated scores and exits when the first beam finishes. You can configure this behavior with the options:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">normalize_scores</span></code> (defaults to <code class="docutils literal notranslate"><span class="pre">False</span></code>)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">allow_early_exit</span></code> (defaults to <code class="docutils literal notranslate"><span class="pre">True</span></code>)</p></li>
+</ul>
+<p>For example, Fairseq uses <code class="docutils literal notranslate"><span class="pre">normalize_scores=True</span></code> and <code class="docutils literal notranslate"><span class="pre">allow_early_exit=False</span></code>.</p>
+</section>
+<section id="length-constraints">
+<h2>Length constraints<a class="headerlink" href="#length-constraints" title="Permalink to this headline"></a></h2>
+<p>The arguments <code class="docutils literal notranslate"><span class="pre">min_decoding_length</span></code> and <code class="docutils literal notranslate"><span class="pre">max_decoding_length</span></code> control the minimum and maximum number of tokens generated by the decoder. The length does not include the end of sequence token:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">max_decoding_length</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+<span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">10</span>
+</pre></div>
+</div>
+<p>These length constraints do <strong>not</strong> apply to empty inputs. Empty inputs are not forwarded into the model and always return an empty output. This is why <code class="docutils literal notranslate"><span class="pre">min_decoding_length</span></code> is set by default to 1 as we expect non empty inputs to generate at least one token:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[]],</span> <span class="n">min_decoding_length</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
+<span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">0</span>
+</pre></div>
+</div>
+<div class="admonition attention">
+<p class="admonition-title">Attention</p>
+<p>By default, the input is truncated after 1024 tokens to limit the maximum memory usage of the model. See the option <code class="docutils literal notranslate"><span class="pre">max_input_length</span></code>.</p>
+</div>
+</section>
+<section id="autocompletion">
+<h2>Autocompletion<a class="headerlink" href="#autocompletion" title="Permalink to this headline"></a></h2>
+<p>The <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument can be used to force the start of the translation. Let’s say we want to replace the first occurence of <code class="docutils literal notranslate"><span class="pre">die</span></code> by <code class="docutils literal notranslate"><span class="pre">das</span></code> in the translation:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf das&quot;</span><span class="p">)],</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+<p>The prefix effectively changes the target context and the rest of the translation:</p>
+<blockquote>
+<div><p>Dieses Projekt ist auf das effiziente <strong>Servieren</strong> von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+</div></blockquote>
+</section>
+<section id="biased-decoding">
+<h2>Biased decoding<a class="headerlink" href="#biased-decoding" title="Permalink to this headline"></a></h2>
+<p>Instead of using <a class="reference internal" href="#autocompletion"><span class="std std-ref">Autocompletion</span></a> to force a translation to start with a <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument, we can “bias” a translation towards a prefix by setting <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> to a value in (0, 1).  The higher <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> is, the stronger the bias. A translation can diverge from a prefix when <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> is low and the translator is confident in decoding tokens that are different from the prefix’s tokens.  See <a class="reference external" href="https://arxiv.org/abs/1912.03393">section 4.2</a> for more details on the biasing algorithm.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf das&quot;</span><span class="p">)],</span>
+    <span class="n">prefix_bias_beta</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+    <span class="n">beam_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+<p>Setting <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta=0.5</span></code> effectively enforces the <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> and changes the rest of the translation:</p>
+<blockquote>
+<div><p>Dieses Projekt ist auf das effiziente Servieren von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+</div></blockquote>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf das&quot;</span><span class="p">)],</span>
+    <span class="n">prefix_bias_beta</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
+    <span class="n">beam_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+<p>Lowering the bias by setting <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta=0.1</span></code> results in a divergence in the prefix from <code class="docutils literal notranslate"><span class="pre">das</span></code> to <code class="docutils literal notranslate"><span class="pre">die</span></code>:</p>
+<blockquote>
+<div><p>Dieses Projekt ist auf <strong>die</strong> effiziente Bedienung von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+</div></blockquote>
+</section>
+<section id="alternatives-at-a-position">
+<h2>Alternatives at a position<a class="headerlink" href="#alternatives-at-a-position" title="Permalink to this headline"></a></h2>
+<p>Combining <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> with the <code class="docutils literal notranslate"><span class="pre">return_alternatives</span></code> flag returns alternative sequences just after the prefix:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf die&quot;</span><span class="p">)],</span>
+    <span class="n">num_hypotheses</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
+    <span class="n">return_alternatives</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="k">for</span> <span class="n">hypothesis</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">hypothesis</span><span class="p">))</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>Dieses Projekt ist auf die <strong>effiziente</strong> Bedienung von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+<p>Dieses Projekt ist auf die <strong>effektive</strong> Bedienung von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+<p>Dieses Projekt ist auf die <strong>effizientere</strong> Bedienung von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+<p>Dieses Projekt ist auf die <strong>effizienten</strong> Dienste von Standard-Übersetzungsmodellen ausgerichtet, aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+<p>Dieses Projekt ist auf die <strong>Effizienz</strong> des Servierens von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
+</div></blockquote>
+<p>In practice, the decoding extracts the <code class="docutils literal notranslate"><span class="pre">num_hypotheses</span></code> tokens that are most likely to appear after the target prefix. These tokens are then included in the prefix and the decoding completes each hypothesis independently.</p>
+</section>
+<section id="random-sampling">
+<h2>Random sampling<a class="headerlink" href="#random-sampling" title="Permalink to this headline"></a></h2>
+<p>This decoding mode randomly samples tokens from the model output distribution. This strategy is frequently used in back-translation techniques (<a class="reference external" href="https://www.aclweb.org/anthology/D18-1045/">Edunov et al. 2018</a>). The example below restricts the sampling to the best 10 candidates at each timestep:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">all_results</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span>
+    <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span>
+    <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span>
+<span class="p">]</span>
+<span class="k">for</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">all_results</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+<blockquote>
+<div><p>Dieses Programm ist auf eine effiziente Bedienung von Standard-Übersetzungsmodellen ausgerichtet und ermöglicht gleichzeitig einen Einsatzort für Experimente rund um die Modellkompression oder das Beschleunigen der Schlussfolgerung.</p>
+<p>Es dient dazu, die standardisierten Übersetzungsmodelle effizient zu bedienen, aber auch zur Erprobung um die Formkomprimierung und die Folgebeschleunigung.</p>
+<p>Das Projekt richtet sich zwar auf den effizienten Service von Standard-Übersetzungen-Modellen, ist aber auch ein Ort für Experimente rund um Modellkomprimierung und ineffektive Beschleunigung.</p>
+</div></blockquote>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>You can increase the randomness of the generation by increasing the value of the argument <code class="docutils literal notranslate"><span class="pre">sampling_temperature</span></code>.</p>
+</div>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="generation.html" class="btn btn-neutral float-left" title="Text generation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="parallel.html" class="btn btn-neutral float-right" title="Multithreading and parallelism" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p></p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

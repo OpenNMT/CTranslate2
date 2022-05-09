@@ -1,0 +1,18 @@
+ctranslate2
+===========
+
+.. automodule:: ctranslate2
+
+.. toctree::
+
+   ctranslate2.AsyncGenerationResult
+   ctranslate2.AsyncTranslationResult
+   ctranslate2.GenerationResult
+   ctranslate2.Generator
+   ctranslate2.TranslationResult
+   ctranslate2.TranslationStats
+   ctranslate2.Translator
+   ctranslate2.contains_model
+   ctranslate2.get_cuda_device_count
+   ctranslate2.get_supported_compute_types
+   ctranslate2.set_random_seed
