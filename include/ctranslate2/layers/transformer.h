@@ -192,8 +192,8 @@ namespace ctranslate2 {
       const std::unique_ptr<PositionEncoder> _position_encoder;
       const std::unique_ptr<LayerNorm> _layernorm_embedding;
       const std::unique_ptr<LayerNorm> _output_norm;
-      const std::unique_ptr<Dense> _project_in_dim;
-      const std::unique_ptr<Dense> _project_out_dim;
+      const std::unique_ptr<Dense> _project_in;
+      const std::unique_ptr<Dense> _project_out;
       std::vector<std::unique_ptr<const TransformerDecoderLayer>> _layers;
       Dense _proj;
     };

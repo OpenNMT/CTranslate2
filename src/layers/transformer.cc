@@ -253,12 +253,12 @@ namespace ctranslate2 {
       , _output_norm(pre_norm && !no_final_norm
                      ? std::make_unique<LayerNorm>(model, scope + "/layer_norm")
                      : nullptr)
-      , _project_in_dim(project_in_out
-                        ? std::make_unique<Dense>(model, scope + "/project_in_dim")
-                        : nullptr)
-      , _project_out_dim(project_in_out
-                         ? std::make_unique<Dense>(model, scope + "/project_out_dim")
-                         : nullptr)
+      , _project_in(project_in_out
+                    ? std::make_unique<Dense>(model, scope + "/project_in")
+                    : nullptr)
+      , _project_out(project_in_out
+                     ? std::make_unique<Dense>(model, scope + "/project_out")
+                     : nullptr)
       , _proj(model, scope + "/projection") {
       const std::string layer_prefix = scope + "/layer_";
       for (size_t l = 0; l < model.count_layers(layer_prefix); ++l) {
@@ -328,8 +328,8 @@ namespace ctranslate2 {
         zero_first_timestep(layer_in, step);
       if (_embeddings_scale && (!_start_from_zero_embedding || step != 0))
         ops::Mul()(layer_in, *_embeddings_scale, layer_in);
-      if (_project_in_dim) {
-        (*_project_in_dim)(layer_in, layer_out);
+      if (_project_in) {
+        (*_project_in)(layer_in, layer_out);
         layer_in = std::move(layer_out);
       }
       if (layer_in.rank() == 2)
@@ -423,8 +423,8 @@ namespace ctranslate2 {
       if (logits) {
         if (_output_norm)
           (*_output_norm)(layer_in, layer_in);
-        if (_project_out_dim) {
-          (*_project_out_dim)(layer_in, layer_out);
+        if (_project_out) {
+          (*_project_out)(layer_in, layer_out);
           layer_in = std::move(layer_out);
         }
         _proj(layer_in, *logits);

@@ -181,11 +181,11 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         self.start_from_zero_embedding = False
 
         if project_in_out:
-            self.project_in_dim = common_spec.LinearSpec()
-            self.project_out_dim = common_spec.LinearSpec()
+            self.project_in = common_spec.LinearSpec()
+            self.project_out = common_spec.LinearSpec()
         else:
-            self.project_in_dim = model_spec.OPTIONAL
-            self.project_out_dim = model_spec.OPTIONAL
+            self.project_in = model_spec.OPTIONAL
+            self.project_out = model_spec.OPTIONAL
 
 
 class TransformerEncoderLayerSpec(model_spec.LayerSpec):

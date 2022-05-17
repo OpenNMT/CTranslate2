@@ -220,9 +220,9 @@ def set_transformer_decoder(spec, module, with_encoder_attention=True):
     if module.layernorm_embedding is not None:
         set_layer_norm(spec.layernorm_embedding, module.layernorm_embedding)
     if module.project_in_dim is not None:
-        set_linear(spec.project_in_dim, module.project_in_dim)
+        set_linear(spec.project_in, module.project_in_dim)
     if module.project_out_dim is not None:
-        set_linear(spec.project_out_dim, module.project_out_dim)
+        set_linear(spec.project_out, module.project_out_dim)
 
 
 def set_input_layers(spec, module):
