@@ -328,6 +328,7 @@ class OPTLoader(BartLoader):
             if symbol not in tokens:
                 tokens.append(symbol)
             i += 1
+
         return tokens
 
 
