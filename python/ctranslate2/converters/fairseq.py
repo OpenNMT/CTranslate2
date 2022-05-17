@@ -182,7 +182,7 @@ class FairseqConverter(Converter):
                     spec.bos_token = spec.eos_token
 
             else:
-                set_transformer_decoder(spec.encoder, model.encoder)
+                set_transformer_encoder(spec.encoder, model.encoder)
                 set_transformer_decoder(spec.decoder, model.decoder)
 
                 spec.register_source_vocabulary(_get_vocab(task.source_dictionary))
