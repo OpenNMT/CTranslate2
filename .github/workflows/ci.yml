@@ -244,7 +244,7 @@ jobs:
       - name: Install wheel
         if: startsWith(matrix.os, 'macos')
         run: |
-          pip install *cp38*macosx*.whl
+          pip install *cp38*macosx*x86_64.whl
 
       - name: Install wheel
         if: startsWith(matrix.os, 'windows')
