@@ -226,9 +226,9 @@ def set_ffn(spec, weights, scope):
 
 def set_layer_norm_auto(spec, weights, scope):
     try:
-        set_layer_norm(spec.layer_norm, weights, scope, pre_norm=True)
+        set_layer_norm(spec, weights, scope, pre_norm=True)
     except KeyError:
-        set_layer_norm(spec.layer_norm, weights, scope)
+        set_layer_norm(spec, weights, scope)
 
 
 def set_layer_norm(spec, weights, scope, pre_norm=False):
