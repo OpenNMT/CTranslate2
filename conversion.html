@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Model conversion &mdash; CTranslate2 2.17.0 documentation</title>
+  <title>Model conversion &mdash; CTranslate2 2.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.17
+                2.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -124,7 +124,7 @@
              
   <section id="model-conversion">
 <h1>Model conversion<a class="headerlink" href="#model-conversion" title="Permalink to this headline"></a></h1>
-<p>The core CTranslate2 implementation is framework agnostic. The logic that is specific to each framework is moved to a conversion step that loads supported models into a unified representation. The weights can then be quantized and saved into an optimized binary format.</p>
+<p>The core CTranslate2 implementation is framework agnostic. The logic that is specific to each framework is moved to a conversion step that loads supported models into a unified representation. The weights are then optionally quantized and saved into an optimized binary format.</p>
 <section id="supported-frameworks">
 <h2>Supported frameworks<a class="headerlink" href="#supported-frameworks" title="Permalink to this headline"></a></h2>
 <p>The Python module includes a <a class="reference internal" href="python/ctranslate2.converters.html"><span class="doc std std-doc">conversion API</span></a> and conversion scripts for multiple frameworks:</p>
@@ -158,10 +158,10 @@ target_vocabulary.txt
 </section>
 <section id="backward-compatibility">
 <h2>Backward compatibility<a class="headerlink" href="#backward-compatibility" title="Permalink to this headline"></a></h2>
-<p>Converted models are backward compatibility. This compatibility is rarely broken, even for major versions.</p>
+<p>New versions of CTranslate2 are backward compatible with models that were previously converted. This compatibility is rarely broken, even for major versions.</p>
 <div class="admonition attention">
 <p class="admonition-title">Attention</p>
-<p>Forward compatibility is not guaranteed, however. The version loading the model should not be older than the version that converted the model.</p>
+<p>Forward compatibility is not guaranteed, however. The CTranslate2 version loading the model should not be older than the version that converted the model.</p>
 </div>
 </section>
 <section id="portability">

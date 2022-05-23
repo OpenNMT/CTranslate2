@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Multithreading and parallelism &mdash; CTranslate2 2.17.0 documentation</title>
+  <title>Multithreading and parallelism &mdash; CTranslate2 2.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.17
+                2.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -110,13 +110,13 @@
 <h1>Multithreading and parallelism<a class="headerlink" href="#multithreading-and-parallelism" title="Permalink to this headline"></a></h1>
 <p>CTranslate2 has 2 level of parallelization:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> which is the maximum number of batches executed in parallel.<br/>=&gt; Increase this value to increase the throughput.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> which is the number of OpenMP threads that is used per batch.<br/>=&gt; Increase this value to decrease the latency on CPU.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> which is the maximum number of batches executed in parallel.<br/><strong>=&gt; Increase this value to increase the throughput.</strong></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> which is the number of OpenMP threads that is used per batch.<br/><strong>=&gt; Increase this value to decrease the latency on CPU.</strong></p></li>
 </ul>
 <p>The total number of computing threads launched by the process is <code class="docutils literal notranslate"><span class="pre">inter_threads</span> <span class="pre">*</span> <span class="pre">intra_threads</span></code>.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Even though the model data are shared, increasing <code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> will still increase the memory usage as some internal buffers are duplicated for thread safety.</p>
+<p>Even though the model data are shared between parallel replicas, increasing <code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> will still increase the memory usage as some internal buffers are duplicated for thread safety.</p>
 </div>
 <p>On GPU, batches processed in parallel are using separate CUDA streams. Depending on the workload and GPU specifications this may or may not improve the global throughput. For better parallelism on GPU, consider using multiple GPUs as described below.</p>
 <section id="parallel-execution">
@@ -157,7 +157,7 @@
 </div>
 <div class="admonition attention">
 <p class="admonition-title">Attention</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">Translator</span></code> and <code class="docutils literal notranslate"><span class="pre">Generator</span></code> objects have a limited queue size by default. When the queue of batches is full, the method will block even in asynchronous mode. See the parameter <code class="docutils literal notranslate"><span class="pre">max_queued_batches</span></code> in their constructor to configure the queue size.</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">Translator</span></code> and <code class="docutils literal notranslate"><span class="pre">Generator</span></code> objects have a limited queue size by default. When the queue of batches is full, the method will block even with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. See the parameter <code class="docutils literal notranslate"><span class="pre">max_queued_batches</span></code> in their constructor to configure the queue size.</p>
 </div>
 </section>
 </section>

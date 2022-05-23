@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 2.17.0 documentation</title>
+  <title>Quantization &mdash; CTranslate2 2.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.17
+                2.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -122,7 +122,10 @@
 <li><p>16-bit integers (INT16)</p></li>
 <li><p>16-bit floating points (FP16)</p></li>
 </ul>
-<p>See the benchmark results in the main <a class="reference external" href="https://github.com/OpenNMT/CTranslate2#benchmarks">README</a> for a performance and memory usage comparison.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>See the benchmark results in the main <a class="reference external" href="https://github.com/OpenNMT/CTranslate2#benchmarks">README</a> to compare the performance and memory usage with and without quantization.</p>
+</div>
 <section id="quantize-on-model-conversion">
 <h2>Quantize on model conversion<a class="headerlink" href="#quantize-on-model-conversion" title="Permalink to this headline"></a></h2>
 <p>Enabling the quantization when converting the model is helpful to reduce its size on disk. The converters expose the option <code class="docutils literal notranslate"><span class="pre">quantization</span></code> that accepts the following values:</p>

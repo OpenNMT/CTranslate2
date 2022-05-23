@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fairseq &mdash; CTranslate2 2.17.0 documentation</title>
+  <title>Fairseq &mdash; CTranslate2 2.18.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.17
+                2.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -64,6 +64,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Fairseq</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#beam-search-equivalence">Beam search equivalence</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#wmt16-english-german">WMT16 English-German</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#wmt19-language-model">WMT19 language model</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mbart-50">MBART-50</a></li>
 </ul>
@@ -117,6 +118,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">multilingual_transformer</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">transformer</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">transformer_align</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">transformer_lm</span></code></p></li>
 </ul>
 <p>The conversion minimally requires the PyTorch model path and the Fairseq data directory which contains the vocabulary files:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install fairseq
@@ -148,6 +150,36 @@ ct2-fairseq-converter --model_path wmt16.en-de.joined-dict.transformer/model.pt 
 <span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[</span><span class="s2">&quot;H@@&quot;</span><span class="p">,</span> <span class="s2">&quot;ello&quot;</span><span class="p">,</span> <span class="s2">&quot;world@@&quot;</span><span class="p">,</span> <span class="s2">&quot;!&quot;</span><span class="p">]])</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>For simplicity, this example does not show how to tokenize the text. The tokens are obtained by running <code class="docutils literal notranslate"><span class="pre">sacremoses</span></code> and applying the BPE codes included in the model.</p>
+</div>
+</section>
+<section id="wmt19-language-model">
+<h2>WMT19 language model<a class="headerlink" href="#wmt19-language-model" title="Permalink to this headline"></a></h2>
+<p>The FAIR team published <a class="reference external" href="https://github.com/pytorch/fairseq/blob/main/examples/language_model/README.md">pretrained language models</a> as part of the WMT19 news translation task. They can be converted to the CTranslate2 format:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://dl.fbaipublicfiles.com/fairseq/models/lm/wmt19.en.tar.gz
+tar xf wmt19.en.tar.gz
+
+ct2-fairseq-converter --data_dir wmt19.en/ --model_path wmt19.en/model.pt --output_dir wmt19_en_ct2
+</pre></div>
+</div>
+<p>The model can then be used to sample or score sequences of tokens. All inputs should start with the special token <code class="docutils literal notranslate"><span class="pre">&lt;/s&gt;</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">ctranslate2</span>
+
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;wmt19_en_ct2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+
+<span class="c1"># Sample from the language model.</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([[</span><span class="s2">&quot;&lt;/s&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;The&quot;</span><span class="p">]],</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+<span class="c1"># Compute the perplexity for a sentence.</span>
+<span class="n">log_probs</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">score_batch</span><span class="p">([[</span><span class="s2">&quot;&lt;/s&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;The&quot;</span><span class="p">,</span> <span class="s2">&quot;sky&quot;</span><span class="p">,</span> <span class="s2">&quot;is&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">]])</span>
+<span class="n">perplexity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">perplexity</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="admonition note">

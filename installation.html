@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 2.17.0 documentation</title>
+  <title>Installation &mdash; CTranslate2 2.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.17
+                2.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -217,9 +217,17 @@ pip install dist/*.whl
 <td><p><em>path</em></p></td>
 <td><p>Defines the installation path of the library</p></td>
 </tr>
-<tr class="row-even"><td><p>CUDA_DYNAMIC_LOADING</p></td>
+<tr class="row-even"><td><p>CUDA_ARCH_LIST</p></td>
+<td><p><strong>Auto</strong></p></td>
+<td><p>List of CUDA architectures to compile for (see <a class="reference external" href="https://cmake.org/cmake/help/latest/module/FindCUDA.html"><code class="docutils literal notranslate"><span class="pre">cuda_select_nvcc_arch_flags</span></code></a> in the CMake documentation)</p></td>
+</tr>
+<tr class="row-odd"><td><p>CUDA_DYNAMIC_LOADING</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
-<td><p>Enables the dynamic loading of CUDA libraries at runtime instead of linking against them. Requires CUDA &gt;= 11.</p></td>
+<td><p>Enables the dynamic loading of CUDA libraries at runtime instead of linking against them (requires CUDA &gt;= 11)</p></td>
+</tr>
+<tr class="row-even"><td><p>CUDA_NVCC_FLAGS</p></td>
+<td><p><em>compiler flags</em></p></td>
+<td><p>Defines additional compilation flags for <code class="docutils literal notranslate"><span class="pre">nvcc</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>ENABLE_CPU_DISPATCH</p></td>
 <td><p>OFF, <strong>ON</strong></p></td>
@@ -261,9 +269,9 @@ pip install dist/*.whl
 </table>
 <p>Some build options require additional dependencies. See their respective documentation for installation instructions.</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_CUDA=ON</span></code> requires <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> &gt;=10.0</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_MKL=ON</span></code> requires <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> &gt;=2019.5</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;=1.5</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_CUDA=ON</span></code> requires <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> &gt;= 10.0</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_MKL=ON</span></code> requires <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> &gt;= 2019.5</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 1.5</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_ACCELERATE=ON</span></code> requires <a class="reference external" href="https://developer.apple.com/documentation/accelerate">Accelerate</a></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_OPENBLAS=ON</span></code> requires <a class="reference external" href="https://github.com/xianyi/OpenBLAS">OpenBLAS</a></p></li>
 </ul>

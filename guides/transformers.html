@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 2.17.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 2.18.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.17
+                2.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -71,6 +71,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#marianmt">MarianMT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-2">GPT-2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#opt">OPT</a></li>
 </ul>
 </li>
 </ul>
@@ -118,6 +119,7 @@
 <li><p>MarianMT</p></li>
 <li><p>MBART</p></li>
 <li><p>OpenAI GPT2</p></li>
+<li><p>OPT</p></li>
 </ul>
 <p>The converter takes as argument the pretrained model name or the path to a model directory:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install transformers<span class="o">[</span>torch<span class="o">]</span>
@@ -201,6 +203,29 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">start_tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 <span class="n">output</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
+</pre></div>
+</div>
+</section>
+<section id="opt">
+<h2>OPT<a class="headerlink" href="#opt" title="Permalink to this headline"></a></h2>
+<p>This example uses Meta’s <a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/opt">OPT</a> model with 350M parameters. The usage is similar to GPT-2 but all inputs should start with the special token <code class="docutils literal notranslate"><span class="pre">&lt;/s&gt;</span></code> which is automatically added by <code class="docutils literal notranslate"><span class="pre">GPT2Tokenizer</span></code>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/opt-350m --output_dir opt-350m-ct2
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">transformers</span>
+
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">GPT2Tokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;facebook/opt-350m&quot;</span><span class="p">)</span>
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;opt-350m-ct2&quot;</span><span class="p">)</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;Hey, are you conscious? Can you talk to me?&quot;</span>
+<span class="n">start_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">start_tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
+<span class="n">output_tokens</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="n">output</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">output_tokens</span><span class="p">))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

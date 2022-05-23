@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text generation &mdash; CTranslate2 2.17.0 documentation</title>
+  <title>Text generation &mdash; CTranslate2 2.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.17
+                2.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Text generation</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#perplexity">Perplexity</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#special-tokens">Special tokens</a></li>
 </ul>
 </li>
@@ -110,8 +111,16 @@
 <p>CTranslate2 exposes high-level classes to run generative language models such as <a class="reference external" href="https://github.com/openai/gpt-2">GPT-2</a>. The main entrypoint is the <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> class which can run conditional or unconditional generation.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>See the <a class="reference internal" href="guides/transformers.html"><span class="doc std std-doc">Transformers</span></a> guide which includes an example using GPT-2.</p>
+<p>See the <a class="reference internal" href="guides/transformers.html#gpt-2"><span class="std std-ref">GPT-2</span></a> example in the Transformers guide.</p>
 </div>
+<section id="perplexity">
+<h2>Perplexity<a class="headerlink" href="#perplexity" title="Permalink to this headline"></a></h2>
+<p>The <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> class exposes the method <code class="docutils literal notranslate"><span class="pre">score_batch</span></code> which can be used to calculate the perplexity for full sequences. It returns the log-likelihood of each token.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>See the <a class="reference internal" href="guides/fairseq.html#wmt19-language-model"><span class="std std-ref">WMT19 language model</span></a> example in the Fairseq guide.</p>
+</div>
+</section>
 <section id="special-tokens">
 <h2>Special tokens<a class="headerlink" href="#special-tokens" title="Permalink to this headline"></a></h2>
 <p>Special tokens such as the decoder start token <code class="docutils literal notranslate"><span class="pre">&lt;s&gt;</span></code> should be explicitly included in the input if required by the model. No special tokens are added by the generator methods.</p>
