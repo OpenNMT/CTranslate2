@@ -279,6 +279,7 @@ jobs:
           black --check .
 
       - name: Check imports order with isort
+        working-directory: python
         run: |
           isort --check-only .
 
