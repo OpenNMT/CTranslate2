@@ -84,7 +84,7 @@ class ModelLoader(abc.ABC):
 
         tokens = self.get_vocabulary(tokenizer)
         if model.config.vocab_size < len(tokens):
-            tokens = tokens[:model.config.vocab_size]
+            tokens = tokens[: model.config.vocab_size]
         if isinstance(spec, model_spec.SequenceToSequenceModelSpec):
             spec.register_source_vocabulary(tokens)
             spec.register_target_vocabulary(tokens)
