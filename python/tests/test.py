@@ -479,7 +479,7 @@ def test_score_api(tmpdir):
 
     # Test empty inputs.
     assert translator.score_batch([], []) == []
-    assert translator.score_batch([[]] + source, [[]] + target)[0] == []
+    assert translator.score_batch([[]], [[]])[0] == [0]
     assert translator.score_batch([[], []], target) == [
         [0, 0, 0, 0, 0, 0, 0],
         [0, 0, 0, 0, 0, 0, 0, 0],
@@ -971,8 +971,8 @@ def test_fairseq_user_start_token(tmpdir):
 
     assert scores[0] == pytest.approx(expected_scores, 1e-5)
 
+    # In this mode, an empty target is not enough tokens to run the score so the output is empty.
     assert translator.score_batch([tokens], [[]])[0] == []
-    assert translator.score_batch([tokens], [["</s>"]])[0] == []
 
 
 @skip_if_data_missing
@@ -1118,7 +1118,7 @@ def test_transformers_lm_scoring(tmpdir):
     # Test empty inputs.
     assert generator.score_batch([]) == []
     assert generator.score_batch([[], tokens])[0] == []
-    assert generator.score_batch([["<|endoftext|>"]]) == [[]]
+    assert generator.score_batch([["<|endoftext|>"]])[0] == []
 
 
 def test_layer_spec_validate():

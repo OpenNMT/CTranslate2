@@ -146,8 +146,6 @@ namespace ctranslate2 {
 
       size_t get_source_length(const std::vector<std::string>& source,
                                bool include_special_tokens) const;
-      size_t get_target_length(const std::vector<std::string>& target,
-                               bool include_special_tokens) const;
 
       void encode(const std::vector<std::vector<std::vector<std::string>>>& source,
                   StorageView& memory,

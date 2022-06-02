@@ -187,16 +187,6 @@ namespace ctranslate2 {
       return length;
     }
 
-    size_t EncoderDecoderReplica::get_target_length(const std::vector<std::string>& target,
-                                                    bool include_special_tokens) const {
-      size_t length = target.size();
-      if (include_special_tokens && !_model->user_decoder_start_tokens())
-        return length + 1;
-      if (!include_special_tokens && _model->user_decoder_start_tokens() && length > 0)
-        return length - 1;
-      return length;
-    }
-
     void
     EncoderDecoderReplica::encode(const std::vector<std::vector<std::vector<std::string>>>& source,
                                   StorageView& memory,
@@ -260,8 +250,7 @@ namespace ctranslate2 {
                                              const std::vector<std::string>& target,
                                              const ScoringOptions&,
                                              ScoringResult& result) {
-      // If there are not enough target tokens to score, the result is empty.
-      if (get_target_length(target, /*include_special_tokens=*/true) < 2) {
+      if (_model->user_decoder_start_tokens() && target.empty()) {
         return true;
       }
 
