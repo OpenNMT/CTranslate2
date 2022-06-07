@@ -148,6 +148,36 @@ namespace ctranslate2 {
     }
 
     template<>
+    void gelu<TARGET_ISA>(const float* x, float* y, dim_t size) {
+      using VecType = Vec<float, TARGET_ISA>;
+      vectorized_unary_transform<TARGET_ISA>(
+        x, y, size,
+        [](vec_type<float, TARGET_ISA> v) {
+          return VecType::mul(
+            VecType::load(0.5f),
+            VecType::mul(
+              v,
+              VecType::add(
+                VecType::load(1.f),
+                VecType::tanh(
+                  VecType::mul(
+                    VecType::load(0.7978845608028654f),
+                    VecType::add(
+                      v,
+                      VecType::mul(
+                        VecType::load(0.044715f),
+                        VecType::mul(VecType::mul(v, v), v)
+                        )
+                      )
+                    )
+                  )
+                )
+              )
+            );
+        });
+    }
+
+    template<>
     void swish<TARGET_ISA>(const float* x, float* y, dim_t size) {
       using VecType = Vec<float, TARGET_ISA>;
       vectorized_unary_transform<TARGET_ISA>(

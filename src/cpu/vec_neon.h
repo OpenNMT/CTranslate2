@@ -81,6 +81,10 @@ namespace ctranslate2 {
         return cos_ps(a);
       }
 
+      static inline value_type tanh(value_type a) {
+        return vec_tanh<TARGET_ISA>(a);
+      }
+
       static inline value_type max(value_type a, value_type b) {
         return vmaxq_f32(a, b);
       }

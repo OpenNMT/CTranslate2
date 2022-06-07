@@ -67,6 +67,10 @@ namespace ctranslate2 {
         return std::cos(a);
       }
 
+      static inline value_type tanh(value_type a) {
+        return std::tanh(a);
+      }
+
       static inline value_type max(value_type a, value_type b) {
         return std::max(a, b);
       }
@@ -103,6 +107,14 @@ namespace ctranslate2 {
 
     template <typename T, CpuIsa ISA = CpuIsa::GENERIC>
     using vec_type = typename Vec<T, ISA>::value_type;
+
+    template <CpuIsa ISA>
+    vec_type<float, ISA> vec_tanh(vec_type<float, ISA> a) {
+      using VecType = Vec<float, ISA>;
+      auto one = VecType::load(1.f);
+      auto exp = VecType::exp(VecType::mul(VecType::load(-2.f), a));
+      return VecType::div(VecType::sub(one, exp), VecType::add(one, exp));
+    }
 
   }
 }

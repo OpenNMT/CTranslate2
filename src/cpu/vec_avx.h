@@ -100,6 +100,10 @@ namespace ctranslate2 {
         return cos256_ps(a);
       }
 
+      static inline value_type tanh(value_type a) {
+        return vec_tanh<TARGET_ISA>(a);
+      }
+
       static inline value_type max(value_type a, value_type b) {
         return _mm256_max_ps(a, b);
       }
