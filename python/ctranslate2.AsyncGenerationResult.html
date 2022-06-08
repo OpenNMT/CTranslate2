@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AsyncGenerationResult &mdash; CTranslate2 2.18.0 documentation</title>
+  <title>AsyncGenerationResult &mdash; CTranslate2 2.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.18
+                2.19
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -130,19 +130,14 @@
 <dd><p>Asynchronous wrapper around a result object.</p>
 <p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
 <dl class="py method">
-<dt class="sig sig-object py" id="ctranslate2.AsyncGenerationResult.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="o"><span class="pre">*</span></span><span class="n"><span class="pre">args</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.AsyncGenerationResult.__init__" title="Permalink to this definition"></a></dt>
-<dd></dd></dl>
-
-<dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.AsyncGenerationResult.done">
-<span class="sig-name descname"><span class="pre">done</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#ctranslate2.AsyncGenerationResult" title="ctranslate2.translator.AsyncGenerationResult"><span class="pre">ctranslate2.translator.AsyncGenerationResult</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#ctranslate2.AsyncGenerationResult.done" title="Permalink to this definition"></a></dt>
-<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">True</span></code> if the result is ready.</p>
+<span class="sig-name descname"><span class="pre">done</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#ctranslate2.AsyncGenerationResult.done" title="Permalink to this definition"></a></dt>
+<dd><p>Returns <code class="docutils literal notranslate"><span class="pre">True</span></code> if the result is available.</p>
 </dd></dl>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.AsyncGenerationResult.result">
-<span class="sig-name descname"><span class="pre">result</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">self</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#ctranslate2.AsyncGenerationResult" title="ctranslate2.translator.AsyncGenerationResult"><span class="pre">ctranslate2.translator.AsyncGenerationResult</span></a></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult" title="ctranslate2.translator.GenerationResult"><span class="pre">ctranslate2.translator.GenerationResult</span></a></span></span><a class="headerlink" href="#ctranslate2.AsyncGenerationResult.result" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">result</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult" title="ctranslate2.GenerationResult"><span class="pre">GenerationResult</span></a></span></span><a class="headerlink" href="#ctranslate2.AsyncGenerationResult.result" title="Permalink to this definition"></a></dt>
 <dd><p>Blocks until the result is available and returns it.</p>
 </dd></dl>
 

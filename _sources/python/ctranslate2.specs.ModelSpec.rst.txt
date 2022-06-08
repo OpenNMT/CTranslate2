@@ -7,3 +7,8 @@ ModelSpec
     :inherited-members:
 
     **Inherits from:** :class:`ctranslate2.specs.LayerSpec`
+
+    **Extended by:**
+
+    - :class:`ctranslate2.specs.LanguageModelSpec`
+    - :class:`ctranslate2.specs.SequenceToSequenceModelSpec`

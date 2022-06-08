@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransformerSpec &mdash; CTranslate2 2.18.0 documentation</title>
+  <title>TransformerSpec &mdash; CTranslate2 2.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.18
+                2.19
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -76,8 +76,10 @@
 <li class="toctree-l2 current"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html">Activation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html">EmbeddingsMerge</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html">LanguageModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html">LayerSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html">ModelSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html">SequenceToSequenceModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html">TransformerDecoderModelSpec</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">TransformerSpec</a></li>
 </ul>
@@ -125,7 +127,7 @@
 <dd><p>Describes a Transformer model.</p>
 <p>The specification is invariant to hidden dimensions but requires to
 explicitly set the number of layers and attention heads.</p>
-<p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.model_spec.SequenceToSequenceModelSpec</span></code></p>
+<p><strong>Inherits from:</strong> <a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec" title="ctranslate2.specs.SequenceToSequenceModelSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.SequenceToSequenceModelSpec</span></code></a></p>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_relative_position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation" title="ctranslate2.specs.common_spec.Activation"><span class="pre">Activation</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Activation.RELU</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alignment_layer</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">-</span> <span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">alignment_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_source_embeddings</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">embeddings_merge</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge" title="ctranslate2.specs.common_spec.EmbeddingsMerge"><span class="pre">EmbeddingsMerge</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">EmbeddingsMerge.CONCAT</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layernorm_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.__init__" title="Permalink to this definition"></a></dt>
@@ -152,7 +154,7 @@ embeddings are merged.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.optimize">
-<span class="sig-name descname"><span class="pre">optimize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.optimize" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">optimize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.optimize" title="Permalink to this definition"></a></dt>
 <dd><p>Recursively applies some optimizations to this layer:</p>
 <ul class="simple">
 <li><p>Alias variables with the same shape and value.</p></li>
@@ -168,7 +170,7 @@ embeddings are merged.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.register_source_vocabulary">
-<span class="sig-name descname"><span class="pre">register_source_vocabulary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.register_source_vocabulary" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">register_source_vocabulary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.register_source_vocabulary" title="Permalink to this definition"></a></dt>
 <dd><p>Registers a source vocabulary of tokens.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -179,7 +181,7 @@ embeddings are merged.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.register_target_vocabulary">
-<span class="sig-name descname"><span class="pre">register_target_vocabulary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.register_target_vocabulary" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">register_target_vocabulary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.register_target_vocabulary" title="Permalink to this definition"></a></dt>
 <dd><p>Registers a target vocabulary of tokens.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -190,7 +192,7 @@ embeddings are merged.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.register_vocabulary_mapping">
-<span class="sig-name descname"><span class="pre">register_vocabulary_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.register_vocabulary_mapping" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">register_vocabulary_mapping</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.register_vocabulary_mapping" title="Permalink to this definition"></a></dt>
 <dd><p>Registers a vocabulary mapping file.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -201,7 +203,7 @@ embeddings are merged.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.save" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.save" title="Permalink to this definition"></a></dt>
 <dd><p>Saves this model on disk.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -212,7 +214,7 @@ embeddings are merged.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.validate">
-<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.validate" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.validate" title="Permalink to this definition"></a></dt>
 <dd><p>Verify that the required weights are set.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Raises</dt>
@@ -223,7 +225,7 @@ embeddings are merged.</p></li>
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerSpec.variables">
-<span class="sig-name descname"><span class="pre">variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ordered</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.variables" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ordered</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#ctranslate2.specs.TransformerSpec.variables" title="Permalink to this definition"></a></dt>
 <dd><p>Recursively returns the weights from this layer and its children.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>

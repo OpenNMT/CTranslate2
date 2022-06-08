@@ -6,4 +6,4 @@ TransformerSpec
     :undoc-members:
     :inherited-members:
 
-    **Inherits from:** :class:`ctranslate2.specs.model_spec.SequenceToSequenceModelSpec`
+    **Inherits from:** :class:`ctranslate2.specs.SequenceToSequenceModelSpec`

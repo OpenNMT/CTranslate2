@@ -1,0 +1,13 @@
+LanguageModelSpec
+=================
+
+.. autoclass:: ctranslate2.specs.LanguageModelSpec
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.specs.ModelSpec`
+
+    **Extended by:**
+
+    - :class:`ctranslate2.specs.TransformerDecoderModelSpec`

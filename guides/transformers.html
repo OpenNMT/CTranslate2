@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 2.18.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 2.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.18
+                2.19
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -68,6 +68,7 @@
 <li class="toctree-l1"><a class="reference internal" href="opus_mt.html">OPUS-MT</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Transformers</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#special-tokens-in-translation">Special tokens in translation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#bart">BART</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#marianmt">MarianMT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-2">GPT-2</a></li>
@@ -137,6 +138,34 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 </pre></div>
 </div>
 <p>If you are not using the Hugging Face tokenizers, make sure to add these special tokens when required.</p>
+</section>
+<section id="bart">
+<h2>BART<a class="headerlink" href="#bart" title="Permalink to this headline"></a></h2>
+<p>This example uses the <a class="reference external" href="https://huggingface.co/facebook/bart-large-cnn">BART</a> model that was fine-tuned on CNN Daily Mail for text summarization.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/bart-large-cnn --output_dir bart-large-cnn
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">transformers</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;bart-large-cnn&quot;</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;facebook/bart-large-cnn&quot;</span><span class="p">)</span>
+
+<span class="n">text</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">&quot;PG&amp;E stated it scheduled the blackouts in response to forecasts for high winds &quot;</span>
+    <span class="s2">&quot;amid dry conditions. &quot;</span>
+    <span class="s2">&quot;The aim is to reduce the risk of wildfires. &quot;</span>
+    <span class="s2">&quot;Nearly 800 thousand customers were scheduled to be affected by the shutoffs which &quot;</span>
+    <span class="s2">&quot;were expected to last through at least midday tomorrow.&quot;</span>
+<span class="p">)</span>
+
+<span class="n">source</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">])</span>
+<span class="n">target</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">target</span><span class="p">),</span> <span class="n">skip_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
+</pre></div>
+</div>
 </section>
 <section id="marianmt">
 <h2>MarianMT<a class="headerlink" href="#marianmt" title="Permalink to this headline"></a></h2>

@@ -7,7 +7,9 @@ ctranslate2.specs
 
    ctranslate2.specs.Activation
    ctranslate2.specs.EmbeddingsMerge
+   ctranslate2.specs.LanguageModelSpec
    ctranslate2.specs.LayerSpec
    ctranslate2.specs.ModelSpec
+   ctranslate2.specs.SequenceToSequenceModelSpec
    ctranslate2.specs.TransformerDecoderModelSpec
    ctranslate2.specs.TransformerSpec

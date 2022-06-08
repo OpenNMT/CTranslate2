@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ModelSpec &mdash; CTranslate2 2.19.0 documentation</title>
+  <title>LanguageModelSpec &mdash; CTranslate2 2.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="SequenceToSequenceModelSpec" href="ctranslate2.specs.SequenceToSequenceModelSpec.html" />
-    <link rel="prev" title="LayerSpec" href="ctranslate2.specs.LayerSpec.html" /> 
+    <link rel="next" title="LayerSpec" href="ctranslate2.specs.LayerSpec.html" />
+    <link rel="prev" title="EmbeddingsMerge" href="ctranslate2.specs.EmbeddingsMerge.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -76,9 +76,9 @@
 <li class="toctree-l2 current"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html">Activation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html">EmbeddingsMerge</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html">LanguageModelSpec</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">LanguageModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html">LayerSpec</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">ModelSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html">ModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html">SequenceToSequenceModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html">TransformerDecoderModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html">TransformerSpec</a></li>
@@ -110,7 +110,7 @@
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="overview.html">Python</a> &raquo;</li>
           <li><a href="ctranslate2.specs.html">ctranslate2.specs</a> &raquo;</li>
-      <li>ModelSpec</li>
+      <li>LanguageModelSpec</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -119,21 +119,31 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="modelspec">
-<h1>ModelSpec<a class="headerlink" href="#modelspec" title="Permalink to this headline"></a></h1>
+  <section id="languagemodelspec">
+<h1>LanguageModelSpec<a class="headerlink" href="#languagemodelspec" title="Permalink to this headline"></a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="ctranslate2.specs.ModelSpec">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.specs.</span></span><span class="sig-name descname"><span class="pre">ModelSpec</span></span><a class="headerlink" href="#ctranslate2.specs.ModelSpec" title="Permalink to this definition"></a></dt>
-<dd><p>The top level layer specification.</p>
-<p><strong>Inherits from:</strong> <a class="reference internal" href="ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec" title="ctranslate2.specs.LayerSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.LayerSpec</span></code></a></p>
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.specs.</span></span><span class="sig-name descname"><span class="pre">LanguageModelSpec</span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec" title="Permalink to this definition"></a></dt>
+<dd><p>Base specification for language models.</p>
+<p><strong>Inherits from:</strong> <a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec" title="ctranslate2.specs.ModelSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.ModelSpec</span></code></a></p>
 <p><strong>Extended by:</strong></p>
 <ul class="simple">
-<li><p><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec" title="ctranslate2.specs.LanguageModelSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.LanguageModelSpec</span></code></a></p></li>
-<li><p><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec" title="ctranslate2.specs.SequenceToSequenceModelSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.SequenceToSequenceModelSpec</span></code></a></p></li>
+<li><p><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec" title="ctranslate2.specs.TransformerDecoderModelSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.TransformerDecoderModelSpec</span></code></a></p></li>
 </ul>
 <dl class="py method">
-<dt class="sig sig-object py" id="ctranslate2.specs.ModelSpec.optimize">
-<span class="sig-name descname"><span class="pre">optimize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.ModelSpec.optimize" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">embeddings_spec</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.__init__" title="Permalink to this definition"></a></dt>
+<dd><p>Initializes a language model specification.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>embeddings_spec</strong> – Input EmbeddingsSpec module.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.optimize">
+<span class="sig-name descname"><span class="pre">optimize</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.optimize" title="Permalink to this definition"></a></dt>
 <dd><p>Recursively applies some optimizations to this layer:</p>
 <ul class="simple">
 <li><p>Alias variables with the same shape and value.</p></li>
@@ -148,8 +158,19 @@
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="ctranslate2.specs.ModelSpec.save">
-<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.ModelSpec.save" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.register_vocabulary">
+<span class="sig-name descname"><span class="pre">register_vocabulary</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.register_vocabulary" title="Permalink to this definition"></a></dt>
+<dd><p>Registers the vocabulary of tokens.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>tokens</strong> – List of tokens.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.save">
+<span class="sig-name descname"><span class="pre">save</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.save" title="Permalink to this definition"></a></dt>
 <dd><p>Saves this model on disk.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -159,8 +180,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="ctranslate2.specs.ModelSpec.validate">
-<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.ModelSpec.validate" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.validate">
+<span class="sig-name descname"><span class="pre">validate</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.validate" title="Permalink to this definition"></a></dt>
 <dd><p>Verify that the required weights are set.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Raises</dt>
@@ -170,8 +191,8 @@
 </dd></dl>
 
 <dl class="py method">
-<dt class="sig sig-object py" id="ctranslate2.specs.ModelSpec.variables">
-<span class="sig-name descname"><span class="pre">variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ordered</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#ctranslate2.specs.ModelSpec.variables" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.variables">
+<span class="sig-name descname"><span class="pre">variables</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">''</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">ordered</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.variables" title="Permalink to this definition"></a></dt>
 <dd><p>Recursively returns the weights from this layer and its children.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -187,14 +208,14 @@
 </dd></dl>
 
 <dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.specs.ModelSpec.name">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#ctranslate2.specs.ModelSpec.name" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.name" title="Permalink to this definition"></a></dt>
 <dd><p>The name of the model specification.</p>
 </dd></dl>
 
 <dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.specs.ModelSpec.revision">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">revision</span></span><a class="headerlink" href="#ctranslate2.specs.ModelSpec.revision" title="Permalink to this definition"></a></dt>
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.revision">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">revision</span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.revision" title="Permalink to this definition"></a></dt>
 <dd><p>The model specification revision.</p>
 <p>This value is incremented each time the weights layout of the model is
 changed (e.g. a weight is renamed).</p>
@@ -208,8 +229,8 @@ changed (e.g. a weight is renamed).</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ctranslate2.specs.LayerSpec.html" class="btn btn-neutral float-left" title="LayerSpec" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.specs.SequenceToSequenceModelSpec.html" class="btn btn-neutral float-right" title="SequenceToSequenceModelSpec" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.specs.EmbeddingsMerge.html" class="btn btn-neutral float-left" title="EmbeddingsMerge" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.specs.LayerSpec.html" class="btn btn-neutral float-right" title="LayerSpec" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

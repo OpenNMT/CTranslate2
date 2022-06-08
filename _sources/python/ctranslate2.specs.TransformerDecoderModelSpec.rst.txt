@@ -6,4 +6,4 @@ TransformerDecoderModelSpec
     :undoc-members:
     :inherited-members:
 
-    **Inherits from:** :class:`ctranslate2.specs.model_spec.LanguageModelSpec`
+    **Inherits from:** :class:`ctranslate2.specs.LanguageModelSpec`
