@@ -1257,16 +1257,26 @@ def test_fp16_weights(
     quantization, expected_weight, expected_weight_scale, expected_bias
 ):
     class Spec(ctranslate2.specs.LayerSpec):
-        def __init__(self):
-            self.weight = np.array([[-10, -3, 5, 2]], dtype=np.float16)
-            self.bias = np.array([4], dtype=np.float16)
+        def __init__(self, weight, bias):
+            self.weight = weight
+            self.bias = bias
 
-    spec = Spec()
+    weight = np.array([[-10, -3, 5, 2]], dtype=np.float16)
+    bias = np.array([4], dtype=np.float16)
+
+    spec = Spec(weight, bias)
     spec.validate()
     spec.optimize(quantization=quantization)
 
     assert _array_equal(spec.weight, expected_weight)
     assert _array_equal(spec.bias, expected_bias)
+
+    # Check the weights were not copied or converted.
+    if quantization == "float16":
+        assert spec.weight is weight
+        assert spec.bias is bias
+    elif quantization == "int8_float16":
+        assert spec.bias is bias
 
     if expected_weight_scale is None:
         assert not hasattr(spec, "weight_scale")
