@@ -244,8 +244,7 @@ namespace ctranslate2 {
       , _with_encoder_attention(_layers.front()->has_cross_attention())
       , _alignment_layer(alignment_layer < 0 ? _layers.size() + alignment_layer : alignment_layer)
       , _alignment_heads(alignment_heads == 0 ? _num_heads : alignment_heads)
-      , _proj(model, scope + "/projection")
-    {
+      , _proj(model, scope + "/projection") {
     }
 
     DecoderState TransformerDecoder::initial_state(bool iterative_decoding) const {
