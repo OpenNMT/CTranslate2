@@ -89,7 +89,7 @@ namespace ctranslate2 {
       if (single_layer)
         _layers.emplace_back(std::move(single_layer));
       else
-        _layers = build_layers<Embeddings>(model, scope);
+        _layers = build_layers_list<const Embeddings>(model, scope);
     }
 
     DataType ParallelEmbeddings::output_type() const {

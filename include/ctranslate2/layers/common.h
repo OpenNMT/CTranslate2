@@ -23,10 +23,10 @@ namespace ctranslate2 {
     }
 
     template <typename Layer, typename... Args>
-    std::vector<std::unique_ptr<const Layer>> build_sequential_layers(const models::Model& model,
-                                                                      const std::string& prefix,
-                                                                      Args... args) {
-      std::vector<std::unique_ptr<const Layer>> layers;
+    std::vector<std::unique_ptr<Layer>> build_layers_list(const models::Model& model,
+                                                          const std::string& prefix,
+                                                          Args... args) {
+      std::vector<std::unique_ptr<Layer>> layers;
 
       for (size_t i = 0;; ++i) {
         const std::string layer_scope = prefix + "_" + std::to_string(i);

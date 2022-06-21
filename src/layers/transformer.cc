@@ -168,7 +168,7 @@ namespace ctranslate2 {
                           : nullptr)
       , _layernorm_embedding(build_optional_layer<LayerNorm>(model, scope + "/layernorm_embedding"))
       , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
-      , _layers(build_sequential_layers<TransformerEncoderLayer>(model,
+      , _layers(build_layers_list<const TransformerEncoderLayer>(model,
                                                                  scope + "/layer",
                                                                  num_heads,
                                                                  pre_norm,
@@ -236,7 +236,7 @@ namespace ctranslate2 {
       , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
       , _project_in(build_optional_layer<Dense>(model, scope + "/project_in"))
       , _project_out(build_optional_layer<Dense>(model, scope + "/project_out"))
-      , _layers(build_sequential_layers<TransformerDecoderLayer>(model,
+      , _layers(build_layers_list<const TransformerDecoderLayer>(model,
                                                                  scope + "/layer",
                                                                  num_heads,
                                                                  pre_norm,
