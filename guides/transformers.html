@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 2.19.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 2.19.1 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -238,6 +238,10 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <section id="opt">
 <h2>OPT<a class="headerlink" href="#opt" title="Permalink to this headline"></a></h2>
 <p>This example uses Meta’s <a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/opt">OPT</a> model with 350M parameters. The usage is similar to GPT-2 but all inputs should start with the special token <code class="docutils literal notranslate"><span class="pre">&lt;/s&gt;</span></code> which is automatically added by <code class="docutils literal notranslate"><span class="pre">GPT2Tokenizer</span></code>.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Converting OPT models requires <code class="docutils literal notranslate"><span class="pre">transformers&gt;=4.20.1</span></code>.</p>
+</div>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/opt-350m --output_dir opt-350m-ct2
 </pre></div>
 </div>
