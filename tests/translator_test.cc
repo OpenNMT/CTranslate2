@@ -268,7 +268,7 @@ TEST_P(SearchVariantTest, RepetitionPenalty) {
 
 TEST_P(SearchVariantTest, NoRepeatNgram) {
   const auto beam_size = GetParam();
-  Translator translator = default_translator(Device::CUDA);
+  Translator translator = default_translator();
   TranslationOptions options;
   options.beam_size = beam_size;
   options.no_repeat_ngram_size = 3;
