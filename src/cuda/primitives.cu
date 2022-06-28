@@ -260,8 +260,8 @@ namespace ctranslate2 {
                                                 dim_t max_num_ids,
                                                 dim_t batch_size,
                                                 dim_t vocabulary_size) {
-    const dim_t threads = std::max(max_num_ids, dim_t(32));
-    const dim_t blocks = batch_size;
+    const dim_t blocks = std::min(batch_size, cuda::max_blocks);
+    const dim_t threads = std::min(std::max(max_num_ids, dim_t(32)), cuda::max_threads);
     disable_tokens_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
       cuda::device_cast(scores),
       ids,
