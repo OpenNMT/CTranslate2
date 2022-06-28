@@ -238,6 +238,39 @@ namespace ctranslate2 {
       vocabulary_size);
   }
 
+  template <typename T>
+  __global__ void disable_tokens_kernel(T* scores,
+                                        const int32_t* ids,
+                                        const int32_t* num_ids,
+                                        T disabled_score,
+                                        cuda::index_t max_num_ids,
+                                        cuda::index_t vocabulary_size) {
+    scores += blockIdx.x * vocabulary_size;
+    ids += blockIdx.x * max_num_ids;
+    for (cuda::index_t i = threadIdx.x; i < num_ids[blockIdx.x]; i += blockDim.x)
+      scores[ids[i]] = disabled_score;
+  }
+
+  template<>
+  template <typename T>
+  void primitives<Device::CUDA>::disable_tokens(T* scores,
+                                                const int32_t* ids,
+                                                const int32_t* num_ids,
+                                                T disabled_score,
+                                                dim_t max_num_ids,
+                                                dim_t batch_size,
+                                                dim_t vocabulary_size) {
+    const dim_t threads = std::max(max_num_ids, dim_t(32));
+    const dim_t blocks = batch_size;
+    disable_tokens_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
+      cuda::device_cast(scores),
+      ids,
+      num_ids,
+      cuda::device_type<T>(disabled_score),
+      max_num_ids,
+      vocabulary_size);
+  }
+
   __global__ void prepare_length_mask_kernel(const int32_t* lengths,
                                              cuda::index_t num_heads,
                                              cuda::index_t num_queries,
@@ -615,6 +648,14 @@ namespace ctranslate2 {
                                                      dim_t,             \
                                                      dim_t,             \
                                                      dim_t);            \
+  template void                                                         \
+  primitives<Device::CUDA>::disable_tokens(T*,                          \
+                                           const int32_t*,              \
+                                           const int32_t*,              \
+                                           T,                           \
+                                           dim_t,                       \
+                                           dim_t,                       \
+                                           dim_t);                      \
   template void                                                         \
   primitives<Device::CUDA>::transpose_2d(const T* a,                    \
                                          const dim_t* dims,             \

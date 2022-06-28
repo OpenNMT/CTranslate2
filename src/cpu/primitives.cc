@@ -366,6 +366,23 @@ namespace ctranslate2 {
   }
 
   template<>
+  template <typename T>
+  void primitives<Device::CPU>::disable_tokens(T* scores,
+                                               const int32_t* ids,
+                                               const int32_t* num_ids,
+                                               T disabled_score,
+                                               dim_t max_num_ids,
+                                               dim_t batch_size,
+                                               dim_t vocabulary_size) {
+    for (dim_t i = 0; i < batch_size; ++i) {
+      for (dim_t j = 0; j < num_ids[i]; ++j) {
+        const auto id = ids[i * max_num_ids + j];
+        scores[i * vocabulary_size + id] = disabled_score;
+      }
+    }
+  }
+
+  template<>
   void primitives<Device::CPU>::prepare_length_mask(const int32_t* lengths,
                                                     dim_t batch_size,
                                                     dim_t num_heads,
@@ -1054,6 +1071,14 @@ namespace ctranslate2 {
                                                     dim_t,              \
                                                     dim_t,              \
                                                     dim_t);             \
+  template void                                                         \
+  primitives<Device::CPU>::disable_tokens(T*,                           \
+                                          const int32_t*,               \
+                                          const int32_t*,               \
+                                          T,                            \
+                                          dim_t,                        \
+                                          dim_t,                        \
+                                          dim_t);                       \
   template void                                                         \
   primitives<Device::CPU>::transpose_2d(const T* a,                     \
                                         const dim_t* dims,              \

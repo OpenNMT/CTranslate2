@@ -4,6 +4,7 @@
 #include <cmath>
 #include <memory>
 #include <numeric>
+#include <set>
 
 #include "ctranslate2/ops/ops.h"
 #include "dispatch.h"
@@ -51,6 +52,19 @@ namespace ctranslate2 {
                                                          static_cast<T>(-1e10),
                                                          log_probs.dim(-1),
                                                          log_probs.dim(0)));
+  }
+
+  static void disable_tokens(StorageView& log_probs, const std::vector<std::vector<size_t>>& ids) {
+    StorageView num_tokens;
+    StorageView tokens = layers::make_sequence_inputs(ids, log_probs.device(), 1, &num_tokens);
+    DEVICE_AND_TYPE_DISPATCH(log_probs.device(), log_probs.dtype(),
+                             primitives<D>::disable_tokens(log_probs.data<T>(),
+                                                           tokens.data<int32_t>(),
+                                                           num_tokens.data<int32_t>(),
+                                                           static_cast<T>(-1e10),
+                                                           tokens.dim(-1),
+                                                           log_probs.dim(0),
+                                                           log_probs.dim(-1)));
   }
 
   static void penalize_previous_tokens(StorageView& log_probs,
@@ -172,6 +186,38 @@ namespace ctranslate2 {
     } else {
       history = std::move(step_output);
     }
+  }
+
+  // For each batch, return the list of tokens that should not be generated to avoid
+  // repeating a previous ngram.
+  // Precondition: history.rank() == 2 && history.dim(-1) >= ngram_size
+  static std::vector<std::vector<size_t>> get_banned_tokens(const StorageView& history,
+                                                            const dim_t ngram_size) {
+    const dim_t batch_size = history.dim(0);
+    const dim_t length = history.dim(-1);
+
+    std::vector<std::vector<size_t>> banned_tokens;
+    banned_tokens.reserve(batch_size);
+
+    for (dim_t b = 0; b < batch_size; ++b) {
+      const auto* begin = history.index<int32_t>({b, 0});
+      const auto* end = begin + length;
+      const auto* current_ngram_begin = end - ngram_size + 1;
+
+      std::set<size_t> ngram_final_tokens;
+
+      while (true) {
+        begin = std::search(begin, end, current_ngram_begin, end);
+        if (begin + ngram_size > end)
+          break;
+        ngram_final_tokens.emplace(begin[ngram_size - 1]);
+        begin += 1;
+      }
+
+      banned_tokens.emplace_back(ngram_final_tokens.begin(), ngram_final_tokens.end());
+    }
+
+    return banned_tokens;
   }
 
   static std::vector<size_t> build_hypothesis(const StorageView& history,
@@ -374,6 +420,7 @@ namespace ctranslate2 {
                      const bool return_attention,
                      const size_t num_hypotheses,
                      const float repetition_penalty,
+                     const dim_t no_repeat_ngram_size,
                      const std::vector<std::vector<size_t>>* prefix_ids) const {
     PROFILE("beam_search");
     const dim_t min_step = start_step + min_length;
@@ -451,6 +498,11 @@ namespace ctranslate2 {
       // Prevent the generation of end_id until the minimum length is reached.
       if (step < min_step)
         disable_token(log_probs, end_id);
+      if (no_repeat_ngram_size > 0 && alive_seq && alive_seq.dim(-1) >= no_repeat_ngram_size) {
+        merge_batch_beam(alive_seq);
+        disable_tokens(log_probs, get_banned_tokens(alive_seq, no_repeat_ngram_size));
+        split_batch_beam(alive_seq, _beam_size);
+      }
 
       // Multiply by the current beam log probs.
       if (topk_scores) {
@@ -619,6 +671,7 @@ namespace ctranslate2 {
                        const bool return_attention,
                        const size_t,
                        const float repetition_penalty,
+                       const dim_t no_repeat_ngram_size,
                        const std::vector<std::vector<size_t>>* prefix_ids) const {
     PROFILE("greedy_search");
     const dim_t min_step = start_step + min_length;
@@ -666,6 +719,8 @@ namespace ctranslate2 {
       // Prevent the generation of end_id until the minimum length is reached.
       if (step < min_step)
         disable_token(log_probs, end_id);
+      if (no_repeat_ngram_size > 0 && alive_seq && alive_seq.dim(-1) >= no_repeat_ngram_size)
+        disable_tokens(log_probs, get_banned_tokens(alive_seq, no_repeat_ngram_size));
 
       sampler(log_probs, best_ids, best_probs);
       if (output_ids_map)
@@ -676,7 +731,7 @@ namespace ctranslate2 {
         attention_step.copy_from(attention_step_device.to_float());
 
       // When repetition penalty is enabled, we should keep the previously generated tokens.
-      if (repetition_penalty != 1) {
+      if (repetition_penalty != 1 || no_repeat_ngram_size > 0) {
         if (alive_seq) {
           const StorageView cur_alive_seq = std::move(alive_seq);
           ops::Concat(-1)({&cur_alive_seq, &best_ids}, alive_seq);
@@ -921,8 +976,7 @@ namespace ctranslate2 {
                                                                     options.normalize_scores,
                                                                     options.return_scores,
                                                                     options.return_attention,
-                                                                    options.num_hypotheses,
-                                                                    /*repetition_penalty=*/1);
+                                                                    options.num_hypotheses);
 
       start_ids.resize(batch_size * options.num_hypotheses);
       for (size_t b = 0; b < batch_size; ++b) {
@@ -967,6 +1021,7 @@ namespace ctranslate2 {
                                            options.return_attention,
                                            options.return_alternatives ? 1 : options.num_hypotheses,
                                            options.repetition_penalty,
+                                           options.no_repeat_ngram_size,
                                            options.return_alternatives ? nullptr : &prefix_ids);
 
     if (options.return_alternatives) {
