@@ -2,6 +2,7 @@
 
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
+#include <thrust/device_ptr.h>
 
 #include "cuda/helpers.h"
 #include "type_dispatch.h"
@@ -21,6 +22,7 @@ namespace ctranslate2 {
   void primitives<Device::CUDA>::fill(T* x, T a, dim_t size) {
     THRUST_CALL(thrust::fill, x, x + size, a);
   }
+
   template<>
   template <typename T>
   void primitives<Device::CUDA>::strided_fill(T* x, T a, dim_t inc_x, dim_t size) {
@@ -28,6 +30,15 @@ namespace ctranslate2 {
       x, thrust::make_transform_iterator(thrust::counting_iterator<cuda::index_t>(0),
                                          thrust::placeholders::_1 * inc_x));
     THRUST_CALL(thrust::fill, it, it + size, a);
+  }
+
+  template<>
+  template <typename T>
+  void primitives<Device::CUDA>::indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices) {
+    auto element_it = thrust::device_pointer_cast(cuda::device_cast(x));
+    auto index_it = thrust::device_pointer_cast(indices);
+    auto it = thrust::make_permutation_iterator(element_it, index_it);
+    THRUST_CALL(thrust::fill, it, it + num_indices, cuda::device_type<T>(a));
   }
 
   template<>
@@ -235,39 +246,6 @@ namespace ctranslate2 {
       penalty,
       batch_size,
       length,
-      vocabulary_size);
-  }
-
-  template <typename T>
-  __global__ void disable_tokens_kernel(T* scores,
-                                        const int32_t* ids,
-                                        const int32_t* num_ids,
-                                        T disabled_score,
-                                        cuda::index_t max_num_ids,
-                                        cuda::index_t vocabulary_size) {
-    scores += blockIdx.x * vocabulary_size;
-    ids += blockIdx.x * max_num_ids;
-    for (cuda::index_t i = threadIdx.x; i < num_ids[blockIdx.x]; i += blockDim.x)
-      scores[ids[i]] = disabled_score;
-  }
-
-  template<>
-  template <typename T>
-  void primitives<Device::CUDA>::disable_tokens(T* scores,
-                                                const int32_t* ids,
-                                                const int32_t* num_ids,
-                                                T disabled_score,
-                                                dim_t max_num_ids,
-                                                dim_t batch_size,
-                                                dim_t vocabulary_size) {
-    const dim_t blocks = std::min(batch_size, cuda::max_blocks);
-    const dim_t threads = std::min(std::max(max_num_ids, dim_t(32)), cuda::max_threads);
-    disable_tokens_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-      cuda::device_cast(scores),
-      ids,
-      num_ids,
-      cuda::device_type<T>(disabled_score),
-      max_num_ids,
       vocabulary_size);
   }
 
@@ -606,6 +584,8 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CUDA>::strided_fill(T* x, T a, dim_t inc_x, dim_t size); \
   template void                                                         \
+  primitives<Device::CUDA>::indexed_fill(T*, T, const int32_t*, dim_t); \
+  template void                                                         \
   primitives<Device::CUDA>::copy<T>(const T* x, T* y, dim_t size);      \
   template T                                                            \
   primitives<Device::CUDA>::sum(const T* array, dim_t size);            \
@@ -648,14 +628,6 @@ namespace ctranslate2 {
                                                      dim_t,             \
                                                      dim_t,             \
                                                      dim_t);            \
-  template void                                                         \
-  primitives<Device::CUDA>::disable_tokens(T*,                          \
-                                           const int32_t*,              \
-                                           const int32_t*,              \
-                                           T,                           \
-                                           dim_t,                       \
-                                           dim_t,                       \
-                                           dim_t);                      \
   template void                                                         \
   primitives<Device::CUDA>::transpose_2d(const T* a,                    \
                                          const dim_t* dims,             \

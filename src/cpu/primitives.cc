@@ -57,6 +57,13 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CPU>::indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices) {
+    for (dim_t i = 0; i < num_indices; ++i)
+      x[indices[i]] = a;
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CPU>::copy(const T* x, T* y, dim_t size) {
     std::copy(x, x + size, y);
   }
@@ -363,23 +370,6 @@ namespace ctranslate2 {
         }
       }
     });
-  }
-
-  template<>
-  template <typename T>
-  void primitives<Device::CPU>::disable_tokens(T* scores,
-                                               const int32_t* ids,
-                                               const int32_t* num_ids,
-                                               T disabled_score,
-                                               dim_t max_num_ids,
-                                               dim_t batch_size,
-                                               dim_t vocabulary_size) {
-    for (dim_t i = 0; i < batch_size; ++i) {
-      for (dim_t j = 0; j < num_ids[i]; ++j) {
-        const auto id = ids[i * max_num_ids + j];
-        scores[i * vocabulary_size + id] = disabled_score;
-      }
-    }
   }
 
   template<>
@@ -1027,6 +1017,8 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CPU>::strided_fill(T* x, T a, dim_t inc_x, dim_t size); \
   template void                                                         \
+  primitives<Device::CPU>::indexed_fill(T*, T, const int32_t*, dim_t);  \
+  template void                                                         \
   primitives<Device::CPU>::copy(const T* x, T* y, dim_t size);          \
   template T                                                            \
   primitives<Device::CPU>::sum(const T* array, dim_t size);             \
@@ -1071,14 +1063,6 @@ namespace ctranslate2 {
                                                     dim_t,              \
                                                     dim_t,              \
                                                     dim_t);             \
-  template void                                                         \
-  primitives<Device::CPU>::disable_tokens(T*,                           \
-                                          const int32_t*,               \
-                                          const int32_t*,               \
-                                          T,                            \
-                                          dim_t,                        \
-                                          dim_t,                        \
-                                          dim_t);                       \
   template void                                                         \
   primitives<Device::CPU>::transpose_2d(const T* a,                     \
                                         const dim_t* dims,              \

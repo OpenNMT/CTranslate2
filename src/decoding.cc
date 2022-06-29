@@ -54,17 +54,23 @@ namespace ctranslate2 {
                                                          log_probs.dim(0)));
   }
 
-  static void disable_tokens(StorageView& log_probs, const std::vector<std::vector<size_t>>& ids) {
-    StorageView num_tokens;
-    StorageView tokens = layers::make_sequence_inputs(ids, log_probs.device(), 1, &num_tokens);
-    DEVICE_AND_TYPE_DISPATCH(log_probs.device(), log_probs.dtype(),
-                             primitives<D>::disable_tokens(log_probs.data<T>(),
-                                                           tokens.data<int32_t>(),
-                                                           num_tokens.data<int32_t>(),
-                                                           static_cast<T>(-1e10),
-                                                           tokens.dim(-1),
-                                                           log_probs.dim(0),
-                                                           log_probs.dim(-1)));
+  static void disable_tokens(StorageView& log_probs,
+                             const std::vector<std::pair<size_t, size_t>>& ids) {
+    const Device device = log_probs.device();
+    const dim_t vocabulary_size = log_probs.dim(-1);
+    const dim_t num_tokens = ids.size();
+
+    StorageView indices({num_tokens}, DataType::INT32);
+    for (dim_t i = 0; i < num_tokens; ++i)
+      indices.at<int32_t>(i) = ids[i].first * vocabulary_size + ids[i].second;
+    if (indices.device() != device)
+      indices = indices.to(device);
+
+    DEVICE_AND_TYPE_DISPATCH(device, log_probs.dtype(),
+                             primitives<D>::indexed_fill(log_probs.data<T>(),
+                                                         static_cast<T>(-1e10),
+                                                         indices.data<int32_t>(),
+                                                         num_tokens));
   }
 
   static void penalize_previous_tokens(StorageView& log_probs,
@@ -188,19 +194,18 @@ namespace ctranslate2 {
     }
   }
 
-  // For each batch, return the list of tokens that should not be generated to avoid
+  // Returns the list of tokens (batch_id, token_id) that should not be generated to avoid
   // repeating a previous ngram.
   // Precondition: history.rank() == 2 && history.dim(-1) >= ngram_size
-  static std::vector<std::vector<size_t>> get_banned_tokens(const StorageView& history,
-                                                            const dim_t ngram_size) {
+  static std::vector<std::pair<size_t, size_t>>
+  get_banned_tokens(const StorageView& history, const dim_t ngram_size) {
     const dim_t batch_size = history.dim(0);
-    const dim_t length = history.dim(-1);
+    const dim_t length = history.dim(1);
 
-    std::vector<std::vector<size_t>> banned_tokens;
-    banned_tokens.reserve(batch_size);
+    std::vector<std::pair<size_t, size_t>> banned_tokens;
 
-    for (dim_t b = 0; b < batch_size; ++b) {
-      const auto* begin = history.index<int32_t>({b, 0});
+    for (dim_t batch_id = 0; batch_id < batch_size; ++batch_id) {
+      const auto* begin = history.index<int32_t>({batch_id, 0});
       const auto* end = begin + length;
       const auto* current_ngram_begin = end - ngram_size + 1;
 
@@ -214,7 +219,8 @@ namespace ctranslate2 {
         begin += 1;
       }
 
-      banned_tokens.emplace_back(ngram_final_tokens.begin(), ngram_final_tokens.end());
+      for (const auto token_id : ngram_final_tokens)
+        banned_tokens.emplace_back(batch_id, token_id);
     }
 
     return banned_tokens;

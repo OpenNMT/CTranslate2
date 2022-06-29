@@ -17,6 +17,8 @@ namespace ctranslate2 {
     static void fill(T* x, T a, dim_t size);
     template <typename T>
     static void strided_fill(T* x, T a, dim_t inc_x, dim_t size);
+    template <typename T>
+    static void indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices);
 
     template <typename T>
     static void copy(const T* x, T* y, dim_t size);
@@ -139,15 +141,6 @@ namespace ctranslate2 {
                                          dim_t batch_size,
                                          dim_t length,
                                          dim_t vocabulary_size);
-
-    template <typename T>
-    static void disable_tokens(T* scores,
-                               const int32_t* ids,
-                               const int32_t* num_ids,
-                               T disabled_score,
-                               dim_t max_num_ids,
-                               dim_t batch_size,
-                               dim_t vocabulary_size);
 
     static void prepare_length_mask(const int32_t* lengths,
                                     dim_t batch_size,
