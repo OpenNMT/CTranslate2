@@ -1177,6 +1177,9 @@ def test_layer_spec_validate():
     assert _array_equal(spec.f, np.int8(1))
     assert _array_equal(spec.g, np.array([104, 101, 108, 108, 111], dtype=np.int8))
 
+    with pytest.raises(AttributeError, match="Attribute z does not exist"):
+        spec.z = True
+
 
 def test_layer_spec_optimize():
     class SubSpec(ctranslate2.specs.LayerSpec):
