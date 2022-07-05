@@ -646,7 +646,13 @@ get_supported_compute_types(const std::string& device_str, const int device_inde
 template <typename T>
 static void declare_async_wrapper(py::module& m, const char* name) {
   py::class_<AsyncResult<T>>(m, name, "Asynchronous wrapper around a result object.")
-    .def("result", &AsyncResult<T>::result, "Blocks until the result is available and returns it.")
+    .def("result", &AsyncResult<T>::result,
+         R"pbdoc(
+             Blocks until the result is available and returns it.
+
+             If an exception was raised when computing the result,
+             this method raises the exception.
+         )pbdoc")
     .def("done", &AsyncResult<T>::done, "Returns ``True`` if the result is available.")
     ;
 }
