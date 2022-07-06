@@ -1132,7 +1132,9 @@ _TRANSFORMERS_GENERATION_TESTS = [
 
 @only_on_linux
 def test_transformers_marianmt_vocabulary(clear_transformers_cache, tmpdir):
-    converter = ctranslate2.converters.TransformersConverter("Helsinki-NLP/opus-mt-en-de")
+    converter = ctranslate2.converters.TransformersConverter(
+        "Helsinki-NLP/opus-mt-en-de"
+    )
     output_dir = str(tmpdir.join("ctranslate2_model"))
     output_dir = converter.convert(output_dir)
 
