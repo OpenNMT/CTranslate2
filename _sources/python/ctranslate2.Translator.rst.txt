@@ -7,3 +7,21 @@ Translator
     :inherited-members:
 
     **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.Translator.device`
+    - :obj:`~ctranslate2.Translator.device_index`
+    - :obj:`~ctranslate2.Translator.model_is_loaded`
+    - :obj:`~ctranslate2.Translator.num_active_batches`
+    - :obj:`~ctranslate2.Translator.num_queued_batches`
+    - :obj:`~ctranslate2.Translator.num_translators`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.Translator.load_model`
+    - :obj:`~ctranslate2.Translator.score_batch`
+    - :obj:`~ctranslate2.Translator.score_file`
+    - :obj:`~ctranslate2.Translator.translate_batch`
+    - :obj:`~ctranslate2.Translator.translate_file`
+    - :obj:`~ctranslate2.Translator.unload_model`

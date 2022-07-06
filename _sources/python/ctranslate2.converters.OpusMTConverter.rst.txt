@@ -7,3 +7,9 @@ OpusMTConverter
     :inherited-members:
 
     **Inherits from:** :class:`ctranslate2.converters.MarianConverter`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.converters.OpusMTConverter.convert`
+    - :obj:`~ctranslate2.converters.OpusMTConverter.convert_from_args`
+    - :obj:`~ctranslate2.converters.OpusMTConverter.declare_arguments`

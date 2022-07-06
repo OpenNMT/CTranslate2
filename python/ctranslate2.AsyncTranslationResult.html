@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>AsyncTranslationResult &mdash; CTranslate2 2.19.1 documentation</title>
+  <title>AsyncTranslationResult &mdash; CTranslate2 2.20.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.19
+                2.20
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -129,6 +129,11 @@
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">AsyncTranslationResult</span></span><a class="headerlink" href="#ctranslate2.AsyncTranslationResult" title="Permalink to this definition"></a></dt>
 <dd><p>Asynchronous wrapper around a result object.</p>
 <p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
+<p><strong>Methods:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.AsyncTranslationResult.done" title="ctranslate2.AsyncTranslationResult.done"><code class="xref py py-obj docutils literal notranslate"><span class="pre">done</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.AsyncTranslationResult.result" title="ctranslate2.AsyncTranslationResult.result"><code class="xref py py-obj docutils literal notranslate"><span class="pre">result</span></code></a></p></li>
+</ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.AsyncTranslationResult.done">
 <span class="sig-name descname"><span class="pre">done</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#ctranslate2.AsyncTranslationResult.done" title="Permalink to this definition"></a></dt>
@@ -139,6 +144,8 @@
 <dt class="sig sig-object py" id="ctranslate2.AsyncTranslationResult.result">
 <span class="sig-name descname"><span class="pre">result</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="ctranslate2.TranslationResult.html#ctranslate2.TranslationResult" title="ctranslate2.TranslationResult"><span class="pre">TranslationResult</span></a></span></span><a class="headerlink" href="#ctranslate2.AsyncTranslationResult.result" title="Permalink to this definition"></a></dt>
 <dd><p>Blocks until the result is available and returns it.</p>
+<p>If an exception was raised when computing the result,
+this method raises the exception.</p>
 </dd></dl>
 
 </dd></dl>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransformerDecoderModelSpec &mdash; CTranslate2 2.19.1 documentation</title>
+  <title>TransformerDecoderModelSpec &mdash; CTranslate2 2.20.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.19
+                2.20
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -126,6 +126,20 @@
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.specs.</span></span><span class="sig-name descname"><span class="pre">TransformerDecoderModelSpec</span></span><a class="headerlink" href="#ctranslate2.specs.TransformerDecoderModelSpec" title="Permalink to this definition"></a></dt>
 <dd><p>Describes a Transformer decoder model (e.g. GPT-2).</p>
 <p><strong>Inherits from:</strong> <a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec" title="ctranslate2.specs.LanguageModelSpec"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.specs.LanguageModelSpec</span></code></a></p>
+<p><strong>Attributes:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.name" title="ctranslate2.specs.TransformerDecoderModelSpec.name"><code class="xref py py-obj docutils literal notranslate"><span class="pre">name</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.revision" title="ctranslate2.specs.TransformerDecoderModelSpec.revision"><code class="xref py py-obj docutils literal notranslate"><span class="pre">revision</span></code></a></p></li>
+</ul>
+<p><strong>Methods:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size" title="ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_vocabulary_size</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.optimize" title="ctranslate2.specs.TransformerDecoderModelSpec.optimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimize</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.register_vocabulary" title="ctranslate2.specs.TransformerDecoderModelSpec.register_vocabulary"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_vocabulary</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.save" title="ctranslate2.specs.TransformerDecoderModelSpec.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.validate" title="ctranslate2.specs.TransformerDecoderModelSpec.validate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validate</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.variables" title="ctranslate2.specs.TransformerDecoderModelSpec.variables"><code class="xref py py-obj docutils literal notranslate"><span class="pre">variables</span></code></a></p></li>
+</ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerDecoderModelSpec.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation" title="ctranslate2.specs.common_spec.Activation"><span class="pre">Activation</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Activation.RELU</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layernorm_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_final_norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project_in_out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerDecoderModelSpec.__init__" title="Permalink to this definition"></a></dt>

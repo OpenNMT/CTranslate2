@@ -7,3 +7,9 @@ OpenNMTTFConverter
     :inherited-members:
 
     **Inherits from:** :class:`ctranslate2.converters.Converter`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.converters.OpenNMTTFConverter.convert`
+    - :obj:`~ctranslate2.converters.OpenNMTTFConverter.convert_from_args`
+    - :obj:`~ctranslate2.converters.OpenNMTTFConverter.declare_arguments`

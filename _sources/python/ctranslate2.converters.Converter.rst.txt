@@ -17,3 +17,9 @@ Converter
     - :class:`ctranslate2.converters.OpenNMTTFConverter`
     - :class:`ctranslate2.converters.OpenNMTTFConverterV2`
     - :class:`ctranslate2.converters.TransformersConverter`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.converters.Converter.convert`
+    - :obj:`~ctranslate2.converters.Converter.convert_from_args`
+    - :obj:`~ctranslate2.converters.Converter.declare_arguments`

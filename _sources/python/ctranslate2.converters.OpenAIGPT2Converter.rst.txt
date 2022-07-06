@@ -7,3 +7,9 @@ OpenAIGPT2Converter
     :inherited-members:
 
     **Inherits from:** :class:`ctranslate2.converters.Converter`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.converters.OpenAIGPT2Converter.convert`
+    - :obj:`~ctranslate2.converters.OpenAIGPT2Converter.convert_from_args`
+    - :obj:`~ctranslate2.converters.OpenAIGPT2Converter.declare_arguments`

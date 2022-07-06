@@ -7,3 +7,9 @@ TranslationResult
     :inherited-members:
 
     **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.TranslationResult.attention`
+    - :obj:`~ctranslate2.TranslationResult.hypotheses`
+    - :obj:`~ctranslate2.TranslationResult.scores`

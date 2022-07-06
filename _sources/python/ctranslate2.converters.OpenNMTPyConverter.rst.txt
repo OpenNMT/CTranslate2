@@ -7,3 +7,9 @@ OpenNMTPyConverter
     :inherited-members:
 
     **Inherits from:** :class:`ctranslate2.converters.Converter`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.converters.OpenNMTPyConverter.convert`
+    - :obj:`~ctranslate2.converters.OpenNMTPyConverter.convert_from_args`
+    - :obj:`~ctranslate2.converters.OpenNMTPyConverter.declare_arguments`

@@ -7,3 +7,20 @@ TransformerSpec
     :inherited-members:
 
     **Inherits from:** :class:`ctranslate2.specs.SequenceToSequenceModelSpec`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.specs.TransformerSpec.name`
+    - :obj:`~ctranslate2.specs.TransformerSpec.revision`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.TransformerSpec.get_source_vocabulary_size`
+    - :obj:`~ctranslate2.specs.TransformerSpec.get_target_vocabulary_size`
+    - :obj:`~ctranslate2.specs.TransformerSpec.optimize`
+    - :obj:`~ctranslate2.specs.TransformerSpec.register_source_vocabulary`
+    - :obj:`~ctranslate2.specs.TransformerSpec.register_target_vocabulary`
+    - :obj:`~ctranslate2.specs.TransformerSpec.register_vocabulary_mapping`
+    - :obj:`~ctranslate2.specs.TransformerSpec.save`
+    - :obj:`~ctranslate2.specs.TransformerSpec.validate`
+    - :obj:`~ctranslate2.specs.TransformerSpec.variables`

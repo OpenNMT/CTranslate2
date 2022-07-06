@@ -11,3 +11,9 @@ LayerSpec
     **Extended by:**
 
     - :class:`ctranslate2.specs.ModelSpec`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.LayerSpec.optimize`
+    - :obj:`~ctranslate2.specs.LayerSpec.validate`
+    - :obj:`~ctranslate2.specs.LayerSpec.variables`

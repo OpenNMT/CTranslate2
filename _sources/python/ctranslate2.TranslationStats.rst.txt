@@ -7,3 +7,9 @@ TranslationStats
     :inherited-members:
 
     **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.TranslationStats.num_examples`
+    - :obj:`~ctranslate2.TranslationStats.num_tokens`
+    - :obj:`~ctranslate2.TranslationStats.total_time_in_ms`

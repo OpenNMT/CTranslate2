@@ -7,3 +7,8 @@ AsyncTranslationResult
     :inherited-members:
 
     **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.AsyncTranslationResult.done`
+    - :obj:`~ctranslate2.AsyncTranslationResult.result`
