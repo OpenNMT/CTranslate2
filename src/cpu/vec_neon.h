@@ -18,6 +18,7 @@ namespace ctranslate2 {
     struct Vec<float, TARGET_ISA> {
 
       using value_type = float32x4_t;
+      using mask_type = uint32x4_t;
       static constexpr dim_t width = 4;
 
       static inline value_type load(float value) {
@@ -51,6 +52,14 @@ namespace ctranslate2 {
           vst1q_f32(tmp_values, value);
           std::copy(tmp_values, tmp_values + count, ptr);
         }
+      }
+
+      static inline mask_type lt(value_type a, value_type b) {
+        return vcltq_f32(a, b);
+      }
+
+      static inline value_type select(mask_type mask, value_type a, value_type b) {
+        return vbsl_f32(mask, a, b);
       }
 
       static inline value_type abs(value_type a) {
@@ -107,6 +116,10 @@ namespace ctranslate2 {
 
       static inline value_type div(value_type a, value_type b) {
         return vdivq_f32(a, b);
+      }
+
+      static inline value_type mul_add(value_type a, value_type b, value_type c) {
+        return vfmaq_f32(a, b, c);
       }
 
       static inline float reduce_add(value_type a) {
