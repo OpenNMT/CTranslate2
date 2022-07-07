@@ -59,7 +59,7 @@ namespace ctranslate2 {
       }
 
       static inline value_type select(mask_type mask, value_type a, value_type b) {
-        return vbsl_f32(mask, a, b);
+        return vbslq_f32(mask, a, b);
       }
 
       static inline value_type abs(value_type a) {
