@@ -119,7 +119,7 @@ namespace ctranslate2 {
       }
 
       static inline value_type mul_add(value_type a, value_type b, value_type c) {
-        return vfmaq_f32(a, b, c);
+        return vfmaq_f32(c, a, b);
       }
 
       static inline float reduce_add(value_type a) {
