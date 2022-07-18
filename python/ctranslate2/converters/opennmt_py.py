@@ -92,9 +92,9 @@ def _get_model_spec_seq2seq(
 
 def _get_model_spec_lm(opt, variables, src_vocabs, tgt_vocabs, num_source_embeddings):
     """Creates a model specification from the model options."""
+    with_relative_position = getattr(opt, "max_relative_positions", 0) > 0
     activation_fn = getattr(opt, "pos_ffn_activation_fn", "relu")
     num_heads = getattr(opt, "heads", 8)
-    with_relative_position = getattr(opt, "max_relative_positions", 0) > 0
 
     model_spec = transformer_spec.TransformerDecoderModelSpec(
         opt.dec_layers,
