@@ -7,25 +7,26 @@
 namespace ctranslate2 {
   namespace cpu {
 
-    bool mayiuse_mkl() {
-      static const bool mayiuse = []() {
-        const std::string use_mkl_env = read_string_from_env("CT2_USE_MKL");
-        if (use_mkl_env.empty()) {
+    static bool mayiuse_mkl_init() {
+      const std::string use_mkl_env = read_string_from_env("CT2_USE_MKL");
+      if (use_mkl_env.empty()) {
 #ifdef CT2_WITH_MKL
-          return cpu_is_genuine_intel();
+        return cpu_is_genuine_intel();
 #else
-          return false;
+        return false;
 #endif
-        } else {
-          const bool use_mkl = string_to_bool(use_mkl_env);
+      } else {
+        const bool use_mkl = string_to_bool(use_mkl_env);
 #ifndef CT2_WITH_MKL
-          if (use_mkl)
-            throw std::invalid_argument("This CTranslate2 binary was not compiled with Intel MKL");
+        if (use_mkl)
+          throw std::invalid_argument("This CTranslate2 binary was not compiled with Intel MKL");
 #endif
-          return use_mkl;
-        }
-      }();
+        return use_mkl;
+      }
+    }
 
+    bool mayiuse_mkl() {
+      static const bool mayiuse = mayiuse_mkl_init();
       return mayiuse;
     }
 
