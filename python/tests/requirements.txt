@@ -1,4 +1,4 @@
-transformers==4.20.1;platform_system=='Linux'
+https://github.com/huggingface/transformers/archive/refs/heads/main.tar.gz;platform_system=='Linux'
 torch==1.11.*;platform_system=='Darwin'
 fairseq==0.10.2;platform_system=='Linux' or platform_system=='Darwin'
 OpenNMT-py==2.2.*;platform_system=='Linux' or platform_system=='Darwin'
