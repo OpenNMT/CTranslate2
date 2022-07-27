@@ -1110,7 +1110,7 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "▁at ▁least ▁midday ▁tomorrow . </s>",
         "",
         "▁California ' s ▁largest ▁electricity ▁provider ▁has ▁turned ▁off ▁power ▁to "
-        "▁hundreds ▁of ▁thousands ▁of ▁customers ."
+        "▁hundreds ▁of ▁thousands ▁of ▁customers .",
     ),
 ]
 
