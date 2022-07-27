@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Generator &mdash; CTranslate2 2.20.0 documentation</title>
+  <title>Generator &mdash; CTranslate2 2.21.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.20
+                2.21
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -179,7 +179,10 @@ until a free slot is available.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>start_tokens</strong> – Batch of start tokens. If the decoder starts from a special
 start token like <code class="docutils literal notranslate"><span class="pre">&lt;s&gt;</span></code>, this token should be added to this input.</p></li>
-<li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
+<li><p><strong>max_batch_size</strong> – The maximum batch size. If the number of inputs is greater than
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code>, the inputs are sorted by length and split by chunks of
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples so that the number of padding positions is
+minimized.</p></li>
 <li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
 <li><p><strong>asynchronous</strong> – Run the generation asynchronously.</p></li>
 <li><p><strong>beam_size</strong> – Beam size (1 for greedy search).</p></li>
@@ -220,7 +223,10 @@ unless <code class="xref py py-obj docutils literal notranslate"><span class="pr
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>tokens</strong> – Batch of tokens to score. If the model expects special start or end tokens,
 they should also be added to this input.</p></li>
-<li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
+<li><p><strong>max_batch_size</strong> – The maximum batch size. If the number of inputs is greater than
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code>, the inputs are sorted by length and split by chunks of
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples so that the number of padding positions is
+minimized.</p></li>
 <li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
 <li><p><strong>max_input_length</strong> – Truncate inputs after this many tokens (0 to disable).</p></li>
 </ul>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 2.20.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 2.21.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.20
+                2.21
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -71,6 +71,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#bart">BART</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#marianmt">MarianMT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#nllb">NLLB</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-2">GPT-2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opt">OPT</a></li>
 </ul>
@@ -119,8 +120,10 @@
 <li><p>M2M100</p></li>
 <li><p>MarianMT</p></li>
 <li><p>MBART</p></li>
+<li><p>NLLB</p></li>
 <li><p>OpenAI GPT2</p></li>
 <li><p>OPT</p></li>
+<li><p>Pegasus</p></li>
 </ul>
 <p>The converter takes as argument the pretrained model name or the path to a model directory:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install transformers<span class="o">[</span>torch<span class="o">]</span>
@@ -205,6 +208,35 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 
 <span class="n">source</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">))</span>
 <span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">lang_code_to_token</span><span class="p">[</span><span class="s2">&quot;de&quot;</span><span class="p">]]</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">],</span> <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">target_prefix</span><span class="p">])</span>
+<span class="n">target</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:]</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">target</span><span class="p">)))</span>
+</pre></div>
+</div>
+</section>
+<section id="nllb">
+<h2>NLLB<a class="headerlink" href="#nllb" title="Permalink to this headline"></a></h2>
+<p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/nllb">NLLB</a> is a collection of multilingual models trained by Meta and supporting 200 languages. See <a class="reference external" href="https://github.com/facebookresearch/flores/blob/main/flores200/README.md#languages-in-flores-200">here</a> for the list of accepted language codes.</p>
+<p>The example below uses the smallest version with 600M parameters.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Converting NLLB models requires <code class="docutils literal notranslate"><span class="pre">transformers&gt;=4.21.0</span></code>.</p>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/nllb-200-distilled-600M --output_dir nllb-200-distilled-600M
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">transformers</span>
+
+<span class="n">src_lang</span> <span class="o">=</span> <span class="s2">&quot;eng_Latn&quot;</span>
+<span class="n">tgt_lang</span> <span class="o">=</span> <span class="s2">&quot;fra_Latn&quot;</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;nllb-200-distilled-600M&quot;</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;facebook/nllb-200-distilled-600M&quot;</span><span class="p">,</span> <span class="n">src_lang</span><span class="o">=</span><span class="n">src_lang</span><span class="p">)</span>
+
+<span class="n">source</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">))</span>
+<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="n">tgt_lang</span><span class="p">]</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">],</span> <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">target_prefix</span><span class="p">])</span>
 <span class="n">target</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:]</span>
 

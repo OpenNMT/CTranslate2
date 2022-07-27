@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Environment variables &mdash; CTranslate2 2.20.0 documentation</title>
+  <title>Environment variables &mdash; CTranslate2 2.21.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.20
+                2.21
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -130,7 +130,7 @@
 <p>Allocating memory on the GPU with <code class="docutils literal notranslate"><span class="pre">cudaMalloc</span></code> is costly and is best avoided in high-performance code. For this reason CTranslate2 integrates caching allocators which enable a fast reuse of previously allocated buffers. The following allocators are integrated:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">cuda_malloc_async</span></code> (default for CUDA &gt;= 11.2)<br/>Uses the <a class="reference external" href="https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY__POOLS.html">asynchronous allocator with memory pools</a> introduced in CUDA 11.2.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cub_caching</span></code> (default for CUDA &lt; 11.2)<br/>Use the caching allocator from the <a class="reference external" href="https://github.com/NVIDIA/cub">CUB project</a>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cub_caching</span></code> (default for CUDA &lt; 11.2)<br/>Uses the caching allocator from the <a class="reference external" href="https://github.com/NVIDIA/cub">CUB project</a>.</p></li>
 </ul>
 </section>
 <section id="ct2-cuda-allow-fp16">

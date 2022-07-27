@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Translator &mdash; CTranslate2 2.20.0 documentation</title>
+  <title>Translator &mdash; CTranslate2 2.21.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.20
+                2.21
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -190,7 +190,10 @@ until a free slot is available.</p></li>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>source</strong> – Batch of source tokens.</p></li>
 <li><p><strong>target</strong> – Batch of target tokens.</p></li>
-<li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
+<li><p><strong>max_batch_size</strong> – The maximum batch size. If the number of inputs is greater than
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code>, the inputs are sorted by length and split by chunks of
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples so that the number of padding positions is
+minimized.</p></li>
 <li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
 <li><p><strong>max_input_length</strong> – Truncate inputs after this many tokens (0 to disable).</p></li>
 </ul>
@@ -219,7 +222,11 @@ token <code class="docutils literal notranslate"><span class="pre">&lt;/s&gt;</s
 <li><p><strong>target_path</strong> – Path to the target file.</p></li>
 <li><p><strong>output_path</strong> – Path to the output file.</p></li>
 <li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
-<li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
+<li><p><strong>read_batch_size</strong> – The number of examples to read from the file before sorting
+by length and splitting by chunks of <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples
+(set 0 for an automatic value).</p></li>
+<li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> and <code class="xref py py-obj docutils literal notranslate"><span class="pre">read_batch_size</span></code> are the
+number of “examples” or “tokens”.</p></li>
 <li><p><strong>max_input_length</strong> – Truncate inputs after this many tokens (0 to disable).</p></li>
 <li><p><strong>with_tokens_score</strong> – Include the token-level scores in the output file.</p></li>
 <li><p><strong>source_tokenize_fn</strong> – Function to tokenize source lines.</p></li>
@@ -242,7 +249,10 @@ token <code class="docutils literal notranslate"><span class="pre">&lt;/s&gt;</s
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>source</strong> – Batch of source tokens.</p></li>
 <li><p><strong>target_prefix</strong> – Optional batch of target prefix tokens.</p></li>
-<li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
+<li><p><strong>max_batch_size</strong> – The maximum batch size. If the number of inputs is greater than
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code>, the inputs are sorted by length and split by chunks of
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples so that the number of padding positions is
+minimized.</p></li>
 <li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
 <li><p><strong>asynchronous</strong> – Run the translation asynchronously.</p></li>
 <li><p><strong>beam_size</strong> – Beam size (1 for greedy search).</p></li>
@@ -291,7 +301,11 @@ unless <code class="xref py py-obj docutils literal notranslate"><span class="pr
 <li><p><strong>output_path</strong> – Path to the output file.</p></li>
 <li><p><strong>target_path</strong> – Path to the target prefix file.</p></li>
 <li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
-<li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
+<li><p><strong>read_batch_size</strong> – The number of examples to read from the file before sorting
+by length and splitting by chunks of <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples
+(set 0 for an automatic value).</p></li>
+<li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> and <code class="xref py py-obj docutils literal notranslate"><span class="pre">read_batch_size</span></code> are the
+numbers of “examples” or “tokens”.</p></li>
 <li><p><strong>asynchronous</strong> – Run the translation asynchronously.</p></li>
 <li><p><strong>beam_size</strong> – Beam size (1 for greedy search).</p></li>
 <li><p><strong>num_hypotheses</strong> – Number of hypotheses to return (should be &lt;= <code class="xref py py-obj docutils literal notranslate"><span class="pre">beam_size</span></code>
