@@ -145,7 +145,7 @@ for hypothesis in results[0].hypotheses:
 In practice, the decoding extracts the `num_hypotheses` tokens that are most likely to appear after the target prefix. These tokens are then included in the prefix and the decoding completes each hypothesis independently.
 
 ```{tip}
-The parameter `min_alternative_expansion_prob` can be used to filter out alternatives that are very unlikely. The expansion probability corresponds to the probability of the tokens that immediately follow the prefix. Try setting a low probability like `min_alternative_expansion_prob=0.001` to filter out some nonsensical alternatives.
+The parameter `min_alternative_expansion_prob` can be used to filter out alternatives that are very unlikely. The expansion probability corresponds to the probability of the tokens that immediately follow the prefix. Try setting a small value like `min_alternative_expansion_prob=0.001` to filter out the most nonsensical alternatives.
 ```
 
 ## Random sampling
