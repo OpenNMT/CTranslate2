@@ -187,22 +187,30 @@ namespace ctranslate2 {
 
     size_t EncoderDecoderReplica::get_source_length(const std::vector<std::string>& source,
                                                     bool include_special_tokens) const {
+      size_t length = source.size();
+
       if (include_special_tokens) {
-        size_t length = source.size();
         if (_model->with_source_bos())
           ++length;
         if (_model->with_source_eos())
           ++length;
-        return length;
 
       } else {
         const auto& vocabulary = _model->get_source_vocabulary(0);
-        const auto bos_pos = std::find(source.begin(), source.end(), vocabulary.bos_token());
-        const auto eos_pos = std::find(source.begin(), source.end(), vocabulary.eos_token());
-        const auto content_begin = bos_pos == source.end() ? source.begin() : bos_pos + 1;
-        const auto content_end = eos_pos;
-        return std::distance(content_begin, content_end);
+        if (source.size() == 1) {
+          if (vocabulary.bos_token() == source[0] || vocabulary.eos_token() == source[0])
+            --length;
+        } else if (source.size() >= 2) {
+          if (vocabulary.bos_token() == source[0])
+            --length;
+          if (vocabulary.eos_token() == source[source.size() - 1])
+            --length;
+          else if (vocabulary.eos_token() == source[source.size() - 2])  // Lang code is last.
+            length -= 2;
+        }
       }
+
+      return length;
     }
 
     void
