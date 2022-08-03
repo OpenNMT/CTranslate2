@@ -1008,10 +1008,8 @@ namespace ctranslate2 {
     if (start_ids.size() < options.num_hypotheses) {
       // Reduce state to the effective number of alternatives.
       const dim_t num_alternatives = start_ids.size();
-      StorageView indices({num_alternatives}, DataType::INT32);
-      for (dim_t i = 0; i < num_alternatives; ++i)
-        indices.at<int32_t>(i) = i;
-      decoder.gather_state(state, indices.to(decoder.device()));
+      for (auto& pair : state)
+        pair.second.resize(0, num_alternatives);
 
       result.hypotheses.resize(num_alternatives);
       if (options.return_scores)
