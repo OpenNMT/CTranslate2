@@ -1,4 +1,5 @@
 import copy
+import inspect
 import os
 import shutil
 import sys
@@ -124,6 +125,26 @@ def test_batch_translation_async():
     assert output[1].result().hypotheses == [["a", "c", "h", "i", "s", "o", "n"]]
     assert output[0].done()
     assert output[1].done()
+
+
+def test_iterable_translation():
+    source = [["آ", "ت", "ز", "م", "و", "ن"], ["آ", "ت", "ش", "ي", "س", "و", "ن"]]
+    translator = _get_transliterator()
+    results = translator.translate_iterable(iter(source), return_scores=True)
+    assert inspect.isgenerator(results)
+    results = list(results)
+    assert results[0].hypotheses == [["a", "t", "z", "m", "o", "n"]]
+    assert results[0].scores
+    assert results[1].hypotheses == [["a", "c", "h", "i", "s", "o", "n"]]
+    assert results[1].scores
+
+    target_prefix = [["a", "t", "s"], ["a", "c", "h", "e"]]
+    results = translator.translate_iterable(iter(source), iter(target_prefix))
+    results = list(results)
+    assert results[0].hypotheses == [["a", "t", "s", "u", "m", "o", "n"]]
+    assert not results[0].scores
+    assert results[1].hypotheses == [["a", "c", "h", "e", "s", "o", "n"]]
+    assert not results[1].scores
 
 
 def test_file_translation(tmpdir):
@@ -472,6 +493,10 @@ def test_score_api(tmpdir):
             for async_result in translator.score_batch(
                 source, target, asynchronous=True
             )
+        ],
+        [
+            result.log_probs
+            for result in translator.score_iterable(iter(source), iter(target))
         ],
     ]
 
@@ -1227,9 +1252,15 @@ def test_transformers_generation(
     output_dir = converter.convert(output_dir)
 
     generator = ctranslate2.Generator(output_dir)
-    results = generator.generate_batch([start_tokens.split()], max_length=max_length)
-    output_tokens = " ".join(results[0].sequences[0])
-    assert output_tokens == expected_tokens
+
+    start_tokens = [start_tokens.split()]
+    results = []
+    results.extend(generator.generate_batch(start_tokens, max_length=max_length))
+    results.extend(generator.generate_iterable(start_tokens, max_length=max_length))
+
+    for result in results:
+        output_tokens = " ".join(result.sequences[0])
+        assert output_tokens == expected_tokens
 
     # Test empty inputs.
     assert generator.generate_batch([]) == []
@@ -1260,9 +1291,13 @@ def test_transformers_lm_scoring(tmpdir):
     generator = ctranslate2.Generator(output_dir)
 
     tokens = "Ċ The Ġfirst Ġtime ĠI Ġsaw Ġthe Ġnew Ġversion Ġof".split()
-    output = generator.score_batch([tokens])[0]
-    assert output.tokens == tokens[1:]
-    assert len(output.log_probs) == len(output.tokens)
+
+    outputs = []
+    outputs.extend(generator.score_batch([tokens]))
+    outputs.extend(generator.score_iterable([tokens]))
+    for output in outputs:
+        assert output.tokens == tokens[1:]
+        assert len(output.log_probs) == len(output.tokens)
 
     # Test empty inputs.
     assert generator.score_batch([]) == []
