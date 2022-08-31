@@ -146,6 +146,9 @@ def test_iterable_translation():
     assert results[1].hypotheses == [["a", "c", "h", "e", "s", "o", "n"]]
     assert not results[1].scores
 
+    with pytest.raises(StopIteration):
+        next(translator.translate_iterable(iter([])))
+
 
 def test_file_translation(tmpdir):
     input_path = str(tmpdir.join("input.txt"))
@@ -536,6 +539,9 @@ def test_score_api(tmpdir):
 
     # Test empty inputs.
     assert translator.score_batch([], []) == []
+
+    with pytest.raises(StopIteration):
+        next(translator.score_iterable(iter([]), iter([])))
 
     output = translator.score_batch([[]], [[]])
     assert output[0].tokens == ["</s>"]
@@ -1252,15 +1258,9 @@ def test_transformers_generation(
     output_dir = converter.convert(output_dir)
 
     generator = ctranslate2.Generator(output_dir)
-
-    start_tokens = [start_tokens.split()]
-    results = []
-    results.extend(generator.generate_batch(start_tokens, max_length=max_length))
-    results.extend(generator.generate_iterable(start_tokens, max_length=max_length))
-
-    for result in results:
-        output_tokens = " ".join(result.sequences[0])
-        assert output_tokens == expected_tokens
+    results = generator.generate_batch([start_tokens.split()], max_length=max_length)
+    output_tokens = " ".join(results[0].sequences[0])
+    assert output_tokens == expected_tokens
 
     # Test empty inputs.
     assert generator.generate_batch([]) == []
@@ -1291,13 +1291,9 @@ def test_transformers_lm_scoring(tmpdir):
     generator = ctranslate2.Generator(output_dir)
 
     tokens = "Ċ The Ġfirst Ġtime ĠI Ġsaw Ġthe Ġnew Ġversion Ġof".split()
-
-    outputs = []
-    outputs.extend(generator.score_batch([tokens]))
-    outputs.extend(generator.score_iterable([tokens]))
-    for output in outputs:
-        assert output.tokens == tokens[1:]
-        assert len(output.log_probs) == len(output.tokens)
+    output = generator.score_batch([tokens])[0]
+    assert output.tokens == tokens[1:]
+    assert len(output.log_probs) == len(output.tokens)
 
     # Test empty inputs.
     assert generator.score_batch([]) == []
@@ -1309,6 +1305,29 @@ def test_transformers_lm_scoring(tmpdir):
     output = generator.score_batch([["<|endoftext|>"]])[0]
     assert not output.tokens
     assert not output.log_probs
+
+
+@only_on_linux
+def test_transformers_generator_on_iterables(tmpdir):
+    converter = ctranslate2.converters.TransformersConverter("gpt2")
+    output_dir = str(tmpdir.join("ctranslate2_model"))
+    output_dir = converter.convert(output_dir)
+    generator = ctranslate2.Generator(output_dir)
+
+    start_tokens = ["<|endoftext|>"]
+    tokens = "Ċ The Ġfirst Ġtime ĠI Ġsaw Ġthe Ġnew Ġversion Ġof".split()
+    output = next(generator.generate_iterable(iter([start_tokens]), max_length=10))
+    assert output.sequences[0] == tokens
+
+    output = next(generator.score_iterable(iter([tokens])))
+    assert output.tokens == tokens[1:]
+    assert len(output.log_probs) == len(output.tokens)
+
+    # Test empty iterables.
+    with pytest.raises(StopIteration):
+        next(generator.score_iterable(iter([])))
+    with pytest.raises(StopIteration):
+        next(generator.generate_iterable(iter([])))
 
 
 def _array_equal(a, b):
