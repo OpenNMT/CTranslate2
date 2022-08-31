@@ -17,7 +17,7 @@ if sys.platform == "win32":
         ctypes.CDLL(os.path.join(package_dir, "%s.dll" % library))
 
 try:
-    from ctranslate2.extension import register_extensions
+    from ctranslate2.extensions import register_extensions
     from ctranslate2.translator import (
         AsyncGenerationResult,
         AsyncScoringResult,
