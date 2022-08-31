@@ -12,6 +12,7 @@ from ctranslate2.translator import (
 
 
 def register_extensions():
+    """Registers additional attributes to compiled modules."""
     setattr(Translator, "translate_iterable", translator_translate_iterable)
     setattr(Translator, "score_iterable", translator_score_iterable)
     setattr(Generator, "generate_iterable", generator_generate_iterable)
