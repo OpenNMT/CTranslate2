@@ -1090,11 +1090,13 @@ namespace ctranslate2 {
 
     std::vector<DecodingResult> results;
 
-    end_id = decoder.to_output_word_id(end_id);
-    unk_id = decoder.to_output_word_id(unk_id);
-    for (auto& ids : start_tokens) {
-      for (auto& id : ids)
-        id = decoder.to_output_word_id(id);
+    if (decoder.output_layer_is_updated()) {
+      end_id = decoder.to_output_word_id(end_id);
+      unk_id = decoder.to_output_word_id(unk_id);
+      for (auto& ids : start_tokens) {
+        for (auto& id : ids)
+          id = decoder.to_output_word_id(id);
+      }
     }
 
     std::vector<size_t> start_ids;
@@ -1146,8 +1148,10 @@ namespace ctranslate2 {
         }
 
         // Restore original word ids.
-        for (auto& id : result.hypotheses[i])
-          id = decoder.to_original_word_id(id);
+        if (decoder.output_layer_is_updated()) {
+          for (auto& id : result.hypotheses[i])
+            id = decoder.to_original_word_id(id);
+        }
       }
     }
 
