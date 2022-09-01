@@ -14,19 +14,6 @@ namespace ctranslate2 {
   };
 
 
-  class WordIndexMap {
-  public:
-    WordIndexMap(std::vector<size_t> output_ids);
-    void to_original_ids(StorageView& ids) const;
-    size_t to_original_id(size_t id) const;
-    size_t to_output_id(size_t id) const;
-
-  private:
-    std::vector<size_t> _to_original_id;
-    std::unordered_map<size_t, size_t> _to_output_id;
-  };
-
-
   class SearchStrategy {
   public:
     virtual ~SearchStrategy() = default;
@@ -40,7 +27,6 @@ namespace ctranslate2 {
            const dim_t start_step,
            const dim_t max_length,
            const dim_t min_length,
-           const WordIndexMap* word_ids_map,
            const bool disable_unk = false,
            const bool normalize_scores = false,
            const bool return_scores = false,
@@ -69,7 +55,6 @@ namespace ctranslate2 {
            const dim_t start_step,
            const dim_t max_length,
            const dim_t min_length,
-           const WordIndexMap* word_ids_map,
            const bool disable_unk = false,
            const bool normalize_scores = false,
            const bool return_scores = false,
@@ -118,7 +103,6 @@ namespace ctranslate2 {
            const dim_t start_step,
            const dim_t max_length,
            const dim_t min_length,
-           const WordIndexMap* word_ids_map,
            const bool disable_unk = false,
            const bool normalize_scores = false,
            const bool return_scores = false,
@@ -157,7 +141,6 @@ namespace ctranslate2 {
          std::vector<std::vector<size_t>> start_tokens,
          size_t end_id,
          size_t unk_id,
-         const DecodingOptions& options = DecodingOptions(),
-         const std::vector<size_t>* output_ids_map = nullptr);
+         const DecodingOptions& options = DecodingOptions());
 
 }

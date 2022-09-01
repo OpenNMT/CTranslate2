@@ -329,8 +329,7 @@ namespace ctranslate2 {
       std::vector<size_t> restrict_ids;
       if (options.use_vmap && _model->get_vocabulary_map())
         restrict_ids = _model->get_vocabulary_map()->get_candidates(source_features[0], target_ids);
-      const auto* output_ids_map = _decoder->update_output_layer(_model->preferred_size_multiple(),
-                                                                 restrict_ids);
+      _decoder->update_output_layer(_model->preferred_size_multiple(), restrict_ids);
 
       // Decode.
       DecodingOptions decoding_options;
@@ -358,8 +357,7 @@ namespace ctranslate2 {
                                                    target_ids,
                                                    target_vocabulary.eos_id(),
                                                    target_vocabulary.unk_id(),
-                                                   decoding_options,
-                                                   output_ids_map);
+                                                   decoding_options);
 
       // Convert generated ids to tokens.
       std::vector<TranslationResult> final_results;

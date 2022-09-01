@@ -79,7 +79,7 @@ namespace ctranslate2 {
       PROFILE("DecoderReplica::run_generation");
       const auto scoped_device_setter = _model->get_scoped_device_setter();
       const auto& vocabulary = _model->get_vocabulary();
-      const auto* output_ids_map = _decoder->update_output_layer(_model->preferred_size_multiple());
+      _decoder->update_output_layer(_model->preferred_size_multiple());
 
       DecodingOptions decoding_options;
       decoding_options.beam_size = options.beam_size;
@@ -105,8 +105,7 @@ namespace ctranslate2 {
                                                    start_ids,
                                                    vocabulary.eos_id(),
                                                    vocabulary.unk_id(),
-                                                   decoding_options,
-                                                   output_ids_map);
+                                                   decoding_options);
 
       std::vector<GenerationResult> final_results;
       final_results.reserve(results.size());

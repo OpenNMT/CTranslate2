@@ -136,26 +136,13 @@ namespace ctranslate2 {
     }
   }
 
-  WordIndexMap::WordIndexMap(std::vector<size_t> output_ids)
-    : _to_original_id(std::move(output_ids))
-  {
-    _to_output_id.reserve(_to_original_id.size());
-    for (size_t i = 0; i < _to_original_id.size(); ++i)
-      _to_output_id.emplace(_to_original_id[i], i);
-  }
-
-  void WordIndexMap::to_original_ids(StorageView& ids) const {
+  static inline void convert_to_original_word_ids(const layers::Decoder& decoder,
+                                                  StorageView& ids) {
+    if (!decoder.output_layer_is_updated())
+      return;
     auto* ids_data = ids.data<int32_t>();
     for (dim_t i = 0; i < ids.size(); ++i)
-      ids_data[i] = to_original_id(ids_data[i]);
-  }
-
-  size_t WordIndexMap::to_original_id(size_t id) const {
-    return _to_original_id.at(id);
-  }
-
-  size_t WordIndexMap::to_output_id(size_t id) const {
-    return _to_output_id.at(id);
+      ids_data[i] = decoder.to_original_word_id(ids_data[i]);
   }
 
   template <typename T>
@@ -440,7 +427,6 @@ namespace ctranslate2 {
                      const dim_t start_step,
                      const dim_t max_length,
                      const dim_t min_length,
-                     const WordIndexMap* word_ids_map,
                      const bool disable_unk,
                      const bool normalize_scores,
                      const bool return_scores,
@@ -492,8 +478,7 @@ namespace ctranslate2 {
 
       // Compute log probs for the current step.
       StorageView attention_step(dtype, device);
-      if (word_ids_map)  // Embedding layer looks up original word ids.
-        word_ids_map->to_original_ids(topk_ids);
+      convert_to_original_word_ids(decoder, topk_ids);
       decoder(step,
               topk_ids.to(device),
               state,
@@ -694,7 +679,6 @@ namespace ctranslate2 {
                        const dim_t start_step,
                        const dim_t max_length,
                        const dim_t min_length,
-                       const WordIndexMap* word_ids_map,
                        const bool disable_unk,
                        const bool normalize_scores,
                        const bool return_scores,
@@ -731,8 +715,7 @@ namespace ctranslate2 {
     StorageView attention_step_device(dtype, device);
 
     for (dim_t step = start_step; step < max_step; ++step) {
-      if (word_ids_map)  // Embedding layer looks up original word ids.
-        word_ids_map->to_original_ids(sample_from);
+      convert_to_original_word_ids(decoder, sample_from);
       decoder(step,
               sample_from.to(device),
               state,
@@ -827,8 +810,7 @@ namespace ctranslate2 {
                                              layers::DecoderState& state,
                                              size_t start_id,
                                              const std::vector<size_t>& prefix_ids,
-                                             std::vector<std::vector<float>>* prefix_attention,
-                                             const WordIndexMap* word_ids_map) {
+                                             std::vector<std::vector<float>>* prefix_attention) {
     const Device device = decoder.device();
     const DataType dtype = decoder.output_type();
     const size_t prefix_size = prefix_ids.size();
@@ -840,8 +822,7 @@ namespace ctranslate2 {
 
     input.at<int32_t>(0) = start_id;
     for (size_t i = 0; i < prefix_size; ++i) {
-      if (word_ids_map)  // Embedding layer looks up original word ids.
-        word_ids_map->to_original_ids(input);
+      convert_to_original_word_ids(decoder, input);
       decoder(i,
               input.to(device),
               state,
@@ -958,8 +939,7 @@ namespace ctranslate2 {
                       const std::vector<size_t>& prefix_tokens,
                       const size_t end_id,
                       const size_t unk_id,
-                      const DecodingOptions& options,
-                      const WordIndexMap* word_ids_map) {
+                      const DecodingOptions& options) {
     DecodingResult result;
     result.hypotheses.resize(options.num_hypotheses);
     if (options.return_scores)
@@ -983,8 +963,7 @@ namespace ctranslate2 {
                                      state,
                                      start_ids[0],
                                      prefix_ids,
-                                     options.return_attention ? &prefix_attention : nullptr,
-                                     word_ids_map);
+                                     options.return_attention ? &prefix_attention : nullptr);
 
       for (size_t i = 0; i < options.num_hypotheses; ++i) {
         result.hypotheses[i] = prefix_ids;
@@ -1009,7 +988,6 @@ namespace ctranslate2 {
                                                   start_step,
                                                   /*max_length=*/1,
                                                   /*min_length=*/1,
-                                                  word_ids_map,
                                                   options.disable_unk,
                                                   /*normalize_scores=*/false,
                                                   /*return_scores=*/true,
@@ -1063,7 +1041,6 @@ namespace ctranslate2 {
                                                   start_step,
                                                   std::max(max_length - start_step, dim_t(0)),
                                                   std::max(min_length - start_step, dim_t(0)),
-                                                  word_ids_map,
                                                   options.disable_unk,
                                                   options.normalize_scores,
                                                   options.return_scores,
@@ -1107,22 +1084,17 @@ namespace ctranslate2 {
          std::vector<std::vector<size_t>> start_tokens,
          size_t end_id,
          size_t unk_id,
-         const DecodingOptions& options,
-         const std::vector<size_t>* output_ids_map) {
+         const DecodingOptions& options) {
     validate_decoding_options(options);
     const size_t batch_size = start_tokens.size();
 
     std::vector<DecodingResult> results;
 
-    std::unique_ptr<WordIndexMap> word_ids_map;
-    if (output_ids_map) {
-      word_ids_map = std::make_unique<WordIndexMap>(*output_ids_map);
-      end_id = word_ids_map->to_output_id(end_id);
-      unk_id = word_ids_map->to_output_id(unk_id);
-      for (auto& ids : start_tokens) {
-        for (auto& id : ids)
-          id = word_ids_map->to_output_id(id);
-      }
+    end_id = decoder.to_output_word_id(end_id);
+    unk_id = decoder.to_output_word_id(unk_id);
+    for (auto& ids : start_tokens) {
+      for (auto& id : ids)
+        id = decoder.to_output_word_id(id);
     }
 
     std::vector<size_t> start_ids;
@@ -1139,8 +1111,7 @@ namespace ctranslate2 {
                                                  prefix_ids[i],
                                                  end_id,
                                                  unk_id,
-                                                 options,
-                                                 word_ids_map.get()));
+                                                 options));
       }
 
     } else {
@@ -1155,7 +1126,6 @@ namespace ctranslate2 {
                                         /*start_step=*/0,
                                         options.max_length,
                                         options.min_length,
-                                        word_ids_map.get(),
                                         options.disable_unk,
                                         options.normalize_scores,
                                         options.return_scores,
@@ -1176,10 +1146,8 @@ namespace ctranslate2 {
         }
 
         // Restore original word ids.
-        if (word_ids_map) {
-          for (auto& id : result.hypotheses[i])
-            id = word_ids_map->to_original_id(id);
-        }
+        for (auto& id : result.hypotheses[i])
+          id = decoder.to_original_word_id(id);
       }
     }
 

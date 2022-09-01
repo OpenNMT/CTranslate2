@@ -55,9 +55,8 @@ namespace ctranslate2 {
       return _device;
     }
 
-    const std::vector<size_t>*
-    Decoder::update_output_layer(const dim_t size_multiple,
-                                 const std::vector<size_t>& restrict_ids) {
+    void Decoder::update_output_layer(const dim_t size_multiple,
+                                      const std::vector<size_t>& restrict_ids) {
       const dim_t current_output_size = output_size();
 
       if (_vocabulary_size == 0)
@@ -72,13 +71,14 @@ namespace ctranslate2 {
 
         // Do not update the layer if the output size is unchanged.
         if (target_output_size == current_output_size)
-          return _output_layer_index.empty() ? nullptr : &_output_layer_index;
+          return;
 
         // Reset the output layer if the output size is the vocabulary size.
         if (target_output_size == _vocabulary_size) {
           output_layer().select_weights(nullptr);
-          _output_layer_index.clear();
-          return nullptr;
+          _to_output_word_id.clear();
+          _to_original_word_id.clear();
+          return;
         }
 
         ids.reserve(target_output_size);
@@ -100,8 +100,10 @@ namespace ctranslate2 {
         index = index.to(_device);
       output_layer().select_weights(&index);
 
-      _output_layer_index = std::move(ids);
-      return &_output_layer_index;
+      _to_original_word_id = std::move(ids);
+      _to_output_word_id.reserve(_to_original_word_id.size());
+      for (size_t i = 0; i < _to_original_word_id.size(); ++i)
+        _to_output_word_id.emplace(_to_original_word_id[i], i);
     }
 
   }
