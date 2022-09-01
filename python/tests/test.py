@@ -480,9 +480,7 @@ def test_return_alternatives():
 
 
 def test_return_alternatives_with_vmap(tmpdir):
-    model_dir = _get_model_path_with_vmap(
-        tmpdir, ["a", "t", "z", "s", "u", "m", "o", "n"]
-    )
+    model_dir = _get_model_path_with_vmap(tmpdir, ["z", "s", "u", "m", "o", "n"])
     translator = ctranslate2.Translator(model_dir)
     output = translator.translate_batch(
         [["آ", "ت", "ز", "م", "و", "ن"]],
