@@ -37,6 +37,7 @@ namespace ctranslate2 {
       void gather_state(DecoderState& state, const StorageView& indices) const;
 
       // Restrict the output layer to a set of ids and/or resize it to a preferred size multiple.
+      // Elements in restrict_ids must be unique and sorted.
       void update_output_layer(const dim_t size_multiple = 1,
                                const std::vector<size_t>& restrict_ids = {});
 
