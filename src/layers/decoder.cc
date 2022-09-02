@@ -97,13 +97,17 @@ namespace ctranslate2 {
         ids.resize(new_output_size, size_t(0));
 
         // For padding positions, we bias the output to -inf for masking during softmax.
-        DEVICE_AND_TYPE_DISPATCH(_device, output_type(), (
-          {
-            extra_bias = std::make_unique<StorageView>(Shape{new_output_size}, T(0), _device);
-            primitives<D>::fill(extra_bias->index<T>({new_output_size - padding_size}),
-                                T(-1e10),
-                                padding_size);
-          }));
+        extra_bias = std::make_unique<StorageView>(Shape{new_output_size}, output_type(), _device);
+        DEVICE_AND_TYPE_DISPATCH(
+          _device, output_type(),
+          primitives<D>::fill(extra_bias->data<T>(),
+                              T(0),
+                              new_output_size - padding_size));
+        DEVICE_AND_TYPE_DISPATCH(
+          _device, output_type(),
+          primitives<D>::fill(extra_bias->data<T>() + new_output_size - padding_size,
+                              T(-1e10),
+                              padding_size));
       }
 
       // Select weights.
