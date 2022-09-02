@@ -22,6 +22,8 @@ Translator
     - :obj:`~ctranslate2.Translator.load_model`
     - :obj:`~ctranslate2.Translator.score_batch`
     - :obj:`~ctranslate2.Translator.score_file`
+    - :obj:`~ctranslate2.Translator.score_iterable`
     - :obj:`~ctranslate2.Translator.translate_batch`
     - :obj:`~ctranslate2.Translator.translate_file`
+    - :obj:`~ctranslate2.Translator.translate_iterable`
     - :obj:`~ctranslate2.Translator.unload_model`

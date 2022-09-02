@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Performance tips &mdash; CTranslate2 2.21.1 documentation</title>
+  <title>Performance tips &mdash; CTranslate2 2.22.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.21
+                2.22
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -116,7 +116,7 @@
 <p><strong>On CPU</strong></p>
 <ul class="simple">
 <li><p>Use an Intel CPU supporting AVX512</p></li>
-<li><p>If you are processing a large volume of data, prefer increasing <code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> over <code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> to improve throughput</p></li>
+<li><p>If you are processing a large volume of data, prefer increasing <code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> over <code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> and use stream methods (methods whose name ends with <code class="docutils literal notranslate"><span class="pre">_file</span></code> or <code class="docutils literal notranslate"><span class="pre">_iterable</span></code>)</p></li>
 <li><p>Avoid the total number of threads <code class="docutils literal notranslate"><span class="pre">inter_threads</span> <span class="pre">*</span> <span class="pre">intra_threads</span></code> to be larger than the number of physical cores</p></li>
 <li><p>For single core execution on Intel CPUs, consider enabling packed GEMM (set the environment variable <code class="docutils literal notranslate"><span class="pre">CT2_USE_EXPERIMENTAL_PACKED_GEMM=1</span></code>)</p></li>
 </ul>

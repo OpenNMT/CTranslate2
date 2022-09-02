@@ -6,9 +6,11 @@ ctranslate2
 .. toctree::
 
    ctranslate2.AsyncGenerationResult
+   ctranslate2.AsyncScoringResult
    ctranslate2.AsyncTranslationResult
    ctranslate2.GenerationResult
    ctranslate2.Generator
+   ctranslate2.ScoringResult
    ctranslate2.TranslationResult
    ctranslate2.TranslationStats
    ctranslate2.Translator

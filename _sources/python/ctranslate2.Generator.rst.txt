@@ -19,4 +19,6 @@ Generator
     **Methods:**
 
     - :obj:`~ctranslate2.Generator.generate_batch`
+    - :obj:`~ctranslate2.Generator.generate_iterable`
     - :obj:`~ctranslate2.Generator.score_batch`
+    - :obj:`~ctranslate2.Generator.score_iterable`

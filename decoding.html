@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Decoding features &mdash; CTranslate2 2.21.1 documentation</title>
+  <title>Decoding features &mdash; CTranslate2 2.22.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.21
+                2.22
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -243,6 +243,10 @@
 <p>Dieses Projekt ist auf die <strong>Effizienz</strong> des Servierens von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.</p>
 </div></blockquote>
 <p>In practice, the decoding extracts the <code class="docutils literal notranslate"><span class="pre">num_hypotheses</span></code> tokens that are most likely to appear after the target prefix. These tokens are then included in the prefix and the decoding completes each hypothesis independently.</p>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>The parameter <code class="docutils literal notranslate"><span class="pre">min_alternative_expansion_prob</span></code> can be used to filter out alternatives that are very unlikely. The expansion probability corresponds to the probability of the tokens that immediately follow the prefix. Try setting a small value like <code class="docutils literal notranslate"><span class="pre">min_alternative_expansion_prob=0.001</span></code> to filter out the most nonsensical alternatives.</p>
+</div>
 </section>
 <section id="random-sampling">
 <h2>Random sampling<a class="headerlink" href="#random-sampling" title="Permalink to this headline"></a></h2>

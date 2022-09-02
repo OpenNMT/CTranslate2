@@ -1,0 +1,14 @@
+AsyncScoringResult
+==================
+
+.. autoclass:: ctranslate2.AsyncScoringResult
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.AsyncScoringResult.done`
+    - :obj:`~ctranslate2.AsyncScoringResult.result`

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Multithreading and parallelism &mdash; CTranslate2 2.21.1 documentation</title>
+  <title>Multithreading and parallelism &mdash; CTranslate2 2.22.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.21
+                2.22
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -135,9 +135,10 @@
 <p>Multiple batches should be submitted concurrently to enable this parallelization. Parallel translations are enabled in the following cases:</p>
 <ul class="simple">
 <li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score}_file</span></code></p></li>
+<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_iterable</span></code></p></li>
 <li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_batch</span></code> and setting <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code>: the input will be split according to <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code> and each sub-batch will be translated in parallel.</p></li>
 <li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_batch</span></code> from multiple Python threads.</p></li>
-<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,generate}_batch</span></code> multiple times with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>.</p></li>
+<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_batch</span></code> multiple times with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>.</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -146,7 +147,7 @@
 </section>
 <section id="asynchronous-execution">
 <h2>Asynchronous execution<a class="headerlink" href="#asynchronous-execution" title="Permalink to this headline"></a></h2>
-<p>The methods <code class="docutils literal notranslate"><span class="pre">translate_batch</span></code> and <code class="docutils literal notranslate"><span class="pre">generate_batch</span></code> can run asynchronously with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. In this mode, the method returns immediately and the result can be retrieved later:</p>
+<p>The methods <code class="docutils literal notranslate"><span class="pre">translate_batch</span></code>, <code class="docutils literal notranslate"><span class="pre">score_batch</span></code>, and <code class="docutils literal notranslate"><span class="pre">generate_batch</span></code> can run asynchronously with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. In this mode, the method returns immediately and the result can be retrieved later:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">async_results</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batch_generator</span><span class="p">():</span>
     <span class="n">async_results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">asynchronous</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>

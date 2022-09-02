@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fairseq &mdash; CTranslate2 2.21.1 documentation</title>
+  <title>Fairseq &mdash; CTranslate2 2.22.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.21
+                2.22
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -177,8 +177,8 @@ ct2-fairseq-converter --data_dir wmt19.en/ --model_path wmt19.en/model.pt --outp
 <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
 <span class="c1"># Compute the perplexity for a sentence.</span>
-<span class="n">log_probs</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">score_batch</span><span class="p">([[</span><span class="s2">&quot;&lt;/s&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;The&quot;</span><span class="p">,</span> <span class="s2">&quot;sky&quot;</span><span class="p">,</span> <span class="s2">&quot;is&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">]])</span>
-<span class="n">perplexity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">log_probs</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="n">outputs</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">score_batch</span><span class="p">([[</span><span class="s2">&quot;&lt;/s&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;The&quot;</span><span class="p">,</span> <span class="s2">&quot;sky&quot;</span><span class="p">,</span> <span class="s2">&quot;is&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">]])</span>
+<span class="n">perplexity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">log_probs</span><span class="p">))</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">perplexity</span><span class="p">)</span>
 </pre></div>
 </div>
