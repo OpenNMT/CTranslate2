@@ -445,8 +445,17 @@ namespace ctranslate2 {
     const dim_t max_step = start_step + max_length;
     const Device device = decoder.device();
     const DataType dtype = decoder.output_type();
-    const bool expand_after_first_step = (device == Device::CPU);
+    const dim_t vocabulary_size = decoder.output_size();
     const dim_t batch_size = start_ids.size();
+
+    // We get more candidates than the beam size so that if half the candidates are EOS,
+    // we can replace finished hypotheses with active beams.
+    const dim_t num_candidates = _beam_size * 2;
+
+    // Only the first beam is considered in the first step. As an additional optimization
+    // we try to run the first step without expanding the batch size.
+    const bool expand_after_first_step = (device == Device::CPU
+                                          && num_candidates <= vocabulary_size);
 
     StorageView topk_ids({batch_size}, DataType::INT32);
     StorageView topk_scores(dtype);
@@ -491,7 +500,6 @@ namespace ctranslate2 {
               (return_attention || _coverage_penalty != 0) ? &attention_step : nullptr);
 
       const dim_t cur_batch_size = is_expanded ? logits.dim(0) / _beam_size : logits.dim(0);
-      const dim_t vocabulary_size = logits.dim(-1);
 
       if (repetition_penalty != 1 && alive_seq) {
         merge_batch_beam(alive_seq);
@@ -535,9 +543,7 @@ namespace ctranslate2 {
       // Flatten the probs into a list of candidates.
       log_probs.reshape({cur_batch_size, -1});
 
-      // We get more candidates than the beam size so that if half the candidates are EOS,
-      // we can replace finished hypotheses with active beams.
-      const dim_t num_candidates = _beam_size * 2;
+      // TopK candidates.
       sampler(log_probs, topk_ids, topk_scores, num_candidates);
 
       // Unflatten the ids.
