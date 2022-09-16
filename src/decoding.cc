@@ -264,7 +264,7 @@ namespace ctranslate2 {
     float penalty = 0;
     std::vector<float> coverage;
     coverage.resize(attention[0].size());
-    for( size_t column = 0, column < attention[0].size(); column++) {
+    for( size_t column = 0; column < attention[0].size(); column++) {
       coverage[column] = 0;
       for( size_t row = 0; row < attention.size(); row++ ) {
         coverage[column] += attention[row][column];
