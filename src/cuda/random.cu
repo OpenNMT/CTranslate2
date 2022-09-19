@@ -1,6 +1,5 @@
 #include "random.h"
 
-#include <algorithm>
 #include <memory>
 
 #include "ctranslate2/allocator.h"
