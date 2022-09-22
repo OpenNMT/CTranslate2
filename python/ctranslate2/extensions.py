@@ -1,4 +1,5 @@
 import collections
+import itertools
 
 from typing import Iterable, List, Optional
 
@@ -49,9 +50,15 @@ def translator_translate_iterable(
     Returns:
       An iterable of :class:`ctranslate2.TranslationResult` instances.
     """
+    iterable = (
+        source
+        if target_prefix is None
+        else itertools.zip_longest(source, target_prefix)
+    )
+
     yield from _process_iterable(
         translator.translate_batch,
-        source if target_prefix is None else zip(source, target_prefix),
+        iterable,
         max_batch_size,
         batch_type,
         **kwargs,
@@ -90,7 +97,7 @@ def translator_score_iterable(
     """
     yield from _process_iterable(
         translator.score_batch,
-        zip(source, target),
+        itertools.zip_longest(source, target),
         max_batch_size,
         batch_type,
         **kwargs,
@@ -207,6 +214,8 @@ def _batch_iterator(iterable, batch_size, batch_type):
         if streams is None:
             streams = tuple([] for _ in example)
         for batch, element in zip(streams, example):
+            if element is None and len(streams) > 1:
+                raise ValueError("Input iterables do not have the same length")
             batch.append(element)
 
         if batch_type == "examples":
