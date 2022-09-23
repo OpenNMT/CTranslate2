@@ -96,6 +96,26 @@ namespace ctranslate2 {
       synchronize_device(src_device, src_device_index);  // Wait for asynchronous deallocations.
     }
 
+    static StorageView move_variable(const StorageView& variable,
+                                     const Device device, const int device_index) {
+      if (variable.is_scalar() || (variable.device() == Device::CPU && device == Device::CPU))
+        return variable;
+
+      StorageView copy;
+
+      {
+        ScopedDeviceSetter scoped_device_setter(variable.device(), variable.device_index());
+        copy = variable.to(Device::CPU);
+      }
+
+      if (device != Device::CPU) {
+        ScopedDeviceSetter scoped_device_setter(device, device_index);
+        copy = copy.to(device);
+      }
+
+      return copy;
+    }
+
     template <typename T>
     static void pack_weight(const StorageView& weight,
                             const bool transpose,
@@ -560,6 +580,32 @@ namespace ctranslate2 {
       return model;
     }
 
+    std::shared_ptr<const Model> Model::copy_to(Device device, int device_index) const {
+      auto model = clone();
+
+      std::unordered_map<const StorageView*, std::shared_ptr<StorageView>> seen_variables;
+      seen_variables.reserve(_variable_index.size());
+
+      for (const auto& pair : _variable_index) {
+        const auto& name = pair.first;
+        const auto& value = pair.second;
+
+        auto it = seen_variables.find(value.get());
+
+        if (it != seen_variables.end()) {
+          model->_variable_index[name] = it->second;
+        } else {
+          auto copy = std::make_shared<StorageView>(move_variable(*value, device, device_index));
+          model->_variable_index[name] = copy;
+          seen_variables.emplace(value.get(), copy);
+        }
+      }
+
+      model->_device = device;
+      model->_device_index = device_index;
+      return model;
+    }
+
     bool contains_model(const std::string& path) {
       return bool(ModelFileReader(path).get_file(binary_file));
     }
@@ -590,7 +636,13 @@ namespace ctranslate2 {
         if (main_replica_on_device != device_to_main_replica.end()) {
           models.emplace_back(models[main_replica_on_device->second]);
         } else {
-          const auto model = Model::load(model_reader, device, device_index, compute_type);
+          std::shared_ptr<const Model> model;
+
+          if (models.empty())
+            model = Model::load(model_reader, device, device_index, compute_type);
+          else
+            model = models.back()->copy_to(device, device_index);
+
           models.emplace_back(model);
           device_to_main_replica.emplace(device_index, i);
 
