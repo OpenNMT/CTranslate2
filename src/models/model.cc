@@ -103,14 +103,17 @@ namespace ctranslate2 {
 
       StorageView copy;
 
-      {
+      if (variable.device() != Device::CPU) {
         ScopedDeviceSetter scoped_device_setter(variable.device(), variable.device_index());
         copy = variable.to(Device::CPU);
       }
 
       if (device != Device::CPU) {
         ScopedDeviceSetter scoped_device_setter(device, device_index);
-        copy = copy.to(device);
+        if (copy)
+          copy = copy.to(device);
+        else
+          copy = variable.to(device);
       }
 
       return copy;
