@@ -583,6 +583,7 @@ namespace ctranslate2 {
     std::shared_ptr<const Model> Model::copy_to(Device device, int device_index) const {
       auto model = clone();
 
+      // We should consider and keep aliased variables in the new model.
       std::unordered_map<const StorageView*, std::shared_ptr<StorageView>> seen_variables;
       seen_variables.reserve(_variable_index.size());
 
