@@ -96,7 +96,7 @@ namespace ctranslate2 {
       synchronize_device(src_device, src_device_index);  // Wait for asynchronous deallocations.
     }
 
-    static StorageView move_variable(const StorageView& variable,
+    static StorageView copy_variable(const StorageView& variable,
                                      const Device device, const int device_index) {
       if (variable.is_scalar() || (variable.device() == Device::CPU && device == Device::CPU))
         return variable;
@@ -599,7 +599,7 @@ namespace ctranslate2 {
         if (it != seen_variables.end()) {
           model->_variable_index[name] = it->second;
         } else {
-          auto copy = std::make_shared<StorageView>(move_variable(*value, device, device_index));
+          auto copy = std::make_shared<StorageView>(copy_variable(*value, device, device_index));
           model->_variable_index[name] = copy;
           seen_variables.emplace(value.get(), copy);
         }
