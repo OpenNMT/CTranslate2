@@ -1012,12 +1012,8 @@ namespace ctranslate2 {
   primitives<Device::CPU>::max_element(const T* array, dim_t size);     \
   template T                                                            \
   primitives<Device::CPU>::max(const T* array, dim_t size);             \
-  template T                                                            \
-  primitives<Device::CPU>::amax(const T* array, dim_t size);            \
   template void                                                         \
   primitives<Device::CPU>::add(T a, const T* x, T* y, dim_t size);      \
-  template void                                                         \
-  primitives<Device::CPU>::add(const T* a, const T* b, T* c, dim_t size); \
   template void                                                         \
   primitives<Device::CPU>::add_batch_broadcast(const T* a, const T* b, T* c, \
                                                dim_t a_size, dim_t b_size); \
@@ -1025,19 +1021,9 @@ namespace ctranslate2 {
   primitives<Device::CPU>::add_depth_broadcast(const T* a, const T* b, T* c, \
                                                dim_t a_size, dim_t b_size); \
   template void                                                         \
-  primitives<Device::CPU>::sub(const T* a, const T* b, T* c, dim_t size); \
-  template void                                                         \
   primitives<Device::CPU>::min(T a, const T* x, T* y, dim_t size);      \
   template void                                                         \
-  primitives<Device::CPU>::min(const T* a, const T* b, T* c, dim_t size); \
-  template void                                                         \
   primitives<Device::CPU>::max(T a, const T* x, T* y, dim_t size);     \
-  template void                                                         \
-  primitives<Device::CPU>::max(const T* a, const T* b, T* c, dim_t size); \
-  template void                                                         \
-  primitives<Device::CPU>::mul(T a, const T* x, T* y, dim_t size);      \
-  template void                                                         \
-  primitives<Device::CPU>::mul(const T* a, const T* b, T* c, dim_t size); \
   template void                                                         \
   primitives<Device::CPU>::mul_batch_broadcast(const T* a, const T* b, T* c, \
                                                dim_t a_size, dim_t b_size); \
@@ -1050,10 +1036,6 @@ namespace ctranslate2 {
                                                     dim_t,              \
                                                     dim_t);             \
   template void                                                         \
-  primitives<Device::CPU>::transpose_2d(const T* a,                     \
-                                        const dim_t* dims,              \
-                                        T* b);                          \
-  template void                                                         \
   primitives<Device::CPU>::transpose_3d(const T* a,                     \
                                         const dim_t* dims,              \
                                         const dim_t* perm,              \
@@ -1065,5 +1047,30 @@ namespace ctranslate2 {
                                         T* b);
 
   DECLARE_ALL_TYPES(DECLARE_IMPL)
+
+#define DECLARE_IMPL_NO_FLOAT(T)                                        \
+  template T                                                            \
+  primitives<Device::CPU>::amax(const T* array, dim_t size);            \
+  template void                                                         \
+  primitives<Device::CPU>::add(const T* a, const T* b, T* c, dim_t size); \
+  template void                                                         \
+  primitives<Device::CPU>::sub(const T* a, const T* b, T* c, dim_t size); \
+  template void                                                         \
+  primitives<Device::CPU>::min(const T* a, const T* b, T* c, dim_t size); \
+  template void                                                         \
+  primitives<Device::CPU>::max(const T* a, const T* b, T* c, dim_t size); \
+  template void                                                         \
+  primitives<Device::CPU>::mul(const T* a, const T* b, T* c, dim_t size); \
+  template void                                                         \
+  primitives<Device::CPU>::mul(T a, const T* x, T* y, dim_t size);      \
+  template void                                                         \
+  primitives<Device::CPU>::transpose_2d(const T* a,                     \
+                                        const dim_t* dims,              \
+                                        T* b);
+
+  DECLARE_IMPL_NO_FLOAT(int8_t)
+  DECLARE_IMPL_NO_FLOAT(int16_t)
+  DECLARE_IMPL_NO_FLOAT(int32_t)
+  DECLARE_IMPL_NO_FLOAT(float16_t)
 
 }
