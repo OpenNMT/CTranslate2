@@ -388,16 +388,6 @@ namespace ctranslate2 {
     });
   }
 
-#ifdef CT2_WITH_MKL
-  template<>
-  template<>
-  void primitives<Device::CPU>::transpose_2d(const float* a, const dim_t* dims, float* b) {
-    const dim_t rows = dims[0];
-    const dim_t cols = dims[1];
-    mkl_somatcopy('R', 'T', rows, cols, 1.0, a, cols, b, rows);
-  }
-#endif
-
   template<>
   template <typename T>
   void primitives<Device::CPU>::transpose_3d(const T* a,
@@ -1036,6 +1026,10 @@ namespace ctranslate2 {
                                                     dim_t,              \
                                                     dim_t);             \
   template void                                                         \
+  primitives<Device::CPU>::transpose_2d(const T* a,                     \
+                                        const dim_t* dims,              \
+                                        T* b);                          \
+  template void                                                         \
   primitives<Device::CPU>::transpose_3d(const T* a,                     \
                                         const dim_t* dims,              \
                                         const dim_t* perm,              \
@@ -1062,11 +1056,7 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CPU>::mul(const T* a, const T* b, T* c, dim_t size); \
   template void                                                         \
-  primitives<Device::CPU>::mul(T a, const T* x, T* y, dim_t size);      \
-  template void                                                         \
-  primitives<Device::CPU>::transpose_2d(const T* a,                     \
-                                        const dim_t* dims,              \
-                                        T* b);
+  primitives<Device::CPU>::mul(T a, const T* x, T* y, dim_t size);
 
   DECLARE_IMPL_NO_FLOAT(int8_t)
   DECLARE_IMPL_NO_FLOAT(int16_t)
