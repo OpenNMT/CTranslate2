@@ -1,5 +1,6 @@
 #include "ctranslate2/models/transformer.h"
 
+#include "ctranslate2/models/model_factory.h"
 #include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
@@ -31,6 +32,13 @@ namespace ctranslate2 {
       }
       return name;
     }
+
+
+    // Empty spec name, TransformerBase, and TransformerBig are there for backward compatibility.
+    static RegisterModel<TransformerModel> register_empty("", /*num_heads=*/8);
+    static RegisterModel<TransformerModel> register_base("TransformerBase", /*num_heads=*/8);
+    static RegisterModel<TransformerModel> register_big("TransformerBig", /*num_heads=*/16);
+    static RegisterModel<TransformerModel> register_generic("TransformerSpec");
 
     TransformerModel::TransformerModel(size_t num_heads)
       : _num_heads(num_heads) {
@@ -92,6 +100,8 @@ namespace ctranslate2 {
       return std::make_unique<TransformerModel>(*this);
     }
 
+
+    static RegisterModel<TransformerDecoderModel> register_decoder("TransformerDecoderSpec");
 
     size_t TransformerDecoderModel::current_spec_revision() const {
       return 2;
