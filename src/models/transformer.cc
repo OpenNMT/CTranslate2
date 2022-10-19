@@ -35,10 +35,10 @@ namespace ctranslate2 {
 
 
     // Empty spec name, TransformerBase, and TransformerBig are there for backward compatibility.
-    static RegisterModel<TransformerModel> register_empty("", /*num_heads=*/8);
-    static RegisterModel<TransformerModel> register_base("TransformerBase", /*num_heads=*/8);
-    static RegisterModel<TransformerModel> register_big("TransformerBig", /*num_heads=*/16);
-    static RegisterModel<TransformerModel> register_generic("TransformerSpec");
+    static auto register_empty = register_model<TransformerModel>("", /*num_heads=*/8);
+    static auto register_base = register_model<TransformerModel>("TransformerBase", /*num_heads=*/8);
+    static auto register_big = register_model<TransformerModel>("TransformerBig", /*num_heads=*/16);
+    static auto register_generic = register_model<TransformerModel>("TransformerSpec");
 
     TransformerModel::TransformerModel(size_t num_heads)
       : _num_heads(num_heads) {
@@ -101,7 +101,7 @@ namespace ctranslate2 {
     }
 
 
-    static RegisterModel<TransformerDecoderModel> register_decoder("TransformerDecoderSpec");
+    static auto register_decoder = register_model<TransformerDecoderModel>("TransformerDecoderSpec");
 
     size_t TransformerDecoderModel::current_spec_revision() const {
       return 2;

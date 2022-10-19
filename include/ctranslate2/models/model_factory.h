@@ -13,12 +13,12 @@ namespace ctranslate2 {
       }
 
       template <typename Model, typename... Args>
-      void register_model(const std::string& name, Args&&... args) {
+      bool register_model(const std::string& name, Args&&... args) {
         Builder builder = [args...]() { return std::make_shared<Model>(args...); };
-        _registry.emplace(name, std::move(builder));
+        return _registry.emplace(name, std::move(builder)).second;
       }
 
-      std::shared_ptr<Model> create(const std::string& name) const {
+      std::shared_ptr<Model> create_model(const std::string& name) const {
         auto it = _registry.find(name);
         if (it == _registry.end())
           throw std::invalid_argument("Unknown model " + name);
@@ -32,15 +32,14 @@ namespace ctranslate2 {
       std::unordered_map<std::string, Builder> _registry;
     };
 
+    template <typename Model, typename... Args>
+    bool register_model(const std::string& name, Args&&... args) {
+      return ModelFactory::get_instance().register_model<Model>(name, std::forward<Args>(args)...);
+    }
 
-    template <typename Model>
-    class RegisterModel {
-    public:
-      template <typename... Args>
-      RegisterModel(const std::string& name, Args&&... args) {
-        ModelFactory::get_instance().register_model<Model>(name, std::forward<Args>(args)...);
-      }
-    };
+    inline std::shared_ptr<Model> create_model(const std::string& name) {
+      return ModelFactory::get_instance().create_model(name);
+    }
 
   }
 }

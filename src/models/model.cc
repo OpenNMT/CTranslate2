@@ -510,7 +510,7 @@ namespace ctranslate2 {
         spec_revision = 1;
       }
 
-      auto model = ModelFactory::get_instance().create(spec);
+      auto model = create_model(spec);
       model->_binary_version = binary_version;
       model->_spec_revision = spec_revision;
 
