@@ -103,6 +103,8 @@ set(SOURCES
   src/ops/bias_add_cpu.cc
   src/ops/concat.cc
   src/ops/concat_split_cpu.cc
+  src/ops/conv1d.cc
+  src/ops/conv1d_cpu.cc
   src/ops/dequantize.cc
   src/ops/dequantize_cpu.cc
   src/ops/gather.cc
@@ -333,6 +335,8 @@ if(WITH_DNNL)
   add_definitions(-DCT2_WITH_DNNL)
   list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${DNNL_INCLUDE_DIR})
   list(APPEND LIBRARIES ${DNNL_LIBRARY})
+elseif()
+  message(WARNING "DNNL library is not enabled: convolution layers will not be supported on CPU")
 endif()
 
 if (WITH_ACCELERATE)
@@ -387,6 +391,35 @@ if (WITH_CUDA)
     list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=${OpenMP_CXX_FLAGS}")
   endif()
 
+  # Find cuDNN includes.
+  find_path(CUDNN_INCLUDE_DIR NAMES cudnn.h HINTS ${CUDA_TOOLKIT_ROOT_DIR}/include)
+  if(CUDNN_INCLUDE_DIR)
+    message(STATUS "Found cuDNN include directory: ${CUDNN_INCLUDE_DIR}")
+  else()
+    message(STATUS "cuDNN include directory not found")
+  endif()
+
+  # Find cuDNN libraries.
+  find_library(CUDNN_LIBRARIES
+    NAMES cudnn
+    HINTS ${CUDA_TOOLKIT_ROOT_DIR}/lib ${CUDA_TOOLKIT_ROOT_DIR}/lib64
+  )
+  if(CUDNN_LIBRARIES)
+    message(STATUS "Found cuDNN libraries: ${CUDNN_LIBRARIES}")
+  else()
+    message(STATUS "cuDNN libraries not found")
+  endif()
+
+  if(CUDNN_INCLUDE_DIR AND CUDNN_LIBRARIES)
+    add_definitions(-DCT2_WITH_CUDNN)
+
+    # libcudnn.so is a shim layer that dynamically loads the correct library at runtime,
+    # so we explictly link against it even with CUDA_DYNAMIC_LOADING.
+    list(APPEND LIBRARIES ${CUDNN_LIBRARIES})
+  else()
+    message(WARNING "cuDNN library is not found: convolution layers will not be supported on GPU")
+  endif()
+
   if(NOT CUDA_ARCH_LIST)
     set(CUDA_ARCH_LIST "Auto")
   elseif(CUDA_ARCH_LIST STREQUAL "Common")
@@ -434,6 +467,7 @@ if (WITH_CUDA)
     src/cuda/utils.cc
     src/ops/bias_add_gpu.cu
     src/ops/concat_split_gpu.cu
+    src/ops/conv1d_gpu.cu
     src/ops/dequantize_gpu.cu
     src/ops/gather_gpu.cu
     src/ops/gumbel_max_gpu.cu

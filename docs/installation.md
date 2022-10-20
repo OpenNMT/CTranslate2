@@ -106,9 +106,9 @@ The following options can be set with `-DOPTION=VALUE` during the CMake configur
 
 Some build options require additional dependencies. See their respective documentation for installation instructions.
 
-* `-DWITH_CUDA=ON` requires [CUDA](https://developer.nvidia.com/cuda-toolkit) >= 10.0
+* `-DWITH_CUDA=ON` requires [CUDA](https://developer.nvidia.com/cuda-toolkit) >= 10.0 and optionally [cuDNN](https://developer.nvidia.com/cudnn) >= 8 to support convolutional layers
 * `-DWITH_MKL=ON` requires [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) >= 2019.5
-* `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) >= 1.5
+* `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) >= 2.0
 * `-DWITH_ACCELERATE=ON` requires [Accelerate](https://developer.apple.com/documentation/accelerate)
 * `-DWITH_OPENBLAS=ON` requires [OpenBLAS](https://github.com/xianyi/OpenBLAS)
 
