@@ -18,7 +18,7 @@ if sys.platform == "win32":
 
 try:
     from ctranslate2.extensions import register_extensions
-    from ctranslate2.translator import (
+    from ctranslate2._ext import (
         AsyncGenerationResult,
         AsyncScoringResult,
         AsyncTranslationResult,
