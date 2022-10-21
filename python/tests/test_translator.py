@@ -4,9 +4,10 @@ import shutil
 
 import numpy as np
 import pytest
-import test_utils
 
 import ctranslate2
+
+from . import test_utils
 
 
 def _get_model_path():

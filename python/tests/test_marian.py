@@ -1,8 +1,8 @@
 import os
 
-import test_utils
-
 import ctranslate2
+
+from . import test_utils
 
 
 def test_marian_model_conversion(tmpdir):

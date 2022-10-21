@@ -1,9 +1,10 @@
 import os
 
 import pytest
-import test_utils
 
 import ctranslate2
+
+from . import test_utils
 
 
 @test_utils.skip_on_windows
