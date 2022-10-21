@@ -204,7 +204,7 @@ jobs:
           CIBW_SKIP: pp* *-musllinux_*
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           name: python-wheels
           path: python/wheelhouse
