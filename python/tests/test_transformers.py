@@ -3,7 +3,6 @@ import shutil
 
 import pytest
 import test_utils
-import transformers
 
 import ctranslate2
 
@@ -11,6 +10,8 @@ import ctranslate2
 @pytest.fixture
 def clear_transformers_cache():
     """Clears the Transformers model cache after each test when running in a CI."""
+    import transformers
+
     yield
 
     if os.environ.get("CI") == "true":
