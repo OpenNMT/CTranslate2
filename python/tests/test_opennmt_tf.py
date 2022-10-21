@@ -4,12 +4,11 @@ import os
 import opennmt
 import pytest
 import tensorflow as tf
+import test_utils
 
 import ctranslate2
 
 from ctranslate2.converters import opennmt_tf
-
-from . import test_utils
 
 
 @pytest.mark.parametrize(

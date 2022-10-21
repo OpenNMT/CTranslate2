@@ -2,10 +2,9 @@ import os
 import shutil
 
 import pytest
+import test_utils
 
 import ctranslate2
-
-from . import test_utils
 
 
 @pytest.fixture
