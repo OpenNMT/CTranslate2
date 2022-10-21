@@ -103,12 +103,11 @@ namespace ctranslate2 {
         conv_output_mem = dnnl::memory(conv_pd.dst_desc(), engine);
       }
 
-      dnnl::convolution_forward conv(conv_pd);
-
       args.emplace(DNNL_ARG_SRC, conv_input_mem);
       args.emplace(DNNL_ARG_WEIGHTS, conv_weight_mem);
       args.emplace(DNNL_ARG_DST, conv_output_mem);
 
+      dnnl::convolution_forward conv(conv_pd);
       conv.execute(engine_stream, args);
 
       if (conv_pd.dst_desc() != output_mem.get_desc()) {
