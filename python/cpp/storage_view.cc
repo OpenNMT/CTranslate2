@@ -172,7 +172,7 @@ namespace ctranslate2 {
 
                         Arguments:
                           array: An object implementing the array interface (e.g. a Numpy array
-                          or a PyTorch Tensor).
+                            or a PyTorch Tensor).
 
                         Returns:
                           A new ``StorageView`` instance sharing the same data as the input array.
