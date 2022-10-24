@@ -3,7 +3,6 @@ import sys
 import numpy as np
 import pytest
 import test_utils
-import torch
 
 import ctranslate2
 
@@ -45,6 +44,8 @@ def test_storageview_cpu(dtype, name):
 
 @test_utils.require_cuda
 def test_storageview_cuda():
+    import torch
+
     x = torch.ones((2, 4), device="cuda")
     s = ctranslate2.StorageView.from_array(x)
 
