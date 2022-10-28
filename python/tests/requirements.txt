@@ -1,6 +1,8 @@
-transformers==4.21.0;platform_system=='Linux'
+transformers==4.23.*;platform_system=='Linux'
 torch==1.11.*;platform_system=='Darwin'
 fairseq==0.12.2;platform_system=='Linux' or platform_system=='Darwin'
 OpenNMT-py==2.2.*;platform_system=='Linux' or platform_system=='Darwin'
 OpenNMT-tf[tensorflow]==2.27.*
 pytest
+soundfile==0.11.*
+librosa==0.9.*
