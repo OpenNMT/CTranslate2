@@ -340,8 +340,10 @@ def test_transformers_whisper(tmpdir, device):
 
     results = model.generate(features, [prompt])
 
-    transcription = processor.decode(results[0].sequences_ids[0], skip_special_tokens=True)
-    assert (
-        transcription
-        == " Mr. Quilter is the apostle of the middle classes and we are glad to welcome his gospel."
+    transcription = processor.decode(
+        results[0].sequences_ids[0], skip_special_tokens=True
+    )
+    assert transcription == (
+        " Mr. Quilter is the apostle of the middle classes "
+        "and we are glad to welcome his gospel."
     )
