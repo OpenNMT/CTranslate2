@@ -103,37 +103,37 @@ namespace ctranslate2 {
     // Translate a stream.
     // The reader and writer functions do not need to be thread-safe.
     template <typename Reader, typename Writer>
-    void consume_stream(std::istream& in,
-                        std::ostream& out,
-                        Reader& reader,
-                        Writer& writer,
-                        const TranslationOptions& options = TranslationOptions(),
-                        size_t max_batch_size = 32,
-                        size_t read_batch_size = 0,
-                        BatchType batch_type = BatchType::Examples) {
-      return consume_stream(in,
-                            nullptr,
-                            out,
-                            reader,
-                            nullptr,
-                            writer,
-                            options,
-                            max_batch_size,
-                            read_batch_size,
-                            batch_type);
+    void translate_stream(std::istream& in,
+                          std::ostream& out,
+                          Reader& reader,
+                          Writer& writer,
+                          const TranslationOptions& options = TranslationOptions(),
+                          size_t max_batch_size = 32,
+                          size_t read_batch_size = 0,
+                          BatchType batch_type = BatchType::Examples) {
+      return translate_stream(in,
+                              nullptr,
+                              out,
+                              reader,
+                              nullptr,
+                              writer,
+                              options,
+                              max_batch_size,
+                              read_batch_size,
+                              batch_type);
     }
 
     template <typename SourceReader, typename TargetReader, typename TargetWriter>
-    void consume_stream(std::istream& source,
-                        std::istream* target,
-                        std::ostream& output,
-                        SourceReader& source_reader,
-                        TargetReader* target_reader,
-                        TargetWriter& target_writer,
-                        const TranslationOptions& options = TranslationOptions(),
-                        size_t max_batch_size = 32,
-                        size_t read_batch_size = 0,
-                        BatchType batch_type = BatchType::Examples) {
+    void translate_stream(std::istream& source,
+                          std::istream* target,
+                          std::ostream& output,
+                          SourceReader& source_reader,
+                          TargetReader* target_reader,
+                          TargetWriter& target_writer,
+                          const TranslationOptions& options = TranslationOptions(),
+                          size_t max_batch_size = 32,
+                          size_t read_batch_size = 0,
+                          BatchType batch_type = BatchType::Examples) {
       consume_stream<TranslationResult>(
         source,
         target,
@@ -151,114 +151,114 @@ namespace ctranslate2 {
 
     // Translate a file.
     // These are wrappers around consume_stream that set the appropriate reader and writer.
-    TranslationStats consume_text_file(const std::string& source_file,
-                                       const std::string& output_file,
-                                       const TranslationOptions& options = TranslationOptions(),
-                                       size_t max_batch_size = 32,
-                                       size_t read_batch_size = 0,
-                                       BatchType batch_type = BatchType::Examples,
-                                       bool with_scores = false,
-                                       const std::string* target_file = nullptr);
+    TranslationStats translate_text_file(const std::string& source_file,
+                                         const std::string& output_file,
+                                         const TranslationOptions& options = TranslationOptions(),
+                                         size_t max_batch_size = 32,
+                                         size_t read_batch_size = 0,
+                                         BatchType batch_type = BatchType::Examples,
+                                         bool with_scores = false,
+                                         const std::string* target_file = nullptr);
 
-    TranslationStats consume_text_file(std::istream& source,
-                                       std::ostream& output,
-                                       const TranslationOptions& options = TranslationOptions(),
-                                       size_t max_batch_size = 32,
-                                       size_t read_batch_size = 0,
-                                       BatchType batch_type = BatchType::Examples,
-                                       bool with_scores = false,
-                                       std::istream* target = nullptr);
+    TranslationStats translate_text_file(std::istream& source,
+                                         std::ostream& output,
+                                         const TranslationOptions& options = TranslationOptions(),
+                                         size_t max_batch_size = 32,
+                                         size_t read_batch_size = 0,
+                                         BatchType batch_type = BatchType::Examples,
+                                         bool with_scores = false,
+                                         std::istream* target = nullptr);
 
     template <typename Tokenizer, typename Detokenizer>
-    TranslationStats consume_raw_text_file(const std::string& in_file,
-                                           const std::string& out_file,
-                                           Tokenizer& tokenizer,
-                                           Detokenizer& detokenizer,
-                                           const TranslationOptions& options = TranslationOptions(),
-                                           const size_t max_batch_size = 32,
-                                           const size_t read_batch_size = 0,
-                                           const BatchType batch_type = BatchType::Examples,
-                                           const bool with_scores = false) {
+    TranslationStats translate_raw_text_file(const std::string& in_file,
+                                             const std::string& out_file,
+                                             Tokenizer& tokenizer,
+                                             Detokenizer& detokenizer,
+                                             const TranslationOptions& options = TranslationOptions(),
+                                             const size_t max_batch_size = 32,
+                                             const size_t read_batch_size = 0,
+                                             const BatchType batch_type = BatchType::Examples,
+                                             const bool with_scores = false) {
       auto in = open_file<std::ifstream>(in_file);
       auto out = open_file<std::ofstream>(out_file);
-      return consume_raw_text_file(in,
-                                   out,
-                                   tokenizer,
-                                   detokenizer,
-                                   options,
-                                   max_batch_size,
-                                   read_batch_size,
-                                   batch_type,
-                                   with_scores);
+      return translate_raw_text_file(in,
+                                     out,
+                                     tokenizer,
+                                     detokenizer,
+                                     options,
+                                     max_batch_size,
+                                     read_batch_size,
+                                     batch_type,
+                                     with_scores);
 
     }
 
     template <typename Tokenizer, typename Detokenizer>
-    TranslationStats consume_raw_text_file(std::istream& in,
-                                           std::ostream& out,
-                                           Tokenizer& tokenizer,
-                                           Detokenizer& detokenizer,
-                                           const TranslationOptions& options = TranslationOptions(),
-                                           const size_t max_batch_size = 32,
-                                           const size_t read_batch_size = 0,
-                                           const BatchType batch_type = BatchType::Examples,
-                                           const bool with_scores = false) {
-      return consume_raw_text_file(in,
-                                   nullptr,
-                                   out,
-                                   tokenizer,
-                                   tokenizer,
-                                   detokenizer,
-                                   options,
-                                   max_batch_size,
-                                   read_batch_size,
-                                   batch_type,
-                                   with_scores);
+    TranslationStats translate_raw_text_file(std::istream& in,
+                                             std::ostream& out,
+                                             Tokenizer& tokenizer,
+                                             Detokenizer& detokenizer,
+                                             const TranslationOptions& options = TranslationOptions(),
+                                             const size_t max_batch_size = 32,
+                                             const size_t read_batch_size = 0,
+                                             const BatchType batch_type = BatchType::Examples,
+                                             const bool with_scores = false) {
+      return translate_raw_text_file(in,
+                                     nullptr,
+                                     out,
+                                     tokenizer,
+                                     tokenizer,
+                                     detokenizer,
+                                     options,
+                                     max_batch_size,
+                                     read_batch_size,
+                                     batch_type,
+                                     with_scores);
     }
 
     template <typename SourceTokenizer, typename TargetTokenizer, typename TargetDetokenizer>
-    TranslationStats consume_raw_text_file(const std::string& source_file,
-                                           const std::string* target_file,
-                                           const std::string& output_file,
-                                           SourceTokenizer& source_tokenizer,
-                                           TargetTokenizer& target_tokenizer,
-                                           TargetDetokenizer& detokenizer,
-                                           const TranslationOptions& options = TranslationOptions(),
-                                           const size_t max_batch_size = 32,
-                                           const size_t read_batch_size = 0,
-                                           const BatchType batch_type = BatchType::Examples,
-                                           const bool with_scores = false) {
+    TranslationStats translate_raw_text_file(const std::string& source_file,
+                                             const std::string* target_file,
+                                             const std::string& output_file,
+                                             SourceTokenizer& source_tokenizer,
+                                             TargetTokenizer& target_tokenizer,
+                                             TargetDetokenizer& detokenizer,
+                                             const TranslationOptions& options = TranslationOptions(),
+                                             const size_t max_batch_size = 32,
+                                             const size_t read_batch_size = 0,
+                                             const BatchType batch_type = BatchType::Examples,
+                                             const bool with_scores = false) {
       auto source = open_file<std::ifstream>(source_file);
       auto output = open_file<std::ofstream>(output_file);
       auto target = (target_file
                      ? std::make_unique<std::ifstream>(open_file<std::ifstream>(*target_file))
                      : nullptr);
 
-      return consume_raw_text_file(source,
-                                   target.get(),
-                                   output,
-                                   source_tokenizer,
-                                   target_tokenizer,
-                                   detokenizer,
-                                   options,
-                                   max_batch_size,
-                                   read_batch_size,
-                                   batch_type,
-                                   with_scores);
+      return translate_raw_text_file(source,
+                                     target.get(),
+                                     output,
+                                     source_tokenizer,
+                                     target_tokenizer,
+                                     detokenizer,
+                                     options,
+                                     max_batch_size,
+                                     read_batch_size,
+                                     batch_type,
+                                     with_scores);
     }
 
     template <typename SourceTokenizer, typename TargetTokenizer, typename TargetDetokenizer>
-    TranslationStats consume_raw_text_file(std::istream& source,
-                                           std::istream* target,
-                                           std::ostream& output,
-                                           SourceTokenizer& source_tokenizer,
-                                           TargetTokenizer& target_tokenizer,
-                                           TargetDetokenizer& detokenizer,
-                                           const TranslationOptions& options = TranslationOptions(),
-                                           const size_t max_batch_size = 32,
-                                           const size_t read_batch_size = 0,
-                                           const BatchType batch_type = BatchType::Examples,
-                                           const bool with_scores = false) {
+    TranslationStats translate_raw_text_file(std::istream& source,
+                                             std::istream* target,
+                                             std::ostream& output,
+                                             SourceTokenizer& source_tokenizer,
+                                             TargetTokenizer& target_tokenizer,
+                                             TargetDetokenizer& detokenizer,
+                                             const TranslationOptions& options = TranslationOptions(),
+                                             const size_t max_batch_size = 32,
+                                             const size_t read_batch_size = 0,
+                                             const BatchType batch_type = BatchType::Examples,
+                                             const bool with_scores = false) {
       TranslationStats stats;
 
       TextLineReader<SourceTokenizer> source_reader(source_tokenizer);
@@ -278,16 +278,16 @@ namespace ctranslate2 {
 
       const auto t1 = std::chrono::high_resolution_clock::now();
 
-      consume_stream(source,
-                     target,
-                     output,
-                     source_reader,
-                     &target_reader,
-                     writer,
-                     options,
-                     max_batch_size,
-                     read_batch_size,
-                     batch_type);
+      translate_stream(source,
+                       target,
+                       output,
+                       source_reader,
+                       &target_reader,
+                       writer,
+                       options,
+                       max_batch_size,
+                       read_batch_size,
+                       batch_type);
 
       const auto t2 = std::chrono::high_resolution_clock::now();
       stats.total_time_in_ms = std::chrono::duration_cast<std::chrono::duration<double, std::milli>>(
