@@ -308,7 +308,6 @@ def test_transformers_generator_on_iterables(tmpdir):
 @test_utils.only_on_linux
 @test_utils.test_available_devices
 def test_transformers_whisper(tmpdir, device):
-    import datasets
     import transformers
 
     model_name = "openai/whisper-tiny"
@@ -316,13 +315,8 @@ def test_transformers_whisper(tmpdir, device):
     output_dir = str(tmpdir.join("ctranslate2_model"))
     output_dir = converter.convert(output_dir)
 
-    dataset = datasets.load_dataset(
-        "hf-internal-testing/librispeech_asr_dummy",
-        "clean",
-        split="validation",
-    )
-
-    audio = dataset[0]["audio"]["array"]
+    audio_path = os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
+    audio = np.load(audio_path)
 
     processor = transformers.WhisperProcessor.from_pretrained(model_name)
     inputs = processor(audio, return_tensors="np", sampling_rate=16000)
