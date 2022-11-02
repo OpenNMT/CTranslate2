@@ -98,14 +98,6 @@ def test_batch_translation(max_batch_size):
     )
     assert repr(output[0]) == expected_repr
 
-    # Check backward compatibility with previous result format.
-    assert len(output[0]) == 1  # One hypothesis.
-    assert len(output[1]) == 1
-    assert output[0][0]["tokens"] == ["a", "t", "z", "m", "o", "n"]
-    assert output[0][0]["score"] < 0
-    assert "attention" not in output[0][0]
-    assert output[1][0]["tokens"] == ["a", "c", "h", "i", "s", "o", "n"]
-
 
 def test_batch_translation_async():
     translator = _get_transliterator()

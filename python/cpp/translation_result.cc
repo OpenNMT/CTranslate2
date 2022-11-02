@@ -23,21 +23,6 @@ namespace ctranslate2 {
             + ", attention=" + std::string(py::repr(py::cast(result.attention)))
             + ")";
         })
-
-        // Backward compatibility with using translate_batch output as a list of dicts.
-        .def("__len__", &TranslationResult::num_hypotheses)
-
-        .def("__getitem__", [](const TranslationResult& result, size_t i) {
-          if (i >= result.num_hypotheses())
-            throw py::index_error();
-          py::dict hypothesis;
-          hypothesis["tokens"] = result.hypotheses[i];
-          if (result.has_scores())
-            hypothesis["score"] = result.scores[i];
-          if (result.has_attention())
-            hypothesis["attention"] = result.attention[i];
-          return hypothesis;
-        })
         ;
 
       declare_async_wrapper<TranslationResult>(m, "AsyncTranslationResult");
