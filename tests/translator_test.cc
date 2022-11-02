@@ -284,51 +284,6 @@ TEST_P(SearchVariantTest, NoRepeatNgram) {
   EXPECT_EQ(ngrams.size(), output.size() - options.no_repeat_ngram_size);
 }
 
-static void check_normalized_score(const std::vector<std::string>& input,
-                                   TranslationOptions options,
-                                   bool output_has_eos = true) {
-  Translator translator = default_translator();
-  options.return_scores = true;
-  const auto score = translator.translate(input, options).scores[0];
-
-  options.normalize_scores = true;
-  const auto normalized_result = translator.translate(input, options);
-  const auto normalized_score = normalized_result.scores[0];
-  auto normalized_length = normalized_result.hypotheses[0].size();
-  if (output_has_eos)
-    normalized_length += 1;
-
-  EXPECT_NEAR(normalized_score, score / normalized_length, 1e-6);
-}
-
-TEST_P(SearchVariantTest, NormalizeScores) {
-  TranslationOptions options;
-  options.beam_size = GetParam();
-  check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options);
-}
-
-TEST_P(SearchVariantTest, NormalizeScoresNoEos) {
-  TranslationOptions options;
-  options.beam_size = GetParam();
-  options.max_decoding_length = 6;
-  check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options, false);
-}
-
-TEST_P(SearchVariantTest, NormalizeScoresAlternatives) {
-  TranslationOptions options;
-  options.beam_size = GetParam();
-  options.return_alternatives = true;
-  check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options);
-}
-
-TEST_P(SearchVariantTest, NormalizeScoresAlternativesNoEos) {
-  TranslationOptions options;
-  options.beam_size = GetParam();
-  options.return_alternatives = true;
-  options.max_decoding_length = 6;
-  check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options, false);
-}
-
 
 INSTANTIATE_TEST_SUITE_P(
   TranslatorTest,
@@ -785,7 +740,7 @@ TEST(TranslatorTest, AlternativesFromScratchBatch) {
   EXPECT_EQ(results[0].hypotheses[1], (std::vector<std::string>{"e", "t", "z", "m", "o", "n"}));
   ASSERT_EQ(results[1].num_hypotheses(), options.num_hypotheses);
   EXPECT_EQ(results[1].hypotheses[0], (std::vector<std::string>{"a", "z", "z", "a"}));
-  EXPECT_EQ(results[1].hypotheses[1], (std::vector<std::string>{"e", "z", "a"}));
+  EXPECT_EQ(results[1].hypotheses[1], (std::vector<std::string>{"e", "z", "z", "a"}));
 }
 
 TEST(TranslatorTest, AlternativesFromFullTarget) {
@@ -871,6 +826,7 @@ TEST(TranslatorTest, SameBeamAndGreedyScore) {
   options.beam_size = 1;
   const auto greedy_score = translator.translate(input, options).score();
   options.beam_size = 2;
+  options.length_penalty = 0;
   const auto beam_score = translator.translate(input, options).score();
   EXPECT_NEAR(greedy_score, beam_score, 1e-5);
 }
@@ -946,4 +902,33 @@ TEST(TranslatorTest, ScoringMaxInputLength) {
 
   EXPECT_EQ(result.tokens, (std::vector<std::string>{"a", "t", "z", "</s>"}));
   EXPECT_EQ(result.tokens_score.size(), options.max_input_length);
+}
+
+static void check_normalized_score(const std::vector<std::string>& input,
+                                   TranslationOptions options,
+                                   bool output_has_eos = true) {
+  Translator translator = default_translator();
+  options.return_scores = true;
+  options.length_penalty = 0;
+  const auto score = translator.translate(input, options).scores[0];
+
+  options.length_penalty = 1;
+  const auto normalized_result = translator.translate(input, options);
+  const auto normalized_score = normalized_result.scores[0];
+  auto normalized_length = normalized_result.hypotheses[0].size();
+  if (output_has_eos)
+    normalized_length += 1;
+
+  EXPECT_NEAR(normalized_score, score / normalized_length, 1e-6);
+}
+
+TEST(TranslatorTest, NormalizeScores) {
+  TranslationOptions options;
+  check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options);
+}
+
+TEST(TranslatorTest, NormalizeScoresNoEos) {
+  TranslationOptions options;
+  options.max_decoding_length = 6;
+  check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options, false);
 }
