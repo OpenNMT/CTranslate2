@@ -17,7 +17,6 @@ The project versioning follows [Semantic Versioning 2.0.0](https://semver.org/).
 * C++ symbols:
   * `ctranslate2::TranslationOptions`
   * `ctranslate2::TranslationResult`
-  * `ctranslate2::TranslatorPool`
   * `ctranslate2::Translator`
   * `ctranslate2::models::Model`
 * C++ translation client options

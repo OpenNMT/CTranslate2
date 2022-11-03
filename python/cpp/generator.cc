@@ -1,6 +1,6 @@
 #include "module.h"
 
-#include <ctranslate2/generator_pool.h>
+#include <ctranslate2/generator.h>
 
 #include "storage_view.h"
 #include "utils.h"
@@ -17,36 +17,35 @@ namespace ctranslate2 {
                        size_t inter_threads,
                        size_t intra_threads,
                        long max_queued_batches)
-        : _device(str_to_device(device))
-        , _device_index(std::visit(DeviceIndexResolver(inter_threads), device_index))
-        , _generator_pool(1,
-                          intra_threads,
-                          model_path,
-                          _device,
-                          _device_index,
-                          std::visit(ComputeTypeResolver(device), compute_type),
-                          max_queued_batches)
+        : _builder(model_path,
+                   device,
+                   device_index,
+                   compute_type,
+                   inter_threads,
+                   intra_threads,
+                   max_queued_batches)
+        , _generator(_builder.build<Generator>())
       {
       }
 
       std::string device() const {
-        return device_to_str(_device);
+        return device_to_str(_builder.device);
       }
 
       const std::vector<int>& device_index() const {
-        return _device_index;
+        return _builder.device_index;
       }
 
       size_t num_generators() const {
-        return _generator_pool.num_replicas();
+        return _generator->num_replicas();
       }
 
       size_t num_queued_batches() const {
-        return _generator_pool.num_queued_batches();
+        return _generator->num_queued_batches();
       }
 
       size_t num_active_batches() const {
-        return _generator_pool.num_active_batches();
+        return _generator->num_active_batches();
       }
 
       std::variant<std::vector<GenerationResult>,
@@ -87,7 +86,7 @@ namespace ctranslate2 {
         options.return_alternatives = return_alternatives;
         options.min_alternative_expansion_prob = min_alternative_expansion_prob;
 
-        auto futures = _generator_pool.generate_batch_async(tokens, options, max_batch_size, batch_type);
+        auto futures = _generator->generate_batch_async(tokens, options, max_batch_size, batch_type);
         return maybe_wait_on_futures(std::move(futures), asynchronous);
       }
 
@@ -102,7 +101,7 @@ namespace ctranslate2 {
         ScoringOptions options;
         options.max_input_length = max_input_length;
 
-        auto futures = _generator_pool.score_batch_async(tokens, options, max_batch_size, batch_type);
+        auto futures = _generator->score_batch_async(tokens, options, max_batch_size, batch_type);
         return maybe_wait_on_futures(std::move(futures), asynchronous);
       }
 
@@ -114,17 +113,17 @@ namespace ctranslate2 {
 
         switch (inputs.index()) {
         case 0:
-          future = _generator_pool.forward_batch_async(std::get<BatchTokens>(inputs), return_log_probs);
+          future = _generator->forward_batch_async(std::get<BatchTokens>(inputs), return_log_probs);
           break;
         case 1:
-          future = _generator_pool.forward_batch_async(std::get<BatchIds>(inputs), return_log_probs);
+          future = _generator->forward_batch_async(std::get<BatchIds>(inputs), return_log_probs);
           break;
         case 2:
           if (!lengths)
             throw std::invalid_argument("lengths vector is required when passing a dense input");
           const StorageView& ids_view = std::get<StorageViewWrapper>(inputs).get_view();
           const StorageView& lengths_view = lengths.value().get_view();
-          future = _generator_pool.forward_batch_async(ids_view, lengths_view, return_log_probs);
+          future = _generator->forward_batch_async(ids_view, lengths_view, return_log_probs);
           break;
         }
 
@@ -132,9 +131,8 @@ namespace ctranslate2 {
       }
 
     private:
-      const Device _device;
-      const std::vector<int> _device_index;
-      GeneratorPool _generator_pool;
+      const ReplicaPoolBuilder _builder;
+      std::unique_ptr<Generator> _generator;
     };
 
 

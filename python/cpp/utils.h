@@ -11,6 +11,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/stl.h>
 
+#include <ctranslate2/replica_pool.h>
 #include <ctranslate2/types.h>
 
 namespace py = pybind11;
@@ -48,27 +49,55 @@ namespace ctranslate2 {
 
     class DeviceIndexResolver {
     public:
-      DeviceIndexResolver(size_t replicate_index = 1)
-        : _replicate_index(replicate_index)
-      {
-      }
-
       std::vector<int> operator()(int device_index) const {
-        return std::vector<int>(_replicate_index, device_index);
+        return {device_index};
       }
 
       std::vector<int> operator()(const std::vector<int>& device_index) const {
-        std::vector<int> index;
-        index.reserve(device_index.size() * _replicate_index);
-        for (const int device : device_index) {
-          for (size_t i = 0; i < _replicate_index; ++i)
-            index.emplace_back(device);
-        }
-        return index;
+        return device_index;
+      }
+    };
+
+    class ReplicaPoolBuilder {
+    public:
+      ReplicaPoolBuilder(const std::string& model_path,
+                         const std::string& device_,
+                         const std::variant<int, std::vector<int>>& device_index_,
+                         const StringOrMap& compute_type_,
+                         size_t inter_threads_,
+                         size_t intra_threads_,
+                         long max_queued_batches_)
+        : model_reader(std::make_shared<models::ModelFileReader>(model_path))
+        , device(str_to_device(device_))
+        , device_index(std::visit(DeviceIndexResolver(), device_index_))
+        , compute_type(std::visit(ComputeTypeResolver(device_), compute_type_))
+        , inter_threads(inter_threads_)
+        , intra_threads(intra_threads_)
+        , max_queued_batches(max_queued_batches_)
+      {
       }
 
-    private:
-      const size_t _replicate_index;
+      template <typename T>
+      std::unique_ptr<T> build() const {
+        ReplicaPoolConfig pool_config;
+        pool_config.num_threads_per_replica = intra_threads;
+        pool_config.max_queued_batches = max_queued_batches;
+
+        return std::make_unique<T>(model_reader,
+                                   device,
+                                   inter_threads,
+                                   device_index,
+                                   compute_type,
+                                   pool_config);
+      }
+
+      std::shared_ptr<models::ModelReader> model_reader;
+      Device device;
+      std::vector<int> device_index;
+      ComputeType compute_type;
+      size_t inter_threads;
+      size_t intra_threads;
+      long max_queued_batches;
     };
 
     template <typename T>
