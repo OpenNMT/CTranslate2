@@ -34,7 +34,7 @@ int main(int argc, char* argv[]) {
      cxxopts::value<std::string>()->default_value("cpu"))
     ("device_index", "Comma-separated list of device IDs to use.",
      cxxopts::value<std::vector<int>>()->default_value("0"))
-    ("cpu_core_offset", "Pinned worker threads to CPU cores starting from this offset.",
+    ("cpu_core_offset", "Pin worker threads to CPU cores starting from this offset.",
      cxxopts::value<int>()->default_value("-1"))
     ;
 
