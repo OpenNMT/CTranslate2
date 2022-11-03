@@ -933,32 +933,3 @@ TEST(TranslatorTest, ScoringMaxInputLength) {
   EXPECT_EQ(result.tokens, (std::vector<std::string>{"a", "t", "z", "</s>"}));
   EXPECT_EQ(result.tokens_score.size(), options.max_input_length);
 }
-
-// static void check_normalized_score(const std::vector<std::string>& input,
-//                                    TranslationOptions options,
-//                                    bool output_has_eos = true) {
-//   Translator translator = default_translator();
-//   options.return_scores = true;
-//   options.length_penalty = 0;
-//   const auto score = translator.translate(input, options).scores[0];
-
-//   options.length_penalty = 1;
-//   const auto normalized_result = translator.translate(input, options);
-//   const auto normalized_score = normalized_result.scores[0];
-//   auto normalized_length = normalized_result.hypotheses[0].size();
-//   if (output_has_eos)
-//     normalized_length += 1;
-
-//   EXPECT_NEAR(normalized_score, score / normalized_length, 1e-6);
-// }
-
-// TEST(TranslatorTest, NormalizeScores) {
-//   TranslationOptions options;
-//   check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options);
-// }
-
-// TEST(TranslatorTest, NormalizeScoresNoEos) {
-//   TranslationOptions options;
-//   options.max_decoding_length = 6;
-//   check_normalized_score({"آ" ,"ت" ,"ز" ,"م" ,"و" ,"ن"}, options, false);
-// }
