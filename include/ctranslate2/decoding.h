@@ -89,6 +89,9 @@ namespace ctranslate2 {
 
   class GreedySearch : public SearchStrategy {
   public:
+    // Penalties are only applied to return scores consistent with the beam search.
+    GreedySearch(const float length_penalty = 0, const float coverage_penalty = 0);
+
     std::vector<DecodingResult>
     search(layers::Decoder& decoder,
            layers::DecoderState& state,
@@ -106,6 +109,10 @@ namespace ctranslate2 {
            const float repetition_penalty = 1,
            const dim_t no_repeat_ngram_size = 0,
            const std::vector<std::vector<size_t>>* prefix_ids = nullptr) const override;
+
+  private:
+    const float _length_penalty;
+    const float _coverage_penalty;
   };
 
 
