@@ -598,12 +598,18 @@ namespace ctranslate2 {
       return bool(ModelFileReader(path).get_file(binary_file));
     }
 
+    ModelLoader::ModelLoader(const std::string& model_path)
+      : model_reader(std::make_shared<ModelFileReader>(model_path))
+    {
+    }
+
+    ModelLoader::ModelLoader(const std::shared_ptr<ModelReader>& model_reader_)
+      : model_reader(model_reader_)
+    {
+    }
+
     std::vector<std::shared_ptr<const Model>>
-    load_replicas(models::ModelReader& model_reader,
-                  const Device device,
-                  const std::vector<int>& device_indices,
-                  const ComputeType compute_type,
-                  const size_t num_replicas_per_device) {
+    ModelLoader::load() const {
       if (device_indices.empty())
         throw std::invalid_argument("At least one device index should be set");
 #ifdef CT2_WITH_CUDA
@@ -619,12 +625,12 @@ namespace ctranslate2 {
         std::shared_ptr<const Model> model;
 
         if (models.empty())
-          model = Model::load(model_reader, device, device_index, compute_type);
+          model = Model::load(*model_reader, device, device_index, compute_type);
         else
           model = models.back()->copy_to(device, device_index);
 
         spdlog::info("Loaded model {} on device {}:{}",
-                     model_reader.get_model_id(),
+                     model_reader->get_model_id(),
                      device_to_str(device),
                      device_index);
         spdlog::info(" - Binary version: {}", model->binary_version());

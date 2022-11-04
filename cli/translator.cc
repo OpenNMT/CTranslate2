@@ -138,12 +138,13 @@ int main(int argc, char* argv[]) {
   pool_config.max_queued_batches = args["max_queued_batches"].as<long>();
   pool_config.cpu_core_offset = args["cpu_core_offset"].as<int>();
 
-  ctranslate2::Translator translator(args["model"].as<std::string>(),
-                                     device,
-                                     inter_threads,
-                                     args["device_index"].as<std::vector<int>>(),
-                                     compute_type,
-                                     pool_config);
+  ctranslate2::models::ModelLoader model_loader(args["model"].as<std::string>());
+  model_loader.device = device;
+  model_loader.device_indices = args["device_index"].as<std::vector<int>>();
+  model_loader.compute_type = compute_type;
+  model_loader.num_replicas_per_device = inter_threads;
+
+  ctranslate2::Translator translator(model_loader, pool_config);
 
   std::istream* source = &std::cin;
   std::istream* target = nullptr;

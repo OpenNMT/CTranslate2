@@ -17,15 +17,16 @@ namespace ctranslate2 {
                                       size_t inter_threads,
                                       size_t intra_threads,
                                       long max_queued_batches) {
-        ReplicaPoolBuilder builder(model_path,
-                                   device,
-                                   device_index,
-                                   compute_type,
-                                   inter_threads,
-                                   intra_threads,
-                                   max_queued_batches);
+        ReplicaPoolArgs args(model_path,
+                             device,
+                             device_index,
+                             compute_type,
+                             inter_threads,
+                             intra_threads,
+                             max_queued_batches);
 
-        return WhisperWrapper(builder.build<models::Whisper>());
+        auto whisper = std::make_unique<models::Whisper>(args.model_loader, args.pool_config);
+        return WhisperWrapper(std::move(whisper));
       }
 
       std::variant<std::vector<GenerationResult>, std::vector<AsyncResult<GenerationResult>>>

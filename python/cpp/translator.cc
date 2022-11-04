@@ -33,14 +33,17 @@ namespace ctranslate2 {
                         size_t inter_threads,
                         size_t intra_threads,
                         long max_queued_batches)
-        : _builder(model_path,
-                   device,
-                   device_index,
-                   compute_type,
-                   inter_threads,
-                   intra_threads,
-                   max_queued_batches)
-        , _translator(_builder.build<Translator>())
+        : _args(model_path,
+                device,
+                device_index,
+                compute_type,
+                inter_threads,
+                intra_threads,
+                max_queued_batches)
+        , _device(_args.model_loader.device)
+        , _device_index(_args.model_loader.device_indices)
+        , _num_replicas_per_device(_args.model_loader.num_replicas_per_device)
+        , _translator_pool(_args.model_loader, _args.pool_config)
         , _model_is_loaded(true) {
       }
 
@@ -50,23 +53,23 @@ namespace ctranslate2 {
       }
 
       std::string device() const {
-        return device_to_str(_builder.device);
+        return device_to_str(_device);
       }
 
       const std::vector<int>& device_index() const {
-        return _builder.device_index;
+        return _device_index;
       }
 
       size_t num_translators() const {
-        return _translator->num_replicas();
+        return _translator_pool.num_replicas();
       }
 
       size_t num_queued_batches() const {
-        return _translator->num_queued_batches();
+        return _translator_pool.num_queued_batches();
       }
 
       size_t num_active_batches() const {
-        return _translator->num_active_batches();
+        return _translator_pool.num_active_batches();
       }
 
       using TokenizeFn = std::function<std::vector<std::string>(const std::string&)>;
@@ -127,26 +130,26 @@ namespace ctranslate2 {
         assert_model_is_ready();
 
         if (source_tokenize_fn && target_detokenize_fn) {
-          return _translator->translate_raw_text_file(source_path,
-                                                      target_path_ptr,
+          return _translator_pool.translate_raw_text_file(source_path,
+                                                          target_path_ptr,
+                                                          output_path,
+                                                          source_tokenize_fn,
+                                                          target_tokenize_fn,
+                                                          target_detokenize_fn,
+                                                          options,
+                                                          max_batch_size,
+                                                          read_batch_size,
+                                                          batch_type,
+                                                          with_scores);
+        } else {
+          return _translator_pool.translate_text_file(source_path,
                                                       output_path,
-                                                      source_tokenize_fn,
-                                                      target_tokenize_fn,
-                                                      target_detokenize_fn,
                                                       options,
                                                       max_batch_size,
                                                       read_batch_size,
                                                       batch_type,
-                                                      with_scores);
-        } else {
-          return _translator->translate_text_file(source_path,
-                                                  output_path,
-                                                  options,
-                                                  max_batch_size,
-                                                  read_batch_size,
-                                                  batch_type,
-                                                  with_scores,
-                                                  target_path_ptr);
+                                                      with_scores,
+                                                      target_path_ptr);
         }
       }
 
@@ -204,11 +207,11 @@ namespace ctranslate2 {
         std::shared_lock lock(_mutex);
         assert_model_is_ready();
 
-        auto futures = _translator->translate_batch_async(source,
-                                                          finalize_optional_batch(target_prefix),
-                                                          options,
-                                                          max_batch_size,
-                                                          batch_type);
+        auto futures = _translator_pool.translate_batch_async(source,
+                                                              finalize_optional_batch(target_prefix),
+                                                              options,
+                                                              max_batch_size,
+                                                              batch_type);
 
         return maybe_wait_on_futures(std::move(futures), asynchronous);
       }
@@ -228,11 +231,11 @@ namespace ctranslate2 {
         std::shared_lock lock(_mutex);
         assert_model_is_ready();
 
-        auto futures = _translator->score_batch_async(source,
-                                                      target,
-                                                      options,
-                                                      max_batch_size,
-                                                      batch_type);
+        auto futures = _translator_pool.score_batch_async(source,
+                                                          target,
+                                                          options,
+                                                          max_batch_size,
+                                                          batch_type);
 
         return maybe_wait_on_futures(std::move(futures), asynchronous);
       }
@@ -260,35 +263,35 @@ namespace ctranslate2 {
         assert_model_is_ready();
 
         if (source_tokenize_fn) {
-          return _translator->score_raw_text_file(source_path,
+          return _translator_pool.score_raw_text_file(source_path,
+                                                      target_path,
+                                                      output_path,
+                                                      source_tokenize_fn,
+                                                      target_tokenize_fn,
+                                                      target_detokenize_fn,
+                                                      options,
+                                                      max_batch_size,
+                                                      read_batch_size,
+                                                      batch_type,
+                                                      with_tokens_score);
+        } else {
+          return _translator_pool.score_text_file(source_path,
                                                   target_path,
                                                   output_path,
-                                                  source_tokenize_fn,
-                                                  target_tokenize_fn,
-                                                  target_detokenize_fn,
                                                   options,
                                                   max_batch_size,
                                                   read_batch_size,
                                                   batch_type,
                                                   with_tokens_score);
-        } else {
-          return _translator->score_text_file(source_path,
-                                              target_path,
-                                              output_path,
-                                              options,
-                                              max_batch_size,
-                                              read_batch_size,
-                                              batch_type,
-                                              with_tokens_score);
         }
       }
 
       void unload_model(const bool to_cpu) {
-        if (to_cpu && _builder.device == Device::CPU)
+        if (to_cpu && _device == Device::CPU)
           return;
 
         // Do not unload the model if some batches are still being processed.
-        if (_translator->num_active_batches() > 0)
+        if (_translator_pool.num_active_batches() > 0)
           return;
 
         // If the lock is not acquired immediately it means the model is being used
@@ -297,15 +300,15 @@ namespace ctranslate2 {
         if (!lock || !_model_is_loaded)
           return;
 
-        _cached_models = _translator->detach_models();
+        _cached_models = _translator_pool.detach_models();
         if (to_cpu)
           move_cached_models(Device::CPU, std::vector<int>(_cached_models.size(), 0));
         else
           _cached_models.clear();
 
         // We clear the CUDA allocator cache to further reduce the memory after unloading the model.
-        if (_builder.device == Device::CUDA)
-          _translator->clear_cache();
+        if (_device == Device::CUDA)
+          _translator_pool.clear_cache();
 
         _model_is_loaded = false;
       }
@@ -316,24 +319,23 @@ namespace ctranslate2 {
           return;
 
         if (_cached_models.empty()) {
-          _cached_models = models::load_replicas(*_builder.model_reader,
-                                                 _builder.device,
-                                                 _builder.device_index,
-                                                 _builder.compute_type,
-                                                 _builder.inter_threads);
+          _cached_models = _args.model_loader.load();
         } else {
-          move_cached_models(_builder.device, _builder.device_index);
+          move_cached_models(_device, _device_index, _num_replicas_per_device);
         }
 
-        _translator->set_models(_cached_models);
+        _translator_pool.set_models(_cached_models);
         _cached_models.clear();
         _model_is_loaded = true;
       }
 
     private:
-      const ReplicaPoolBuilder _builder;
+      const ReplicaPoolArgs _args;
+      const Device _device;
+      const std::vector<int>& _device_index;
+      const size_t _num_replicas_per_device;
 
-      std::unique_ptr<Translator> _translator;
+      Translator _translator_pool;
 
       std::vector<std::shared_ptr<const models::Model>> _cached_models;
       bool _model_is_loaded;
@@ -348,10 +350,12 @@ namespace ctranslate2 {
           throw std::runtime_error("The model for this translator was unloaded");
       }
 
-      void move_cached_models(Device device, const std::vector<int>& device_index) {
+      void move_cached_models(Device device,
+                              const std::vector<int>& device_index,
+                              size_t num_models_per_device = 1) {
         for (size_t i = 0; i < _cached_models.size(); ++i) {
           auto& model = const_cast<models::Model&>(*_cached_models[i]);
-          model.set_device(device, device_index[i]);
+          model.set_device(device, device_index[i / num_models_per_device]);
         }
       }
     };

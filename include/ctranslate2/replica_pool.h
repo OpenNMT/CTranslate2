@@ -25,32 +25,21 @@ namespace ctranslate2 {
   public:
     virtual ~ReplicaPool() = default;
 
-    ReplicaPool(const std::string& model_path,
-                const Device device = Device::CPU,
-                const size_t num_replicas_per_device = 1,
-                const std::vector<int>& device_indices = {0},
-                const ComputeType compute_type = ComputeType::DEFAULT,
+    ReplicaPool(const models::ModelLoader& model_loader,
                 const ReplicaPoolConfig& config = {}) {
-      initialize_pool(std::make_shared<models::ModelFileReader>(model_path),
-                      device,
-                      num_replicas_per_device,
-                      device_indices,
-                      compute_type,
-                      config);
+      initialize_pool(model_loader, config);
     }
 
-    ReplicaPool(const std::shared_ptr<models::ModelReader>& model_reader,
-                const Device device = Device::CPU,
-                const size_t num_replicas_per_device = 1,
-                const std::vector<int>& device_indices = {0},
+    ReplicaPool(const std::string& model_path,
+                const Device device,
                 const ComputeType compute_type = ComputeType::DEFAULT,
+                const std::vector<int>& device_indices = {0},
                 const ReplicaPoolConfig& config = {}) {
-      initialize_pool(model_reader,
-                      device,
-                      num_replicas_per_device,
-                      device_indices,
-                      compute_type,
-                      config);
+      models::ModelLoader model_loader(model_path);
+      model_loader.device = device;
+      model_loader.device_indices = device_indices;
+      model_loader.compute_type = compute_type;
+      initialize_pool(model_loader, config);
     }
 
     ReplicaPool(const std::shared_ptr<const models::Model>& model,
@@ -237,22 +226,11 @@ namespace ctranslate2 {
       return worker.replica();
     }
 
-    void initialize_pool(const std::shared_ptr<models::ModelReader>& model_reader,
-                         const Device device,
-                         const size_t num_replicas_per_device,
-                         const std::vector<int>& device_indices,
-                         const ComputeType compute_type,
+    void initialize_pool(const models::ModelLoader& model_loader,
                          const ReplicaPoolConfig& config) {
       // The same number of OpenMP threads should be used for loading and running model.
-      set_num_threads(device == Device::CUDA ? 1 : config.num_threads_per_replica);
-
-      const auto models = models::load_replicas(*model_reader,
-                                                device,
-                                                device_indices,
-                                                compute_type,
-                                                num_replicas_per_device);
-
-      initialize_pool(models, config);
+      set_num_threads(model_loader.device == Device::CUDA ? 1 : config.num_threads_per_replica);
+      initialize_pool(model_loader.load(), config);
     }
 
     void initialize_pool(const std::vector<std::shared_ptr<const models::Model>>& models,
