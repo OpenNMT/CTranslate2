@@ -144,7 +144,7 @@ int main(int argc, char* argv[]) {
   model_loader.compute_type = compute_type;
   model_loader.num_replicas_per_device = inter_threads;
 
-  ctranslate2::Translator translator(model_loader, pool_config);
+  ctranslate2::Translator translator_pool(model_loader, pool_config);
 
   std::istream* source = &std::cin;
   std::istream* target = nullptr;
@@ -169,7 +169,7 @@ int main(int argc, char* argv[]) {
 
   auto log_profiling = args["log_profiling"].as<bool>();
   if (log_profiling)
-    ctranslate2::init_profiling(device, translator.num_replicas());
+    ctranslate2::init_profiling(device, translator_pool.num_replicas());
 
   const auto task = args["task"].as<std::string>();
   const auto max_batch_size = args["batch_size"].as<size_t>();
@@ -195,28 +195,28 @@ int main(int argc, char* argv[]) {
     options.use_vmap = args["use_vmap"].as<bool>();
     options.return_scores = args["with_score"].as<bool>();
     options.replace_unknowns = args["replace_unknowns"].as<bool>();
-    stats = translator.translate_text_file(*source,
-                                           *output,
-                                           options,
-                                           max_batch_size,
-                                           read_batch_size,
-                                           batch_type,
-                                           args["with_score"].as<bool>(),
-                                           target);
+    stats = translator_pool.translate_text_file(*source,
+                                                *output,
+                                                options,
+                                                max_batch_size,
+                                                read_batch_size,
+                                                batch_type,
+                                                args["with_score"].as<bool>(),
+                                                target);
   } else if (task == "score") {
     if (source == &std::cin || !target)
       throw std::invalid_argument("Score task requires both arguments --src and --tgt to be set");
 
     ctranslate2::ScoringOptions options;
     options.max_input_length = args["max_input_length"].as<size_t>();
-    stats = translator.score_text_file(*source,
-                                       *target,
-                                       *output,
-                                       options,
-                                       max_batch_size,
-                                       read_batch_size,
-                                       batch_type,
-                                       args["with_tokens_score"].as<bool>());
+    stats = translator_pool.score_text_file(*source,
+                                            *target,
+                                            *output,
+                                            options,
+                                            max_batch_size,
+                                            read_batch_size,
+                                            batch_type,
+                                            args["with_tokens_score"].as<bool>());
   } else {
     throw std::invalid_argument("Invalid task: " + task);
   }
