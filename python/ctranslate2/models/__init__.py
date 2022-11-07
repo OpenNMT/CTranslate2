@@ -2,4 +2,4 @@
 and :class:`ctranslate2.Generator`.
 """
 
-from ctranslate2._ext import WhisperModel
+from ctranslate2._ext import Whisper
