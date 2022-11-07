@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Environment variables &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>Environment variables &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
@@ -62,7 +63,6 @@
 <li class="toctree-l2"><a class="reference internal" href="#ct2-cuda-allow-fp16"><code class="docutils literal notranslate"><span class="pre">CT2_CUDA_ALLOW_FP16</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-cuda-caching-allocator-config"><code class="docutils literal notranslate"><span class="pre">CT2_CUDA_CACHING_ALLOCATOR_CONFIG</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-force-cpu-isa"><code class="docutils literal notranslate"><span class="pre">CT2_FORCE_CPU_ISA</span></code></a></li>
-<li class="toctree-l2"><a class="reference internal" href="#ct2-translators-core-offset"><code class="docutils literal notranslate"><span class="pre">CT2_TRANSLATORS_CORE_OFFSET</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-use-experimental-packed-gemm"><code class="docutils literal notranslate"><span class="pre">CT2_USE_EXPERIMENTAL_PACKED_GEMM</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-use-mkl"><code class="docutils literal notranslate"><span class="pre">CT2_USE_MKL</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-verbose"><code class="docutils literal notranslate"><span class="pre">CT2_VERBOSE</span></code></a></li>
@@ -164,11 +164,6 @@
 <p class="admonition-title">Attention</p>
 <p>This does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.</p>
 </div>
-</section>
-<section id="ct2-translators-core-offset">
-<h2><code class="docutils literal notranslate"><span class="pre">CT2_TRANSLATORS_CORE_OFFSET</span></code><a class="headerlink" href="#ct2-translators-core-offset" title="Permalink to this headline"></a></h2>
-<p>If set to a non negative value, parallel translators are pinned to CPU cores in the range <code class="docutils literal notranslate"><span class="pre">[offset,</span> <span class="pre">offset</span> <span class="pre">+</span> <span class="pre">inter_threads]</span></code>.</p>
-<p>Requires compiling with <code class="docutils literal notranslate"><span class="pre">-DOPENMP_RUNTIME=NONE</span></code>.</p>
 </section>
 <section id="ct2-use-experimental-packed-gemm">
 <h2><code class="docutils literal notranslate"><span class="pre">CT2_USE_EXPERIMENTAL_PACKED_GEMM</span></code><a class="headerlink" href="#ct2-use-experimental-packed-gemm" title="Permalink to this headline"></a></h2>

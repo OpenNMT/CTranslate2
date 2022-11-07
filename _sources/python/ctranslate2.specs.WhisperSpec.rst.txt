@@ -1,0 +1,25 @@
+WhisperSpec
+===========
+
+.. autoclass:: ctranslate2.specs.WhisperSpec
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.specs.LanguageModelSpec`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.specs.WhisperSpec.config`
+    - :obj:`~ctranslate2.specs.WhisperSpec.name`
+    - :obj:`~ctranslate2.specs.WhisperSpec.revision`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.WhisperSpec.get_default_config`
+    - :obj:`~ctranslate2.specs.WhisperSpec.get_vocabulary_size`
+    - :obj:`~ctranslate2.specs.WhisperSpec.optimize`
+    - :obj:`~ctranslate2.specs.WhisperSpec.register_vocabulary`
+    - :obj:`~ctranslate2.specs.WhisperSpec.save`
+    - :obj:`~ctranslate2.specs.WhisperSpec.validate`
+    - :obj:`~ctranslate2.specs.WhisperSpec.variables`

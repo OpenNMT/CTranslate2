@@ -1,0 +1,13 @@
+StorageView
+===========
+
+.. autoclass:: ctranslate2.StorageView
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.StorageView.from_array`

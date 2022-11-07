@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
@@ -74,6 +75,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#nllb">NLLB</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-2">GPT-2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opt">OPT</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#whisper">Whisper</a></li>
 </ul>
 </li>
 </ul>
@@ -124,6 +126,7 @@
 <li><p>OpenAI GPT2</p></li>
 <li><p>OPT</p></li>
 <li><p>Pegasus</p></li>
+<li><p>Whisper</p></li>
 </ul>
 <p>The converter takes as argument the pretrained model name or the path to a model directory:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install transformers<span class="o">[</span>torch<span class="o">]</span>
@@ -259,14 +262,12 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <span class="c1"># Unconditional generation.</span>
 <span class="n">start_tokens</span> <span class="o">=</span> <span class="p">[</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">bos_token</span><span class="p">]</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">start_tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
-<span class="n">output</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
 
 <span class="c1"># Conditional generation.</span>
 <span class="n">start_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;It is&quot;</span><span class="p">))</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">start_tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
-<span class="n">output</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">output</span><span class="p">)))</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
 </pre></div>
 </div>
 </section>
@@ -290,10 +291,49 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <span class="n">start_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>
 
 <span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">start_tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">)</span>
-<span class="n">output_tokens</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
 
-<span class="n">output</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">output_tokens</span><span class="p">))</span>
+<span class="n">output</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="whisper">
+<h2>Whisper<a class="headerlink" href="#whisper" title="Permalink to this headline"></a></h2>
+<p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/whisper">Whisper</a> is a multilingual speech recognition model published by OpenAI.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>Converting Whisper models requires <code class="docutils literal notranslate"><span class="pre">transformers&gt;=4.23.0</span></code>.</p>
+</div>
+<p>The example below uses the smallest model with 39M parameters.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model openai/whisper-tiny --output_dir whisper-tiny-ct2
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">datasets</span>
+<span class="kn">import</span> <span class="nn">transformers</span>
+
+<span class="n">dataset</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span>
+    <span class="s2">&quot;hf-internal-testing/librispeech_asr_dummy&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;clean&quot;</span><span class="p">,</span>
+    <span class="n">split</span><span class="o">=</span><span class="s2">&quot;validation&quot;</span><span class="p">,</span>
+<span class="p">)</span>
+
+<span class="n">audio</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;audio&quot;</span><span class="p">][</span><span class="s2">&quot;array&quot;</span><span class="p">]</span>
+
+<span class="n">processor</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">WhisperProcessor</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;openai/whisper-tiny&quot;</span><span class="p">)</span>
+<span class="n">inputs</span> <span class="o">=</span> <span class="n">processor</span><span class="p">(</span><span class="n">audio</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="o">=</span><span class="mi">16000</span><span class="p">)</span>
+<span class="n">features</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">StorageView</span><span class="o">.</span><span class="n">from_array</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_features</span><span class="p">)</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">WhisperModel</span><span class="o">.</span><span class="n">from_path</span><span class="p">(</span><span class="s2">&quot;whisper-tiny-ct2&quot;</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">detect_language</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">get_decoder_prompt_ids</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="s2">&quot;transcribe&quot;</span><span class="p">)</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">token</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">prompt</span><span class="p">]</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="p">[</span><span class="n">prompt</span><span class="p">])</span>
+<span class="n">transcription</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">skip_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">transcription</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

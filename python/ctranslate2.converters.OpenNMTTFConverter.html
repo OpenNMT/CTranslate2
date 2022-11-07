@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OpenNMTTFConverter &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>OpenNMTTFConverter &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="OpenNMTTFConverterV2" href="ctranslate2.converters.OpenNMTTFConverterV2.html" />
+    <link rel="next" title="OpusMTConverter" href="ctranslate2.converters.OpusMTConverter.html" />
     <link rel="prev" title="OpenNMTPyConverter" href="ctranslate2.converters.OpenNMTPyConverter.html" /> 
 </head>
 
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
@@ -79,11 +80,11 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html">OpenAIGPT2Converter</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html">OpenNMTPyConverter</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">OpenNMTTFConverter</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverterV2.html">OpenNMTTFConverterV2</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html">OpusMTConverter</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html">TransformersConverter</a></li>
 </ul>
 </li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.html">ctranslate2.models</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a></li>
 </ul>
 </li>
@@ -125,38 +126,22 @@
 <dl class="py class">
 <dt class="sig sig-object py" id="ctranslate2.converters.OpenNMTTFConverter">
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.converters.</span></span><span class="sig-name descname"><span class="pre">OpenNMTTFConverter</span></span><a class="headerlink" href="#ctranslate2.converters.OpenNMTTFConverter" title="Permalink to this definition"></a></dt>
-<dd><p>Converts OpenNMT-tf models (deprecated).</p>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>This converter is deprecated because it has limited support for custom models and
-configurations. Please use the new <a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverterV2.html#ctranslate2.converters.OpenNMTTFConverterV2" title="ctranslate2.converters.OpenNMTTFConverterV2"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.converters.OpenNMTTFConverterV2</span></code></a>
-instead.</p>
-</div>
+<dd><p>Converts OpenNMT-tf models.</p>
 <p><strong>Inherits from:</strong> <a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter" title="ctranslate2.converters.Converter"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.converters.Converter</span></code></a></p>
 <p><strong>Methods:</strong></p>
 <ul class="simple">
 <li><p><a class="reference internal" href="#ctranslate2.converters.OpenNMTTFConverter.convert" title="ctranslate2.converters.OpenNMTTFConverter.convert"><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.converters.OpenNMTTFConverter.convert_from_args" title="ctranslate2.converters.OpenNMTTFConverter.convert_from_args"><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert_from_args</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.converters.OpenNMTTFConverter.declare_arguments" title="ctranslate2.converters.OpenNMTTFConverter.declare_arguments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">declare_arguments</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.converters.OpenNMTTFConverter.from_config" title="ctranslate2.converters.OpenNMTTFConverter.from_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_config</span></code></a></p></li>
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.converters.OpenNMTTFConverter.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_spec</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec" title="ctranslate2.specs.model_spec.ModelSpec"><span class="pre">ModelSpec</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">src_vocab</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">tgt_vocab</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">variables</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">Dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">ndarray</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.OpenNMTTFConverter.__init__" title="Permalink to this definition"></a></dt>
-<dd><p>Initializes the OpenNMT-tf converter.</p>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.OpenNMTTFConverter.__init__" title="Permalink to this definition"></a></dt>
+<dd><p>Initializes the converter.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><ul class="simple">
-<li><p><strong>model_spec</strong> – Specification of the model to convert.</p></li>
-<li><p><strong>src_vocab</strong> – Path to the source vocabulary or list of tokens.</p></li>
-<li><p><strong>tgt_vocab</strong> – Path to the target vocabulary or list of tokens.</p></li>
-<li><p><strong>model_path</strong> – Path to the OpenNMT-tf checkpoint
-(mutually exclusive with <code class="xref py py-obj docutils literal notranslate"><span class="pre">variables</span></code>).</p></li>
-<li><p><strong>variables</strong> – Dictionary of variables name to value
-(mutually exclusive with <code class="xref py py-obj docutils literal notranslate"><span class="pre">model_path</span></code>).</p></li>
-</ul>
-</dd>
-<dt class="field-even">Raises</dt>
-<dd class="field-even"><p><strong>ValueError</strong> – If none or both of <code class="xref py py-obj docutils literal notranslate"><span class="pre">model_path</span></code> and <code class="xref py py-obj docutils literal notranslate"><span class="pre">variables</span></code> are set.</p>
+<dd class="field-odd"><p><strong>model</strong> – An initialized and fully-built <code class="docutils literal notranslate"><span class="pre">opennmt.models.Model</span></code> instance.</p>
 </dd>
 </dl>
 </dd></dl>
@@ -216,6 +201,28 @@ with the parsed command line options.</p>
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.converters.OpenNMTTFConverter.from_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Union</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dict</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">auto_config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">checkpoint_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.OpenNMTTFConverter.from_config" title="Permalink to this definition"></a></dt>
+<dd><p>Creates the converter from the configuration.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>config</strong> – Path to the YAML configuration, or a dictionary with the loaded configuration.</p></li>
+<li><p><strong>auto_config</strong> – Whether the model automatic configuration values should be used.</p></li>
+<li><p><strong>checkpoint_path</strong> – Path to the checkpoint or checkpoint directory to load. If not set,
+the latest checkpoint from the model directory is loaded.</p></li>
+<li><p><strong>model</strong> – If the model instance cannot be resolved from the model directory, this argument
+can be set to either the name of the model in the catalog or the path to the model
+configuration.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A <a class="reference internal" href="#ctranslate2.converters.OpenNMTTFConverter" title="ctranslate2.converters.OpenNMTTFConverter"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.converters.OpenNMTTFConverter</span></code></a> instance.</p>
+</dd>
+</dl>
+</dd></dl>
+
 </dd></dl>
 
 </section>
@@ -225,7 +232,7 @@ with the parsed command line options.</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="ctranslate2.converters.OpenNMTPyConverter.html" class="btn btn-neutral float-left" title="OpenNMTPyConverter" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.converters.OpenNMTTFConverterV2.html" class="btn btn-neutral float-right" title="OpenNMTTFConverterV2" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.converters.OpusMTConverter.html" class="btn btn-neutral float-right" title="OpusMTConverter" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

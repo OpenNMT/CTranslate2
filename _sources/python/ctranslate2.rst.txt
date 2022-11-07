@@ -8,11 +8,12 @@ ctranslate2
    ctranslate2.AsyncGenerationResult
    ctranslate2.AsyncScoringResult
    ctranslate2.AsyncTranslationResult
+   ctranslate2.ExecutionStats
    ctranslate2.GenerationResult
    ctranslate2.Generator
    ctranslate2.ScoringResult
+   ctranslate2.StorageView
    ctranslate2.TranslationResult
-   ctranslate2.TranslationStats
    ctranslate2.Translator
    ctranslate2.contains_model
    ctranslate2.get_cuda_device_count

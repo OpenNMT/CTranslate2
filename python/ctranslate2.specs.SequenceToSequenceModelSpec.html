@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SequenceToSequenceModelSpec &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>SequenceToSequenceModelSpec &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
@@ -73,6 +74,7 @@
 <li class="toctree-l1 current"><a class="reference internal" href="overview.html">Python</a><ul class="current">
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.html">ctranslate2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.html">ctranslate2.converters</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.html">ctranslate2.models</a></li>
 <li class="toctree-l2 current"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html">Activation</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html">EmbeddingsMerge</a></li>
@@ -82,6 +84,7 @@
 <li class="toctree-l3 current"><a class="current reference internal" href="#">SequenceToSequenceModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html">TransformerDecoderModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html">TransformerSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html">WhisperSpec</a></li>
 </ul>
 </li>
 </ul>
@@ -132,11 +135,13 @@
 </ul>
 <p><strong>Attributes:</strong></p>
 <ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.specs.SequenceToSequenceModelSpec.config" title="ctranslate2.specs.SequenceToSequenceModelSpec.config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">config</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.SequenceToSequenceModelSpec.name" title="ctranslate2.specs.SequenceToSequenceModelSpec.name"><code class="xref py py-obj docutils literal notranslate"><span class="pre">name</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.SequenceToSequenceModelSpec.revision" title="ctranslate2.specs.SequenceToSequenceModelSpec.revision"><code class="xref py py-obj docutils literal notranslate"><span class="pre">revision</span></code></a></p></li>
 </ul>
 <p><strong>Methods:</strong></p>
 <ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.specs.SequenceToSequenceModelSpec.get_default_config" title="ctranslate2.specs.SequenceToSequenceModelSpec.get_default_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_default_config</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.SequenceToSequenceModelSpec.get_source_vocabulary_size" title="ctranslate2.specs.SequenceToSequenceModelSpec.get_source_vocabulary_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_source_vocabulary_size</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.SequenceToSequenceModelSpec.get_target_vocabulary_size" title="ctranslate2.specs.SequenceToSequenceModelSpec.get_target_vocabulary_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_target_vocabulary_size</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.SequenceToSequenceModelSpec.optimize" title="ctranslate2.specs.SequenceToSequenceModelSpec.optimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimize</span></code></a></p></li>
@@ -151,6 +156,12 @@
 <dt class="sig sig-object py" id="ctranslate2.specs.SequenceToSequenceModelSpec.__init__">
 <span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.SequenceToSequenceModelSpec.__init__" title="Permalink to this definition"></a></dt>
 <dd><p>Initializes a sequence to sequence model specification.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.specs.SequenceToSequenceModelSpec.get_default_config">
+<span class="sig-name descname"><span class="pre">get_default_config</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.SequenceToSequenceModelSpec.get_default_config" title="Permalink to this definition"></a></dt>
+<dd><p>Returns the default configuration used by this model.</p>
 </dd></dl>
 
 <dl class="py method">
@@ -251,6 +262,12 @@
 <dd class="field-even"><p>Dictionary mapping variables name to value.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.specs.SequenceToSequenceModelSpec.config">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">config</span></span><a class="headerlink" href="#ctranslate2.specs.SequenceToSequenceModelSpec.config" title="Permalink to this definition"></a></dt>
+<dd><p>The model configuration.</p>
 </dd></dl>
 
 <dl class="py property">

@@ -5,4 +5,5 @@ Python
 
    ctranslate2
    ctranslate2.converters
+   ctranslate2.models
    ctranslate2.specs

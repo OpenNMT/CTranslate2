@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TranslationStats &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>ctranslate2.models &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Translator" href="ctranslate2.Translator.html" />
-    <link rel="prev" title="TranslationResult" href="ctranslate2.TranslationResult.html" /> 
+    <link rel="next" title="Whisper" href="ctranslate2.models.Whisper.html" />
+    <link rel="prev" title="TransformersConverter" href="ctranslate2.converters.TransformersConverter.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
@@ -71,23 +72,12 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="overview.html">Python</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="ctranslate2.html">ctranslate2</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">TranslationStats</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Translator.html">Translator</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.contains_model.html">contains_model</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html">get_cuda_device_count</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_supported_compute_types.html">get_supported_compute_types</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.set_random_seed.html">set_random_seed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.html">ctranslate2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.html">ctranslate2.converters</a></li>
+<li class="toctree-l2 current"><a class="current reference internal" href="#">ctranslate2.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html">Whisper</a></li>
 </ul>
 </li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.html">ctranslate2.converters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a></li>
 </ul>
 </li>
@@ -114,8 +104,7 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="overview.html">Python</a> &raquo;</li>
-          <li><a href="ctranslate2.html">ctranslate2</a> &raquo;</li>
-      <li>TranslationStats</li>
+      <li>ctranslate2.models</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -124,47 +113,23 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="translationstats">
-<h1>TranslationStats<a class="headerlink" href="#translationstats" title="Permalink to this headline"></a></h1>
-<dl class="py class">
-<dt class="sig sig-object py" id="ctranslate2.TranslationStats">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">TranslationStats</span></span><a class="headerlink" href="#ctranslate2.TranslationStats" title="Permalink to this definition"></a></dt>
-<dd><p>A <code class="docutils literal notranslate"><span class="pre">namedtuple</span></code> containing some file statistics.</p>
-<p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
-<p><strong>Attributes:</strong></p>
-<ul class="simple">
-<li><p><a class="reference internal" href="#ctranslate2.TranslationStats.num_examples" title="ctranslate2.TranslationStats.num_examples"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_examples</span></code></a></p></li>
-<li><p><a class="reference internal" href="#ctranslate2.TranslationStats.num_tokens" title="ctranslate2.TranslationStats.num_tokens"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_tokens</span></code></a></p></li>
-<li><p><a class="reference internal" href="#ctranslate2.TranslationStats.total_time_in_ms" title="ctranslate2.TranslationStats.total_time_in_ms"><code class="xref py py-obj docutils literal notranslate"><span class="pre">total_time_in_ms</span></code></a></p></li>
+  <section id="module-ctranslate2.models">
+<span id="ctranslate2-models"></span><h1>ctranslate2.models<a class="headerlink" href="#module-ctranslate2.models" title="Permalink to this headline"></a></h1>
+<p>A collection of models which don’t fit in the generic classes <a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator" title="ctranslate2.Translator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.Translator</span></code></a>
+and <a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator" title="ctranslate2.Generator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.Generator</span></code></a>.</p>
+<div class="toctree-wrapper compound">
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Whisper.html">Whisper</a></li>
 </ul>
-<dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.TranslationStats.num_examples">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">num_examples</span></span><a class="headerlink" href="#ctranslate2.TranslationStats.num_examples" title="Permalink to this definition"></a></dt>
-<dd><p>Number of processed examples.</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.TranslationStats.num_tokens">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">num_tokens</span></span><a class="headerlink" href="#ctranslate2.TranslationStats.num_tokens" title="Permalink to this definition"></a></dt>
-<dd><p>Number of generated tokens.</p>
-</dd></dl>
-
-<dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.TranslationStats.total_time_in_ms">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">total_time_in_ms</span></span><a class="headerlink" href="#ctranslate2.TranslationStats.total_time_in_ms" title="Permalink to this definition"></a></dt>
-<dd><p>Total processing time in milliseconds.</p>
-</dd></dl>
-
-</dd></dl>
-
+</div>
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ctranslate2.TranslationResult.html" class="btn btn-neutral float-left" title="TranslationResult" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.Translator.html" class="btn btn-neutral float-right" title="Translator" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.converters.TransformersConverter.html" class="btn btn-neutral float-left" title="TransformersConverter" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.models.Whisper.html" class="btn btn-neutral float-right" title="Whisper" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

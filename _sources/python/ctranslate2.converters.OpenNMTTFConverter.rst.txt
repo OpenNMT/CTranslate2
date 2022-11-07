@@ -13,3 +13,4 @@ OpenNMTTFConverter
     - :obj:`~ctranslate2.converters.OpenNMTTFConverter.convert`
     - :obj:`~ctranslate2.converters.OpenNMTTFConverter.convert_from_args`
     - :obj:`~ctranslate2.converters.OpenNMTTFConverter.declare_arguments`
+    - :obj:`~ctranslate2.converters.OpenNMTTFConverter.from_config`

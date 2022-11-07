@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text translation &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>Text translation &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -63,6 +63,7 @@
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
@@ -133,15 +134,10 @@
 <section id="c">
 <h3>C++<a class="headerlink" href="#c" title="Permalink to this headline"></a></h3>
 <div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span><span class="cp"></span>
-<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctranslate2/translator_pool.h&gt;</span><span class="cp"></span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctranslate2/translator.h&gt;</span><span class="cp"></span>
 
 <span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">num_translators</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">1</span><span class="p">;</span><span class="w"></span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="kt">size_t</span><span class="w"> </span><span class="n">num_threads_per_translator</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="mi">4</span><span class="p">;</span><span class="w"></span>
-<span class="w">  </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">TranslatorPool</span><span class="w"> </span><span class="n">translator</span><span class="p">(</span><span class="n">num_translators</span><span class="p">,</span><span class="w"></span>
-<span class="w">                                         </span><span class="n">num_threads_per_translator</span><span class="p">,</span><span class="w"></span>
-<span class="w">                                         </span><span class="s">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span><span class="w"></span>
-<span class="w">                                         </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Device</span><span class="o">::</span><span class="n">CPU</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Translator</span><span class="w"> </span><span class="n">translator</span><span class="p">(</span><span class="s">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Device</span><span class="o">::</span><span class="n">CPU</span><span class="p">);</span><span class="w"></span>
 
 <span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;▁H&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ello&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;▁world&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;!&quot;</span><span class="p">}};</span><span class="w"></span>
 <span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">TranslationResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translator</span><span class="p">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">);</span><span class="w"></span>
@@ -153,7 +149,7 @@
 <span class="p">}</span><span class="w"></span>
 </pre></div>
 </div>
-<p>See the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/blob/master/include/ctranslate2/translator_pool.h"><code class="docutils literal notranslate"><span class="pre">TranslatorPool</span></code></a> class for more advanced usages such as asynchronous translations.</p>
+<p>See the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/blob/master/include/ctranslate2/translator.h"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></a> class for more advanced usages such as asynchronous translations.</p>
 </section>
 <section id="translation-client">
 <h3>Translation client<a class="headerlink" href="#translation-client" title="Permalink to this headline"></a></h3>

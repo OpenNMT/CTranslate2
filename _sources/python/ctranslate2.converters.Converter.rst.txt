@@ -15,7 +15,6 @@ Converter
     - :class:`ctranslate2.converters.OpenAIGPT2Converter`
     - :class:`ctranslate2.converters.OpenNMTPyConverter`
     - :class:`ctranslate2.converters.OpenNMTTFConverter`
-    - :class:`ctranslate2.converters.OpenNMTTFConverterV2`
     - :class:`ctranslate2.converters.TransformersConverter`
 
     **Methods:**

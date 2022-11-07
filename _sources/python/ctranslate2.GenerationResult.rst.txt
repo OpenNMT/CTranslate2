@@ -12,3 +12,4 @@ GenerationResult
 
     - :obj:`~ctranslate2.GenerationResult.scores`
     - :obj:`~ctranslate2.GenerationResult.sequences`
+    - :obj:`~ctranslate2.GenerationResult.sequences_ids`

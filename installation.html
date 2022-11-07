@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>Installation &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -64,6 +64,7 @@
 <li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
@@ -124,12 +125,13 @@
 <p>The Python wheels have the following requirements:</p>
 <ul class="simple">
 <li><p>OS: Linux (x86-64, AArch64), macOS (x86-64, ARM64), Windows (x86-64)</p></li>
-<li><p>Python version: &gt;= 3.6</p></li>
+<li><p>Python version: &gt;= 3.7</p></li>
 <li><p>pip version: &gt;= 19.3 to support <code class="docutils literal notranslate"><span class="pre">manylinux2014</span></code> wheels</p></li>
 </ul>
 <div class="admonition-gpu-support admonition">
 <p class="admonition-title">GPU support</p>
 <p>The Linux and Windows Python wheels support GPU execution. Install <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> 11.2 or above to use the GPU.</p>
+<p>If you plan to run models with convolutional layers (e.g. for speech recognition), you should also install <a class="reference external" href="https://developer.nvidia.com/cudnn">cuDNN 8</a>.</p>
 </div>
 </section>
 <section id="install-with-docker">
@@ -142,7 +144,7 @@
 <ul class="simple">
 <li><p>the C++ library installed in <code class="docutils literal notranslate"><span class="pre">/opt/ctranslate2</span></code></p></li>
 <li><p>the Python module installed in the Python system packages</p></li>
-<li><p>the translation executable, which is the image entrypoint:</p></li>
+<li><p>the translator executable, which is the image entrypoint:</p></li>
 </ul>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker run --rm opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2 --help
 </pre></div>
@@ -245,23 +247,27 @@ pip install dist/*.whl
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the CUDA backend</p></td>
 </tr>
-<tr class="row-odd"><td><p>WITH_DNNL</p></td>
+<tr class="row-odd"><td><p>WITH_CUDNN</p></td>
+<td><p><strong>OFF</strong>, ON</p></td>
+<td><p>Compiles with the cuDNN backend</p></td>
+</tr>
+<tr class="row-even"><td><p>WITH_DNNL</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the oneDNN backend (a.k.a. DNNL)</p></td>
 </tr>
-<tr class="row-even"><td><p>WITH_MKL</p></td>
+<tr class="row-odd"><td><p>WITH_MKL</p></td>
 <td><p>OFF, <strong>ON</strong></p></td>
 <td><p>Compiles with the Intel MKL backend</p></td>
 </tr>
-<tr class="row-odd"><td><p>WITH_ACCELERATE</p></td>
+<tr class="row-even"><td><p>WITH_ACCELERATE</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the Apple Accelerate backend</p></td>
 </tr>
-<tr class="row-even"><td><p>WITH_OPENBLAS</p></td>
+<tr class="row-odd"><td><p>WITH_OPENBLAS</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the OpenBLAS backend</p></td>
 </tr>
-<tr class="row-odd"><td><p>WITH_RUY</p></td>
+<tr class="row-even"><td><p>WITH_RUY</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the Ruy backend</p></td>
 </tr>
@@ -270,8 +276,9 @@ pip install dist/*.whl
 <p>Some build options require additional dependencies. See their respective documentation for installation instructions.</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_CUDA=ON</span></code> requires <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> &gt;= 10.0</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_CUDNN=ON</span></code> requires <a class="reference external" href="https://developer.nvidia.com/cudnn">cuDNN</a> &gt;= 8</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_MKL=ON</span></code> requires <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> &gt;= 2019.5</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 1.5</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 2.0</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_ACCELERATE=ON</span></code> requires <a class="reference external" href="https://developer.apple.com/documentation/accelerate">Accelerate</a></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_OPENBLAS=ON</span></code> requires <a class="reference external" href="https://github.com/xianyi/OpenBLAS">OpenBLAS</a></p></li>
 </ul>

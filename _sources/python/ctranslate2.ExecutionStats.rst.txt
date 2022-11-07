@@ -1,0 +1,15 @@
+ExecutionStats
+==============
+
+.. autoclass:: ctranslate2.ExecutionStats
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.ExecutionStats.num_examples`
+    - :obj:`~ctranslate2.ExecutionStats.num_tokens`
+    - :obj:`~ctranslate2.ExecutionStats.total_time_in_ms`

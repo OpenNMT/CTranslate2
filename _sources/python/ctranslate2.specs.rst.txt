@@ -13,3 +13,4 @@ ctranslate2.specs
    ctranslate2.specs.SequenceToSequenceModelSpec
    ctranslate2.specs.TransformerDecoderModelSpec
    ctranslate2.specs.TransformerSpec
+   ctranslate2.specs.WhisperSpec

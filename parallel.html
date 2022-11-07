@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Multithreading and parallelism &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>Multithreading and parallelism &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Multithreading and parallelism</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#parallel-execution">Parallel execution</a></li>
@@ -108,7 +109,7 @@
              
   <section id="multithreading-and-parallelism">
 <h1>Multithreading and parallelism<a class="headerlink" href="#multithreading-and-parallelism" title="Permalink to this headline"></a></h1>
-<p>CTranslate2 has 2 level of parallelization:</p>
+<p>CTranslate2 has 2 levels of parallelization:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> which is the maximum number of batches executed in parallel.<br/><strong>=&gt; Increase this value to increase the throughput.</strong></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> which is the number of OpenMP threads that is used per batch.<br/><strong>=&gt; Increase this value to decrease the latency on CPU.</strong></p></li>
@@ -121,7 +122,7 @@
 <p>On GPU, batches processed in parallel are using separate CUDA streams. Depending on the workload and GPU specifications this may or may not improve the global throughput. For better parallelism on GPU, consider using multiple GPUs as described below.</p>
 <section id="parallel-execution">
 <h2>Parallel execution<a class="headerlink" href="#parallel-execution" title="Permalink to this headline"></a></h2>
-<p>The <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> and <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> instances can be configured to process multiple batches in parallel, including on multiple GPUs:</p>
+<p>Objects running models such as the <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> and <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> can be configured to process multiple batches in parallel, including on multiple GPUs:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a CPU translator with 4 workers each using 1 thread:</span>
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">inter_threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">intra_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
@@ -132,13 +133,12 @@
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span> <span class="n">inter_threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </pre></div>
 </div>
-<p>Multiple batches should be submitted concurrently to enable this parallelization. Parallel translations are enabled in the following cases:</p>
+<p>Multiple batches should be submitted concurrently to enable this parallelization. Parallel executions are enabled in the following cases:</p>
 <ul class="simple">
-<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score}_file</span></code></p></li>
-<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_iterable</span></code></p></li>
-<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_batch</span></code> and setting <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code>: the input will be split according to <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code> and each sub-batch will be translated in parallel.</p></li>
-<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_batch</span></code> from multiple Python threads.</p></li>
-<li><p>When calling <code class="docutils literal notranslate"><span class="pre">{translate,score,generate}_batch</span></code> multiple times with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>.</p></li>
+<li><p>When calling methods from multiple Python threads.</p></li>
+<li><p>When calling methods multiple times with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>.</p></li>
+<li><p>When calling file-based or stream-based methods.</p></li>
+<li><p>When setting <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code>: the input will be split according to <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code> and each sub-batch will be executed in parallel.</p></li>
 </ul>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -147,7 +147,7 @@
 </section>
 <section id="asynchronous-execution">
 <h2>Asynchronous execution<a class="headerlink" href="#asynchronous-execution" title="Permalink to this headline"></a></h2>
-<p>The methods <code class="docutils literal notranslate"><span class="pre">translate_batch</span></code>, <code class="docutils literal notranslate"><span class="pre">score_batch</span></code>, and <code class="docutils literal notranslate"><span class="pre">generate_batch</span></code> can run asynchronously with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. In this mode, the method returns immediately and the result can be retrieved later:</p>
+<p>Some methods can run asynchronously with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. In this mode, the method returns immediately and the result can be retrieved later:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">async_results</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batch_generator</span><span class="p">():</span>
     <span class="n">async_results</span><span class="o">.</span><span class="n">extend</span><span class="p">(</span><span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">,</span> <span class="n">asynchronous</span><span class="o">=</span><span class="kc">True</span><span class="p">))</span>
@@ -158,7 +158,7 @@
 </div>
 <div class="admonition attention">
 <p class="admonition-title">Attention</p>
-<p>The <code class="docutils literal notranslate"><span class="pre">Translator</span></code> and <code class="docutils literal notranslate"><span class="pre">Generator</span></code> objects have a limited queue size by default. When the queue of batches is full, the method will block even with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. See the parameter <code class="docutils literal notranslate"><span class="pre">max_queued_batches</span></code> in their constructor to configure the queue size.</p>
+<p>Instances supporting asynchronous execution have a limited queue size by default. When the queue of batches is full, the method will block even with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. See the parameter <code class="docutils literal notranslate"><span class="pre">max_queued_batches</span></code> in their constructor to configure the queue size.</p>
 </div>
 </section>
 </section>

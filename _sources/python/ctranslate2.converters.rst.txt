@@ -11,6 +11,5 @@ ctranslate2.converters
    ctranslate2.converters.OpenAIGPT2Converter
    ctranslate2.converters.OpenNMTPyConverter
    ctranslate2.converters.OpenNMTTFConverter
-   ctranslate2.converters.OpenNMTTFConverterV2
    ctranslate2.converters.OpusMTConverter
    ctranslate2.converters.TransformersConverter

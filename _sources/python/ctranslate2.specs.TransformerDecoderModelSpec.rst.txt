@@ -10,11 +10,13 @@ TransformerDecoderModelSpec
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.config`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.name`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.revision`
 
     **Methods:**
 
+    - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.get_default_config`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.optimize`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.register_vocabulary`

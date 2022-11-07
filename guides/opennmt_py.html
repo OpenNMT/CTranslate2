@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OpenNMT-py &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>OpenNMT-py &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
@@ -109,7 +110,7 @@
   <section id="opennmt-py">
 <h1>OpenNMT-py<a class="headerlink" href="#opennmt-py" title="Permalink to this headline"></a></h1>
 <p>CTranslate2 supports Transformer models trained with <a class="reference external" href="https://github.com/OpenNMT/OpenNMT-py">OpenNMT-py</a>. The conversion simply requires the PyTorch model path, e.g.:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install OpenNMT-py
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install OpenNMT-py<span class="o">==</span><span class="m">2</span>.*
 ct2-opennmt-py-converter --model_path model.pt --output_dir ct2_model
 </pre></div>
 </div>

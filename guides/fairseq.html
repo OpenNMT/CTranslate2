@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fairseq &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>Fairseq &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -53,6 +53,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
@@ -128,7 +129,7 @@ ct2-fairseq-converter --model_path model.pt --data_dir data-bin/ --output_dir ct
 <section id="beam-search-equivalence">
 <h2>Beam search equivalence<a class="headerlink" href="#beam-search-equivalence" title="Permalink to this headline"></a></h2>
 <p>The default beam search parameters in CTranslate2 are different than Fairseq. Set the following parameters to match the Fairseq behavior:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span> <span class="n">allow_early_exit</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">normalize_scores</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>

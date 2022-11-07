@@ -14,11 +14,13 @@ SequenceToSequenceModelSpec
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.config`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.name`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.revision`
 
     **Methods:**
 
+    - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.get_default_config`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.get_source_vocabulary_size`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.get_target_vocabulary_size`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.optimize`

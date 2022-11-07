@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Model conversion &mdash; CTranslate2 2.24.0 documentation</title>
+  <title>Model conversion &mdash; CTranslate2 3.0.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                2.24
+                3.0
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -73,6 +73,7 @@
 <li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
@@ -141,8 +142,9 @@
 </section>
 <section id="model-structure">
 <h2>Model structure<a class="headerlink" href="#model-structure" title="Permalink to this headline"></a></h2>
-<p>The conversion produces a model directory containing a binary model file and one or more vocabulary files:</p>
-<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>model.bin
+<p>The conversion produces a model directory containing a binary model file, a JSON configuration, and one or more vocabulary files:</p>
+<div class="highlight-text notranslate"><div class="highlight"><pre><span></span>config.json
+model.bin
 source_vocabulary.txt
 target_vocabulary.txt
 </pre></div>
@@ -166,7 +168,8 @@ target_vocabulary.txt
 </section>
 <section id="portability">
 <h2>Portability<a class="headerlink" href="#portability" title="Permalink to this headline"></a></h2>
-<p>Converted models are portable in the sense they can be loaded on another machine using a different operating system or CPU architecture. However, the 2 machines must use the same <a class="reference external" href="https://en.wikipedia.org/wiki/Endianness">endianness</a> which is usually the case nowadays.</p>
+<p>Converted models are portable in the sense they can be loaded on another machine using a different operating system or CPU architecture.</p>
+<p>The only restriction is the 2 machines must use the same <a class="reference external" href="https://en.wikipedia.org/wiki/Endianness">endianness</a>.</p>
 </section>
 <section id="add-a-new-converter">
 <h2>Add a new converter<a class="headerlink" href="#add-a-new-converter" title="Permalink to this headline"></a></h2>

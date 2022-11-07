@@ -6,7 +6,7 @@ LayerSpec
     :undoc-members:
     :inherited-members:
 
-    **Inherits from:** :class:`builtins.object`
+    **Inherits from:** :class:`ctranslate2.specs.model_spec.FrozenAttr`
 
     **Extended by:**
 

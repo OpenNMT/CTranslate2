@@ -1,0 +1,8 @@
+ctranslate2.models
+==================
+
+.. automodule:: ctranslate2.models
+
+.. toctree::
+
+   ctranslate2.models.Whisper
