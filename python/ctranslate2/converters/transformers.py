@@ -487,6 +487,12 @@ class WhisperLoader(BartLoader):
         config.suppress_ids_begin = model.config.begin_suppress_tokens
         config.lang_ids = tokenizer.additional_special_tokens_ids[2:-6]
 
+        # Some tokens are suppressed by the HF model but not by the reference implementation.
+        # See https://github.com/huggingface/transformers/issues/20123
+        for valid_token in (6, 12):
+            if valid_token in config.suppress_ids:
+                config.suppress_ids.remove(valid_token)
+
     def get_vocabulary(self, model, tokenizer):
         tokens = super().get_vocabulary(model, tokenizer)
 
