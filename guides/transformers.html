@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 3.0.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 3.0.1 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -328,8 +328,14 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <span class="n">results</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">detect_language</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
-<span class="n">prompt</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">get_decoder_prompt_ids</span><span class="p">(</span><span class="n">language</span><span class="o">=</span><span class="s2">&quot;en&quot;</span><span class="p">,</span> <span class="n">task</span><span class="o">=</span><span class="s2">&quot;transcribe&quot;</span><span class="p">)</span>
-<span class="n">prompt</span> <span class="o">=</span> <span class="p">[</span><span class="n">token</span> <span class="k">for</span> <span class="n">_</span><span class="p">,</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">prompt</span><span class="p">]</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span>
+    <span class="p">[</span>
+        <span class="s2">&quot;&lt;|startoftranscript|&gt;&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;&lt;|en|&gt;&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;&lt;|transcribe|&gt;&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;&lt;|notimestamps|&gt;&quot;</span><span class="p">,</span>
+    <span class="p">]</span>
+<span class="p">)</span>
 
 <span class="n">results</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="p">[</span><span class="n">prompt</span><span class="p">])</span>
 <span class="n">transcription</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">skip_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
