@@ -3,13 +3,13 @@
 namespace ctranslate2 {
 
   enum class LogLevel {
-    OFF = -3,
-    CRITICAL = -2,
-    ERROR = -1,
-    WARNING = 0,
-    INFO = 1,
-    DEBUG = 2,
-    TRACE = 3,
+    Off = -3,
+    Critical = -2,
+    Error = -1,
+    Warning = 0,
+    Info = 1,
+    Debug = 2,
+    Trace = 3,
   };
 
   void set_log_level(const LogLevel level);

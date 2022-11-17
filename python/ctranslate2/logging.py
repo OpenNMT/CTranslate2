@@ -3,12 +3,12 @@ import logging
 from ctranslate2 import _ext
 
 _PYTHON_TO_CT2_LEVEL = {
-    logging.CRITICAL: _ext.LogLevel.CRITICAL,
-    logging.ERROR: _ext.LogLevel.ERROR,
-    logging.WARNING: _ext.LogLevel.WARNING,
-    logging.INFO: _ext.LogLevel.INFO,
-    logging.DEBUG: _ext.LogLevel.DEBUG,
-    logging.NOTSET: _ext.LogLevel.TRACE,
+    logging.CRITICAL: _ext.LogLevel.Critical,
+    logging.ERROR: _ext.LogLevel.Error,
+    logging.WARNING: _ext.LogLevel.Warning,
+    logging.INFO: _ext.LogLevel.Info,
+    logging.DEBUG: _ext.LogLevel.Debug,
+    logging.NOTSET: _ext.LogLevel.Trace,
 }
 
 _CT2_TO_PYTHON_LEVEL = {v: k for k, v in _PYTHON_TO_CT2_LEVEL.items()}

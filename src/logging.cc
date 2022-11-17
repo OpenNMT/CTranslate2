@@ -9,19 +9,19 @@ namespace ctranslate2 {
 
   static spdlog::level::level_enum to_spdlog_level(const LogLevel level) {
     switch (level) {
-    case LogLevel::OFF:
+    case LogLevel::Off:
       return spdlog::level::off;
-    case LogLevel::CRITICAL:
+    case LogLevel::Critical:
       return spdlog::level::critical;
-    case LogLevel::ERROR:
+    case LogLevel::Error:
       return spdlog::level::err;
-    case LogLevel::WARNING:
+    case LogLevel::Warning:
       return spdlog::level::warn;
-    case LogLevel::INFO:
+    case LogLevel::Info:
       return spdlog::level::info;
-    case LogLevel::DEBUG:
+    case LogLevel::Debug:
       return spdlog::level::debug;
-    case LogLevel::TRACE:
+    case LogLevel::Trace:
       return spdlog::level::trace;
     default:
       throw std::invalid_argument("Invalid log level");
@@ -31,19 +31,19 @@ namespace ctranslate2 {
   static LogLevel to_ct2_level(const spdlog::level::level_enum level) {
     switch (level) {
     case spdlog::level::off:
-      return LogLevel::OFF;
+      return LogLevel::Off;
     case spdlog::level::critical:
-      return LogLevel::CRITICAL;
+      return LogLevel::Critical;
     case spdlog::level::err:
-      return LogLevel::ERROR;
+      return LogLevel::Error;
     case spdlog::level::warn:
-      return LogLevel::WARNING;
+      return LogLevel::Warning;
     case spdlog::level::info:
-      return LogLevel::INFO;
+      return LogLevel::Info;
     case spdlog::level::debug:
-      return LogLevel::DEBUG;
+      return LogLevel::Debug;
     case spdlog::level::trace:
-      return LogLevel::TRACE;
+      return LogLevel::Trace;
     default:
       throw std::invalid_argument("Invalid log level");
     }
