@@ -9,7 +9,6 @@
 #endif
 
 #include <spdlog/spdlog.h>
-#include <spdlog/sinks/stdout_sinks.h>
 
 #include "ctranslate2/devices.h"
 
