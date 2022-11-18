@@ -6,7 +6,6 @@ import shutil
 import numpy as np
 import pytest
 import test_utils
-import wurlitzer
 
 import ctranslate2
 
@@ -633,7 +632,10 @@ def test_model_unload_while_async_translation():
     assert outputs[0].result().hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
 
 
+@test_utils.only_on_linux
 def test_logging():
+    import wurlitzer
+
     assert ctranslate2.get_log_level() == logging.WARNING
 
     ctranslate2.set_log_level(logging.INFO)
