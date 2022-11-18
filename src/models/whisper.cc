@@ -14,6 +14,10 @@ namespace ctranslate2 {
       return *_vocabulary;
     }
 
+    size_t WhisperModel::current_spec_revision() const {
+      return 2;
+    }
+
     void WhisperModel::initialize(ModelReader& model_reader) {
       VocabularyInfo vocab_info;
       vocab_info.unk_token = "<|endoftext|>";
