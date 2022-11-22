@@ -914,7 +914,7 @@ namespace ctranslate2 {
 
   static std::vector<std::shared_ptr<LogitsProcessor>>
   make_logits_processors(const DecodingOptions& options) {
-    auto processors = options.logits_processors;
+    std::vector<std::shared_ptr<LogitsProcessor>> processors;
 
     if (options.repetition_penalty != 1)
       processors.emplace_back(std::make_shared<RepetitionPenalty>(options.repetition_penalty));
@@ -927,6 +927,9 @@ namespace ctranslate2 {
 
     if (!options.disable_ids_begin.empty())
       processors.emplace_back(std::make_shared<SuppressTokensBegin>(options.disable_ids_begin));
+
+    for (const auto& processor : options.logits_processors)
+      processors.emplace_back(processor);
 
     return processors;
   }
