@@ -1,6 +1,5 @@
 #include "ctranslate2/decoding_utils.h"
 
-#include <limits>
 #include <set>
 
 #include "ctranslate2/ops/ops.h"
