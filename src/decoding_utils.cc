@@ -8,10 +8,10 @@
 
 namespace ctranslate2 {
 
-  DisableTokens::DisableTokens(StorageView& logits)
+  DisableTokens::DisableTokens(StorageView& logits, const float disable_value)
     : _logits(logits)
     , _logits_data(logits.device() == Device::CPU ? logits.data<float>() : nullptr)
-    , _disable_value(1e-10)
+    , _disable_value(disable_value)
     , _batch_size(logits.dim(0))
     , _vocabulary_size(logits.dim(1))
   {

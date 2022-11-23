@@ -9,7 +9,7 @@ namespace ctranslate2 {
   // Helper class to disable tokens in the model output.
   class DisableTokens {
   public:
-    DisableTokens(StorageView& logits);
+    DisableTokens(StorageView& logits, const float disable_value = 1e-10);
 
     void add(dim_t batch_id, dim_t token_id) {
       const auto flat_index = batch_id * _vocabulary_size + token_id;
