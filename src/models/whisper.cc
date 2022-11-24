@@ -355,9 +355,9 @@ namespace ctranslate2 {
         const T* timestamp_log_probs = text_log_probs + num_text_tokens;
 
         // If sum of probability over timestamps is above any other token, sample timestamp.
-        const auto max_text_token_log_prob = primitives<D>::max(text_log_probs, num_text_tokens);
-        const auto timestamp_log_prob = primitives<D>::logsumexp(timestamp_log_probs,
-                                                                 num_timestamp_tokens);
+        const float max_text_token_log_prob = primitives<D>::max(text_log_probs, num_text_tokens);
+        const float timestamp_log_prob = primitives<D>::logsumexp(timestamp_log_probs,
+                                                                  num_timestamp_tokens);
 
         return timestamp_log_prob > max_text_token_log_prob;
       }
