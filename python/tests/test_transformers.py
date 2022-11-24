@@ -356,7 +356,7 @@ def test_transformers_whisper(tmpdir, device, with_timestamps):
     assert len(results[0].sequences_ids) == 2
 
     if with_timestamps:
-        tokens = results[0].sequences[0][len(prompt) - 1:]
+        tokens = results[0].sequences[0][len(prompt) - 1 :]
         assert tokens[0] == "<|0.00|>"
         assert tokens[-1] == "<|5.44|>"
 
