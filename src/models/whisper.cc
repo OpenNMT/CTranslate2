@@ -327,7 +327,18 @@ namespace ctranslate2 {
           ops::LogSoftMax()(logits, log_probs);
 
           for (const dim_t batch_id : check_timestamps_prob_for_batch) {
-            if (should_sample_timestamp(log_probs, batch_id)) {
+            bool sample_timestamp = false;
+
+            if (log_probs.device() == Device::CPU)
+              sample_timestamp = should_sample_timestamp<Device::CPU, float>(log_probs, batch_id);
+#ifdef CT2_WITH_CUDA
+            else if (log_probs.dtype() == DataType::FLOAT)
+              sample_timestamp = should_sample_timestamp<Device::CUDA, float>(log_probs, batch_id);
+            else
+              sample_timestamp = should_sample_timestamp<Device::CUDA, float16_t>(log_probs, batch_id);
+#endif
+
+            if (sample_timestamp) {
               for (size_t i = 0; i < _timestamp_begin_id; ++i)
                 disable_tokens.add(batch_id, i);
             }
@@ -335,43 +346,20 @@ namespace ctranslate2 {
         }
       }
 
+      template <Device D, typename T>
       bool should_sample_timestamp(const StorageView& log_probs, const dim_t batch_id) {
-        // If sum of probability over timestamps is above any other token, sample timestamp.
-        float max_text_token_log_prob = 0;
-        float timestamp_log_prob = 0;
+        const dim_t num_text_tokens = _timestamp_begin_id;
+        const dim_t num_timestamp_tokens = _timestamp_end_id - _timestamp_begin_id + 1;
 
-        if (log_probs.device() == Device::CPU)
-          get_timestamp_prob<Device::CPU, float>(log_probs,
-                                                 batch_id,
-                                                 &timestamp_log_prob,
-                                                 &max_text_token_log_prob);
-#ifdef CT2_WITH_CUDA
-        else if (log_probs.dtype() == DataType::FLOAT)
-          get_timestamp_prob<Device::CUDA, float>(log_probs,
-                                                  batch_id,
-                                                  &timestamp_log_prob,
-                                                  &max_text_token_log_prob);
-        else
-          get_timestamp_prob<Device::CUDA, float16_t>(log_probs,
-                                                      batch_id,
-                                                      &timestamp_log_prob,
-                                                      &max_text_token_log_prob);
-#endif
+        const T* text_log_probs = log_probs.index<T>({batch_id, 0});
+        const T* timestamp_log_probs = text_log_probs + num_text_tokens;
+
+        // If sum of probability over timestamps is above any other token, sample timestamp.
+        const auto max_text_token_log_prob = primitives<D>::max(text_log_probs, num_text_tokens);
+        const auto timestamp_log_prob = primitives<D>::logsumexp(timestamp_log_probs,
+                                                                 num_timestamp_tokens);
 
         return timestamp_log_prob > max_text_token_log_prob;
-      }
-
-      template <Device D, typename T>
-      void get_timestamp_prob(const StorageView& log_probs,
-                              const dim_t batch_id,
-                              float* timestamp_log_prob,
-                              float* max_text_token_log_prob) {
-        const T* text_log_probs = log_probs.index<T>({batch_id, 0});
-        const T* timestamp_log_probs = text_log_probs + _timestamp_begin_id;
-
-        *max_text_token_log_prob = primitives<D>::max(text_log_probs, _timestamp_begin_id);
-        *timestamp_log_prob = primitives<D>::logsumexp(timestamp_log_probs,
-                                                       _timestamp_end_id - _timestamp_begin_id + 1);
       }
 
     };
