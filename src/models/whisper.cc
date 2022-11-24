@@ -345,6 +345,7 @@ namespace ctranslate2 {
                                                  batch_id,
                                                  &timestamp_log_prob,
                                                  &max_text_token_log_prob);
+#ifdef CT2_WITH_CUDA
         else if (log_probs.dtype() == DataType::FLOAT)
           get_timestamp_prob<Device::CUDA, float>(log_probs,
                                                   batch_id,
@@ -355,6 +356,7 @@ namespace ctranslate2 {
                                                       batch_id,
                                                       &timestamp_log_prob,
                                                       &max_text_token_log_prob);
+#endif
 
         return timestamp_log_prob > max_text_token_log_prob;
       }
