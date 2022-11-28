@@ -152,10 +152,9 @@ namespace ctranslate2 {
 
           const Device device = _decoder->device();
           const DataType dtype = _decoder->output_type();
-          StorageView logits_at_sot(dtype, device);
           StorageView probs_at_sot(dtype, device);
-          _decoder->forward_prompt(input, state, sot_index, &logits_at_sot);
-          ops::SoftMax()(logits_at_sot, probs_at_sot);
+          _decoder->forward_prompt(input, state, sot_index, &probs_at_sot);
+          ops::SoftMax()(probs_at_sot);
 
           dim_t no_speech_id = vocabulary.to_id("<|nospeech|>");
           if (size_t(no_speech_id) == vocabulary.unk_id())
