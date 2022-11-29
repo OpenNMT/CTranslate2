@@ -17,5 +17,7 @@ ctranslate2
    ctranslate2.Translator
    ctranslate2.contains_model
    ctranslate2.get_cuda_device_count
+   ctranslate2.get_log_level
    ctranslate2.get_supported_compute_types
+   ctranslate2.set_log_level
    ctranslate2.set_random_seed

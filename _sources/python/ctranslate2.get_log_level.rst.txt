@@ -1,0 +1,4 @@
+get_log_level
+=============
+
+.. autofunction:: ctranslate2.get_log_level

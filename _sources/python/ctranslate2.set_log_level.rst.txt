@@ -1,0 +1,4 @@
+set_log_level
+=============
+
+.. autofunction:: ctranslate2.set_log_level

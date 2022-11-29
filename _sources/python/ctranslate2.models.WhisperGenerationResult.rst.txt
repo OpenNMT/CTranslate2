@@ -1,0 +1,16 @@
+WhisperGenerationResult
+=======================
+
+.. autoclass:: ctranslate2.models.WhisperGenerationResult
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.models.WhisperGenerationResult.no_speech_prob`
+    - :obj:`~ctranslate2.models.WhisperGenerationResult.scores`
+    - :obj:`~ctranslate2.models.WhisperGenerationResult.sequences`
+    - :obj:`~ctranslate2.models.WhisperGenerationResult.sequences_ids`

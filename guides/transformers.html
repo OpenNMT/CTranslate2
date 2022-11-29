@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 3.0.2 documentation</title>
+  <title>Transformers &mdash; CTranslate2 3.1.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.0
+                3.1
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -304,43 +304,50 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <p class="admonition-title">Important</p>
 <p>Converting Whisper models requires <code class="docutils literal notranslate"><span class="pre">transformers&gt;=4.23.0</span></code>.</p>
 </div>
-<p>The example below uses the smallest model with 39M parameters.</p>
+<p>The example below uses the smallest model with 39M parameters. Consider using a <a class="reference external" href="https://huggingface.co/models?other=whisper">larger model</a> to get better results.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model openai/whisper-tiny --output_dir whisper-tiny-ct2
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
-<span class="kn">import</span> <span class="nn">datasets</span>
+<span class="kn">import</span> <span class="nn">librosa</span>
 <span class="kn">import</span> <span class="nn">transformers</span>
 
-<span class="n">dataset</span> <span class="o">=</span> <span class="n">datasets</span><span class="o">.</span><span class="n">load_dataset</span><span class="p">(</span>
-    <span class="s2">&quot;hf-internal-testing/librispeech_asr_dummy&quot;</span><span class="p">,</span>
-    <span class="s2">&quot;clean&quot;</span><span class="p">,</span>
-    <span class="n">split</span><span class="o">=</span><span class="s2">&quot;validation&quot;</span><span class="p">,</span>
-<span class="p">)</span>
+<span class="c1"># Load and resample the audio file.</span>
+<span class="n">audio</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">librosa</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;audio.wav&quot;</span><span class="p">,</span> <span class="n">sr</span><span class="o">=</span><span class="mi">16000</span><span class="p">,</span> <span class="n">mono</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
-<span class="n">audio</span> <span class="o">=</span> <span class="n">dataset</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="s2">&quot;audio&quot;</span><span class="p">][</span><span class="s2">&quot;array&quot;</span><span class="p">]</span>
-
+<span class="c1"># Compute the features of the first 30 seconds of audio.</span>
 <span class="n">processor</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">WhisperProcessor</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;openai/whisper-tiny&quot;</span><span class="p">)</span>
 <span class="n">inputs</span> <span class="o">=</span> <span class="n">processor</span><span class="p">(</span><span class="n">audio</span><span class="p">,</span> <span class="n">return_tensors</span><span class="o">=</span><span class="s2">&quot;np&quot;</span><span class="p">,</span> <span class="n">sampling_rate</span><span class="o">=</span><span class="mi">16000</span><span class="p">)</span>
 <span class="n">features</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">StorageView</span><span class="o">.</span><span class="n">from_array</span><span class="p">(</span><span class="n">inputs</span><span class="o">.</span><span class="n">input_features</span><span class="p">)</span>
 
+<span class="c1"># Load the model on CPU.</span>
 <span class="n">model</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">models</span><span class="o">.</span><span class="n">Whisper</span><span class="p">(</span><span class="s2">&quot;whisper-tiny-ct2&quot;</span><span class="p">)</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">detect_language</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
-<span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
+<span class="c1"># Detect the language.</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">detect_language</span><span class="p">(</span><span class="n">features</span><span class="p">)</span>
+<span class="n">language</span><span class="p">,</span> <span class="n">probability</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Detected language </span><span class="si">%s</span><span class="s2"> with probability </span><span class="si">%f</span><span class="s2">&quot;</span> <span class="o">%</span> <span class="p">(</span><span class="n">language</span><span class="p">,</span> <span class="n">probability</span><span class="p">))</span>
+
+<span class="c1"># Describe the task in the prompt.</span>
+<span class="c1"># See the prompt format in https://github.com/openai/whisper.</span>
 <span class="n">prompt</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span>
     <span class="p">[</span>
         <span class="s2">&quot;&lt;|startoftranscript|&gt;&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;&lt;|en|&gt;&quot;</span><span class="p">,</span>
+        <span class="n">language</span><span class="p">,</span>
         <span class="s2">&quot;&lt;|transcribe|&gt;&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;&lt;|notimestamps|&gt;&quot;</span><span class="p">,</span>
+        <span class="s2">&quot;&lt;|notimestamps|&gt;&quot;</span><span class="p">,</span>  <span class="c1"># Remove this token to generate timestamps.</span>
     <span class="p">]</span>
 <span class="p">)</span>
 
+<span class="c1"># Run generation for the 30-second window.</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">features</span><span class="p">,</span> <span class="p">[</span><span class="n">prompt</span><span class="p">])</span>
-<span class="n">transcription</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">],</span> <span class="n">skip_special_tokens</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="n">transcription</span> <span class="o">=</span> <span class="n">processor</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">transcription</span><span class="p">)</span>
 </pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This example only transcribes the first 30 seconds of audio. To transcribe longer files, you need to call <code class="docutils literal notranslate"><span class="pre">generate</span></code> on each 30-second window and aggregate the results. See the <a class="reference external" href="https://github.com/openai/whisper/blob/main/whisper/transcribe.py">reference transcription code</a> for a complete example.</p>
 </div>
 </section>
 </section>

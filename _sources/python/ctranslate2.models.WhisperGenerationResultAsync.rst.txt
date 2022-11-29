@@ -1,0 +1,14 @@
+WhisperGenerationResultAsync
+============================
+
+.. autoclass:: ctranslate2.models.WhisperGenerationResultAsync
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.models.WhisperGenerationResultAsync.done`
+    - :obj:`~ctranslate2.models.WhisperGenerationResultAsync.result`
