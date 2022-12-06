@@ -1081,8 +1081,8 @@ namespace ctranslate2 {
 
       for (auto& ids : start_tokens)
         ids = map_to_output_word_ids(decoder, ids);
-      for (auto& sequence : options.disable_sequences)
-        sequence = map_to_output_word_ids(decoder, sequence);
+      for (auto& ids : options.disable_sequences)
+        ids = map_to_output_word_ids(decoder, ids);
 
       options.disable_ids = map_to_output_word_ids(decoder, options.disable_ids);
       options.disable_ids_begin = map_to_output_word_ids(decoder, options.disable_ids_begin);
