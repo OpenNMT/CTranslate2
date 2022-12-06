@@ -167,6 +167,11 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
           encoder: The encoder specification.
           decoder: The decoder specification.
         """
+        if not isinstance(encoder, TransformerEncoderSpec):
+            raise TypeError("encoder argument must be a TransformerEncoderSpec")
+        if not isinstance(decoder, TransformerDecoderSpec):
+            raise TypeError("decoder argument must be a TransformerDecoderSpec")
+
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
@@ -205,6 +210,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             num_encoder_layers, num_decoder_layers = num_layers
         else:
             num_encoder_layers, num_decoder_layers = num_layers, num_layers
+
         encoder = TransformerEncoderSpec(
             num_encoder_layers,
             num_heads,
@@ -215,6 +221,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             layernorm_embedding=layernorm_embedding,
             relative_position=with_relative_position,
         )
+
         decoder = TransformerDecoderSpec(
             num_decoder_layers,
             num_heads,
@@ -252,6 +259,9 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         Args:
           decoder: The decoder specification.
         """
+        if not isinstance(decoder, TransformerDecoderSpec):
+            raise TypeError("decoder argument must be a TransformerDecoderSpec")
+
         super().__init__()
         self.decoder = decoder
 
