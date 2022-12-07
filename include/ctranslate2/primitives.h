@@ -172,6 +172,8 @@ namespace ctranslate2 {
     template <typename T>
     static void swish(const T* x, T* y, dim_t size);
 
+    static float dot(const float* x, const float* y, dim_t size);
+
     static void compute_u8_compensation(const int8_t* b,
                                         bool transpose_b,
                                         dim_t k,

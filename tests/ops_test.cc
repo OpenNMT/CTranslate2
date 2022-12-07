@@ -841,12 +841,6 @@ TEST_P(OpDeviceTest, Max) {
   });
 }
 
-#ifndef CT2_WITH_DNNL
-#  define GUARD_CONV1D_CPU_TEST GTEST_SKIP() << "Conv1D tests on CPU require oneDNN"
-#else
-#  define GUARD_CONV1D_CPU_TEST do {} while (0)
-#endif
-
 #ifndef CT2_WITH_CUDNN
 #  define GUARD_CONV1D_GPU_TEST GTEST_SKIP() << "Conv1D tests on GPU require cuDNN"
 #else
@@ -870,8 +864,6 @@ TEST_P(OpDeviceFPTest, Conv1D) {
   const Device device = GetParam().first;
   if (device == Device::CUDA)
     GUARD_CONV1D_GPU_TEST;
-  else
-    GUARD_CONV1D_CPU_TEST;
   const DataType dtype = GetParam().second;
   const StorageView expected({2, 4, 2}, std::vector<float>{
       0.9309945f, 0.7959076f, 0.0533122f, -0.1099610f,
@@ -891,8 +883,6 @@ TEST_P(OpDeviceFPTest, Conv1DNoBias) {
   const Device device = GetParam().first;
   if (device == Device::CUDA)
     GUARD_CONV1D_GPU_TEST;
-  else
-    GUARD_CONV1D_CPU_TEST;
   const DataType dtype = GetParam().second;
   const StorageView expected({2, 4, 2}, std::vector<float>{
       0.4678584f, 0.3327716f, 0.1580907f, -0.005182412f,
@@ -911,8 +901,6 @@ TEST_P(OpDeviceFPTest, Conv1DPadding) {
   const Device device = GetParam().first;
   if (device == Device::CUDA)
     GUARD_CONV1D_GPU_TEST;
-  else
-    GUARD_CONV1D_CPU_TEST;
   const DataType dtype = GetParam().second;
   const StorageView expected({2, 4, 4}, std::vector<float>{
       0.5646521f, 0.9309945f, 0.7959076f, 0.7011377f,
@@ -936,8 +924,6 @@ TEST_P(OpDeviceFPTest, Conv1DStride) {
   const Device device = GetParam().first;
   if (device == Device::CUDA)
     GUARD_CONV1D_GPU_TEST;
-  else
-    GUARD_CONV1D_CPU_TEST;
   const DataType dtype = GetParam().second;
   const StorageView expected({2, 4, 1}, std::vector<float>{
       0.9309945f, 0.0533122f, -0.1100256f, -0.4144599f,
@@ -955,8 +941,6 @@ TEST_P(OpDeviceFPTest, Conv1DPaddingAndStride) {
   const Device device = GetParam().first;
   if (device == Device::CUDA)
     GUARD_CONV1D_GPU_TEST;
-  else
-    GUARD_CONV1D_CPU_TEST;
   const DataType dtype = GetParam().second;
   const StorageView expected({2, 4, 2}, std::vector<float>{
       0.5646521f, 0.7959076f, -0.0035750f, -0.1099610f,
