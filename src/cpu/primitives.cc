@@ -346,11 +346,6 @@ namespace ctranslate2 {
   }
 
   template<>
-  float primitives<Device::CPU>::dot(const float* x, const float* y, dim_t size) {
-    return cblas_sdot(size, x, 1, y, 1);
-  }
-
-  template<>
   template <typename T>
   void primitives<Device::CPU>::penalize_previous_tokens(T* scores,
                                                          const T* previous_scores,
