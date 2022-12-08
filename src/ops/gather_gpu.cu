@@ -64,15 +64,15 @@ namespace ctranslate2 {
         const dim_t batch_stride = axis > 0 ? data.stride(axis - 1) : data.size();
         const dim_t batch_size = data.size() / batch_stride;
         const dim_t num_indices_per_batch = input.size() / batch_size;
-
         const dim_t gather_size = data.stride(axis);
         const dim_t gather_bytes = gather_size * sizeof (T);
-        const dim_t dst_bytes = dst_size * sizeof (T);
 
         if (gather_bytes % sizeof (uint4) == 0) {
+          const dim_t dst_bytes = dst_size * sizeof (T);
+          const dim_t batch_stride_bytes = batch_stride * sizeof (T);
           run_gather(batch_gather_index_map<cuda::index_t>(indices,
                                                            num_indices_per_batch,
-                                                           batch_stride,
+                                                           batch_stride_bytes / sizeof (uint4),
                                                            gather_bytes / sizeof (uint4)),
                      reinterpret_cast<const uint4*>(src),
                      reinterpret_cast<uint4*>(dst),
