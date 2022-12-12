@@ -11,6 +11,8 @@ LayerSpec
     **Extended by:**
 
     - :class:`ctranslate2.specs.ModelSpec`
+    - :class:`ctranslate2.specs.TransformerDecoderSpec`
+    - :class:`ctranslate2.specs.TransformerEncoderSpec`
 
     **Methods:**
 

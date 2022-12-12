@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fairseq &mdash; CTranslate2 3.1.0 documentation</title>
+  <title>Fairseq &mdash; CTranslate2 3.2.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.1
+                3.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -241,8 +241,8 @@ ct2-fairseq-converter --data_dir mbart50.ft.nn/ --model_path mbart50.ft.nn/model
 <span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;mbart50.ft.nn/sentence.bpe.model&quot;</span><span class="p">)</span>
 
 <span class="n">source</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;UN Chief Says There Is No Military Solution in Syria&quot;</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
-<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;en_XX&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">source</span>
-<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ro_RO&quot;</span><span class="p">]</span>
+<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[en_XX]&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">source</span>
+<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[ro_RO]&quot;</span><span class="p">]</span>
 
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;mbart50_ct2&quot;</span><span class="p">)</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">],</span> <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">target_prefix</span><span class="p">])</span>

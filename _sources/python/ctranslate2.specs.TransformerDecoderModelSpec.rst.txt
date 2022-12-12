@@ -16,6 +16,7 @@ TransformerDecoderModelSpec
 
     **Methods:**
 
+    - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.from_config`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.get_default_config`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.optimize`

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransformerDecoderModelSpec &mdash; CTranslate2 3.1.0 documentation</title>
+  <title>TransformerDecoderModelSpec &mdash; CTranslate2 3.2.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,7 +20,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="TransformerSpec" href="ctranslate2.specs.TransformerSpec.html" />
+    <link rel="next" title="TransformerDecoderSpec" href="ctranslate2.specs.TransformerDecoderSpec.html" />
     <link rel="prev" title="SequenceToSequenceModelSpec" href="ctranslate2.specs.SequenceToSequenceModelSpec.html" /> 
 </head>
 
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.1
+                3.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -83,6 +83,8 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html">ModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html">SequenceToSequenceModelSpec</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">TransformerDecoderModelSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html">TransformerDecoderSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html">TransformerEncoderSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html">TransformerSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html">WhisperSpec</a></li>
 </ul>
@@ -137,6 +139,7 @@
 </ul>
 <p><strong>Methods:</strong></p>
 <ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.from_config" title="ctranslate2.specs.TransformerDecoderModelSpec.from_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">from_config</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.get_default_config" title="ctranslate2.specs.TransformerDecoderModelSpec.get_default_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_default_config</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size" title="ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_vocabulary_size</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.TransformerDecoderModelSpec.optimize" title="ctranslate2.specs.TransformerDecoderModelSpec.optimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimize</span></code></a></p></li>
@@ -147,8 +150,19 @@
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.TransformerDecoderModelSpec.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation" title="ctranslate2.specs.common_spec.Activation"><span class="pre">Activation</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Activation.RELU</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layernorm_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_final_norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project_in_out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_relative_position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerDecoderModelSpec.__init__" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">decoder</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec" title="ctranslate2.specs.transformer_spec.TransformerDecoderSpec"><span class="pre">TransformerDecoderSpec</span></a></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerDecoderModelSpec.__init__" title="Permalink to this definition"></a></dt>
 <dd><p>Initializes a Transformer decoder model specification.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>decoder</strong> – The decoder specification.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.specs.TransformerDecoderModelSpec.from_config">
+<em class="property"><span class="pre">classmethod</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">from_config</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_layers</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">pre_norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">True</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation" title="ctranslate2.specs.common_spec.Activation"><span class="pre">Activation</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Activation.RELU</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">layernorm_embedding</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_final_norm</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">project_in_out</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">with_relative_position</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.TransformerDecoderModelSpec.from_config" title="Permalink to this definition"></a></dt>
+<dd><p>Creates a Transformer decoder model specification.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
@@ -273,7 +287,7 @@ changed (e.g. a weight is renamed).</p>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="ctranslate2.specs.SequenceToSequenceModelSpec.html" class="btn btn-neutral float-left" title="SequenceToSequenceModelSpec" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.specs.TransformerSpec.html" class="btn btn-neutral float-right" title="TransformerSpec" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.specs.TransformerDecoderSpec.html" class="btn btn-neutral float-right" title="TransformerDecoderSpec" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

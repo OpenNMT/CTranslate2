@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Decoding features &mdash; CTranslate2 3.1.0 documentation</title>
+  <title>Decoding features &mdash; CTranslate2 3.2.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.1
+                3.2
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -245,15 +245,16 @@
 </section>
 <section id="random-sampling">
 <h2>Random sampling<a class="headerlink" href="#random-sampling" title="Permalink to this headline"></a></h2>
-<p>This decoding mode randomly samples tokens from the model output distribution. This strategy is frequently used in back-translation techniques (<a class="reference external" href="https://www.aclweb.org/anthology/D18-1045/">Edunov et al. 2018</a>). The example below restricts the sampling to the best 10 candidates at each timestep:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">all_results</span> <span class="o">=</span> <span class="p">[</span>
-    <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span>
-    <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span>
-    <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">),</span>
-<span class="p">]</span>
+<p>This decoding mode randomly samples tokens from the model output distribution. This strategy is frequently used in back-translation techniques (<a class="reference external" href="https://www.aclweb.org/anthology/D18-1045/">Edunov et al. 2018</a>). The example below restricts the sampling to the best 10 candidates at each timestep and returns 3 random hypotheses:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
+    <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
+    <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span>
+    <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">num_hypotheses</span><span class="o">=</span><span class="mi">3</span><span class="p">,</span>
+<span class="p">)</span>
 
-<span class="k">for</span> <span class="n">results</span> <span class="ow">in</span> <span class="n">all_results</span><span class="p">:</span>
-    <span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+<span class="k">for</span> <span class="n">hypothesis</span> <span class="ow">in</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">hypothesis</span><span class="p">))</span>
 </pre></div>
 </div>
 <blockquote>

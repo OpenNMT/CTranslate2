@@ -16,6 +16,7 @@ TransformerSpec
 
     **Methods:**
 
+    - :obj:`~ctranslate2.specs.TransformerSpec.from_config`
     - :obj:`~ctranslate2.specs.TransformerSpec.get_default_config`
     - :obj:`~ctranslate2.specs.TransformerSpec.get_source_vocabulary_size`
     - :obj:`~ctranslate2.specs.TransformerSpec.get_target_vocabulary_size`
