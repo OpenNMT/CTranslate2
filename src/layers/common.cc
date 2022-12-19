@@ -366,24 +366,6 @@ namespace ctranslate2 {
     }
 
 
-    RMSNorm::RMSNorm(const models::Model& model, const std::string& scope)
-      : _gamma(model.get_variable(scope + "/gamma"))
-    {
-    }
-
-    DataType RMSNorm::output_type() const {
-      return _gamma.dtype();
-    }
-
-    dim_t RMSNorm::output_size() const {
-      return _gamma.size();
-    }
-
-    void RMSNorm::operator()(const StorageView& input, StorageView& output) const {
-      _norm_op(_gamma, input, output);
-    }
-
-
     Conv1D::Conv1D(const models::Model& model,
                    const std::string& scope,
                    dim_t stride,

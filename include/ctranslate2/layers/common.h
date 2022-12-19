@@ -161,17 +161,6 @@ namespace ctranslate2 {
       const StorageView& _gamma;
     };
 
-    class RMSNorm : public Layer {
-    public:
-      RMSNorm(const models::Model& model, const std::string& scope);
-      void operator()(const StorageView& input, StorageView& output) const;
-      DataType output_type() const override;
-      dim_t output_size() const override;
-    private:
-      const ops::RMSNorm _norm_op;
-      const StorageView& _gamma;
-    };
-
     class Conv1D : public Layer {
     public:
       Conv1D(const models::Model& model,
