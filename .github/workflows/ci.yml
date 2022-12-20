@@ -33,17 +33,6 @@ jobs:
           sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
           sudo apt-get update
 
-      - name: Store URL for downloading Intel oneAPI to environment variable
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          echo 'ONEAPI_INSTALLER_URL=https://registrationcenter-download.intel.com/akdlm/irc_nas/18865/m_BaseKit_p_2022.3.0.8743_offline.dmg' >> $GITHUB_ENV
-
-      - name: Install Intel oneAPI
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          wget -q $ONEAPI_INSTALLER_URL
-          hdiutil attach -noverify -noautofsck $(basename $ONEAPI_INSTALLER_URL)
-
       - name: Configure with MKL
         if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
         run: |
@@ -53,22 +42,29 @@ jobs:
       - name: Configure with DNNL
         if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'dnnl'
         env:
-          DNNL_VERSION: 2022.2.1-16994
+          DNNL_VERSION: 2023.0.0-25399
         run: |
           sudo apt-get install -y intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
 
       - name: Configure with MKL
         if: startsWith(matrix.os, 'macos') && matrix.backend == 'mkl'
+        env:
+          ONEAPI_INSTALLER_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/18865/m_BaseKit_p_2022.3.0.8743_offline.dmg
         run: |
+          wget -q $ONEAPI_INSTALLER_URL
+          hdiutil attach -noverify -noautofsck $(basename $ONEAPI_INSTALLER_URL)
           sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.mkl.devel
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument" .
 
       - name: Configure with DNNL
         if: startsWith(matrix.os, 'macos') && matrix.backend == 'dnnl'
+        env:
+          ONEAPI_INSTALLER_URL: https://registrationcenter-download.intel.com/akdlm/irc_nas/19080/m_BaseKit_p_2023.0.0.25441_offline.dmg
         run: |
+          wget -q $ONEAPI_INSTALLER_URL
+          hdiutil attach -noverify -noautofsck $(basename $ONEAPI_INSTALLER_URL)
           sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.dnnl
-          sudo install_name_tool -id @rpath/libdnnl.2.dylib /opt/intel/oneapi/dnnl/latest/cpu_iomp/lib/libdnnl.2.6.dylib
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DWITH_DNNL=ON -DCMAKE_CXX_FLAGS="-Wno-unused-command-line-argument" .
 
       - name: Build
