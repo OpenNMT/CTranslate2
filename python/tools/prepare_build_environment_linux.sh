@@ -32,10 +32,11 @@ else
         libcublas-devel-11-2-11.4.1.1043-1
     ln -s cuda-11.2 /usr/local/cuda
 
-    MKL_VERSION=2023.0.0
+    ONEAPI_VERSION=2023.0.0
+    MKL_BUILD=25398
     yum-config-manager --add-repo https://yum.repos.intel.com/oneapi
     rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-    yum install -y intel-oneapi-mkl-devel-$MKL_VERSION
+    yum install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION-$MKL_BUILD
 
     ONEDNN_VERSION=3.0
     curl -L -O https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz
