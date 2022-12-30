@@ -11,15 +11,14 @@ RUN apt-get update && \
 
 WORKDIR /root
 
-ENV ONEAPI_VERSION=2022.2.0
-ENV MKL_BUILD=8748
+ENV MKL_VERSION=2023.0.0
 RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
     apt-key add *.PUB && \
     rm *.PUB && \
     echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends \
-        intel-oneapi-mkl-devel=$ONEAPI_VERSION-$MKL_BUILD \
+        intel-oneapi-mkl-devel-$MKL_VERSION \
         && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
