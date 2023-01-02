@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Environment variables &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>Environment variables &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -147,7 +147,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">max_cached_bytes</span> <span class="pre">=</span> <span class="pre">209715200</span></code> (200MB)</p></li>
 </ul>
 <p>You can override these parameters with comma-separated values in the same order as the list above:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span> <span class="nv">CT2_CUDA_CACHING_ALLOCATOR_CONFIG</span><span class="o">=</span><span class="m">8</span>,3,7,6291455
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CT2_CUDA_CACHING_ALLOCATOR_CONFIG</span><span class="o">=</span><span class="m">8</span>,3,7,6291455
 </pre></div>
 </div>
 <p>See the description of each parameter in the <a class="reference external" href="https://github.com/NVIDIA/cub/blob/main/cub/util_allocator.cuh">allocator implementation</a>.</p>

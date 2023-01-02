@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Marian &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>Marian &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -107,8 +107,8 @@
   <section id="marian">
 <h1>Marian<a class="headerlink" href="#marian" title="Permalink to this headline"></a></h1>
 <p>CTranslate2 supports Transformer models trained with <a class="reference external" href="https://github.com/marian-nmt/marian">Marian</a>. The conversion requires the paths to the model and vocabularies:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-marian-converter --model_path model.npz --vocab_paths src.vocab.yml tgt.vocab.yml <span class="se">\</span>
-    --output_dir ct2_model
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-marian-converter<span class="w"> </span>--model_path<span class="w"> </span>model.npz<span class="w"> </span>--vocab_paths<span class="w"> </span>src.vocab.yml<span class="w"> </span>tgt.vocab.yml<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output_dir<span class="w"> </span>ct2_model
 </pre></div>
 </div>
 <div class="admonition attention">

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text translation &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>Text translation &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -133,20 +133,20 @@
 </section>
 <section id="c">
 <h3>C++<a class="headerlink" href="#c" title="Permalink to this headline"></a></h3>
-<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span><span class="cp"></span>
-<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctranslate2/translator.h&gt;</span><span class="cp"></span>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;ctranslate2/translator.h&gt;</span>
 
-<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span><span class="w"></span>
-<span class="w">  </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Translator</span><span class="w"> </span><span class="n">translator</span><span class="p">(</span><span class="s">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Device</span><span class="o">::</span><span class="n">CPU</span><span class="p">);</span><span class="w"></span>
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">()</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Translator</span><span class="w"> </span><span class="n">translator</span><span class="p">(</span><span class="s">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span><span class="w"> </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Device</span><span class="o">::</span><span class="n">CPU</span><span class="p">);</span>
 
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;▁H&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ello&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;▁world&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;!&quot;</span><span class="p">}};</span><span class="w"></span>
-<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">TranslationResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translator</span><span class="p">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">);</span><span class="w"></span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;▁H&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;ello&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;▁world&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;!&quot;</span><span class="p">}};</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">TranslationResult</span><span class="o">&gt;</span><span class="w"> </span><span class="n">results</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translator</span><span class="p">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">);</span>
 
-<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">output</span><span class="p">())</span><span class="w"></span>
-<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">;</span><span class="w"></span>
-<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span><span class="w"></span>
-<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span><span class="w"></span>
-<span class="p">}</span><span class="w"></span>
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">output</span><span class="p">())</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="w">  </span><span class="k">return</span><span class="w"> </span><span class="mi">0</span><span class="p">;</span>
+<span class="p">}</span>
 </pre></div>
 </div>
 <p>See the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/blob/master/include/ctranslate2/translator.h"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></a> class for more advanced usages such as asynchronous translations.</p>
@@ -154,8 +154,8 @@
 <section id="translation-client">
 <h3>Translation client<a class="headerlink" href="#translation-client" title="Permalink to this headline"></a></h3>
 <p>The translation client can be used via the Docker image:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span> <span class="s2">&quot;▁H ello ▁world !&quot;</span> <span class="p">|</span> docker run -i --rm -v <span class="nv">$PWD</span>:/data <span class="se">\</span>
-    opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2 --model /data/ende_ctranslate2 --device cpu
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;▁H ello ▁world !&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-i<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span><span class="nv">$PWD</span>:/data<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2<span class="w"> </span>--model<span class="w"> </span>/data/ende_ctranslate2<span class="w"> </span>--device<span class="w"> </span>cpu
 </pre></div>
 </div>
 <p>To translate on GPU, use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--gpus</span> <span class="pre">all</span></code> and set the option <code class="docutils literal notranslate"><span class="pre">--device</span> <span class="pre">cuda</span></code>. Use <code class="docutils literal notranslate"><span class="pre">--help</span></code> to see the list of available options.</p>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>Installation &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -119,7 +119,7 @@
 <section id="install-with-pip">
 <h2>Install with pip<a class="headerlink" href="#install-with-pip" title="Permalink to this headline"></a></h2>
 <p>Binary Python wheels are published on <a class="reference external" href="https://pypi.org/project/ctranslate2/">PyPI</a> and can be directly installed with pip:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install ctranslate2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>ctranslate2
 </pre></div>
 </div>
 <p>The Python wheels have the following requirements:</p>
@@ -137,7 +137,7 @@
 <section id="install-with-docker">
 <h2>Install with Docker<a class="headerlink" href="#install-with-docker" title="Permalink to this headline"></a></h2>
 <p>Docker images can be downloaded from the repository <a class="reference external" href="https://hub.docker.com/r/opennmt/ctranslate2">opennmt/ctranslate2</a>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker pull opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2
 </pre></div>
 </div>
 <p>The images include:</p>
@@ -146,7 +146,7 @@
 <li><p>the Python module installed in the Python system packages</p></li>
 <li><p>the translator executable, which is the image entrypoint:</p></li>
 </ul>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker run --rm opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2 --help
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2<span class="w"> </span>--help
 </pre></div>
 </div>
 <div class="admonition-gpu-support admonition">
@@ -159,17 +159,17 @@
 <section id="download-the-source-code">
 <h3>Download the source code<a class="headerlink" href="#download-the-source-code" title="Permalink to this headline"></a></h3>
 <p>Clone the CTranslate2 Git repository and its submodules.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git clone --recursive https://github.com/OpenNMT/CTranslate2.git
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>--recursive<span class="w"> </span>https://github.com/OpenNMT/CTranslate2.git
 </pre></div>
 </div>
 </section>
 <section id="compile-the-c-library">
 <h3>Compile the C++ library<a class="headerlink" href="#compile-the-c-library" title="Permalink to this headline"></a></h3>
 <p>Compiling the library requires a compiler supporting C++17 and CMake 3.15 or greater.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir build <span class="o">&amp;&amp;</span> <span class="nb">cd</span> build
-cmake ..
-make -j4
-make install
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>..
+make<span class="w"> </span>-j4
+make<span class="w"> </span>install
 </pre></div>
 </div>
 <p>By default, the library is compiled with the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> backend which should be installed separately. See the <a class="reference internal" href="#build-options"><span class="std std-ref">Build options</span></a> to select or add another backend.</p>
@@ -177,10 +177,10 @@ make install
 <section id="compile-the-python-wrapper">
 <h3>Compile the Python wrapper<a class="headerlink" href="#compile-the-python-wrapper" title="Permalink to this headline"></a></h3>
 <p>Once the C++ library is installed, you can compile the Python wrapper which uses <a class="reference external" href="https://github.com/pybind/pybind11">pybind11</a>. This step requires the Python development libraries to be installed on the system.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span> python
-pip install -r install_requirements.txt
-python setup.py bdist_wheel
-pip install dist/*.whl
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>python
+pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>install_requirements.txt
+python<span class="w"> </span>setup.py<span class="w"> </span>bdist_wheel
+pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
 </pre></div>
 </div>
 <div class="admonition attention">
@@ -278,7 +278,7 @@ pip install dist/*.whl
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_CUDA=ON</span></code> requires <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> &gt;= 10.0</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_CUDNN=ON</span></code> requires <a class="reference external" href="https://developer.nvidia.com/cudnn">cuDNN</a> &gt;= 8</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_MKL=ON</span></code> requires <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> &gt;= 2019.5</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 2.0</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 3.0</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_ACCELERATE=ON</span></code> requires <a class="reference external" href="https://developer.apple.com/documentation/accelerate">Accelerate</a></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_OPENBLAS=ON</span></code> requires <a class="reference external" href="https://github.com/xianyi/OpenBLAS">OpenBLAS</a></p></li>
 </ul>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OpenNMT-py &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>OpenNMT-py &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -110,12 +110,12 @@
   <section id="opennmt-py">
 <h1>OpenNMT-py<a class="headerlink" href="#opennmt-py" title="Permalink to this headline"></a></h1>
 <p>CTranslate2 supports Transformer models trained with <a class="reference external" href="https://github.com/OpenNMT/OpenNMT-py">OpenNMT-py</a>. The conversion simply requires the PyTorch model path, e.g.:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install OpenNMT-py<span class="o">==</span><span class="m">2</span>.*
-ct2-opennmt-py-converter --model_path model.pt --output_dir ct2_model
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>OpenNMT-py<span class="o">==</span><span class="m">2</span>.*
+ct2-opennmt-py-converter<span class="w"> </span>--model_path<span class="w"> </span>model.pt<span class="w"> </span>--output_dir<span class="w"> </span>ct2_model
 </pre></div>
 </div>
 <p>Alternatively, you can also convert the model directly from OpenNMT-py with the model release script:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>onmt_release_model --model model.pt --format ctranslate2 --output ct2_model
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>onmt_release_model<span class="w"> </span>--model<span class="w"> </span>model.pt<span class="w"> </span>--format<span class="w"> </span>ctranslate2<span class="w"> </span>--output<span class="w"> </span>ct2_model
 </pre></div>
 </div>
 <div class="admonition tip">

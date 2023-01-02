@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -75,6 +75,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#nllb">NLLB</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-2">GPT-2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opt">OPT</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#t5">T5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#whisper">Whisper</a></li>
 </ul>
 </li>
@@ -126,11 +127,12 @@
 <li><p>OpenAI GPT2</p></li>
 <li><p>OPT</p></li>
 <li><p>Pegasus</p></li>
+<li><p>T5</p></li>
 <li><p>Whisper</p></li>
 </ul>
 <p>The converter takes as argument the pretrained model name or the path to a model directory:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install transformers<span class="o">[</span>torch<span class="o">]</span>
-ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>transformers<span class="o">[</span>torch<span class="o">]</span>
+ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>facebook/m2m100_418M<span class="w"> </span>--output_dir<span class="w"> </span>ct2_model
 </pre></div>
 </div>
 <section id="special-tokens-in-translation">
@@ -151,7 +153,7 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <section id="bart">
 <h2>BART<a class="headerlink" href="#bart" title="Permalink to this headline"></a></h2>
 <p>This example uses the <a class="reference external" href="https://huggingface.co/facebook/bart-large-cnn">BART</a> model that was fine-tuned on CNN Daily Mail for text summarization.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/bart-large-cnn --output_dir bart-large-cnn
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>facebook/bart-large-cnn<span class="w"> </span>--output_dir<span class="w"> </span>bart-large-cnn
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
@@ -179,7 +181,7 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <section id="marianmt">
 <h2>MarianMT<a class="headerlink" href="#marianmt" title="Permalink to this headline"></a></h2>
 <p>This example uses the English-German model from <a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/marian">MarianMT</a>.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model Helsinki-NLP/opus-mt-en-de --output_dir opus-mt-en-de
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>Helsinki-NLP/opus-mt-en-de<span class="w"> </span>--output_dir<span class="w"> </span>opus-mt-en-de
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
@@ -199,7 +201,7 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <section id="m2m-100">
 <h2>M2M-100<a class="headerlink" href="#m2m-100" title="Permalink to this headline"></a></h2>
 <p>This example uses the <a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/m2m_100">M2M-100</a> multilingual model.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/m2m100_418M --output_dir m2m100_418
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>facebook/m2m100_418M<span class="w"> </span>--output_dir<span class="w"> </span>m2m100_418
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
@@ -226,7 +228,7 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <p class="admonition-title">Important</p>
 <p>Converting NLLB models requires <code class="docutils literal notranslate"><span class="pre">transformers&gt;=4.21.0</span></code>.</p>
 </div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/nllb-200-distilled-600M --output_dir nllb-200-distilled-600M
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>facebook/nllb-200-distilled-600M<span class="w"> </span>--output_dir<span class="w"> </span>nllb-200-distilled-600M
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
@@ -250,7 +252,7 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <section id="gpt-2">
 <h2>GPT-2<a class="headerlink" href="#gpt-2" title="Permalink to this headline"></a></h2>
 <p>This example uses the small <a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/gpt2">GPT-2</a> model.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model gpt2 --output_dir gpt2_ct2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>gpt2<span class="w"> </span>--output_dir<span class="w"> </span>gpt2_ct2
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
@@ -278,7 +280,11 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <p class="admonition-title">Important</p>
 <p>Converting OPT models requires <code class="docutils literal notranslate"><span class="pre">transformers&gt;=4.20.1</span></code>.</p>
 </div>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model facebook/opt-350m --output_dir opt-350m-ct2
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If you plan to <a class="reference internal" href="../quantization.html"><span class="doc std std-doc">quantize</span></a> OPT models to 8-bit, it is recommended to download the corresponding activation scales from the <a class="reference external" href="https://github.com/mit-han-lab/smoothquant/tree/main/act_scales">SmoothQuant repository</a> and pass them to the converter option <code class="docutils literal notranslate"><span class="pre">--activation_scales</span></code>. Some weights will be rescaled to smooth the intermediate activations and improve the quantization accuracy.</p>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>facebook/opt-350m<span class="w"> </span>--output_dir<span class="w"> </span>opt-350m-ct2
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
@@ -297,6 +303,35 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 </pre></div>
 </div>
 </section>
+<section id="t5">
+<h2>T5<a class="headerlink" href="#t5" title="Permalink to this headline"></a></h2>
+<p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/t5">T5</a> is an encoder-decoder model pre-trained on a multi-task mixture of unsupervised and supervised tasks and for which each task is converted into a text-to-text format.</p>
+<p>The example below uses the <code class="docutils literal notranslate"><span class="pre">t5-small</span></code> and machine translation input.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The variants T5v1.1 and mT5 are also supported.</p>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>t5-small<span class="w"> </span>--output_dir<span class="w"> </span>t5-small-ct2
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">transformers</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;t5-small-ct2&quot;</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;t5-small&quot;</span><span class="p">)</span>
+
+<span class="n">input_text</span> <span class="o">=</span> <span class="s2">&quot;translate English to German: The house is wonderful.&quot;</span>
+<span class="n">input_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">input_text</span><span class="p">))</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">input_tokens</span><span class="p">])</span>
+
+<span class="n">output_tokens</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">output_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">output_tokens</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">output_text</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
 <section id="whisper">
 <h2>Whisper<a class="headerlink" href="#whisper" title="Permalink to this headline"></a></h2>
 <p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/whisper">Whisper</a> is a multilingual speech recognition model published by OpenAI.</p>
@@ -305,7 +340,7 @@ ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 <p>Converting Whisper models requires <code class="docutils literal notranslate"><span class="pre">transformers&gt;=4.23.0</span></code>.</p>
 </div>
 <p>The example below uses the smallest model with 39M parameters. Consider using a <a class="reference external" href="https://huggingface.co/models?other=whisper">larger model</a> to get better results.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter --model openai/whisper-tiny --output_dir whisper-tiny-ct2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>openai/whisper-tiny<span class="w"> </span>--output_dir<span class="w"> </span>whisper-tiny-ct2
 </pre></div>
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>

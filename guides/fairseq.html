@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fairseq &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>Fairseq &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -122,8 +122,8 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">transformer_lm</span></code></p></li>
 </ul>
 <p>The conversion minimally requires the PyTorch model path and the Fairseq data directory which contains the vocabulary files:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip install fairseq
-ct2-fairseq-converter --model_path model.pt --data_dir data-bin/ --output_dir ct2_model
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>fairseq
+ct2-fairseq-converter<span class="w"> </span>--model_path<span class="w"> </span>model.pt<span class="w"> </span>--data_dir<span class="w"> </span>data-bin/<span class="w"> </span>--output_dir<span class="w"> </span>ct2_model
 </pre></div>
 </div>
 <section id="beam-search-equivalence">
@@ -136,12 +136,12 @@ ct2-fairseq-converter --model_path model.pt --data_dir data-bin/ --output_dir ct
 <section id="wmt16-english-german">
 <h2>WMT16 English-German<a class="headerlink" href="#wmt16-english-german" title="Permalink to this headline"></a></h2>
 <p>Download and convert the pretrained <a class="reference external" href="https://github.com/pytorch/fairseq/tree/main/examples/translation">WMT16 English-German model</a>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://dl.fbaipublicfiles.com/fairseq/models/wmt16.en-de.joined-dict.transformer.tar.bz2
-tar xf wmt16.en-de.joined-dict.transformer.tar.bz2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://dl.fbaipublicfiles.com/fairseq/models/wmt16.en-de.joined-dict.transformer.tar.bz2
+tar<span class="w"> </span>xf<span class="w"> </span>wmt16.en-de.joined-dict.transformer.tar.bz2
 
-ct2-fairseq-converter --model_path wmt16.en-de.joined-dict.transformer/model.pt <span class="se">\</span>
-    --data_dir wmt16.en-de.joined-dict.transformer <span class="se">\</span>
-    --output_dir ende_ctranslate2
+ct2-fairseq-converter<span class="w"> </span>--model_path<span class="w"> </span>wmt16.en-de.joined-dict.transformer/model.pt<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--data_dir<span class="w"> </span>wmt16.en-de.joined-dict.transformer<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output_dir<span class="w"> </span>ende_ctranslate2
 </pre></div>
 </div>
 <p>The converted model can then be used on tokenized inputs:</p>
@@ -161,10 +161,10 @@ ct2-fairseq-converter --model_path wmt16.en-de.joined-dict.transformer/model.pt 
 <section id="wmt19-language-model">
 <h2>WMT19 language model<a class="headerlink" href="#wmt19-language-model" title="Permalink to this headline"></a></h2>
 <p>The FAIR team published <a class="reference external" href="https://github.com/pytorch/fairseq/blob/main/examples/language_model/README.md">pretrained language models</a> as part of the WMT19 news translation task. They can be converted to the CTranslate2 format:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://dl.fbaipublicfiles.com/fairseq/models/lm/wmt19.en.tar.gz
-tar xf wmt19.en.tar.gz
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://dl.fbaipublicfiles.com/fairseq/models/lm/wmt19.en.tar.gz
+tar<span class="w"> </span>xf<span class="w"> </span>wmt19.en.tar.gz
 
-ct2-fairseq-converter --data_dir wmt19.en/ --model_path wmt19.en/model.pt --output_dir wmt19_en_ct2
+ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>wmt19.en/<span class="w"> </span>--model_path<span class="w"> </span>wmt19.en/model.pt<span class="w"> </span>--output_dir<span class="w"> </span>wmt19_en_ct2
 </pre></div>
 </div>
 <p>The model can then be used to sample or score sequences of tokens. All inputs should start with the special token <code class="docutils literal notranslate"><span class="pre">&lt;/s&gt;</span></code>:</p>
@@ -192,17 +192,17 @@ ct2-fairseq-converter --data_dir wmt19.en/ --model_path wmt19.en/model.pt --outp
 <h2>M2M-100<a class="headerlink" href="#m2m-100" title="Permalink to this headline"></a></h2>
 <p>The pretrained multilingual model <a class="reference external" href="https://github.com/pytorch/fairseq/tree/main/examples/m2m_100">M2M-100</a> can also be used in CTranslate2. The conversion option <code class="docutils literal notranslate"><span class="pre">--fixed_dictionary</span></code> is required for this model that uses a single vocabulary file:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 418M parameters:</span>
-wget https://dl.fbaipublicfiles.com/m2m_100/418M_last_checkpoint.pt
+wget<span class="w"> </span>https://dl.fbaipublicfiles.com/m2m_100/418M_last_checkpoint.pt
 
 <span class="c1"># 1.2B parameters:</span>
-wget https://dl.fbaipublicfiles.com/m2m_100/1.2B_last_checkpoint.pt
+wget<span class="w"> </span>https://dl.fbaipublicfiles.com/m2m_100/1.2B_last_checkpoint.pt
 
-wget https://dl.fbaipublicfiles.com/m2m_100/model_dict.128k.txt
-wget https://dl.fbaipublicfiles.com/m2m_100/spm.128k.model
+wget<span class="w"> </span>https://dl.fbaipublicfiles.com/m2m_100/model_dict.128k.txt
+wget<span class="w"> </span>https://dl.fbaipublicfiles.com/m2m_100/spm.128k.model
 
-ct2-fairseq-converter --data_dir . --model_path 418M_last_checkpoint.pt <span class="se">\</span>
-    --fixed_dictionary model_dict.128k.txt <span class="se">\</span>
-    --output_dir m2m_100_418m_ct2
+ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>.<span class="w"> </span>--model_path<span class="w"> </span>418M_last_checkpoint.pt<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--fixed_dictionary<span class="w"> </span>model_dict.128k.txt<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output_dir<span class="w"> </span>m2m_100_418m_ct2
 </pre></div>
 </div>
 <p>For translation, the language tokens should prefix the source and target sequences. Language tokens have the format <code class="docutils literal notranslate"><span class="pre">__X__</span></code> where <code class="docutils literal notranslate"><span class="pre">X</span></code> is the language code. See the end of the fixed dictionary file for the list of accepted languages.</p>
@@ -226,11 +226,11 @@ ct2-fairseq-converter --data_dir . --model_path 418M_last_checkpoint.pt <span cl
 <section id="mbart-50">
 <h2>MBART-50<a class="headerlink" href="#mbart-50" title="Permalink to this headline"></a></h2>
 <p><a class="reference external" href="https://github.com/pytorch/fairseq/blob/main/examples/multilingual/README.md">MBART-50</a> is another pretrained multilingual translation model.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget https://dl.fbaipublicfiles.com/fairseq/models/mbart50/mbart50.ft.nn.tar.gz
-tar xf mbart50.ft.nn.tar.gz
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://dl.fbaipublicfiles.com/fairseq/models/mbart50/mbart50.ft.nn.tar.gz
+tar<span class="w"> </span>xf<span class="w"> </span>mbart50.ft.nn.tar.gz
 
-ct2-fairseq-converter --data_dir mbart50.ft.nn/ --model_path mbart50.ft.nn/model.pt <span class="se">\</span>
-    --output_dir mbart50_ct2
+ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>mbart50.ft.nn/<span class="w"> </span>--model_path<span class="w"> </span>mbart50.ft.nn/model.pt<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--output_dir<span class="w"> </span>mbart50_ct2
 </pre></div>
 </div>
 <p>Similar to M2M-100, the language tokens should prefix the source and target sequences. The list of language tokens is defined in the file <code class="docutils literal notranslate"><span class="pre">mbart50.ft.nn/ML50_langs.txt</span></code>.</p>

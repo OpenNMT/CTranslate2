@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransformersConverter &mdash; CTranslate2 3.2.0 documentation</title>
+  <title>TransformersConverter &mdash; CTranslate2 3.3.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.2
+                3.3
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -136,12 +136,18 @@
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.converters.TransformersConverter.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name_or_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.__init__" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_name_or_path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">activation_scales</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.__init__" title="Permalink to this definition"></a></dt>
 <dd><p>Initializes the converter.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
-<dd class="field-odd"><p><strong>model_name_or_path</strong> – Name of the pretrained model to download, or path to the
-directory containing the pretrained model.</p>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>model_name_or_path</strong> – Name of the pretrained model to download, or path to the
+directory containing the pretrained model.</p></li>
+<li><p><strong>activation_scales</strong> – Path to the pre-computed activation scales. Models may
+use them to rescale some weights to smooth the intermediate activations
+and improve the quantization accuracy. See
+<a class="reference external" href="https://github.com/mit-han-lab/smoothquant">https://github.com/mit-han-lab/smoothquant</a>.</p></li>
+</ul>
 </dd>
 </dl>
 </dd></dl>
