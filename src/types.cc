@@ -229,6 +229,20 @@ namespace ctranslate2 {
     }
   }
 
+  ComputeType data_type_to_compute_type(const DataType quantizable_type,
+                                        const DataType float_type) {
+    switch (quantizable_type) {
+    case DataType::INT8:
+      return float_type == DataType::FLOAT16 ? ComputeType::INT8_FLOAT16 : ComputeType::INT8;
+    case DataType::INT16:
+      return ComputeType::INT16;
+    case DataType::FLOAT16:
+      return ComputeType::FLOAT16;
+    default:
+      return ComputeType::FLOAT;
+    }
+  }
+
   DataType get_default_float_type(const ComputeType compute_type) {
     switch (compute_type) {
     case ComputeType::FLOAT:

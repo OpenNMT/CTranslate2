@@ -14,25 +14,6 @@ namespace ctranslate2 {
       return true;
     }
 
-    static std::string map_v1_variable_name(std::string name) {
-      // V1 variable names were simply the names defined by OpenNMT-tf.
-      replace(name, "transformer/", "");
-      replace(name, ":0", "");
-      replace(name, "w_embs", "embeddings/weight");
-      replace(name, "kernel", "weight");
-      replace(name, "LayerNorm", "layer_norm");
-      replace(name, "dense", "projection");
-      replace(name, "conv1d_", "linear_");
-      replace(name, "conv1d", "linear_0");
-      if (name.find("encoder") != std::string::npos) {
-        replace(name, "multi_head", "self_attention");
-      } else {
-        replace(name, "masked_multi_head", "self_attention");
-        replace(name, "multi_head", "attention");
-      }
-      return name;
-    }
-
 
     // Empty spec name, TransformerBase, and TransformerBig are there for backward compatibility.
     static auto register_empty = register_model<TransformerModel>("", /*num_heads=*/8);
@@ -48,6 +29,26 @@ namespace ctranslate2 {
       return 6;
     }
 
+    void TransformerModel::update_variable_name(std::string& variable_name) const {
+      if (spec_revision() == 1) {
+        // In the first specification, variable names were the names defined by OpenNMT-tf V1.
+        replace(variable_name, "transformer/", "");
+        replace(variable_name, ":0", "");
+        replace(variable_name, "w_embs", "embeddings/weight");
+        replace(variable_name, "kernel", "weight");
+        replace(variable_name, "LayerNorm", "layer_norm");
+        replace(variable_name, "dense", "projection");
+        replace(variable_name, "conv1d_", "linear_");
+        replace(variable_name, "conv1d", "linear_0");
+        if (variable_name.find("encoder") != std::string::npos) {
+          replace(variable_name, "multi_head", "self_attention");
+        } else {
+          replace(variable_name, "masked_multi_head", "self_attention");
+          replace(variable_name, "multi_head", "attention");
+        }
+      }
+    }
+
     bool TransformerModel::is_linear_weight(const std::string& variable_name) const {
       // Linear weights are all variables that are quantizable and not under the "embeddings" scope.
       return is_quantizable(variable_name) && variable_name.find("embeddings") == std::string::npos;
@@ -57,12 +58,6 @@ namespace ctranslate2 {
       // Disallow packing for the last linear layer if it can be dynamically masked.
       return (is_linear_weight(variable_name)
               && (!get_vocabulary_map() || variable_name.find("projection") == std::string::npos));
-    }
-
-    void TransformerModel::register_variable(std::string name, StorageView variable) {
-      if (spec_revision() == 1)
-        name = map_v1_variable_name(std::move(name));
-      SequenceToSequenceModel::register_variable(std::move(name), std::move(variable));
     }
 
     void TransformerModel::initialize(ModelReader& model_reader) {

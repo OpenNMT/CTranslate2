@@ -49,6 +49,8 @@ namespace ctranslate2 {
 
   // Gets the weights data type for the given compute type.
   DataType compute_type_to_data_type(const ComputeType compute_type);
+  ComputeType data_type_to_compute_type(const DataType quantizable_type,
+                                        const DataType float_type);
 
   // Gets the default floating point type for the given compute type.
   DataType get_default_float_type(const ComputeType compute_type);
