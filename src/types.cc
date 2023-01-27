@@ -213,25 +213,26 @@ namespace ctranslate2 {
     }
   }
 
-  DataType compute_type_to_data_type(const ComputeType compute_type) {
+  std::pair<DataType, DataType> compute_type_to_data_type(const ComputeType compute_type) {
     switch (compute_type) {
     case ComputeType::FLOAT:
-      return DataType::FLOAT;
+      return std::make_pair(DataType::FLOAT, DataType::FLOAT);
     case ComputeType::INT8:
+      return std::make_pair(DataType::INT8, DataType::FLOAT);
     case ComputeType::INT8_FLOAT16:
-      return DataType::INT8;
+      return std::make_pair(DataType::INT8, DataType::FLOAT16);
     case ComputeType::INT16:
-      return DataType::INT16;
+      return std::make_pair(DataType::INT16, DataType::FLOAT);
     case ComputeType::FLOAT16:
-      return DataType::FLOAT16;
+      return std::make_pair(DataType::FLOAT16, DataType::FLOAT16);
     default:
       throw std::invalid_argument("resolve_compute_type should be called first");
     }
   }
 
-  ComputeType data_type_to_compute_type(const DataType quantizable_type,
+  ComputeType data_type_to_compute_type(const DataType weight_type,
                                         const DataType float_type) {
-    switch (quantizable_type) {
+    switch (weight_type) {
     case DataType::INT8:
       return float_type == DataType::FLOAT16 ? ComputeType::INT8_FLOAT16 : ComputeType::INT8;
     case DataType::INT16:
@@ -244,17 +245,7 @@ namespace ctranslate2 {
   }
 
   DataType get_default_float_type(const ComputeType compute_type) {
-    switch (compute_type) {
-    case ComputeType::FLOAT:
-    case ComputeType::INT8:
-    case ComputeType::INT16:
-      return DataType::FLOAT;
-    case ComputeType::INT8_FLOAT16:
-    case ComputeType::FLOAT16:
-      return DataType::FLOAT16;
-    default:
-      throw std::invalid_argument("resolve_compute_type should be called first");
-    }
+    return compute_type_to_data_type(compute_type).second;
   }
 
   dim_t get_preferred_size_multiple(const ComputeType compute_type,

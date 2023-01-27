@@ -481,8 +481,7 @@ namespace ctranslate2 {
                                                                 device_index);
 
       // Update the target dtypes based on the effective compute type.
-      weight_type = compute_type_to_data_type(effective_compute_type);
-      float_type = get_default_float_type(effective_compute_type);
+      std::tie(weight_type, float_type) = compute_type_to_data_type(effective_compute_type);
 
       model->_compute_type = compute_type;
       model->_effective_compute_type = effective_compute_type;
