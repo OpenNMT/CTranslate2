@@ -254,6 +254,10 @@ namespace ctranslate2 {
       return model.get_variable(scope + "/weight");
     }
 
+    static inline bool require_compensation(Device device, DataType dtype) {
+      return device == Device::CPU && dtype == DataType::INT8 && cpu::prefer_u8s8s32_gemm();
+    }
+
     Dense::Dense(const models::Model& model,
                  const std::string& scope,
                  const ops::ActivationType* activation_type)
@@ -261,9 +265,7 @@ namespace ctranslate2 {
       , _weight(get_linear_weight(model, scope, &_packed_weight))
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
-      , _u8_shift_compensation((_weight.device() == Device::CPU
-                                && _weight.dtype() == DataType::INT8
-                                && cpu::prefer_u8s8s32_gemm())
+      , _u8_shift_compensation(require_compensation(_weight.device(), _weight.dtype())
                                ? &model.get_variable(scope + "/weight_compensation")
                                : nullptr)
       , _partial_weight(_weight.device(), _weight.dtype())
@@ -344,6 +346,54 @@ namespace ctranslate2 {
                        bias);
       } else {
         _gemm_op(input, *weight, output, nullptr, bias);
+      }
+    }
+
+    void
+    Dense::register_weight(const std::string& name,
+                           std::shared_ptr<StorageView> weight_ptr,
+                           models::Model& model,
+                           std::unordered_map<std::string, std::shared_ptr<StorageView>>& variables,
+                           Device target_device,
+                           ComputeType compute_type,
+                           bool allow_packing) {
+      auto& weight = *weight_ptr;
+
+      if (weight.device() != target_device)
+        weight = weight.to(target_device);
+
+      const bool transpose = true;
+      const dim_t k = weight.dim(1);
+      const dim_t n = weight.dim(0);
+      const float alpha = 1;
+
+      // If the target Gemm implementation prefers the u8s8s32 format, we can shift
+      // the input of linear layers to the u8 domain and add a compensation term.
+      // This term only depends on the linear weight, so we can compute it once and
+      // store it as a model variable.
+      if (require_compensation(weight.device(), weight.dtype())) {
+        const std::string suffix = "_compensation";
+
+        auto& compensation = variables[suffix];
+        if (!compensation)
+          compensation = std::make_shared<StorageView>(
+            ops::Gemm::compensate_u8_a_input(weight, transpose, k, n, alpha));
+
+        model.register_variable(name + suffix, compensation);
+      }
+
+      // If requested, linear weights can be packed for the Gemm call.
+      if (allow_packing && cpu::pack_gemm_weights(compute_type)) {
+        const std::string suffix = "_packed";
+
+        auto& packed_weight = variables[suffix];
+        if (!packed_weight)
+          packed_weight = std::make_shared<StorageView>(
+            ops::Gemm::pack_b_input(weight, transpose, k, n, alpha));
+
+        model.register_variable(name + suffix, packed_weight);
+      } else {
+        model.register_variable(name, weight_ptr);
       }
     }
 

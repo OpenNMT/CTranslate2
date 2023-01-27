@@ -19,6 +19,8 @@ namespace ctranslate2 {
     class SequenceToSequenceReplica;
     class SequenceGeneratorReplica;
 
+    using VariablesCollection = std::unordered_map<std::string, std::shared_ptr<StorageView>>;
+
     // Base class for models.
     class Model : public std::enable_shared_from_this<Model> {
     public:
@@ -114,7 +116,13 @@ namespace ctranslate2 {
         return static_cast<Enum>(get_attribute_with_default<int32_t>(name, 0));
       }
 
+      // Registers a model variable.
+      void register_variable(std::string name, std::shared_ptr<StorageView> variable);
+
     protected:
+      // Updates a variable name on load, e.g. for backward compatibility.
+      virtual void update_variable_name(std::string&) const {}
+
       // Returns true if the variable is quantizable and should respect compute_type.
       virtual bool is_quantizable(const std::string& variable_name) const;
 
@@ -125,27 +133,18 @@ namespace ctranslate2 {
       virtual bool is_packable(const std::string& variable_name) const;
 
       // Returns true if the variable can be converted to another type.
-      virtual bool is_convertible(const StorageView& variable, const std::string& name) const;
-
-      // Models can override these methods to execute some transformations if needed
-      // (e.g. a variable name changed in a newer spec revision).
-      virtual void register_variable(std::string name, StorageView variable);
-      virtual void register_variable_alias(std::string alias, const std::string& variable_name);
-      virtual void remove_variable(const std::string& name);
+      virtual bool is_convertible(const std::string& name, DataType dtype) const;
 
       // Runs some initialization after the model is loaded.
       virtual void initialize(ModelReader&) {}
 
       virtual std::unique_ptr<Model> clone() const = 0;
 
-    private:
-      void process_linear_weights();
-      void set_compute_type(ComputeType type, Device device, int device_index);
-      void ensure_dtype(const std::string& name,
-                        StorageView& variable,
-                        const DataType target_dtype);
-      ComputeType infer_compute_type() const;
+      void register_variable(std::string name, StorageView variable);
+      void register_variable_alias(std::string alias, const std::string& variable_name);
+      void remove_variable(const std::string& name);
 
+    private:
       Device _device = Device::CPU;
       int _device_index = 0;
       size_t _binary_version = 0;
@@ -153,7 +152,7 @@ namespace ctranslate2 {
       ComputeType _compute_type = ComputeType::DEFAULT;
       ComputeType _effective_compute_type = ComputeType::DEFAULT;
       dim_t _preferred_size_multiple = 1;
-      std::unordered_map<std::string, std::shared_ptr<StorageView>> _variable_index;
+      VariablesCollection _variable_index;
     };
 
     template<>

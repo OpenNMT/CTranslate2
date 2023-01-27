@@ -131,6 +131,15 @@ namespace ctranslate2 {
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output) const;
       void select_weights(const StorageView* index, const StorageView* extra_bias = nullptr);
+
+      static void
+      register_weight(const std::string& name,
+                      std::shared_ptr<StorageView> weight,
+                      models::Model& model,
+                      std::unordered_map<std::string, std::shared_ptr<StorageView>>& variables,
+                      Device target_device,
+                      ComputeType compute_type,
+                      bool allow_packing = false);
     private:
       bool _packed_weight;
       const StorageView& _weight;

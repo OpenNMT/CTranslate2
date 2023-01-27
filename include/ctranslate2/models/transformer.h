@@ -15,9 +15,9 @@ namespace ctranslate2 {
       std::unique_ptr<SequenceToSequenceReplica> as_sequence_to_sequence() const override;
 
     protected:
+      void update_variable_name(std::string& variable_name) const override;
       bool is_linear_weight(const std::string& variable_name) const override;
       bool is_packable(const std::string& variable_name) const override;
-      void register_variable(std::string name, StorageView variable) override;
       void initialize(ModelReader& model_reader) override;
       std::unique_ptr<Model> clone() const override;
 

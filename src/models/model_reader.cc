@@ -40,6 +40,22 @@ namespace ctranslate2 {
         char* p = const_cast<char*>(base);
         setg(p, p, p + size);
       }
+
+      pos_type seekpos(pos_type sp, std::ios_base::openmode which) override {
+        return seekoff(sp - pos_type(off_type(0)), std::ios_base::beg, which);
+      }
+
+      pos_type seekoff(off_type off,
+                       std::ios_base::seekdir dir,
+                       std::ios_base::openmode) override {
+        if (dir == std::ios_base::cur)
+          gbump(off);
+        else if (dir == std::ios_base::end)
+          setg(eback(), egptr() + off, egptr());
+        else if (dir == std::ios_base::beg)
+          setg(eback(), eback() + off, egptr());
+        return gptr() - eback();
+      }
     };
 
     struct imemstream : virtual membuf, std::istream {
