@@ -787,7 +787,8 @@ TEST_P(OpDeviceFPTest, GELUTanh) {
   StorageView input({2}, std::vector<float>{0.2, -1.3}, device);
   StorageView expected({2}, std::vector<float>{0.11585142463445663, -0.1260710209608078}, device);
   StorageView output(dtype, device);
-  ops::GELU(ops::GELU::Approximation::Tanh)(input.to(dtype), output);
+  const ops::GELU gelu_op(ops::GELU::Approximation::Tanh);
+  gelu_op(input.to(dtype), output);
   expect_storage_eq(output.to_float(), expected, 1e-4);
 }
 
@@ -797,7 +798,8 @@ TEST_P(OpDeviceFPTest, GELUSigmoid) {
   StorageView input({2}, std::vector<float>{0.2, -1.3}, device);
   StorageView expected({2}, std::vector<float>{0.11685754358768463, -0.128212109208107}, device);
   StorageView output(dtype, device);
-  ops::GELU(ops::GELU::Approximation::Sigmoid)(input.to(dtype), output);
+  const ops::GELU gelu_op(ops::GELU::Approximation::Sigmoid);
+  gelu_op(input.to(dtype), output);
   expect_storage_eq(output.to_float(), expected, 1e-4);
 }
 
