@@ -177,6 +177,20 @@ namespace ctranslate2 {
       vectorized_unary_transform<TARGET_ISA>(
         x, y, size,
         [](vec_type<float, TARGET_ISA> v) {
+          auto u = VecType::mul(VecType::load(0.7071067811865475f), v);
+          u = VecType::add(VecType::load(1.f), VecType::erf(u));
+          u = VecType::mul(v, u);
+          u = VecType::mul(VecType::load(0.5f), u);
+          return u;
+        });
+    }
+
+    template<>
+    void gelu_tanh<TARGET_ISA>(const float* x, float* y, dim_t size) {
+      using VecType = Vec<float, TARGET_ISA>;
+      vectorized_unary_transform<TARGET_ISA>(
+        x, y, size,
+        [](vec_type<float, TARGET_ISA> v) {
           auto u = VecType::mul(VecType::mul(v, v), v);
           u = VecType::mul(VecType::load(0.044715f), u);
           u = VecType::add(v, u);
@@ -186,6 +200,17 @@ namespace ctranslate2 {
           u = VecType::mul(v, u);
           u = VecType::mul(VecType::load(0.5f), u);
           return u;
+        });
+    }
+
+    template<>
+    void gelu_sigmoid<TARGET_ISA>(const float* x, float* y, dim_t size) {
+      using VecType = Vec<float, TARGET_ISA>;
+      vectorized_unary_transform<TARGET_ISA>(
+        x, y, size,
+        [](vec_type<float, TARGET_ISA> v) {
+          return VecType::div(v, VecType::add(VecType::load(1.f),
+                                              VecType::exp(VecType::mul(VecType::load(-1.702f), v))));
         });
     }
 
