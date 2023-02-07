@@ -192,8 +192,7 @@ namespace ctranslate2 {
         x, y, size,
         [](vec_type<float, TARGET_ISA> v) {
           auto u = VecType::mul(VecType::mul(v, v), v);
-          u = VecType::mul(VecType::load(0.044715f), u);
-          u = VecType::add(v, u);
+          u = VecType::mul_add(VecType::load(0.044715f), u, v);
           u = VecType::mul(VecType::load(0.7978845608028654f), u);
           u = VecType::tanh(u);
           u = VecType::add(VecType::load(1.f), u);
