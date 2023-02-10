@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 3.4.0 documentation</title>
+  <title>Quantization &mdash; CTranslate2 3.5.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.4
+                3.5
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -53,7 +53,7 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Quantization</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#quantize-on-model-conversion">Quantize on model conversion</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#quantize-on-model-loading">Quantize on model loading</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#implicit-model-conversion-on-load">Implicit model conversion on load</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#implicit-type-conversion-on-load">Implicit type conversion on load</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#supported-types">Supported types</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#bit-integers-int8">8-bit integers (<code class="docutils literal notranslate"><span class="pre">int8</span></code>)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#bit-integers-int16">16-bit integers (<code class="docutils literal notranslate"><span class="pre">int16</span></code>)</a></li>
@@ -142,7 +142,7 @@
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Whatever quantization type is selected here, the runtime ensures the model can be loaded and executed efficiently. This implies the model weights are possibly converted to another type when the model is loaded, see <a class="reference internal" href="#implicit-model-conversion-on-load"><span class="std std-ref">Implicit model conversion on load</span></a>.</p>
+<p>Whatever quantization type is selected here, the runtime ensures the model can be loaded and executed efficiently. This implies the model weights are possibly converted to another type when the model is loaded, see <a class="reference internal" href="#implicit-type-conversion-on-load"><span class="std std-ref">Implicit type conversion on load</span></a>.</p>
 </div>
 <p>For reference, the table below compares the model size on disk for a base Transformer model without shared embeddings and a vocabulary of size 32k:</p>
 <table class="colwidths-auto docutils align-default">
@@ -174,7 +174,8 @@
 <h2>Quantize on model loading<a class="headerlink" href="#quantize-on-model-loading" title="Permalink to this headline"></a></h2>
 <p>Quantization can also be enabled or changed when loading the model. The translator exposes the option <code class="docutils literal notranslate"><span class="pre">compute_type</span></code> that accepts the following values:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">auto</span></code>: selects the fastest computation type on this system and device</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">default</span></code>: keep the same quantization that was used during model conversion (see <a class="reference internal" href="#implicit-type-conversion-on-load"><span class="std std-ref">Implicit type conversion on load</span></a> for exceptions)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">auto</span></code>: use the fastest computation type that is supported on this system and device</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">int8</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">int8_float16</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">int16</span></code></p></li>
@@ -190,8 +191,8 @@
 <p>Conversions between all types are supported. For example, you can convert a model with <code class="docutils literal notranslate"><span class="pre">quantization=&quot;int8&quot;</span></code> and then execute in full precision with <code class="docutils literal notranslate"><span class="pre">compute_type=&quot;float&quot;</span></code>.</p>
 </div>
 </section>
-<section id="implicit-model-conversion-on-load">
-<h2>Implicit model conversion on load<a class="headerlink" href="#implicit-model-conversion-on-load" title="Permalink to this headline"></a></h2>
+<section id="implicit-type-conversion-on-load">
+<h2>Implicit type conversion on load<a class="headerlink" href="#implicit-type-conversion-on-load" title="Permalink to this headline"></a></h2>
 <p>By default, the runtime tries to use the type that is saved in the converted model as the computation type. However, if the current platform or backend do not support optimized execution for this computation type (e.g. <code class="docutils literal notranslate"><span class="pre">int16</span></code> is not optimized on GPU), then the library converts the model weights to another optimized type. The tables below document the fallback types in prebuilt binaries:</p>
 <p><strong>On CPU:</strong></p>
 <table class="colwidths-auto docutils align-default">
