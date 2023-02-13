@@ -365,7 +365,7 @@ namespace ctranslate2 {
         const auto it = state.find("memory_lengths");
         const StorageView* memory_lengths = it != state.end() ? &it->second : nullptr;
 
-        if (step <= 0) {
+        if (state.at("memory_keys_0").empty()) {
           memory = &state.at("memory");
 
           if (memory_lengths && allow_padding_removal) {
