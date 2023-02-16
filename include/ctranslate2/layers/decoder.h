@@ -42,7 +42,7 @@ namespace ctranslate2 {
                         const dim_t beam_size,
                         const StorageView* alive_batches = nullptr) const;
 
-      // Replicate state beam_size times.
+      // Replicate the decoder state beam_size times.
       void replicate_state(DecoderState& state, const dim_t beam_size) const;
 
       // Returns true if the state must be replicated beam_size times.
