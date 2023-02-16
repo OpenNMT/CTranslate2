@@ -652,8 +652,10 @@ namespace ctranslate2 {
     // We can return multiple hypotheses from greedy search when random sampling is enabled.
     // In that case we replicate the batches and then merge the hypotheses in a single result.
     if (num_hypotheses > 1) {
-      for (auto& [name, value] : state)
-        repeat_batch(value, num_hypotheses);
+      for (auto& [name, value] : state) {
+        if (value)
+          repeat_batch(value, num_hypotheses);
+      }
 
       std::vector<size_t> repeat_start_ids = repeat_vector(start_ids, num_hypotheses);
       std::vector<std::vector<size_t>> repeat_prefix_ids;
