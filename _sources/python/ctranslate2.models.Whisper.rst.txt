@@ -8,6 +8,10 @@ Whisper
 
     **Inherits from:** :class:`pybind11_builtins.pybind11_object`
 
+    **Attributes:**
+
+    - :obj:`~ctranslate2.models.Whisper.is_multilingual`
+
     **Methods:**
 
     - :obj:`~ctranslate2.models.Whisper.detect_language`
