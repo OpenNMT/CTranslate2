@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 3.6.0 documentation</title>
+  <title>Quantization &mdash; CTranslate2 3.7.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.6
+                3.7
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -180,7 +180,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">int8_float16</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">int16</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">float16</span></code></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">float</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">float32</span></code></p></li>
 </ul>
 <p>For example,</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">&quot;int8&quot;</span><span class="p">)</span>
@@ -188,7 +188,7 @@
 </div>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
-<p>Conversions between all types are supported. For example, you can convert a model with <code class="docutils literal notranslate"><span class="pre">quantization=&quot;int8&quot;</span></code> and then execute in full precision with <code class="docutils literal notranslate"><span class="pre">compute_type=&quot;float&quot;</span></code>.</p>
+<p>Conversions between all types are supported. For example, you can convert a model with <code class="docutils literal notranslate"><span class="pre">quantization=&quot;int8&quot;</span></code> and then execute in full precision with <code class="docutils literal notranslate"><span class="pre">compute_type=&quot;float32&quot;</span></code>.</p>
 </div>
 </section>
 <section id="implicit-type-conversion-on-load">
@@ -209,25 +209,25 @@
 <td><p>int8</p></td>
 <td><p>int8</p></td>
 <td><p>int16</p></td>
-<td><p>float</p></td>
+<td><p>float32</p></td>
 </tr>
 <tr class="row-odd"><td><p>x86-64 (other)</p></td>
 <td><p>int8</p></td>
 <td><p>int8</p></td>
 <td><p>int8</p></td>
-<td><p>float</p></td>
+<td><p>float32</p></td>
 </tr>
 <tr class="row-even"><td><p>AArch64/ARM64 (Apple)</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
 </tr>
 <tr class="row-odd"><td><p>AArch64/ARM64 (other)</p></td>
 <td><p>int8</p></td>
 <td><p>int8</p></td>
 <td><p>int8</p></td>
-<td><p>float</p></td>
+<td><p>float32</p></td>
 </tr>
 </tbody>
 </table>
@@ -249,22 +249,22 @@
 <td><p>float16</p></td>
 </tr>
 <tr class="row-odd"><td><p>6.2</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
 </tr>
 <tr class="row-even"><td><p>6.1</p></td>
 <td><p>int8</p></td>
 <td><p>int8</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
 </tr>
 <tr class="row-odd"><td><p>&lt;= 6.0</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
-<td><p>float</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
+<td><p>float32</p></td>
 </tr>
 </tbody>
 </table>
