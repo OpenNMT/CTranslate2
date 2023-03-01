@@ -304,6 +304,8 @@ class ModelSpec(LayerSpec):
             raise ValueError("File %s does not exist" % path)
         if filename is None:
             filename = os.path.basename(path)
+        if filename in self._files:
+            raise ValueError("A file with name %s was already registered" % filename)
         self._files[filename] = path
 
     def save(self, output_dir: str) -> None:
@@ -315,8 +317,12 @@ class ModelSpec(LayerSpec):
         self._serialize(os.path.join(output_dir, "model.bin"))
         if self._config is not None:
             self._config.save_as_json(os.path.join(output_dir, "config.json"))
+
         for filename, path in self._files.items():
-            shutil.copy(path, os.path.join(output_dir, filename))
+            destination = os.path.join(output_dir, filename)
+            if os.path.exists(destination):
+                raise RuntimeError("File %s already exists in the model directory" % destination)
+            shutil.copy(path, destination)
 
     def _serialize(self, path):
         """Serializes the model variables."""
