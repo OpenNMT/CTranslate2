@@ -321,7 +321,9 @@ class ModelSpec(LayerSpec):
         for filename, path in self._files.items():
             destination = os.path.join(output_dir, filename)
             if os.path.exists(destination):
-                raise RuntimeError("File %s already exists in the model directory" % destination)
+                raise RuntimeError(
+                    "File %s already exists in the model directory" % destination
+                )
             shutil.copy(path, destination)
 
     def _serialize(self, path):
