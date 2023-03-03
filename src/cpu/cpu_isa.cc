@@ -63,7 +63,7 @@ namespace ctranslate2 {
 
 #ifdef CT2_WITH_CPU_DISPATCH
 #  if defined(CT2_X86_BUILD)
-      // Note that AVX512 is not included in the automatic dispatch at this time.
+      // Note that AVX512 can only be enabled with the environment variable at this time.
       if (cpu_supports_avx2())
         return CpuIsa::AVX2;
       if (cpu_supports_avx())
