@@ -97,7 +97,7 @@ static inline v16sf log512_ps(v16sf x)
     v16sf one = *(v16sf *) _ps512_1;
 
     __mmask16 zero_mask = _mm512_cmp_ps_mask(x, zero, _CMP_EQ_OQ);
-    v16sf invalid_mask = (v16sf) _mm512_movm_epi32(_mm512_cmp_ps_mask(x, zero, _CMP_LE_OS));
+    v16sf invalid_mask = _mm512_castsi512_ps(_mm512_movm_epi32(_mm512_cmp_ps_mask(x, zero, _CMP_LE_OS)));
     x = _mm512_max_ps(x, *(v16sf *) _ps512_min_norm_pos); /* cut off denormalized stuff */
 
     // can be done with AVX2
@@ -113,7 +113,7 @@ static inline v16sf log512_ps(v16sf x)
 
     e = _mm512_add_ps(e, one);
 
-    v16sf mask = (v16sf) _mm512_movm_epi32(_mm512_cmp_ps_mask(x, *(v16sf *) _ps512_cephes_SQRTHF, _CMP_LT_OS));
+    v16sf mask = _mm512_castsi512_ps(_mm512_movm_epi32(_mm512_cmp_ps_mask(x, *(v16sf *) _ps512_cephes_SQRTHF, _CMP_LT_OS)));
 
     v16sf tmp = _mm512_and_ps(x, mask);
     x = _mm512_sub_ps(x, one);
@@ -161,7 +161,7 @@ static inline v16sf exp512_ps(v16sf x)
     tmp = _mm512_floor_ps(fx);
 
     /* if greater, substract 1 */
-    v16sf mask = (v16sf) _mm512_movm_epi32(_mm512_cmp_ps_mask(tmp, fx, _CMP_GT_OS));
+    v16sf mask = _mm512_castsi512_ps(_mm512_movm_epi32(_mm512_cmp_ps_mask(tmp, fx, _CMP_GT_OS)));
     mask = _mm512_and_ps(mask, one);
     fx = _mm512_sub_ps(tmp, mask);
 
