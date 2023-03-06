@@ -21,6 +21,7 @@ TransformerSpec
     - :obj:`~ctranslate2.specs.TransformerSpec.get_source_vocabulary_size`
     - :obj:`~ctranslate2.specs.TransformerSpec.get_target_vocabulary_size`
     - :obj:`~ctranslate2.specs.TransformerSpec.optimize`
+    - :obj:`~ctranslate2.specs.TransformerSpec.register_file`
     - :obj:`~ctranslate2.specs.TransformerSpec.register_source_vocabulary`
     - :obj:`~ctranslate2.specs.TransformerSpec.register_target_vocabulary`
     - :obj:`~ctranslate2.specs.TransformerSpec.register_vocabulary_mapping`

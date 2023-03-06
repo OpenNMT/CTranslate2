@@ -23,6 +23,7 @@ ModelSpec
 
     - :obj:`~ctranslate2.specs.ModelSpec.get_default_config`
     - :obj:`~ctranslate2.specs.ModelSpec.optimize`
+    - :obj:`~ctranslate2.specs.ModelSpec.register_file`
     - :obj:`~ctranslate2.specs.ModelSpec.save`
     - :obj:`~ctranslate2.specs.ModelSpec.validate`
     - :obj:`~ctranslate2.specs.ModelSpec.variables`

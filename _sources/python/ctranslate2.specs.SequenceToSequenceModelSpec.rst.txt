@@ -24,6 +24,7 @@ SequenceToSequenceModelSpec
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.get_source_vocabulary_size`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.get_target_vocabulary_size`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.optimize`
+    - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.register_file`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.register_source_vocabulary`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.register_target_vocabulary`
     - :obj:`~ctranslate2.specs.SequenceToSequenceModelSpec.register_vocabulary_mapping`

@@ -13,3 +13,6 @@ TransformersConverter
     - :obj:`~ctranslate2.converters.TransformersConverter.convert`
     - :obj:`~ctranslate2.converters.TransformersConverter.convert_from_args`
     - :obj:`~ctranslate2.converters.TransformersConverter.declare_arguments`
+    - :obj:`~ctranslate2.converters.TransformersConverter.get_model_file`
+    - :obj:`~ctranslate2.converters.TransformersConverter.load_model`
+    - :obj:`~ctranslate2.converters.TransformersConverter.load_tokenizer`

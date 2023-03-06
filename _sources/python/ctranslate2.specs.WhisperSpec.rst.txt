@@ -19,6 +19,7 @@ WhisperSpec
     - :obj:`~ctranslate2.specs.WhisperSpec.get_default_config`
     - :obj:`~ctranslate2.specs.WhisperSpec.get_vocabulary_size`
     - :obj:`~ctranslate2.specs.WhisperSpec.optimize`
+    - :obj:`~ctranslate2.specs.WhisperSpec.register_file`
     - :obj:`~ctranslate2.specs.WhisperSpec.register_vocabulary`
     - :obj:`~ctranslate2.specs.WhisperSpec.save`
     - :obj:`~ctranslate2.specs.WhisperSpec.validate`

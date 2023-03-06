@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LanguageModelSpec &mdash; CTranslate2 3.7.0 documentation</title>
+  <title>LanguageModelSpec &mdash; CTranslate2 3.8.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.7
+                3.8
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -147,6 +147,7 @@
 <li><p><a class="reference internal" href="#ctranslate2.specs.LanguageModelSpec.get_default_config" title="ctranslate2.specs.LanguageModelSpec.get_default_config"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_default_config</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.LanguageModelSpec.get_vocabulary_size" title="ctranslate2.specs.LanguageModelSpec.get_vocabulary_size"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_vocabulary_size</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.LanguageModelSpec.optimize" title="ctranslate2.specs.LanguageModelSpec.optimize"><code class="xref py py-obj docutils literal notranslate"><span class="pre">optimize</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.specs.LanguageModelSpec.register_file" title="ctranslate2.specs.LanguageModelSpec.register_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_file</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.LanguageModelSpec.register_vocabulary" title="ctranslate2.specs.LanguageModelSpec.register_vocabulary"><code class="xref py py-obj docutils literal notranslate"><span class="pre">register_vocabulary</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.LanguageModelSpec.save" title="ctranslate2.specs.LanguageModelSpec.save"><code class="xref py py-obj docutils literal notranslate"><span class="pre">save</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.specs.LanguageModelSpec.validate" title="ctranslate2.specs.LanguageModelSpec.validate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">validate</span></code></a></p></li>
@@ -184,6 +185,12 @@
 (possible values are: int8, int8_float16, int16, float16).</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.specs.LanguageModelSpec.register_file">
+<span class="sig-name descname"><span class="pre">register_file</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">filename</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.specs.LanguageModelSpec.register_file" title="Permalink to this definition"></a></dt>
+<dd><p>Registers a file to be saved in the model directory.</p>
 </dd></dl>
 
 <dl class="py method">

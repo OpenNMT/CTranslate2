@@ -20,6 +20,7 @@ TransformerDecoderModelSpec
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.get_default_config`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.optimize`
+    - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.register_file`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.register_vocabulary`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.save`
     - :obj:`~ctranslate2.specs.TransformerDecoderModelSpec.validate`
