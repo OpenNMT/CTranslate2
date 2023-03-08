@@ -80,6 +80,14 @@ namespace ctranslate2 {
                     float epsilon);
 
     template <CpuIsa ISA>
+    void layer_norm_axis(const float* input,
+                         float* output,
+                         dim_t outer_size,
+                         dim_t axis_size,
+                         dim_t inner_size,
+                         float epsilon);
+
+    template <CpuIsa ISA>
     void rms_norm(const float* input,
                   const float* gamma,
                   float* output,

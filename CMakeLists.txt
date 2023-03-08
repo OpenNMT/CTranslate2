@@ -88,6 +88,7 @@ set(SOURCES
   src/decoding.cc
   src/decoding_utils.cc
   src/devices.cc
+  src/dtw.cc
   src/env.cc
   src/generator.cc
   src/layers/attention.cc
@@ -144,6 +145,7 @@ set(SOURCES
   src/ops/topk.cc
   src/ops/topk_cpu.cc
   src/ops/transpose.cc
+  src/ops/whisper.cc
   src/padder.cc
   src/profiler.cc
   src/random.cc
