@@ -350,7 +350,7 @@ namespace ctranslate2 {
         throw std::runtime_error("The model configuration does not contain the field "
                                  "'alignment_heads' which lists the cross-attention heads "
                                  "that are highly correlated to the word-level timing. "
-                                 "Please reconvert this model with a more recent version "
+                                 "Please reconvert this model with the current version "
                                  "of ctranslate2.");
 
       _decoder->set_alignment_heads(alignment_heads->get<std::vector<std::pair<dim_t, dim_t>>>());
