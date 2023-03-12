@@ -463,6 +463,8 @@ namespace ctranslate2 {
 
     template<>
     void layer_norm_axis<TARGET_ISA>(const float* input,
+                                     const float* gamma,
+                                     const float* beta,
                                      float* output,
                                      dim_t outer_size,
                                      dim_t axis_size,
@@ -488,9 +490,16 @@ namespace ctranslate2 {
             const float variance = std::max(sum_squares / axis_size - mean * mean, 0.f);
             const float rstd = 1.f / std::sqrt(variance + epsilon);
 
-            for (dim_t k = 0; k < axis_size; ++k) {
-              const dim_t index = i * axis_size * inner_size + k * inner_size + j;
-              output[index] = (input[index] - mean) * rstd;
+            if (gamma && beta) {
+              for (dim_t k = 0; k < axis_size; ++k) {
+                const dim_t index = i * axis_size * inner_size + k * inner_size + j;
+                output[index] = (input[index] - mean) * rstd * gamma[k] + beta[k];
+              }
+            } else {
+              for (dim_t k = 0; k < axis_size; ++k) {
+                const dim_t index = i * axis_size * inner_size + k * inner_size + j;
+                output[index] = (input[index] - mean) * rstd;
+              }
             }
           }
         }

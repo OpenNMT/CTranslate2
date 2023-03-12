@@ -435,7 +435,7 @@ namespace ctranslate2 {
         // The remaining operations are not implemented on GPU, so move back to CPU.
         attention_weights.move_to(Device::CPU, DataType::FLOAT32);
 
-        ops::NormalizeAttentionWeights()(attention_weights);
+        ops::LayerNorm(-2, 0)(attention_weights);
 
         const ops::MedianFilter median_filter_op(median_filter_width);
         StorageView median_filter;

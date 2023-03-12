@@ -691,6 +691,31 @@ TEST_P(OpDeviceFPTest, LayerNorm) {
   expect_storage_eq(y.to_float32(), expected, 1e-3);
 }
 
+TEST_P(OpDeviceFPTest, LayerNormAxis) {
+  const Device device = GetParam().first;
+  if (device == Device::CUDA) {
+    GTEST_SKIP() << "Generalized LayerNorm is not implemented on GPU";
+  }
+  const DataType dtype = GetParam().second;
+  StorageView x({2, 3, 2}, std::vector<float>{
+      0.08830845355987549, 0.7807812690734863,
+      0.34740084409713745, 0.8272842764854431,
+      0.3155772089958191, 0.21066278219223022,
+      0.02693861722946167, 0.6299145221710205,
+      0.05086874961853027, 0.6894713640213013,
+      0.7736693620681763, 0.4071813225746155}, device);
+  StorageView expected({2, 3, 2}, std::vector<float>{
+      -1.4052178859710693, 0.6225495338439941,
+      0.8405286073684692, 0.7884179353713989,
+      0.5646895170211792, -1.410967469215393,
+      -0.7413559556007385, 0.4476976990699768,
+      -0.6722954511642456, 0.9379060864448547,
+      1.4136513471603394, -1.3856042623519897}, device);
+  StorageView y(dtype, device);
+  ops::LayerNorm(1, 0)(x.to(dtype), y);
+  expect_storage_eq(y.to_float32(), expected, 1e-3);
+}
+
 TEST_P(OpDeviceFPTest, RMSNorm) {
   const Device device = GetParam().first;
   const DataType dtype = GetParam().second;

@@ -146,7 +146,6 @@ set(SOURCES
   src/ops/topk.cc
   src/ops/topk_cpu.cc
   src/ops/transpose.cc
-  src/ops/whisper.cc
   src/padder.cc
   src/profiler.cc
   src/random.cc
