@@ -20,7 +20,7 @@ namespace ctranslate2 {
     constexpr dim_t GRAIN_SIZE = 32768;
 
     template <typename T>
-    dim_t get_minimum_batch_copy_per_thread(const dim_t copy_size) {
+    dim_t get_minimum_batch_copies_per_thread(const dim_t copy_size) {
       constexpr dim_t min_copy_bytes = 4096;
       constexpr dim_t item_size = sizeof (T);
       const dim_t copy_bytes = copy_size * item_size;
