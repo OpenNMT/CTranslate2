@@ -5,10 +5,13 @@
 namespace ctranslate2 {
   namespace ops {
 
-    class NormalizeAttentionWeights : public Op {
+    class MedianFilter : public Op {
     public:
-      void operator()(StorageView& input) const;
+      MedianFilter(const dim_t width);
       void operator()(const StorageView& input, StorageView& output) const;
+
+    private:
+      const dim_t _width;
     };
 
   }

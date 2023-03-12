@@ -36,3 +36,4 @@
 #include "rms_norm.h"
 #include "tanh.h"
 #include "whisper.h"
+#include "median_filter.h"
