@@ -22,8 +22,7 @@ namespace ctranslate2 {
     template <typename T>
     dim_t get_minimum_batch_copies_per_thread(const dim_t copy_size) {
       constexpr dim_t min_copy_bytes = 4096;
-      constexpr dim_t item_size = sizeof (T);
-      const dim_t copy_bytes = copy_size * item_size;
+      const dim_t copy_bytes = copy_size * sizeof (T);
       return std::max(min_copy_bytes / copy_bytes, dim_t(1));
     }
 
