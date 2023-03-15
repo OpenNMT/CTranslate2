@@ -14,5 +14,6 @@ Whisper
 
     **Methods:**
 
+    - :obj:`~ctranslate2.models.Whisper.align`
     - :obj:`~ctranslate2.models.Whisper.detect_language`
     - :obj:`~ctranslate2.models.Whisper.generate`

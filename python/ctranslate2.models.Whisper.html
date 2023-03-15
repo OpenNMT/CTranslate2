@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Whisper &mdash; CTranslate2 3.8.0 documentation</title>
+  <title>Whisper &mdash; CTranslate2 3.9.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.8
+                3.9
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -133,6 +133,7 @@
 </ul>
 <p><strong>Methods:</strong></p>
 <ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.models.Whisper.align" title="ctranslate2.models.Whisper.align"><code class="xref py py-obj docutils literal notranslate"><span class="pre">align</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.detect_language" title="ctranslate2.models.Whisper.detect_language"><code class="xref py py-obj docutils literal notranslate"><span class="pre">detect_language</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.generate" title="ctranslate2.models.Whisper.generate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate</span></code></a></p></li>
 </ul>
@@ -158,6 +159,27 @@ until a free slot is available.</p></li>
 file names to file contents as file-like or bytes objects. If this is set,
 <code class="xref py py-obj docutils literal notranslate"><span class="pre">model_path</span></code> acts as an identifier for this model.</p></li>
 </ul>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.models.Whisper.align">
+<span class="sig-name descname"><span class="pre">align</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">features</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView" title="ctranslate2.StorageView"><span class="pre">StorageView</span></a></span></em>, <em class="sig-param"><span class="n"><span class="pre">start_sequence</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">text_tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">int</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_frames</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">median_filter_width</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">7</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">WhisperAlignmentResult</span><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#ctranslate2.models.Whisper.align" title="Permalink to this definition"></a></dt>
+<dd><p>Computes the alignments between the text tokens and the audio.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>features</strong> – Mel spectogram of the audio, as a float32 array with shape
+<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">3000]</span></code>.</p></li>
+<li><p><strong>start_sequence</strong> – The start sequence tokens.</p></li>
+<li><p><strong>text_tokens</strong> – Batch of text tokens to align.</p></li>
+<li><p><strong>num_frames</strong> – Number of non padding frames in the features.</p></li>
+<li><p><strong>median_filter_width</strong> – Width of the median filter kernel.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A list of alignment results.</p>
 </dd>
 </dl>
 </dd></dl>
