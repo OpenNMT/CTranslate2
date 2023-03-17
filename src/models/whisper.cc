@@ -501,7 +501,7 @@ namespace ctranslate2 {
       if (score_ids.device() != device)
         score_ids = score_ids.to(device);
 
-      layers::DecoderState state = _decoder->initial_state(/*iterative_decoding=*/false);
+      layers::DecoderState state = _decoder->initial_state();
       state.emplace("memory", encode(features));
 
       StorageView logits(_decoder->output_type(), device);
