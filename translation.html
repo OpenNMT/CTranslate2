@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text translation &mdash; CTranslate2 3.9.0 documentation</title>
+  <title>Text translation &mdash; CTranslate2 3.9.1 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -155,7 +155,7 @@
 <h3>Translation client<a class="headerlink" href="#translation-client" title="Permalink to this headline"></a></h3>
 <p>The translation client can be used via the Docker image:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">echo</span><span class="w"> </span><span class="s2">&quot;▁H ello ▁world !&quot;</span><span class="w"> </span><span class="p">|</span><span class="w"> </span>docker<span class="w"> </span>run<span class="w"> </span>-i<span class="w"> </span>--rm<span class="w"> </span>-v<span class="w"> </span><span class="nv">$PWD</span>:/data<span class="w"> </span><span class="se">\</span>
-<span class="w">    </span>opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2<span class="w"> </span>--model<span class="w"> </span>/data/ende_ctranslate2<span class="w"> </span>--device<span class="w"> </span>cpu
+<span class="w">    </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2<span class="w"> </span>--model<span class="w"> </span>/data/ende_ctranslate2<span class="w"> </span>--device<span class="w"> </span>cpu
 </pre></div>
 </div>
 <p>To translate on GPU, use <code class="docutils literal notranslate"><span class="pre">docker</span> <span class="pre">run</span> <span class="pre">--gpus</span> <span class="pre">all</span></code> and set the option <code class="docutils literal notranslate"><span class="pre">--device</span> <span class="pre">cuda</span></code>. Use <code class="docutils literal notranslate"><span class="pre">--help</span></code> to see the list of available options.</p>
