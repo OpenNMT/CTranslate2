@@ -35,7 +35,7 @@ class MarianConverter(Converter):
     def _load(self):
         model = np.load(self._model_path)
         config = _get_model_config(model)
-        vocabs = list(map(_load_vocab, self._vocab_paths))
+        vocabs = list(map(load_vocab, self._vocab_paths))
 
         activation = config["transformer-ffn-activation"]
         pre_norm = "n" in config["transformer-preprocess"]
@@ -115,7 +115,7 @@ def _get_model_config(model):
     return config
 
 
-def _load_vocab(path):
+def load_vocab(path):
     # pyyaml skips some entries so we manually parse the vocabulary file.
     with open(path, encoding="utf-8") as vocab:
         tokens = []
