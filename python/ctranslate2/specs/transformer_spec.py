@@ -1,6 +1,6 @@
 """Declares specification of the Transformer model."""
 
-from typing import Tuple, Union
+from typing import Optional, Tuple, Union
 
 import numpy as np
 
@@ -86,6 +86,9 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         ffn_glu: bool = False,
         rms_norm: bool = False,
         alibi: bool = False,
+        rotary_dim: Optional[int] = None,
+        rotate_every_two: bool = True,
+        gptj_block: bool = False,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -109,7 +112,18 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
             https://arxiv.org/abs/2002.05202.
           rms_norm: Use the root mean square layer normalization.
           alibi: Use attention with linear biases.
+          rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
+            embeddings are applied to all dimensions.
+          rotate_every_two: When rotary embeddings are used, apply the rotation to every two
+            dimensions. Otherwise the rotation is applied to the first half dimensions.
+          gptj_block: Use the GPT-J layer block with a single layer norm.
         """
+        if gptj_block:
+            if not pre_norn:
+                raise ValueError("The GPT-J block expects a pre-norm architecture")
+            if with_encoder_attention:
+                raise ValueError("The GPT-J block does not have cross attention")
+
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
         self.activation = np.dtype("int8").type(activation)
@@ -133,6 +147,9 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 relative_attention_bias=relative_attention_bias,
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
+                rotary_dim=rotary_dim,
+                rotate_every_two=rotate_every_two,
+                shared_layer_norm=gptj_block,
             )
             for _ in range(num_layers)
         ]
@@ -168,16 +185,26 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         relative_attention_bias=False,
         ffn_glu=False,
         rms_norm=False,
+        rotary_dim=None,
+        rotate_every_two=True,
+        shared_layer_norm=False,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
             relative_position=relative_position,
             relative_attention_bias=relative_attention_bias,
             rms_norm=rms_norm,
+            rotary_dim=rotary_dim,
+            rotate_every_two=rotate_every_two,
         )
         if with_encoder_attention:
             self.attention = attention_spec.MultiHeadAttentionSpec(rms_norm=rms_norm)
         self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
+
+        if shared_layer_norm:
+            self.shared_layer_norm = common_spec.LayerNormSpec()
+            delattr(self.self_attention, "layer_norm")
+            delattr(self.ffn, "layer_norm")
 
 
 class FeedForwardSpec(model_spec.LayerSpec):
@@ -339,6 +366,9 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         project_in_out: bool = False,
         with_relative_position: bool = False,
         alibi: bool = False,
+        rotary_dim: Optional[int] = None,
+        rotate_every_two: bool = True,
+        gptj_block: bool = False,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -353,6 +383,11 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             before the final output projection.
           with_relative_position: Enable relative position representations modules.
           alibi: Use attention with linear biases.
+          rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
+            embeddings are applied to all dimensions.
+          rotate_every_two: When rotary embeddings are used, apply the rotation to every two
+            dimensions. Otherwise the rotation is applied to the first half dimensions.
+          gptj_block: Use the GPT-J layer block with a single layer norm.
         """
         decoder = TransformerDecoderSpec(
             num_layers,
@@ -365,6 +400,9 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             project_in_out=project_in_out,
             relative_position=with_relative_position,
             alibi=alibi,
+            rotary_dim=rotary_dim,
+            rotate_every_two=rotate_every_two,
+            gptj_block=gptj_block,
         )
 
         return cls(decoder)
