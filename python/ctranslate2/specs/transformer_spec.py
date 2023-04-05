@@ -413,7 +413,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
     @property
     def revision(self):
-        return 3
+        return 4
 
     def get_vocabulary_size(self):
         return self.decoder.embeddings.weight.shape[0]
