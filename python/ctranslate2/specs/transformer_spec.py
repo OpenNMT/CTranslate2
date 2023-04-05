@@ -119,7 +119,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           gptj_block: Use the GPT-J layer block with a single layer norm.
         """
         if gptj_block:
-            if not pre_norn:
+            if not pre_norm:
                 raise ValueError("The GPT-J block expects a pre-norm architecture")
             if with_encoder_attention:
                 raise ValueError("The GPT-J block does not have cross attention")
