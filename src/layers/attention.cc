@@ -545,8 +545,8 @@ namespace ctranslate2 {
       const DataType dtype = x.dtype();
       const dim_t max_time = x.dim(-2);
 
-      if (!_sin || max_time < _sin.dim(0)) {
-        const dim_t num_positions = std::max(max_time, _num_initial_positions);
+      if (!_sin || offset + max_time > _sin.dim(0)) {
+        const dim_t num_positions = std::max(offset + max_time, _num_initial_positions);
         initialize(num_positions, x.dim(-1), device, dtype);
       }
 

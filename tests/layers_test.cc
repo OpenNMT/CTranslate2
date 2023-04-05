@@ -92,7 +92,7 @@ TEST(LayerTest, RotaryEmbedding) {
         -1.0929580926895142, 0.004653988406062126, 0.10157346725463867, 0.07537403702735901
     });
 
-    layers::RotaryEmbeddings rotary_embeddings(0, false);
+    layers::RotaryEmbeddings rotary_embeddings(0, false, 0);
     StorageView x = input;
     rotary_embeddings.apply(x, 2);
     expect_storage_eq(x, expected, 1e-6);
