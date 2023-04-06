@@ -76,13 +76,13 @@ namespace ctranslate2 {
                                                      const dim_t num_heads,
                                                      const bool pre_norm,
                                                      const ops::ActivationType activation_type)
-      : _shared_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/shared_layer_norm"))
-      , _self_attention(model,
+      : _self_attention(model,
                         scope + "/self_attention",
                         num_heads,
                         /*self_attention=*/true,
                         pre_norm,
                         /*is_decoder=*/true)
+      , _shared_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/shared_layer_norm"))
       , _encoder_attention(build_optional_layer<MultiHeadAttention>(model,
                                                                     scope + "/attention",
                                                                     num_heads,

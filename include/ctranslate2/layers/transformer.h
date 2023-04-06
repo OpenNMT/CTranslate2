@@ -108,8 +108,8 @@ namespace ctranslate2 {
       }
 
     private:
-      const std::unique_ptr<const LayerNorm> _shared_layer_norm;
       const MultiHeadAttention _self_attention;
+      const std::unique_ptr<const LayerNorm> _shared_layer_norm;
       const std::unique_ptr<const MultiHeadAttention> _encoder_attention;
       const FeedForwardNetwork _ff;
     };
