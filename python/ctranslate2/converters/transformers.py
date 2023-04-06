@@ -570,7 +570,6 @@ class GPTJLoader(ModelLoader):
             pre_norm=True,
             activation=_SUPPORTED_ACTIVATIONS[model.config.activation_function],
             rotary_dim=model.config.rotary_dim,
-            rotate_every_two=True,
             gptj_block=True,
         )
 
