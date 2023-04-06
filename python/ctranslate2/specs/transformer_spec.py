@@ -359,8 +359,6 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         no_final_norm: bool = False,
         project_in_out: bool = False,
         with_relative_position: bool = False,
-        ffn_glu: bool = False,
-        rms_norm: bool = False,
         alibi: bool = False,
         rotary_dim: Optional[int] = None,
         gptj_block: bool = False,
@@ -377,9 +375,6 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
           project_in_out: Add a linear layer after the embedding layer and another one
             before the final output projection.
           with_relative_position: Enable relative position representations modules.
-          ffn_glu: Use gated linear units in the FFN layers as described in
-            https://arxiv.org/abs/2002.05202.
-          rms_norm: Use the root mean square layer normalization.
           alibi: Use attention with linear biases.
           rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
             embeddings are applied to all dimensions.
@@ -395,8 +390,6 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             no_final_norm=no_final_norm,
             project_in_out=project_in_out,
             relative_position=with_relative_position,
-            ffn_glu=ffn_glu,
-            rms_norm=rms_norm,
             alibi=alibi,
             rotary_dim=rotary_dim,
             gptj_block=gptj_block,
