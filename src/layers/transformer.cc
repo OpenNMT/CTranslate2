@@ -8,12 +8,10 @@ namespace ctranslate2 {
     FeedForwardNetwork::FeedForwardNetwork(const models::Model& model,
                                            const std::string& scope,
                                            const bool pre_norm,
-                                           const ops::ActivationType activation_type,
-                                           const bool apply_residual)
+                                           const ops::ActivationType activation_type)
       : _layer_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
       , _pre_norm(pre_norm)
       , _activation_type(activation_type)
-      , _apply_residual(apply_residual)
       , _ff1(model, scope + "/linear_0", &_activation_type)
       , _ff1_noact(build_optional_layer<Dense>(model, scope + "/linear_0_noact"))
       , _ff2(model, scope + "/linear_1") {
@@ -40,11 +38,12 @@ namespace ctranslate2 {
 
       _ff2(inner, output);
 
-      if (_apply_residual)
+      if (_layer_norm) {
         ops::Add()(input, output, output);
 
-      if (_layer_norm && !_pre_norm)
-        (*_layer_norm)(output, output);
+        if (!_pre_norm)
+          (*_layer_norm)(output, output);
+      }
     }
 
 
@@ -83,20 +82,14 @@ namespace ctranslate2 {
                         num_heads,
                         /*self_attention=*/true,
                         pre_norm,
-                        /*is_decoder=*/true,
-                        /*apply_residual=*/!_shared_layer_norm)
+                        /*is_decoder=*/true)
       , _encoder_attention(build_optional_layer<MultiHeadAttention>(model,
                                                                     scope + "/attention",
                                                                     num_heads,
                                                                     /*self_attention=*/false,
                                                                     pre_norm,
                                                                     /*is_decoder=*/true))
-      , _ff(model,
-            scope + "/ffn",
-            pre_norm,
-            activation_type,
-            /*apply_residual=*/!_shared_layer_norm)
-    {
+      , _ff(model, scope + "/ffn", pre_norm, activation_type) {
     }
 
     void TransformerDecoderLayer::operator()(const StorageView& input,

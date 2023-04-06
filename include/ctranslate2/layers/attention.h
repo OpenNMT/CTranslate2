@@ -26,8 +26,7 @@ namespace ctranslate2 {
                          dim_t num_heads,
                          bool self_attention,
                          bool pre_norm = true,
-                         bool is_decoder = false,
-                         bool apply_residual = true);
+                         bool is_decoder = false);
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& queries,
@@ -58,7 +57,6 @@ namespace ctranslate2 {
       const std::vector<Dense> _linear;
       const dim_t _d_model;
       const bool _pre_norm;
-      const bool _apply_residual;
       const std::unique_ptr<const LayerNorm> _layer_norm;
       const std::unique_ptr<RotaryEmbeddings> _rotary_embeddings;
       const StorageView* _relative_attention_bias;

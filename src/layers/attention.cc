@@ -342,15 +342,13 @@ namespace ctranslate2 {
                                            dim_t num_heads,
                                            bool self_attention,
                                            bool pre_norm,
-                                           bool is_decoder,
-                                           bool apply_residual)
+                                           bool is_decoder)
       : _num_heads(num_heads)
       , _self_attention(self_attention)
       , _is_decoder(is_decoder)
       , _linear(make_linear_layers(model, scope, self_attention))
       , _d_model(_linear.back().output_size())
       , _pre_norm(pre_norm)
-      , _apply_residual(apply_residual)
       , _layer_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
       , _rotary_embeddings(make_rotary_embeddings(model, scope))
       , _relative_attention_bias(model.get_variable_if_exists(scope + "/relative_attention_bias"))
@@ -474,11 +472,11 @@ namespace ctranslate2 {
       combine_heads(context, _num_heads, queries_padder, beam_size);
       _linear.back()(context, output);
 
-      if (_apply_residual)
+      if (_layer_norm) {
         ops::Add()(queries, output, output);
 
-      if (_layer_norm && !_pre_norm) {
-        (*_layer_norm)(output, output);
+        if (!_pre_norm)
+          (*_layer_norm)(output, output);
       }
     }
 

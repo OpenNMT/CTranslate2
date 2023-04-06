@@ -15,8 +15,7 @@ namespace ctranslate2 {
       FeedForwardNetwork(const models::Model& model,
                          const std::string& scope,
                          const bool pre_norm = true,
-                         const ops::ActivationType activation_type = ops::ActivationType::ReLU,
-                         const bool apply_residual = true);
+                         const ops::ActivationType activation_type = ops::ActivationType::ReLU);
 
       void operator()(const StorageView& input, StorageView& output) const;
 
@@ -32,7 +31,6 @@ namespace ctranslate2 {
       const std::unique_ptr<const LayerNorm> _layer_norm;
       const bool _pre_norm;
       const ops::ActivationType _activation_type;
-      const bool _apply_residual;
       const Dense _ff1;
       const std::unique_ptr<const Dense> _ff1_noact;
       const Dense _ff2;
