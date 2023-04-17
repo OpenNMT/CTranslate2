@@ -21,5 +21,6 @@ Generator
     - :obj:`~ctranslate2.Generator.forward_batch`
     - :obj:`~ctranslate2.Generator.generate_batch`
     - :obj:`~ctranslate2.Generator.generate_iterable`
+    - :obj:`~ctranslate2.Generator.generate_tokens`
     - :obj:`~ctranslate2.Generator.score_batch`
     - :obj:`~ctranslate2.Generator.score_iterable`

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Translator &mdash; CTranslate2 3.11.0 documentation</title>
+  <title>Translator &mdash; CTranslate2 3.12.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.11
+                3.12
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -78,6 +78,7 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationStepResult.html">GenerationStepResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a></li>
@@ -152,6 +153,7 @@
 </ul>
 <p><strong>Methods:</strong></p>
 <ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.Translator.generate_tokens" title="ctranslate2.Translator.generate_tokens"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate_tokens</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.Translator.load_model" title="ctranslate2.Translator.load_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_model</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.Translator.score_batch" title="ctranslate2.Translator.score_batch"><code class="xref py py-obj docutils literal notranslate"><span class="pre">score_batch</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.Translator.score_file" title="ctranslate2.Translator.score_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">score_file</span></code></a></p></li>
@@ -185,6 +187,41 @@ file names to file contents as file-like or bytes objects. If this is set,
 </ul>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.Translator.generate_tokens">
+<span class="sig-name descname"><span class="pre">generate_tokens</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">source</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">target_prefix</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">*</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_decoding_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">256</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">min_decoding_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_topk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">sampling_temperature</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">return_log_prob</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">repetition_penalty</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">float</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">no_repeat_ngram_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">0</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">disable_unk</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">suppress_sequences</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">end_token</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_input_length</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">1024</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">use_vmap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult" title="ctranslate2.GenerationStepResult"><span class="pre">GenerationStepResult</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#ctranslate2.Translator.generate_tokens" title="Permalink to this definition"></a></dt>
+<dd><p>Yields tokens as they are generated by the model.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>source</strong> – Source tokens.</p></li>
+<li><p><strong>target_prefix</strong> – Optional target prefix tokens.</p></li>
+<li><p><strong>max_decoding_length</strong> – Maximum prediction length.</p></li>
+<li><p><strong>min_decoding_length</strong> – Minimum prediction length.</p></li>
+<li><p><strong>sampling_topk</strong> – Randomly sample predictions from the top K candidates.</p></li>
+<li><p><strong>sampling_temperature</strong> – Sampling temperature to generate more random samples.</p></li>
+<li><p><strong>return_log_prob</strong> – Include the token log probability in the result.</p></li>
+<li><p><strong>repetition_penalty</strong> – Penalty applied to the score of previously generated tokens
+(set &gt; 1 to penalize).</p></li>
+<li><p><strong>no_repeat_ngram_size</strong> – Prevent repetitions of ngrams with this size
+(set 0 to disable).</p></li>
+<li><p><strong>disable_unk</strong> – Disable the generation of the unknown token.</p></li>
+<li><p><strong>suppress_sequences</strong> – Disable the generation of some sequences of tokens.</p></li>
+<li><p><strong>end_token</strong> – Stop the decoding on this token (defaults to the model EOS token).</p></li>
+<li><p><strong>max_input_length</strong> – Truncate inputs after this many tokens (set 0 to disable).</p></li>
+<li><p><strong>use_vmap</strong> – Use the vocabulary mapping file saved in this model</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns</dt>
+<dd class="field-even"><p>A generator iterator over <a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult" title="ctranslate2.GenerationStepResult"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.GenerationStepResult</span></code></a> instances.</p>
+</dd>
+</dl>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This generation method is not compatible with beam search which requires a complete decoding.</p>
+</div>
 </dd></dl>
 
 <dl class="py method">

@@ -19,6 +19,7 @@ Translator
 
     **Methods:**
 
+    - :obj:`~ctranslate2.Translator.generate_tokens`
     - :obj:`~ctranslate2.Translator.load_model`
     - :obj:`~ctranslate2.Translator.score_batch`
     - :obj:`~ctranslate2.Translator.score_file`

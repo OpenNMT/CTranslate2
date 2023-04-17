@@ -10,6 +10,7 @@ ctranslate2
    ctranslate2.AsyncTranslationResult
    ctranslate2.ExecutionStats
    ctranslate2.GenerationResult
+   ctranslate2.GenerationStepResult
    ctranslate2.Generator
    ctranslate2.ScoringResult
    ctranslate2.StorageView

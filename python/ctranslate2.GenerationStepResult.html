@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TranslationResult &mdash; CTranslate2 3.12.0 documentation</title>
+  <title>GenerationStepResult &mdash; CTranslate2 3.12.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Translator" href="ctranslate2.Translator.html" />
-    <link rel="prev" title="StorageView" href="ctranslate2.StorageView.html" /> 
+    <link rel="next" title="Generator" href="ctranslate2.Generator.html" />
+    <link rel="prev" title="GenerationResult" href="ctranslate2.GenerationResult.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -78,11 +78,11 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationStepResult.html">GenerationStepResult</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">GenerationStepResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">TranslationResult</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.Translator.html">Translator</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.contains_model.html">contains_model</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html">get_cuda_device_count</a></li>
@@ -121,7 +121,7 @@
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="overview.html">Python</a> &raquo;</li>
           <li><a href="ctranslate2.html">ctranslate2</a> &raquo;</li>
-      <li>TranslationResult</li>
+      <li>GenerationStepResult</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -130,35 +130,56 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="translationresult">
-<h1>TranslationResult<a class="headerlink" href="#translationresult" title="Permalink to this headline"></a></h1>
+  <section id="generationstepresult">
+<h1>GenerationStepResult<a class="headerlink" href="#generationstepresult" title="Permalink to this headline"></a></h1>
 <dl class="py class">
-<dt class="sig sig-object py" id="ctranslate2.TranslationResult">
-<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">TranslationResult</span></span><a class="headerlink" href="#ctranslate2.TranslationResult" title="Permalink to this definition"></a></dt>
-<dd><p>A translation result.</p>
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">GenerationStepResult</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult" title="Permalink to this definition"></a></dt>
+<dd><p>The result for a single generation step.</p>
 <p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
 <p><strong>Attributes:</strong></p>
 <ul class="simple">
-<li><p><a class="reference internal" href="#ctranslate2.TranslationResult.attention" title="ctranslate2.TranslationResult.attention"><code class="xref py py-obj docutils literal notranslate"><span class="pre">attention</span></code></a></p></li>
-<li><p><a class="reference internal" href="#ctranslate2.TranslationResult.hypotheses" title="ctranslate2.TranslationResult.hypotheses"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hypotheses</span></code></a></p></li>
-<li><p><a class="reference internal" href="#ctranslate2.TranslationResult.scores" title="ctranslate2.TranslationResult.scores"><code class="xref py py-obj docutils literal notranslate"><span class="pre">scores</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.batch_id" title="ctranslate2.GenerationStepResult.batch_id"><code class="xref py py-obj docutils literal notranslate"><span class="pre">batch_id</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.is_last" title="ctranslate2.GenerationStepResult.is_last"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_last</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.log_prob" title="ctranslate2.GenerationStepResult.log_prob"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log_prob</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.step" title="ctranslate2.GenerationStepResult.step"><code class="xref py py-obj docutils literal notranslate"><span class="pre">step</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.token" title="ctranslate2.GenerationStepResult.token"><code class="xref py py-obj docutils literal notranslate"><span class="pre">token</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.token_id" title="ctranslate2.GenerationStepResult.token_id"><code class="xref py py-obj docutils literal notranslate"><span class="pre">token_id</span></code></a></p></li>
 </ul>
 <dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.TranslationResult.attention">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">attention</span></span><a class="headerlink" href="#ctranslate2.TranslationResult.attention" title="Permalink to this definition"></a></dt>
-<dd><p>Attention matrix of each translation hypothesis (empty if <code class="xref py py-obj docutils literal notranslate"><span class="pre">return_attention</span></code> was disabled).</p>
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.batch_id">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">batch_id</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.batch_id" title="Permalink to this definition"></a></dt>
+<dd><p>The batch index.</p>
 </dd></dl>
 
 <dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.TranslationResult.hypotheses">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">hypotheses</span></span><a class="headerlink" href="#ctranslate2.TranslationResult.hypotheses" title="Permalink to this definition"></a></dt>
-<dd><p>Translation hypotheses.</p>
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.is_last">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_last</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.is_last" title="Permalink to this definition"></a></dt>
+<dd><p>Whether this step is the last decoding step for this batch.</p>
 </dd></dl>
 
 <dl class="py property">
-<dt class="sig sig-object py" id="ctranslate2.TranslationResult.scores">
-<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">scores</span></span><a class="headerlink" href="#ctranslate2.TranslationResult.scores" title="Permalink to this definition"></a></dt>
-<dd><p>Score of each translation hypothesis (empty if <code class="xref py py-obj docutils literal notranslate"><span class="pre">return_scores</span></code> was disabled).</p>
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.log_prob">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">log_prob</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.log_prob" title="Permalink to this definition"></a></dt>
+<dd><p>Log probability of the token (<code class="docutils literal notranslate"><span class="pre">None</span></code> if <code class="xref py py-obj docutils literal notranslate"><span class="pre">return_log_prob</span></code> was disabled).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.step">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">step</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.step" title="Permalink to this definition"></a></dt>
+<dd><p>The decoding step.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.token">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">token</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.token" title="Permalink to this definition"></a></dt>
+<dd><p>String value of the generated token.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.token_id">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">token_id</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.token_id" title="Permalink to this definition"></a></dt>
+<dd><p>ID of the generated token.</p>
 </dd></dl>
 
 </dd></dl>
@@ -169,8 +190,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ctranslate2.StorageView.html" class="btn btn-neutral float-left" title="StorageView" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.Translator.html" class="btn btn-neutral float-right" title="Translator" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.GenerationResult.html" class="btn btn-neutral float-left" title="GenerationResult" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.Generator.html" class="btn btn-neutral float-right" title="Generator" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
