@@ -77,7 +77,7 @@ TEST(LayerTest, RotaryEmbedding) {
     StorageView x = in;
     x.reshape({2, 4, 2, 2});
 
-    StorageView y;
+    StorageView y(x.device());
     ops::Transpose({0, 1, 3, 2})(x, y);
 
     y.reshape({2, 4, 1, 4});
