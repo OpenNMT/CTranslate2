@@ -87,15 +87,15 @@ namespace ctranslate2 {
       if (src_device != Device::CPU) {
         ScopedDeviceSetter scoped_device_setter(src_device, src_device_index);
         move_variables_to_device(variables, Device::CPU);
+        synchronize_stream(src_device);
       }
 
       // Move variables to the destination device.
       if (dst_device != Device::CPU) {
         ScopedDeviceSetter scoped_device_setter(dst_device, dst_device_index);
         move_variables_to_device(variables, dst_device);
+        synchronize_stream(dst_device);
       }
-
-      synchronize_device(src_device, src_device_index);  // Wait for asynchronous deallocations.
     }
 
     static StorageView copy_variable(const StorageView& variable,
@@ -108,6 +108,7 @@ namespace ctranslate2 {
       if (variable.device() != Device::CPU) {
         ScopedDeviceSetter scoped_device_setter(variable.device(), variable.device_index());
         copy = variable.to(Device::CPU);
+        synchronize_stream(variable.device());
       }
 
       if (device != Device::CPU) {
@@ -116,6 +117,7 @@ namespace ctranslate2 {
           copy = copy.to(device);
         else
           copy = variable.to(device);
+        synchronize_stream(device);
       }
 
       return copy;
@@ -132,8 +134,9 @@ namespace ctranslate2 {
 
     Model::~Model() {
       if (!_variable_index.empty()) {
+        ScopedDeviceSetter scoped_device_setter(_device, _device_index);
         _variable_index.clear();
-        synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
+        synchronize_stream(_device);  // Wait for asynchronous deallocations.
       }
     }
 
@@ -509,6 +512,7 @@ namespace ctranslate2 {
       const ScopedDeviceSetter scoped_device_setter(device, device_index);
       model->process_linear_weights();
       model->initialize(model_reader);
+      synchronize_stream(device);
       return model;
     }
 
@@ -573,8 +577,6 @@ namespace ctranslate2 {
           model = Model::load(*model_reader, device, device_index, compute_type);
         else
           model = models.back()->copy_to(device, device_index);
-
-        synchronize_device(device, device_index);
 
         spdlog::info("Loaded model {} on device {}:{}",
                      model_reader->get_model_id(),
