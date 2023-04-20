@@ -22,15 +22,13 @@ namespace ctranslate2 {
       sin += time * ndims;
       cos += time * ndims;
 
-      for (cuda::index_t i = threadIdx.x; i < ndims; i += blockDim.x) {
-        if (interleave)
+      for (cuda::index_t i = threadIdx.x; i < depth; i += blockDim.x) {
+        if (i >= ndims)
+          y[i] = x[i];
+        else if (interleave)
           y[i] = x[i] * cos[i] + (i % 2 == 0 ? -x[i + 1] : x[i - 1]) * sin[i];
         else
           y[i] = x[i] * cos[i] + (i < middle ? -x[i + middle] : x[i - middle]) * sin[i];
-      }
-
-      for (cuda::index_t i = ndims + threadIdx.x; i < depth; i += blockDim.x) {
-        y[i] = x[i];
       }
     }
 
