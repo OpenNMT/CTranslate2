@@ -55,12 +55,20 @@ if(APPLE)
   set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13)
 endif()
 
-execute_process(COMMAND python3 -c "from ctranslate2.version import __version__; print(__version__, end=\'\')"
-  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/python
-  OUTPUT_VARIABLE CTRANSLATE2_VERSION
-)
 
-message(${CTRANSLATE2_VERSION})
+# Read version from version.py
+file(STRINGS ${CMAKE_CURRENT_SOURCE_DIR}/python/ctranslate2/version.py VERSION_FILE)
+foreach(line IN LISTS VERSION_FILE)
+  if (line MATCHES "__version__")
+    string(REGEX MATCH "[0-9.]+" CTRANSLATE2_VERSION ${line})
+    break()
+  endif()
+endforeach()
+
+if(NOT CTRANSLATE2_VERSION)
+  message(FATAL_ERROR "Version can't be read from version.py")
+endif()
+
 if(MSVC)
   if(BUILD_SHARED_LIBS)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
