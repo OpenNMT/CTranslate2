@@ -574,6 +574,8 @@ namespace ctranslate2 {
         else
           model = models.back()->copy_to(device, device_index);
 
+        synchronize_device(device, device_index);
+
         spdlog::info("Loaded model {} on device {}:{}",
                      model_reader->get_model_id(),
                      device_to_str(device),
