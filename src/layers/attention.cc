@@ -499,16 +499,6 @@ namespace ctranslate2 {
     }
 
 
-    static void apply_signal(StorageView& x, const StorageView& signal, const dim_t offset) {
-      const dim_t depth = x.dim(-1);
-      const dim_t time = x.dim(-2);
-      DEVICE_AND_TYPE_DISPATCH(x.device(), x.dtype(),
-                               primitives<D>::mul_batch_broadcast(signal.data<T>() + offset * depth,
-                                                                  x.data<T>(),
-                                                                  time * depth,
-                                                                  x.size()));
-    }
-
     RotaryEmbeddings::RotaryEmbeddings(const dim_t dim,
                                        const bool interleave,
                                        const dim_t num_initial_positions,
