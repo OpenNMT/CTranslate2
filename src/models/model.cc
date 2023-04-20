@@ -134,9 +134,8 @@ namespace ctranslate2 {
 
     Model::~Model() {
       if (!_variable_index.empty()) {
-        ScopedDeviceSetter scoped_device_setter(_device, _device_index);
         _variable_index.clear();
-        synchronize_stream(_device);  // Wait for asynchronous deallocations.
+        synchronize_stream(_device, _device_index);  // Wait for asynchronous deallocations.
       }
     }
 

@@ -97,8 +97,12 @@ namespace ctranslate2 {
   void synchronize_device(Device device, int index) {
 #ifdef CT2_WITH_CUDA
     if (device == Device::CUDA) {
-      const ScopedDeviceSetter scoped_device_setter(device, index);
-      cudaDeviceSynchronize();
+      if (index >= 0) {
+        const ScopedDeviceSetter scoped_device_setter(device, index);
+        cudaDeviceSynchronize();
+      } else {
+        cudaDeviceSynchronize();
+      }
     }
 #else
     (void)device;
@@ -106,10 +110,15 @@ namespace ctranslate2 {
 #endif
   }
 
-  void synchronize_stream(Device device) {
+  void synchronize_stream(Device device, int index) {
 #ifdef CT2_WITH_CUDA
     if (device == Device::CUDA) {
-      cudaStreamSynchronize(cuda::get_cuda_stream());
+      if (index >= 0) {
+        const ScopedDeviceSetter scoped_device_setter(device, index);
+        cudaStreamSynchronize(cuda::get_cuda_stream());
+      } else {
+        cudaStreamSynchronize(cuda::get_cuda_stream());
+      }
     }
 #else
     (void)device;
