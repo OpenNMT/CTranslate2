@@ -41,7 +41,7 @@ namespace ctranslate2 {
       const dim_t depth = input.dim(-1);
       const dim_t ndims = _ndims == 0 ? depth : _ndims;
 
-      const dim_t blocks = std::min(input.size() / (max_time * depth), cuda::max_blocks);
+      const dim_t blocks = std::min(input.size() / depth, cuda::max_blocks);
       const dim_t threads = std::min(depth, cuda::max_threads);
 
       const auto* x = cuda::device_cast(input.data<T>());
