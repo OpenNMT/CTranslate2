@@ -518,8 +518,9 @@ namespace ctranslate2 {
       const dim_t dim = _dim == 0 ? x.dim(-1) : _dim;
 
       if (!_sin || offset + max_time > _sin.dim(0)) {
-        const dim_t num_positions = std::max(offset + max_time, _num_initial_positions);
-        initialize(num_positions, dim, device, dtype);
+        const dim_t cur_num_positions = _sin ? _sin.dim(0) : 0;
+        const dim_t new_num_positions = cur_num_positions + _num_initial_positions;
+        initialize(new_num_positions, dim, device, dtype);
       }
 
       StorageView sin(dtype, device);
