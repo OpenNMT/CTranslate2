@@ -5,19 +5,14 @@ namespace ctranslate2 {
 
 #ifndef _OPENMP
 
-    static thread_local size_t num_threads = 4;
-    static thread_local bool in_parallel = false;
+    static thread_local size_t num_threads = 1;
 
     void set_num_threads(size_t num) {
       num_threads = num;
     }
 
-    void set_in_parallel_region(bool value) {
-      in_parallel = value;
-    }
-
-    bool in_parallel_region() {
-      return in_parallel;
+    size_t get_num_threads() {
+      return num_threads;
     }
 
     BS::thread_pool_light& get_thread_pool() {

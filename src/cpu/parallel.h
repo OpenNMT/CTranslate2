@@ -30,14 +30,9 @@ namespace ctranslate2 {
 
 #ifndef _OPENMP
     void set_num_threads(size_t num_threads);
-    void set_in_parallel_region(bool value);
-    bool in_parallel_region();
-    BS::thread_pool_light& get_thread_pool();
+    size_t get_num_threads();
 
-    struct ParallelRegionGuard {
-      ParallelRegionGuard() { set_in_parallel_region(true); }
-      ~ParallelRegionGuard() { set_in_parallel_region(false); }
-    };
+    BS::thread_pool_light& get_thread_pool();
 #endif
 
     template <typename Function>
@@ -49,12 +44,14 @@ namespace ctranslate2 {
         return;
       }
 
-#ifdef _OPENMP
       const dim_t size = end - begin;
+
+#ifdef _OPENMP
       if (omp_get_max_threads() == 1 || omp_in_parallel() || size <= grain_size) {
         f(begin, end);
         return;
       }
+
       #pragma omp parallel
       {
         dim_t num_threads = omp_get_num_threads();
@@ -71,26 +68,18 @@ namespace ctranslate2 {
       }
 
 #else
-      const dim_t size = end - begin;
-      if (size <= grain_size || in_parallel_region()) {
-        f(begin, end);
-        return;
-      }
-
-      // Wrap the function to prevent using parallel_for inside parallel_for.
-      const auto wrapped_f = [&f](const dim_t b, const dim_t e) {
-        ParallelRegionGuard guard;
-        f(b, e);
-      };
-
-      auto& thread_pool = get_thread_pool();
-
-      dim_t num_blocks = thread_pool.get_thread_count();
+      dim_t num_blocks = get_num_threads();
       if (grain_size > 0) {
         num_blocks = std::min(num_blocks, ceil_divide(size, grain_size));
       }
 
-      thread_pool.push_loop(begin, end, wrapped_f, num_blocks);
+      if (num_blocks == 1) {
+        f(begin, end);
+        return;
+      }
+
+      auto& thread_pool = get_thread_pool();
+      thread_pool.push_loop(begin, end, f, num_blocks);
       thread_pool.wait_for_tasks();
 
 #endif
