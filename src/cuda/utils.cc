@@ -3,7 +3,6 @@
 #include <atomic>
 #include <cstdlib>
 #include <memory>
-#include <mutex>
 #include <stdexcept>
 #include <vector>
 
@@ -107,12 +106,10 @@ namespace ctranslate2 {
     }
 
     static thread_local std::unique_ptr<CublasHandle> cublas_handle;
-    static thread_local std::once_flag cublas_handle_init;
 
     cublasHandle_t get_cublas_handle() {
-      std::call_once(cublas_handle_init, []{
+      if (!cublas_handle)
         cublas_handle = std::make_unique<CublasHandle>();
-      });
 
       return cublas_handle->get();
     }
@@ -142,12 +139,10 @@ namespace ctranslate2 {
     };
 
     static thread_local std::unique_ptr<CudnnHandle> cudnn_handle;
-    static thread_local std::once_flag cudnn_handle_init;
 
     cudnnHandle_t get_cudnn_handle() {
-      std::call_once(cudnn_handle_init, []{
+      if (!cudnn_handle)
         cudnn_handle = std::make_unique<CudnnHandle>();
-      });
 
       return cudnn_handle->get();
     }
