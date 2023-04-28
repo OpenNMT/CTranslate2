@@ -116,4 +116,14 @@ namespace ctranslate2 {
 #endif
   }
 
+  void destroy_context(Device device) {
+#ifdef CT2_WITH_CUDA
+    if (device == Device::CUDA) {
+      cuda::destroy_handles();
+    }
+#else
+    (void)device;
+#endif
+  }
+
 }
