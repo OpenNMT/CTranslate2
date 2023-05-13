@@ -103,7 +103,7 @@ def _get_model_spec_lm(opt, variables, src_vocabs, tgt_vocabs, num_source_embedd
     activation_fn = getattr(opt, "pos_ffn_activation_fn", "relu")
     num_heads = getattr(opt, "heads", 8)
     rotary_dim = 0 if with_rotary else None
-    ffn_glu = activation_fn == 'silu'
+    ffn_glu = activation_fn == "silu"
 
     model_spec = transformer_spec.TransformerDecoderModelSpec.from_config(
         opt.dec_layers,
@@ -277,7 +277,7 @@ def set_ffn(spec, variables, scope):
     set_layer_norm(spec.layer_norm, variables, "%s.layer_norm" % scope)
     set_linear(spec.linear_0, variables, "%s.w_1" % scope)
     set_linear(spec.linear_1, variables, "%s.w_2" % scope)
-    if hasattr(spec, 'linear_0_noact'):
+    if hasattr(spec, "linear_0_noact"):
         set_linear(spec.linear_0_noact, variables, "%s.w_3" % scope)
 
 
