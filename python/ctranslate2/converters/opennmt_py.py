@@ -114,7 +114,7 @@ def _get_model_spec_lm(opt, variables, src_vocabs, tgt_vocabs, num_source_embedd
         alibi=with_alibi,
         rms_norm=opt.layer_norm == "rms",
         rotary_dim=rotary_dim,
-        rotary_interleave=False,
+        rotary_interleave=True,
     )
 
     set_transformer_decoder(
@@ -308,6 +308,7 @@ def set_layer_norm(spec, variables, scope):
     except KeyError:
         # Compatibility with older models using a custom LayerNorm module.
         spec.gamma = _get_variable(variables, "%s.a_2" % scope)
+        spec.beta = _get_variable(variables, "%s.b_2" % scope)
     try:
         spec.beta = _get_variable(variables, "%s.bias" % scope)
     except KeyError:
