@@ -626,6 +626,96 @@ class GPTJLoader(ModelLoader):
             self.set_linear(layer_spec.ffn.linear_0, layer.mlp.fc_in)
             self.set_linear(layer_spec.ffn.linear_1, layer.mlp.fc_out)
 
+@register_loader("CodeGenConfig")
+class CodeGenLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "CodeGenForCausalLM"
+
+    def get_model_spec(self, model):
+        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
+            model.config.n_layer,
+            model.config.n_head,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.activation_function],
+            rotary_dim=model.config.rotary_dim,
+            rotary_interleave=False,
+            parallel_residual=True,
+            shared_layer_norm=True,
+        )
+
+        self.set_decoder(
+            spec.decoder,
+            model.transformer,
+            model.config.rotary_dim,
+            model.config.n_head,
+            model.config.n_embd # added arg compared to GPT-J
+        )
+        self.set_linear(spec.decoder.projection, model.lm_head)
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            # fix from GPTNeoX Converter.
+            tokens.append("<extra_id_%d>" % i)
+
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = tokenizer.bos_token
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = tokenizer.unk_token
+
+    def set_decoder(self, spec, module, rotary_dim, num_heads, embed_dim):
+        spec.scale_embeddings = False
+        self.set_embeddings(spec.embeddings, module.wte)
+        self.set_layer_norm(spec.layer_norm, module.ln_f)
+
+        for layer_spec, layer in zip(spec.layer, module.h):
+            self.set_layer_norm(layer_spec.shared_layer_norm, layer.ln_1)
+            ### convert CodeGen to GPT-J: 
+            # numpy conversion, adapted from torch code in 
+            # see https://github.com/fauxpilot/fauxpilot/blob/fb4073a9078dd001ebeb7dfefb8cb2ecc8a88f4b/converter/codegen_gptj_convert.py # noqa
+            qkv_proj = layer.attn.qkv_proj.weight
+            mp_num = 4  # number hardcoded in CodeGen from TPU
+            local_dim = embed_dim // mp_num
+            # GPT-J and CodeGen slice up the qkv projection slightly differently.
+            # After a great deal of pain, I figured out that this permutation on
+            # the weights of the qkv_proj fixes it.
+            base_permutation = [0, 3, 6, 9, 1, 4, 7, 10, 2, 5, 8, 11]
+            # permutation = torch.cat([torch.arange(i * local_dim, (i + 1) * local_dim) for i in base_permutation])
+            permutation_np = np.concatenate([np.arange(i * local_dim, (i + 1) * local_dim) for i in base_permutation])
+            # NB: we permute the *rows* here because the computation is xA.T
+            # new_qkv_proj = qkv_proj[permutation, :]
+            new_qkv_proj_np = qkv_proj.numpy()[permutation_np, :]
+            # NB: the name QKV is misleading here; they are actually stored in
+            #     the order QVK
+            # qw, vw, kw = torch.split(new_qkv_proj, embed_dim, dim=0)
+            qw, vw, kw = np.array_split(new_qkv_proj_np, 3, axis=0)
+            ### 
+            # qw = qw.numpy()
+            # kw = kw.numpy()
+            # vw = vw.numpy()
+            # np.testing.assert_equal(qw,qwn)
+            # np.testing.assert_equal(kw,kwn)
+            # np.testing.assert_equal(vw,vwn)
+
+            qw = utils.permute_for_sliced_rotary(qw, num_heads, rotary_dim)
+            kw = utils.permute_for_sliced_rotary(kw, num_heads, rotary_dim)
+
+            layer_spec.self_attention.linear[0].weight = np.concatenate((qw, kw, vw))
+            self.set_linear(layer_spec.self_attention.linear[1], layer.attn.out_proj)
+
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.fc_in)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.fc_out)
+
+
 
 @register_loader("GPTNeoXConfig")
 class GPTNeoXLoader(ModelLoader):
