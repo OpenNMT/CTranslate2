@@ -116,9 +116,7 @@ class TransformersConverter(Converter):
             spec = loader(model, tokenizer)
 
             if self._activation_scales:
-                activation_scales = torch.load(
-                    self._activation_scales, map_location="cpu"
-                )
+                activation_scales = torch.load(self._activation_scales, map_location="cpu")
                 loader.smooth_activation(spec, activation_scales)
 
             if self._copy_files:
@@ -148,8 +146,7 @@ class TransformersConverter(Converter):
 
         if path is None or not os.path.isfile(path):
             raise ValueError(
-                "File %s does not exist in model %s"
-                % (filename, self._model_name_or_path)
+                "File %s does not exist in model %s" % (filename, self._model_name_or_path)
             )
 
         return path
@@ -177,10 +174,7 @@ class ModelLoader(abc.ABC):
 
     def get_vocabulary(self, model, tokenizer):
         return [
-            token
-            for token, _ in sorted(
-                tokenizer.get_vocab().items(), key=lambda item: item[1]
-            )
+            token for token, _ in sorted(tokenizer.get_vocab().items(), key=lambda item: item[1])
         ]
 
     def set_vocabulary(self, spec, tokens):
@@ -212,9 +206,7 @@ class ModelLoader(abc.ABC):
             spec.encodings = spec.encodings[offset:]
 
     def smooth_activation(self, spec, activation_scales):
-        raise NotImplementedError(
-            "No activation smoothing logic is defined for this model"
-        )
+        raise NotImplementedError("No activation smoothing logic is defined for this model")
 
 
 @register_loader("BartConfig")
@@ -325,9 +317,7 @@ class BartLoader(ModelLoader):
         spec.scale_embeddings = module.embed_scale
         self.set_position_encodings(spec.position_encodings, module.embed_positions)
         self.set_embeddings(
-            spec.embeddings[0]
-            if isinstance(spec.embeddings, list)
-            else spec.embeddings,
+            spec.embeddings[0] if isinstance(spec.embeddings, list) else spec.embeddings,
             module.embed_tokens,
         )
 
@@ -763,12 +753,8 @@ class GPTNeoXLoader(ModelLoader):
                     layer_spec.post_attention_layer_norm, layer.post_attention_layernorm
                 )
             else:
-                self.set_layer_norm(
-                    layer_spec.self_attention.layer_norm, layer.input_layernorm
-                )
-                self.set_layer_norm(
-                    layer_spec.ffn.layer_norm, layer.post_attention_layernorm
-                )
+                self.set_layer_norm(layer_spec.self_attention.layer_norm, layer.input_layernorm)
+                self.set_layer_norm(layer_spec.ffn.layer_norm, layer.post_attention_layernorm)
 
             qkv_w = layer.attention.query_key_value.weight.numpy()
             qkv_b = layer.attention.query_key_value.bias.numpy()
@@ -828,10 +814,7 @@ class WhisperLoader(BartLoader):
         tokens = super().get_vocabulary(model, tokenizer)
 
         # Add timestamp tokens.
-        tokens.extend(
-            "<|%.2f|>" % (i * 0.02)
-            for i in range(model.config.vocab_size - len(tokens))
-        )
+        tokens.extend("<|%.2f|>" % (i * 0.02) for i in range(model.config.vocab_size - len(tokens)))
 
         return tokens
 
@@ -904,9 +887,7 @@ class T5Loader(ModelLoader):
     def set_stack(self, spec, module, is_decoder=False):
         self.set_layer_norm(spec.layer_norm, module.final_layer_norm)
         self.set_embeddings(
-            spec.embeddings[0]
-            if isinstance(spec.embeddings, list)
-            else spec.embeddings,
+            spec.embeddings[0] if isinstance(spec.embeddings, list) else spec.embeddings,
             module.embed_tokens,
         )
 
@@ -965,9 +946,7 @@ class T5Loader(ModelLoader):
         self.set_linear(spec.linear[-1], attention.o)
 
         if attention.has_relative_attention_bias:
-            spec.relative_attention_bias = (
-                attention.relative_attention_bias.weight.numpy()
-            )
+            spec.relative_attention_bias = attention.relative_attention_bias.weight.numpy()
             spec.relative_attention_max_distance = np.dtype("int32").type(
                 attention.relative_attention_max_distance
             )
@@ -1027,21 +1006,15 @@ class BloomLoader(ModelLoader):
         self.set_layer_norm(spec.layer_norm, module.ln_f)
 
         for layer_spec, layer in zip(spec.layer, module.h):
-            self.set_layer_norm(
-                layer_spec.self_attention.layer_norm, layer.input_layernorm
-            )
+            self.set_layer_norm(layer_spec.self_attention.layer_norm, layer.input_layernorm)
             self.set_qkv_linear(
                 layer_spec.self_attention.linear[0],
                 layer.self_attention.query_key_value,
                 layer.self_attention.num_heads,
             )
-            self.set_linear(
-                layer_spec.self_attention.linear[1], layer.self_attention.dense
-            )
+            self.set_linear(layer_spec.self_attention.linear[1], layer.self_attention.dense)
 
-            self.set_layer_norm(
-                layer_spec.ffn.layer_norm, layer.post_attention_layernorm
-            )
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.post_attention_layernorm)
             self.set_linear(layer_spec.ffn.linear_0, layer.mlp.dense_h_to_4h)
             self.set_linear(layer_spec.ffn.linear_1, layer.mlp.dense_4h_to_h)
 
@@ -1061,9 +1034,7 @@ class BloomLoader(ModelLoader):
 
 
 def main():
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter
-    )
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument(
         "--model",
         required=True,
