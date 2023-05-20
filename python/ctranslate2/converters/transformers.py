@@ -660,7 +660,7 @@ class CodeGenLoader(ModelLoader):
 
         extra_ids = model.config.vocab_size - len(tokens)
         for i in range(extra_ids):
-            # fix from GPTNeoX Converter.
+            # fix for additional vocab, see GPTNeoX Converter
             tokens.append("<extra_id_%d>" % i)
 
         return tokens
@@ -680,34 +680,24 @@ class CodeGenLoader(ModelLoader):
 
         for layer_spec, layer in zip(spec.layer, module.h):
             self.set_layer_norm(layer_spec.shared_layer_norm, layer.ln_1)
-            ### convert CodeGen to GPT-J:
+            # [start convert CodeGen to GPT-J format]
             # numpy conversion, adapted from torch code in
             # see https://github.com/fauxpilot/fauxpilot/blob/fb4073a9078dd001ebeb7dfefb8cb2ecc8a88f4b/converter/codegen_gptj_convert.py # noqa
-            qkv_proj = layer.attn.qkv_proj.weight
+            qkv_proj = layer.attn.qkv_proj.weight.numpy()
             mp_num = 4  # number hardcoded in CodeGen from TPU
             local_dim = embed_dim // mp_num
             # GPT-J and CodeGen slice up the qkv projection slightly differently.
             # After a great deal of pain, I figured out that this permutation on
             # the weights of the qkv_proj fixes it.
             base_permutation = [0, 3, 6, 9, 1, 4, 7, 10, 2, 5, 8, 11]
-            # permutation = torch.cat([torch.arange(i * local_dim, (i + 1) * local_dim) for i in base_permutation])
             permutation_np = np.concatenate(
                 [np.arange(i * local_dim, (i + 1) * local_dim) for i in base_permutation]
             )
-            # NB: we permute the *rows* here because the computation is xA.T
-            # new_qkv_proj = qkv_proj[permutation, :]
-            new_qkv_proj_np = qkv_proj.numpy()[permutation_np, :]
-            # NB: the name QKV is misleading here; they are actually stored in
-            #     the order QVK
-            # qw, vw, kw = torch.split(new_qkv_proj, embed_dim, dim=0)
+            # we permute the *rows* here because the computation is xA.T
+            new_qkv_proj_np = qkv_proj[permutation_np, :]
+            # the name QKV is misleading here; they are actually stored in QVK
             qw, vw, kw = np.array_split(new_qkv_proj_np, 3, axis=0)
-            ###
-            # qw = qw.numpy()
-            # kw = kw.numpy()
-            # vw = vw.numpy()
-            # np.testing.assert_equal(qw,qwn)
-            # np.testing.assert_equal(kw,kwn)
-            # np.testing.assert_equal(vw,vwn)
+            # [end convert CodeGen to GPT-J.]
 
             qw = utils.permute_for_sliced_rotary(qw, num_heads, rotary_dim)
             kw = utils.permute_for_sliced_rotary(kw, num_heads, rotary_dim)
