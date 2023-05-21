@@ -684,12 +684,65 @@ class CodeGenLoader(ModelLoader):
             # numpy conversion, adapted from torch code in
             # see https://github.com/fauxpilot/fauxpilot/blob/fb4073a9078dd001ebeb7dfefb8cb2ecc8a88f4b/converter/codegen_gptj_convert.py # noqa
             qkv_proj = layer.attn.qkv_proj.weight.numpy()
-            mp_num = 4  # number hardcoded in CodeGen from TPU
-            local_dim = embed_dim // mp_num
+
             # GPT-J and CodeGen slice up the qkv projection slightly differently.
-            # After a great deal of pain, I figured out that this permutation on
-            # the weights of the qkv_proj fixes it.
-            base_permutation = [0, 3, 6, 9, 1, 4, 7, 10, 2, 5, 8, 11]
+            # the following permutation brings Codegen 'qkv_proj'
+            # in GPT-J order of qw, vw, kw
+            if "/codegen2-" in module.name_or_path:
+                # codegen2 also uses a CodeGenConfig and n
+                # however, integrating their own CodeGenConfig
+                # by porting their own code with trust_remote_code=True.
+                # All names identical, this code is non-identical to the implementation
+                # in the transformers package.
+                # the remote code has one significant change,
+                # setting mp_num=8, while transformers using
+                # mp_num=4
+                mp_num = 8  # number hardcoded in CodeGen-2 from TPU
+                base_permutation = [
+                    0,
+                    3,
+                    6,
+                    9,
+                    12,
+                    15,
+                    18,
+                    21,
+                    1,
+                    4,
+                    7,
+                    10,
+                    13,
+                    16,
+                    19,
+                    22,
+                    2,
+                    5,
+                    8,
+                    11,
+                    14,
+                    17,
+                    20,
+                    23,
+                ]
+            else:
+                mp_num = 4  # number hardcoded in CodeGen(1) from TPU
+                base_permutation = [
+                    0,
+                    3,
+                    6,
+                    9,
+                    1,
+                    4,
+                    7,
+                    10,
+                    2,
+                    5,
+                    8,
+                    11,
+                ]
+            # base_permutation == np.arange(0,mp_num*3).reshape(-1,3).T.flatten()
+            # equals embed_dim:= (self.head_dim * self.num_attention_heads) from Codegen code
+            local_dim = embed_dim // mp_num
             permutation_np = np.concatenate(
                 [
                     np.arange(i * local_dim, (i + 1) * local_dim)
