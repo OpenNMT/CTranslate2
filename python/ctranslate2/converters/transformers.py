@@ -650,7 +650,9 @@ class CodeGenLoader(ModelLoader):
             model.transformer,
             model.config.rotary_dim,
             model.config.n_head,
-            model.config.n_embd,  # added arg compared to GPT-J
+            model.config.n_embd,
+            # consider mp_num-8 for codegen2 series.
+            mp_num=8 if "Salesforce/codegen2-" in model.name_or_path else 4,
         )
         self.set_linear(spec.decoder.projection, model.lm_head)
         return spec
@@ -673,10 +675,16 @@ class CodeGenLoader(ModelLoader):
         config.eos_token = tokenizer.eos_token
         config.unk_token = tokenizer.unk_token
 
-    def set_decoder(self, spec, module, rotary_dim, num_heads, embed_dim):
+    def set_decoder(self, spec, module, rotary_dim, num_heads, embed_dim, mp_num):
         spec.scale_embeddings = False
         self.set_embeddings(spec.embeddings, module.wte)
         self.set_layer_norm(spec.layer_norm, module.ln_f)
+
+        _base_permutation = np.arange(0, mp_num * 3).reshape(-1, 3).T.flatten().tolist()
+        local_dim = embed_dim // mp_num
+        permutation = np.concatenate(
+            [np.arange(i * local_dim, (i + 1) * local_dim) for i in _base_permutation]
+        )
 
         for layer_spec, layer in zip(spec.layer, module.h):
             self.set_layer_norm(layer_spec.shared_layer_norm, layer.ln_1)
@@ -688,31 +696,10 @@ class CodeGenLoader(ModelLoader):
             # GPT-J and CodeGen slice up the qkv projection slightly differently.
             # the following permutation brings Codegen 'qkv_proj'
             # in GPT-J order of qw, vw, kw
-            if "/codegen2-" in module.name_or_path:
-                # codegen2 also uses a CodeGenConfig and n
-                # however, integrating their own CodeGenConfig
-                # by porting their own code with trust_remote_code=True.
-                # All names identical, this code is non-identical to the implementation
-                # in the transformers package.
-                # the remote code has one significant change,
-                # setting mp_num=8, while transformers using
-                # mp_num=4
-                mp_num = 8  # number hardcoded in CodeGen-2 from TPU
-            else:
-                mp_num = 4  # number hardcoded in CodeGen(1) from TPU
-            base_permutation = np.arange(0,mp_num*3).reshape(-1,3).T.flatten().tolist()
-            # equals embed_dim:= (self.head_dim * self.num_attention_heads) from Codegen code
-            local_dim = embed_dim // mp_num
-            permutation_np = np.concatenate(
-                [
-                    np.arange(i * local_dim, (i + 1) * local_dim)
-                    for i in base_permutation
-                ]
-            )
             # we permute the *rows* here because the computation is xA.T
-            new_qkv_proj_np = qkv_proj[permutation_np, :]
+            new_qkv_proj = qkv_proj[permutation, :]
             # the name QKV is misleading here; they are actually stored in QVK
-            qw, vw, kw = np.array_split(new_qkv_proj_np, 3, axis=0)
+            qw, vw, kw = np.array_split(new_qkv_proj, 3, axis=0)
             # [end convert CodeGen to GPT-J.]
 
             qw = utils.permute_for_sliced_rotary(qw, num_heads, rotary_dim)
