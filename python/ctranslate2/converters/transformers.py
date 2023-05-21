@@ -698,49 +698,9 @@ class CodeGenLoader(ModelLoader):
                 # setting mp_num=8, while transformers using
                 # mp_num=4
                 mp_num = 8  # number hardcoded in CodeGen-2 from TPU
-                base_permutation = [
-                    0,
-                    3,
-                    6,
-                    9,
-                    12,
-                    15,
-                    18,
-                    21,
-                    1,
-                    4,
-                    7,
-                    10,
-                    13,
-                    16,
-                    19,
-                    22,
-                    2,
-                    5,
-                    8,
-                    11,
-                    14,
-                    17,
-                    20,
-                    23,
-                ]
             else:
                 mp_num = 4  # number hardcoded in CodeGen(1) from TPU
-                base_permutation = [
-                    0,
-                    3,
-                    6,
-                    9,
-                    1,
-                    4,
-                    7,
-                    10,
-                    2,
-                    5,
-                    8,
-                    11,
-                ]
-            # base_permutation == np.arange(0,mp_num*3).reshape(-1,3).T.flatten()
+            base_permutation = np.arange(0,mp_num*3).reshape(-1,3).T.flatten().tolist()
             # equals embed_dim:= (self.head_dim * self.num_attention_heads) from Codegen code
             local_dim = embed_dim // mp_num
             permutation_np = np.concatenate(
