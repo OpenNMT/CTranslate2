@@ -646,9 +646,7 @@ class CodeGenLoader(ModelLoader):
         )
 
         mp_num = 4
-        if (
-            hasattr(model.config, "head_dim") and model.config.head_dim in [128,256]
-        ):
+        if hasattr(model.config, "head_dim") and model.config.head_dim in [128, 256]:
             # models forked from "Salesforce/codegen2-1B" and "Salesforce/codegen2-3_7B"
             # use a special setting of mp_num=8, all other using 4
             # these model.config's use a special setting of head_dim
