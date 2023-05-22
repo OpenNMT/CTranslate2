@@ -645,14 +645,18 @@ class CodeGenLoader(ModelLoader):
             shared_layer_norm=True,
         )
 
+        mp_num = 4
+        if "Salesforce/codegen2-1B" in model.name_or_path or "Salesforce/codegen2-3_7B" in model.name_or_path:
+            # consider mp_num=8 for smaller codegen2 series.
+            mp_num = 8
+
         self.set_decoder(
             spec.decoder,
             model.transformer,
             model.config.rotary_dim,
             model.config.n_head,
             model.config.n_embd,
-            # consider mp_num-8 for codegen2 series.
-            mp_num=8 if "Salesforce/codegen2-" in model.name_or_path else 4,
+            mp_num=mp_num,
         )
         self.set_linear(spec.decoder.projection, model.lm_head)
         return spec
