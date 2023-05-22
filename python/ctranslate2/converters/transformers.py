@@ -647,10 +647,11 @@ class CodeGenLoader(ModelLoader):
 
         mp_num = 4
         if (
-            "Salesforce/codegen2-1B" in model.name_or_path
-            or "Salesforce/codegen2-3_7B" in model.name_or_path
+            hasattr(model.config, "head_dim") and model.config.head_dim in [128,256]
         ):
-            # consider mp_num=8 for smaller codegen2 series.
+            # models forked from "Salesforce/codegen2-1B" and "Salesforce/codegen2-3_7B"
+            # use a special setting of mp_num=8, all other using 4
+            # these model.config's use a special setting of head_dim
             mp_num = 8
 
         self.set_decoder(
@@ -687,10 +688,10 @@ class CodeGenLoader(ModelLoader):
         self.set_embeddings(spec.embeddings, module.wte)
         self.set_layer_norm(spec.layer_norm, module.ln_f)
 
-        _base_permutation = np.arange(0, mp_num * 3).reshape(-1, 3).T.flatten().tolist()
+        base_permutation = np.arange(0, mp_num * 3).reshape(-1, 3).T.flatten().tolist()
         local_dim = embed_dim // mp_num
         permutation = np.concatenate(
-            [np.arange(i * local_dim, (i + 1) * local_dim) for i in _base_permutation]
+            [np.arange(i * local_dim, (i + 1) * local_dim) for i in base_permutation]
         )
 
         for layer_spec, layer in zip(spec.layer, module.h):
