@@ -646,7 +646,10 @@ class CodeGenLoader(ModelLoader):
         )
 
         mp_num = 4
-        if "Salesforce/codegen2-1B" in model.name_or_path or "Salesforce/codegen2-3_7B" in model.name_or_path:
+        if (
+            "Salesforce/codegen2-1B" in model.name_or_path
+            or "Salesforce/codegen2-3_7B" in model.name_or_path
+        ):
             # consider mp_num=8 for smaller codegen2 series.
             mp_num = 8
 
