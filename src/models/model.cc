@@ -170,6 +170,9 @@ namespace ctranslate2 {
         const auto& name = variable_pair.first;
         auto& variable = *variable_pair.second;
 
+        if (keep_in_float32(name))
+          continue;
+
         // Convert "weight" variables to the expected compute type.
         // Other float variables (e.g. biases) may be converted from or to float16.
         if (is_quantizable(name))
@@ -247,6 +250,15 @@ namespace ctranslate2 {
 
     bool Model::is_convertible(const StorageView& variable, const std::string& name) const {
       return !variable.is_scalar() && name.find("_scale") == std::string::npos;
+    }
+
+    bool Model::keep_in_float32(const std::string& variable_name) const {
+      const size_t pos = variable_name.rfind('/');
+      if (pos == std::string::npos)
+        return false;
+
+      const std::string scope = variable_name.substr(0, pos);
+      return get_flag_with_default(scope + "/keep_in_float32", false);
     }
 
     void Model::ensure_dtype(const std::string& name,
@@ -330,6 +342,8 @@ namespace ctranslate2 {
       for (const auto& variable_pair : _variable_index) {
         const std::string& name = variable_pair.first;
         const StorageView& variable = *variable_pair.second;
+        if (keep_in_float32(name))
+          continue;
         if (is_quantizable(name)) {
           weight_type = variable.dtype();
         } else if (is_convertible(variable, name)) {

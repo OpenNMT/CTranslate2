@@ -955,6 +955,8 @@ class T5Loader(ModelLoader):
             self.set_linear(spec.linear_0, module.DenseReluDense.wi)
 
         self.set_linear(spec.linear_1, module.DenseReluDense.wo)
+        spec.linear_1.keep_in_float32 = True
+
         self.set_layer_norm(spec.layer_norm, module.layer_norm)
 
     def set_self_attention(self, spec, module):

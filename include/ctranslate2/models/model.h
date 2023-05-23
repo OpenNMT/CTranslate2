@@ -133,6 +133,9 @@ namespace ctranslate2 {
       // Returns true if the variable can be converted to another type.
       virtual bool is_convertible(const StorageView& variable, const std::string& name) const;
 
+      // Returns true if the variable should be kept in float32 precision.
+      virtual bool keep_in_float32(const std::string& variable_name) const;
+
       // Models can override these methods to execute some transformations if needed
       // (e.g. a variable name changed in a newer spec revision).
       virtual void register_variable(std::string name, StorageView variable);

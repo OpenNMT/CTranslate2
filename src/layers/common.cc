@@ -353,6 +353,9 @@ namespace ctranslate2 {
                        /*trans_b=*/true,
                        output,
                        bias);
+      } else if (input.dtype() != weight->dtype()) {
+        _gemm_op(input.to(weight->dtype()), *weight, output, nullptr, bias);
+        output = output.to(input.dtype());
       } else {
         _gemm_op(input, *weight, output, nullptr, bias);
       }

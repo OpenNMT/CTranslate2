@@ -166,6 +166,12 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 return
 
             key = _split_scope(name)[-1]
+
+            if getattr(spec, "keep_in_float32", False):
+                if value.dtype == np.float16:
+                    setattr(spec, key, value.astype(np.float32))
+                return
+
             scale = None
             is_quantizable = hasattr(spec, "%s_scale" % key)
 
