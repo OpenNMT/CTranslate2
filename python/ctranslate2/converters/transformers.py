@@ -578,6 +578,85 @@ class GPT2Loader(ModelLoader):
             self.set_linear(layer_spec.ffn.linear_1, layer.mlp.c_proj)
 
 
+@register_loader("GPTBigCodeConfig")
+class GPTBigCodeMHA(ModelLoader):
+    """copyright Michael Feil"""
+
+    @property
+    def architecture_name(self):
+        return "GPTBigCodeForCausalLM"
+
+    def get_model_spec(self, model):
+        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
+            model.config.n_layer,
+            model.config.n_head,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.activation_function],
+        )
+
+        self.set_decoder(
+            spec.decoder,
+            model.transformer,
+            embed_dim=model.config.n_embd,
+            n_head=model.config.n_head,
+        )
+        self.set_linear(spec.decoder.projection, model.lm_head)
+        return spec
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = tokenizer.bos_token
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = tokenizer.unk_token
+
+    def set_decoder(self, spec, module, embed_dim, n_head):
+        spec.scale_embeddings = False
+        self.set_embeddings(spec.embeddings, module.wte)
+        self.set_position_encodings(spec.position_encodings, module.wpe)
+        self.set_layer_norm(spec.layer_norm, module.ln_f)
+
+        head_dim = embed_dim // n_head
+
+        def _expand_mqa_mha(qkv_array):
+            """manipulates along axis=0 from MQA to MHA
+            inputs: qkv_array.shape=((n_heads + 2) * head_dim, hidden_dim)
+            return: qkv_array.shape=(3 * n_heads * head_dim, hidden_dim)
+            """
+            q, k, v = np.split(
+                qkv_array, (n_head * head_dim, (n_head + 1) * head_dim), axis=0
+            )
+            # q is fine, but k & v have not replicated shape along the first axis
+            # as long as MQA is not nativly supported, increase memory and replicated 
+            # (head_dim, hidden_dim) -> (n_heads * head_dim, hidden_dim)
+            if k.ndim == 2 and v.ndim == 2:
+                replication = (n_head, 1)  # weights
+            else:
+                replication = n_head  # biases
+            # replicate n_head times for q, v
+            k, v = np.tile(k, replication), np.tile(v, replication)
+            # concat q, k, v along the first axis (n_heads * head_dim, hidden_dim)
+            # -> (3 * n_heads * head_dim, hidden_dim)
+            return np.concatenate((q, k, v), axis=0)
+
+        for layer_spec, layer in zip(spec.layer, module.h):
+            self.set_layer_norm(layer_spec.self_attention.layer_norm, layer.ln_1)
+            # start fix: MQA (GPTBigCode) by expanding to MHA (GPT-2)
+            # layer_spec.self_attention.linear[0] in GPT-2
+            # should be                (3* n_heads * head_dim,              embed_dim),
+            # but layer.attn.c_attn is ((n_heads * head_dim + 2 * head_dim) ,  embed_dim)
+            c_attn_w = _expand_mqa_mha(layer.attn.c_attn.weight.numpy())
+            c_attn_b = _expand_mqa_mha(layer.attn.c_attn.bias.numpy())
+            layer_spec.self_attention.linear[0].weight = c_attn_w
+            layer_spec.self_attention.linear[0].bias = c_attn_b
+            # end fix: rest works as in GPT-2
+            self.set_linear(layer_spec.self_attention.linear[1], layer.attn.c_proj)
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.ln_2)
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.c_fc)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.c_proj)
+
+
 @register_loader("GPTJConfig")
 class GPTJLoader(ModelLoader):
     @property
