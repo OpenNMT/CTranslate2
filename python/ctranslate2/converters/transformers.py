@@ -538,8 +538,7 @@ class OPTLoader(BartLoader):
 
 
 @register_loader("GPTBigCodeConfig")
-class GPTBigCodeMHA(ModelLoader):
-
+class GPTBigCodeMHALoader(ModelLoader):
     @property
     def architecture_name(self):
         return "GPTBigCodeForCausalLM"
@@ -563,7 +562,7 @@ class GPTBigCodeMHA(ModelLoader):
 
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
-    
+
     def get_vocabulary(self, model, tokenizer):
         tokens = super().get_vocabulary(model, tokenizer)
 
@@ -572,7 +571,6 @@ class GPTBigCodeMHA(ModelLoader):
             tokens.append("<extra_id_%d>" % i)
 
         return tokens
-
 
     def set_config(self, config, model, tokenizer):
         config.bos_token = tokenizer.bos_token
@@ -593,8 +591,12 @@ class GPTBigCodeMHA(ModelLoader):
             # layer_spec.self_attention.linear[0] in GPT-2
             # should be                (3* n_heads * head_dim,              embed_dim),
             # but layer.attn.c_attn is ((n_heads * head_dim + 2 * head_dim) ,  embed_dim)
-            c_attn_w = self._expand_mqa_mha(layer.attn.c_attn.weight.numpy(), n_head=n_head, head_dim=head_dim)
-            c_attn_b = self._expand_mqa_mha(layer.attn.c_attn.bias.numpy(), n_head=n_head, head_dim=head_dim)
+            c_attn_w = self._expand_mqa_mha(
+                layer.attn.c_attn.weight.numpy(), n_head=n_head, head_dim=head_dim
+            )
+            c_attn_b = self._expand_mqa_mha(
+                layer.attn.c_attn.bias.numpy(), n_head=n_head, head_dim=head_dim
+            )
             layer_spec.self_attention.linear[0].weight = c_attn_w
             layer_spec.self_attention.linear[0].bias = c_attn_b
             # end fix: rest works as in GPT-2
@@ -602,7 +604,7 @@ class GPTBigCodeMHA(ModelLoader):
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.ln_2)
             self.set_linear(layer_spec.ffn.linear_0, layer.mlp.c_fc)
             self.set_linear(layer_spec.ffn.linear_1, layer.mlp.c_proj)
-    
+
     @staticmethod
     def _expand_mqa_mha(qkv_array, n_head, head_dim):
         """manipulates along axis=0 from MQA to MHA
@@ -610,12 +612,10 @@ class GPTBigCodeMHA(ModelLoader):
             with n_heads for q, then 1 for k, 1 for 1 v, times head dim
         return: qkv_array.shape=(3 * n_heads * head_dim, hidden_dim)
         """
-        dims_q = n_head * head_dim         
-        q, k, v = np.split(
-            qkv_array, (dims_q, dims_q + head_dim), axis=0
-        )
+        dims_q = n_head * head_dim
+        q, k, v = np.split(qkv_array, (dims_q, dims_q + head_dim), axis=0)
         # q is fine, but k & v have not replicated shape along the first axis
-        # as long as MQA is not nativly supported, increase memory and replicated 
+        # as long as MQA is not nativly supported, increase memory and replicated
         # (head_dim, hidden_dim) to (n_heads * head_dim, hidden_dim)
         if k.ndim == 2 and v.ndim == 2:
             replication = (n_head, 1)  # weights
@@ -626,6 +626,7 @@ class GPTBigCodeMHA(ModelLoader):
         # concat q, k, v along the first axis (n_heads * head_dim, hidden_dim)
         # to (3 * n_heads * head_dim, hidden_dim)
         return np.concatenate((q, k, v), axis=0)
+
 
 @register_loader("GPT2Config")
 class GPT2Loader(ModelLoader):
