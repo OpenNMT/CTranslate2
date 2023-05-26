@@ -62,7 +62,7 @@ namespace ctranslate2 {
   }
 
   void init_logger() {
-    std::once_flag initialized;
+    static std::once_flag initialized;
     std::call_once(initialized, []() {
       auto logger = spdlog::stderr_logger_mt("ctranslate2");
       logger->set_pattern("[%Y-%m-%d %H:%M:%S.%e] [%n] [thread %t] [%l] %v");
