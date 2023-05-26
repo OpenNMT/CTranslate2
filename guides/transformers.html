@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 3.13.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 3.14.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.13
+                3.14
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -74,6 +74,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#bloom">BLOOM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#marianmt">MarianMT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#mpt">MPT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#nllb">NLLB</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-2">GPT-2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-j">GPT-J</a></li>
@@ -124,9 +125,11 @@
 <ul class="simple">
 <li><p>BART</p></li>
 <li><p>BLOOM</p></li>
+<li><p>LLaMa</p></li>
 <li><p>M2M100</p></li>
 <li><p>MarianMT</p></li>
 <li><p>MBART</p></li>
+<li><p>MPT</p></li>
 <li><p>NLLB</p></li>
 <li><p>OpenAI GPT2</p></li>
 <li><p>GPT-J</p></li>
@@ -243,6 +246,32 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 <span class="n">target</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:]</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">target</span><span class="p">)))</span>
+</pre></div>
+</div>
+</section>
+<section id="mpt">
+<h2>MPT<a class="headerlink" href="#mpt" title="Permalink to this headline"></a></h2>
+<p><a class="reference external" href="https://huggingface.co/mosaicml/mpt-7b">MPT-7B</a> is a decoder-style transformer pretrained from scratch on 1T tokens of English text and code. This model was trained by <a class="reference external" href="https://www.mosaicml.com/">MosaicML</a>.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The code is included in the model so you should pass <code class="docutils literal notranslate"><span class="pre">--trust_remote_code</span></code> to the conversion command.</p>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>mosaicml/mpt-7b<span class="w"> </span>--output_dir<span class="w"> </span>mpt-7b<span class="w"> </span>--quantization<span class="w"> </span>int8_float16<span class="w"> </span>--trust_remote_code
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">transformers</span>
+
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;mpt-7b&quot;</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;EleutherAI/gpt-neox-20b&quot;</span><span class="p">)</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;In a shocking finding, scientists&quot;</span>
+<span class="n">tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
+
+<span class="n">text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">text</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
