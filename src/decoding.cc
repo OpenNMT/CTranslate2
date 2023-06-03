@@ -619,7 +619,7 @@ namespace ctranslate2 {
 
   GreedySearch::GreedySearch(const float length_penalty,
                              const float coverage_penalty,
-                             std::function<void(DecodingStepResult)> callback)
+                             std::function<bool(DecodingStepResult)> callback)
     : _length_penalty(length_penalty)
     , _coverage_penalty(coverage_penalty)
     , _callback(std::move(callback))
