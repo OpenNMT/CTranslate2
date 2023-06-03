@@ -781,8 +781,7 @@ namespace ctranslate2 {
         if (return_scores)
           results[batch_id].scores[0] += score;
 
-        const bool is_finished = ((is_eos(word_id, end_ids) && step >= prefix_length)
-                                  || (step + 1 == max_length));
+        bool is_finished = ((is_eos(word_id, end_ids) && step >= prefix_length) || (step + 1 == max_length));
 
         if (_callback && (return_prefix || step >= prefix_length)) {
           DecodingStepResult step_result;
@@ -792,7 +791,9 @@ namespace ctranslate2 {
           step_result.is_last = is_finished;
           if (return_scores)
             step_result.log_prob = score;
-          _callback(std::move(step_result));
+          if (_callback(std::move(step_result))) {
+            is_finished = true;
+          }
         }
 
         if (is_finished) {
