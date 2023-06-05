@@ -21,9 +21,9 @@ namespace ctranslate2 {
   }
 
   std::future<EncoderForwardOutput>
-  Encoder::forward_batch_async(StorageView ids, StorageView lengths) {
+  Encoder::forward_batch_async(const StorageView& ids, const StorageView& lengths) {
     return post<EncoderForwardOutput>(
-      [ids = std::move(ids), lengths = std::move(lengths)]
+      [ids = ids.sync_copy(), lengths = lengths.sync_copy()]
       (models::SequenceEncoderReplica& encoder) {
         return encoder.forward(ids, lengths);
       });

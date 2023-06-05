@@ -17,7 +17,7 @@ namespace ctranslate2 {
     forward_batch_async(std::vector<std::vector<size_t>> ids);
 
     std::future<EncoderForwardOutput>
-    forward_batch_async(StorageView ids, StorageView lengths);
+    forward_batch_async(const StorageView& ids, const StorageView& lengths);
   };
 
 }
