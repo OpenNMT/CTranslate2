@@ -1,0 +1,14 @@
+EncoderForwardOutput
+====================
+
+.. autoclass:: ctranslate2.EncoderForwardOutput
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.EncoderForwardOutput.last_hidden_state`
+    - :obj:`~ctranslate2.EncoderForwardOutput.pooler_output`

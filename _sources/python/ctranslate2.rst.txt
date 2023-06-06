@@ -8,6 +8,8 @@ ctranslate2
    ctranslate2.AsyncGenerationResult
    ctranslate2.AsyncScoringResult
    ctranslate2.AsyncTranslationResult
+   ctranslate2.Encoder
+   ctranslate2.EncoderForwardOutput
    ctranslate2.ExecutionStats
    ctranslate2.GenerationResult
    ctranslate2.GenerationStepResult

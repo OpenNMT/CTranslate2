@@ -11,6 +11,7 @@ LanguageModelSpec
     **Extended by:**
 
     - :class:`ctranslate2.specs.TransformerDecoderModelSpec`
+    - :class:`ctranslate2.specs.TransformerEncoderModelSpec`
     - :class:`ctranslate2.specs.WhisperSpec`
 
     **Attributes:**

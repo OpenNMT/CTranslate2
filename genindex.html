@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; CTranslate2 3.14.0 documentation</title>
+  <title>Index &mdash; CTranslate2 3.15.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -29,7 +29,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.14
+                3.15
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -45,20 +45,24 @@
 <li class="toctree-l1"><a class="reference internal" href="quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encoding.html">Text encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer guides</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="conversion.html">Model conversion</a></li>
 <li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
-<li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
 <li class="toctree-l1"><a class="reference internal" href="performance.html">Performance tips</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment_variables.html">Environment variables</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
@@ -119,6 +123,7 @@
  | <a href="#M"><strong>M</strong></a>
  | <a href="#N"><strong>N</strong></a>
  | <a href="#O"><strong>O</strong></a>
+ | <a href="#P"><strong>P</strong></a>
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
  | <a href="#T"><strong>T</strong></a>
@@ -145,6 +150,8 @@
 </li>
         <li><a href="python/ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.__init__">(ctranslate2.converters.TransformersConverter method)</a>
 </li>
+        <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.__init__">(ctranslate2.Encoder method)</a>
+</li>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.__init__">(ctranslate2.Generator method)</a>
 </li>
         <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.__init__">(ctranslate2.models.Whisper method)</a>
@@ -158,6 +165,8 @@
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.__init__">(ctranslate2.specs.TransformerDecoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.__init__">(ctranslate2.specs.TransformerDecoderSpec method)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.__init__">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.__init__">(ctranslate2.specs.TransformerEncoderSpec method)</a>
 </li>
@@ -214,6 +223,8 @@
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.config">(ctranslate2.specs.SequenceToSequenceModelSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.config">(ctranslate2.specs.TransformerDecoderModelSpec property)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.config">(ctranslate2.specs.TransformerEncoderModelSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.config">(ctranslate2.specs.TransformerSpec property)</a>
 </li>
@@ -316,19 +327,23 @@
       </ul></li>
       <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.detect_language">detect_language() (ctranslate2.models.Whisper method)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.device">device (ctranslate2.Generator property)</a>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.device">device (ctranslate2.Encoder property)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.device">(ctranslate2.Generator property)</a>
+</li>
         <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device">(ctranslate2.models.Whisper property)</a>
 </li>
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.device">(ctranslate2.Translator property)</a>
 </li>
       </ul></li>
-      <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.device_index">device_index (ctranslate2.Generator property)</a>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.device_index">device_index (ctranslate2.Encoder property)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.device_index">(ctranslate2.Generator property)</a>
+</li>
         <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device_index">(ctranslate2.models.Whisper property)</a>
 </li>
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.device_index">(ctranslate2.Translator property)</a>
@@ -352,9 +367,13 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge">EmbeddingsMerge (class in ctranslate2.specs)</a>
 </li>
+      <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.encode">encode() (ctranslate2.models.Whisper method)</a>
+</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.encode">encode() (ctranslate2.models.Whisper method)</a>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder">Encoder (class in ctranslate2)</a>
+</li>
+      <li><a href="python/ctranslate2.EncoderForwardOutput.html#ctranslate2.EncoderForwardOutput">EncoderForwardOutput (class in ctranslate2)</a>
 </li>
       <li><a href="python/ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats">ExecutionStats (class in ctranslate2)</a>
 </li>
@@ -366,12 +385,16 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter">FairseqConverter (class in ctranslate2.converters)</a>
 </li>
-      <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.forward_batch">forward_batch() (ctranslate2.Generator method)</a>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.forward_batch">forward_batch() (ctranslate2.Encoder method)</a>
+
+      <ul>
+        <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.forward_batch">(ctranslate2.Generator method)</a>
 </li>
-      <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.from_array">from_array() (ctranslate2.StorageView static method)</a>
-</li>
+      </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.from_array">from_array() (ctranslate2.StorageView static method)</a>
+</li>
       <li><a href="python/ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.from_config">from_config() (ctranslate2.converters.OpenNMTTFConverter class method)</a>
 
       <ul>
@@ -421,6 +444,8 @@
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.get_default_config">(ctranslate2.specs.TransformerDecoderModelSpec method)</a>
 </li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.get_default_config">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.get_default_config">(ctranslate2.specs.TransformerSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.get_default_config">(ctranslate2.specs.WhisperSpec method)</a>
@@ -450,6 +475,8 @@
 
       <ul>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size">(ctranslate2.specs.TransformerDecoderModelSpec method)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.get_vocabulary_size">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.get_vocabulary_size">(ctranslate2.specs.WhisperSpec method)</a>
 </li>
@@ -481,6 +508,8 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec">LanguageModelSpec (class in ctranslate2.specs)</a>
+</li>
+      <li><a href="python/ctranslate2.EncoderForwardOutput.html#ctranslate2.EncoderForwardOutput.last_hidden_state">last_hidden_state (ctranslate2.EncoderForwardOutput property)</a>
 </li>
       <li><a href="python/ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec">LayerSpec (class in ctranslate2.specs)</a>
 </li>
@@ -538,6 +567,8 @@
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.name">(ctranslate2.specs.TransformerDecoderModelSpec property)</a>
 </li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.name">(ctranslate2.specs.TransformerEncoderModelSpec property)</a>
+</li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.name">(ctranslate2.specs.TransformerSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.name">(ctranslate2.specs.WhisperSpec property)</a>
@@ -545,27 +576,39 @@
       </ul></li>
       <li><a href="python/ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.no_speech_prob">no_speech_prob (ctranslate2.models.WhisperGenerationResult property)</a>
 </li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.num_active_batches">num_active_batches (ctranslate2.Generator property)</a>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.num_active_batches">num_active_batches (ctranslate2.Encoder property)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.num_active_batches">(ctranslate2.Generator property)</a>
+</li>
+        <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_active_batches">(ctranslate2.models.Whisper property)</a>
+</li>
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.num_active_batches">(ctranslate2.Translator property)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.num_encoders">num_encoders (ctranslate2.Encoder property)</a>
+</li>
       <li><a href="python/ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats.num_examples">num_examples (ctranslate2.ExecutionStats property)</a>
 </li>
       <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.num_generators">num_generators (ctranslate2.Generator property)</a>
 </li>
-      <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.num_queued_batches">num_queued_batches (ctranslate2.Generator property)</a>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.num_queued_batches">num_queued_batches (ctranslate2.Encoder property)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.num_queued_batches">(ctranslate2.Generator property)</a>
+</li>
+        <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_queued_batches">(ctranslate2.models.Whisper property)</a>
+</li>
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.num_queued_batches">(ctranslate2.Translator property)</a>
 </li>
       </ul></li>
       <li><a href="python/ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats.num_tokens">num_tokens (ctranslate2.ExecutionStats property)</a>
 </li>
       <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.num_translators">num_translators (ctranslate2.Translator property)</a>
+</li>
+      <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_workers">num_workers (ctranslate2.models.Whisper property)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -592,6 +635,8 @@
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.optimize">(ctranslate2.specs.TransformerDecoderSpec method)</a>
 </li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.optimize">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.optimize">(ctranslate2.specs.TransformerEncoderSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.optimize">(ctranslate2.specs.TransformerSpec method)</a>
@@ -602,6 +647,14 @@
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter">OpusMTConverter (class in ctranslate2.converters)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="P">P</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.EncoderForwardOutput.html#ctranslate2.EncoderForwardOutput.pooler_output">pooler_output (ctranslate2.EncoderForwardOutput property)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -617,6 +670,8 @@
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.register_file">(ctranslate2.specs.SequenceToSequenceModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.register_file">(ctranslate2.specs.TransformerDecoderModelSpec method)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.register_file">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.register_file">(ctranslate2.specs.TransformerSpec method)</a>
 </li>
@@ -639,6 +694,8 @@
 
       <ul>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.register_vocabulary">(ctranslate2.specs.TransformerDecoderModelSpec method)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.register_vocabulary">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.register_vocabulary">(ctranslate2.specs.WhisperSpec method)</a>
 </li>
@@ -672,6 +729,8 @@
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.revision">(ctranslate2.specs.TransformerDecoderModelSpec property)</a>
 </li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.revision">(ctranslate2.specs.TransformerEncoderModelSpec property)</a>
+</li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.revision">(ctranslate2.specs.TransformerSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.revision">(ctranslate2.specs.WhisperSpec property)</a>
@@ -691,6 +750,8 @@
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.save">(ctranslate2.specs.SequenceToSequenceModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.save">(ctranslate2.specs.TransformerDecoderModelSpec method)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.save">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.save">(ctranslate2.specs.TransformerSpec method)</a>
 </li>
@@ -753,6 +814,8 @@
 <h2 id="T">T</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.Tanh">Tanh (ctranslate2.specs.Activation attribute)</a>
+</li>
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.token">token (ctranslate2.GenerationStepResult property)</a>
 </li>
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.token_id">token_id (ctranslate2.GenerationStepResult property)</a>
@@ -765,10 +828,12 @@
 </li>
       <li><a href="python/ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec">TransformerDecoderSpec (class in ctranslate2.specs)</a>
 </li>
-      <li><a href="python/ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec">TransformerEncoderSpec (class in ctranslate2.specs)</a>
+      <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec">TransformerEncoderModelSpec (class in ctranslate2.specs)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec">TransformerEncoderSpec (class in ctranslate2.specs)</a>
+</li>
       <li><a href="python/ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter">TransformersConverter (class in ctranslate2.converters)</a>
 </li>
       <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec">TransformerSpec (class in ctranslate2.specs)</a>
@@ -810,6 +875,8 @@
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.validate">(ctranslate2.specs.TransformerDecoderSpec method)</a>
 </li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.validate">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.validate">(ctranslate2.specs.TransformerEncoderSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.validate">(ctranslate2.specs.TransformerSpec method)</a>
@@ -831,6 +898,8 @@
         <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.variables">(ctranslate2.specs.TransformerDecoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.variables">(ctranslate2.specs.TransformerDecoderSpec method)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.variables">(ctranslate2.specs.TransformerEncoderModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.variables">(ctranslate2.specs.TransformerEncoderSpec method)</a>
 </li>

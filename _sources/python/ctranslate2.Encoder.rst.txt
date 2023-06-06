@@ -1,0 +1,21 @@
+Encoder
+=======
+
+.. autoclass:: ctranslate2.Encoder
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.Encoder.device`
+    - :obj:`~ctranslate2.Encoder.device_index`
+    - :obj:`~ctranslate2.Encoder.num_active_batches`
+    - :obj:`~ctranslate2.Encoder.num_encoders`
+    - :obj:`~ctranslate2.Encoder.num_queued_batches`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.Encoder.forward_batch`

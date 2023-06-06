@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text generation &mdash; CTranslate2 3.14.0 documentation</title>
+  <title>Text generation &mdash; CTranslate2 3.15.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -20,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Speech recognition" href="speech_recognition.html" />
+    <link rel="next" title="Text encoding" href="encoding.html" />
     <link rel="prev" title="Text translation" href="translation.html" /> 
 </head>
 
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.14
+                3.15
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -48,24 +48,29 @@
 <li class="toctree-l1"><a class="reference internal" href="quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Usage</span></p>
+<p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
 <ul class="current">
-<li class="toctree-l1"><a class="reference internal" href="conversion.html">Model conversion</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Text generation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#token-streaming">Token streaming</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prompt-caching">Prompt caching</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#special-tokens">Special tokens</a></li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="encoding.html">Text encoding</a></li>
 <li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="conversion.html">Model conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
 <li class="toctree-l1"><a class="reference internal" href="performance.html">Performance tips</a></li>
 <li class="toctree-l1"><a class="reference internal" href="environment_variables.html">Environment variables</a></li>
 </ul>
-<p class="caption" role="heading"><span class="caption-text">Guides</span></p>
+<p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
@@ -179,6 +184,42 @@
 <p>To implement a similar mechanism for batch generation, you can use the arguments <code class="docutils literal notranslate"><span class="pre">callback</span></code> and <code class="docutils literal notranslate"><span class="pre">include_prompt_in_result=False</span></code> in the method <code class="docutils literal notranslate"><span class="pre">generate_batch</span></code>. This is what <code class="docutils literal notranslate"><span class="pre">generate_tokens</span></code> use internally.</p>
 </div>
 </section>
+<section id="prompt-caching">
+<h2>Prompt caching<a class="headerlink" href="#prompt-caching" title="Permalink to this headline"></a></h2>
+<p>The methods <code class="docutils literal notranslate"><span class="pre">generate_batch</span></code> and <code class="docutils literal notranslate"><span class="pre">generate_tokens</span></code> have an argument <code class="docutils literal notranslate"><span class="pre">static_prompt</span></code> that can be used for models that always start with the same prompt (also known as a system prompt). The model is run once on this static prompt and the model state is cached and reused for future calls with the same static prompt.</p>
+<p>For example <a class="reference external" href="https://github.com/Stability-AI/StableLM">StableLM</a> uses a system prompt which could be implemented like this:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<span class="kn">import</span> <span class="nn">transformers</span>
+
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;stablelm-ct2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;stabilityai/stablelm-tuned-alpha-7b&quot;</span><span class="p">)</span>
+
+<span class="n">system_prompt</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;&lt;|SYSTEM|&gt;# StableLM Tuned (Alpha version)</span>
+<span class="s2">- StableLM is a helpful and harmless open-source AI language model developed by StabilityAI.</span>
+<span class="s2">- StableLM is excited to be able to help the user, but will refuse to do anything that could be considered harmful to the user.</span>
+<span class="s2">- StableLM is more than just an information source, StableLM is also able to write poetry, short stories, and make jokes.</span>
+<span class="s2">- StableLM will refuse to participate in anything that could harm a human.</span>
+<span class="s2">&quot;&quot;&quot;</span>
+<span class="n">system_prompt_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">system_prompt</span><span class="p">))</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;&lt;|USER|&gt;What&#39;s your mood today?&lt;|ASSISTANT|&gt;&quot;</span>
+<span class="n">prompt_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>
+
+<span class="n">step_results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_tokens</span><span class="p">(</span>
+    <span class="n">prompt</span><span class="o">=</span><span class="n">prompt_tokens</span><span class="p">,</span>
+    <span class="n">static_prompt</span><span class="o">=</span><span class="n">system_prompt_tokens</span><span class="p">,</span>
+    <span class="n">max_length</span><span class="o">=</span><span class="mi">512</span><span class="p">,</span>
+    <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span>
+    <span class="n">sampling_temperature</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span>
+    <span class="n">end_token</span><span class="o">=</span><span class="p">[</span><span class="mi">50278</span><span class="p">,</span> <span class="mi">50279</span><span class="p">,</span> <span class="mi">50277</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">0</span><span class="p">],</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>At this time the cache size is unlimited and the cache is only cleared when the model is unloaded. Also if the model is loaded on multiple GPUs, each model replica manages its own cache to avoid copying the state between devices.</p>
+</div>
+</section>
 <section id="special-tokens">
 <h2>Special tokens<a class="headerlink" href="#special-tokens" title="Permalink to this headline"></a></h2>
 <p>Special tokens such as the decoder start token <code class="docutils literal notranslate"><span class="pre">&lt;s&gt;</span></code> should be explicitly included in the input if required by the model. No special tokens are added by the generator methods.</p>
@@ -194,7 +235,7 @@
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="translation.html" class="btn btn-neutral float-left" title="Text translation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="speech_recognition.html" class="btn btn-neutral float-right" title="Speech recognition" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="encoding.html" class="btn btn-neutral float-right" title="Text encoding" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
