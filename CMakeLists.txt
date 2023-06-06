@@ -169,6 +169,8 @@ set(SOURCES
   src/ops/tile_cpu.cc
   src/ops/topk.cc
   src/ops/topk_cpu.cc
+  src/ops/topp_mask.cc
+  src/ops/topp_mask_cpu.cc
   src/ops/transpose.cc
   src/padder.cc
   src/profiler.cc
@@ -509,6 +511,7 @@ if (WITH_CUDA)
     src/ops/softmax_gpu.cu
     src/ops/tile_gpu.cu
     src/ops/topk_gpu.cu
+    src/ops/topp_mask_gpu.cu
     src/ops/quantize_gpu.cu
     )
 elseif(WITH_CUDNN)
