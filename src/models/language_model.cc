@@ -134,12 +134,12 @@ namespace ctranslate2 {
                            layers::DecoderState& to,
                            dim_t batch_size) {
       if (batch_size == 1) {
-        for (auto& [name, value] : from)
+        for (const auto& [name, value] : from)
           to[name] = value;
 
       } else {
         const ops::Tile tile_op(/*axis=*/0, /*repeats=*/batch_size);
-        for (auto& [name, value] : from)
+        for (const auto& [name, value] : from)
           tile_op(value, to[name]);
       }
     }
