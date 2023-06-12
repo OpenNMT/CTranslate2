@@ -484,6 +484,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             rotary_interleave=rotary_interleave,
             parallel_residual=parallel_residual,
             shared_layer_norm=shared_layer_norm,
+            multi_query_attention=multi_query_attention,
             num_heads_kv=num_heads_kv,
         )
 
