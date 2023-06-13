@@ -1,5 +1,7 @@
 #include "ctranslate2/ops/topp_mask.h"
 
+#include <limits>
+
 #include <cub/block/block_radix_sort.cuh>
 
 #include "cuda/helpers.h"
