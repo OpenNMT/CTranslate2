@@ -81,6 +81,8 @@ namespace ctranslate2 {
       const dim_t batch_size = input.size() / depth;
       const dim_t blocks = std::min(batch_size, cuda::max_blocks);
 
+      // TODO: support an arbitrary number of classes.
+
 #define CASE_IPT(ITEMS_PER_THREAD)                                      \
       case ITEMS_PER_THREAD:                                            \
         topp_mask_kernel<cuda::device_type<T>, ITEMS_PER_THREAD>        \
