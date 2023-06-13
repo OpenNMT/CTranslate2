@@ -18,8 +18,8 @@ namespace ctranslate2 {
                                      const float p,
                                      const float mask,
                                      const cuda::index_t class_size) {
-      typedef cub::BlockRadixSort<T, num_threads, ITEMS_PER_THREAD, int> BlockRadixSort;
-      typedef cub::BlockScan<T, num_threads> BlockScan;
+      typedef cub::BlockRadixSort<float, num_threads, ITEMS_PER_THREAD, int> BlockRadixSort;
+      typedef cub::BlockScan<float, num_threads> BlockScan;
 
       __shared__ union TempStorage {
         typename BlockRadixSort::TempStorage sort;
@@ -30,7 +30,7 @@ namespace ctranslate2 {
       probs += blockIdx.x * class_size;
       output += blockIdx.x * class_size;
 
-      T thread_keys[ITEMS_PER_THREAD];
+      float thread_keys[ITEMS_PER_THREAD];
       int thread_values[ITEMS_PER_THREAD];
 
       for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
@@ -52,13 +52,13 @@ namespace ctranslate2 {
       BlockScan(temp_storage.scan).ExclusiveSum(thread_keys, thread_keys);
 
       for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
-        const T total_p = thread_keys[i];
+        const float total_p = thread_keys[i];
         const int id = thread_values[i];
 
         if (id < 0)
           break;
 
-        output[id] = float(total_p) < p ? input[id] : T(mask);
+        output[id] = total_p < p ? input[id] : T(mask);
       }
     }
 
