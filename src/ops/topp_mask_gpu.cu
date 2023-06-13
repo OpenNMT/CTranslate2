@@ -49,7 +49,7 @@ namespace ctranslate2 {
 
       __syncthreads();
 
-      BlockScan(temp_storage.scan).InclusiveSum(thread_keys, thread_keys);
+      BlockScan(temp_storage.scan).ExclusiveSum(thread_keys, thread_keys);
 
       for (int i = 0; i < ITEMS_PER_THREAD; ++i) {
         const T total_p = thread_keys[i];
@@ -58,7 +58,7 @@ namespace ctranslate2 {
         if (id < 0)
           break;
 
-        output[id] = float(total_p) <= p ? input[id] : T(mask);
+        output[id] = float(total_p) < p ? input[id] : T(mask);
       }
     }
 

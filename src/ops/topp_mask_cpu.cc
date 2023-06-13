@@ -33,8 +33,8 @@ namespace ctranslate2 {
           float total_p = 0;
 
           for (const auto id : ids) {
+            y_i[id] = total_p < p ? x_i[id] : mask;
             total_p += probs_i[id];
-            y_i[id] = total_p <= p ? x_i[id] : mask;
           }
         }
       });

@@ -599,8 +599,8 @@ TEST_P(OpDeviceFPTest, TopPMask) {
       -0.2, 3.0, 1.2, -1.1, 0.0,
       4.6, 3.3, 0.2, -1.6, 1.0}, device).to(dtype);
   StorageView expected = StorageView({2, 5}, std::vector<float>{
-      -inf, 3.0, 1.2, -inf, 0.0,
-      4.6, 3.3, -inf, -inf, -inf}, device);
+      -0.2, 3.0, 1.2, -inf, 0.0,
+      4.6, 3.3, -inf, -inf, 1.0}, device);
   StorageView y(dtype, device);
 
   ops::TopPMask(0.97)(x, y);
