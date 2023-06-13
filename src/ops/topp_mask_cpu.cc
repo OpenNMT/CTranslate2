@@ -56,6 +56,11 @@ namespace ctranslate2 {
                        output.data<T>());
     }
 
+    template<>
+    dim_t TopPMask::max_num_classes<Device::CPU>() {
+      return std::numeric_limits<dim_t>::max();
+    }
+
 #define DECLARE_IMPL(T)                                                 \
     template void TopPMask::compute<Device::CPU, T>(const StorageView&, \
                                                     const StorageView&, \

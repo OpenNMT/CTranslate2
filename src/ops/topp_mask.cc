@@ -41,5 +41,11 @@ namespace ctranslate2 {
       }
     }
 
+    dim_t TopPMask::max_num_classes(const Device device) {
+      dim_t num_classes = 0;
+      DEVICE_DISPATCH(device, num_classes = max_num_classes<D>());
+      return num_classes;
+    }
+
   }
 }

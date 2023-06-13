@@ -105,15 +105,19 @@ namespace ctranslate2 {
 
       default:
         throw std::runtime_error("The TopP operator does not support more than "
-                                 + std::to_string(num_threads * 32)
+                                 + std::to_string(max_num_classes<Device::CUDA>())
                                  + " classes, but the input has "
                                  + std::to_string(depth) +
-                                 " classes. For now, please set the parameter 'sampling_topk'"
-                                 " to a lower value.");
+                                 " classes.");
       }
 
 #undef CASE_IPT
 
+    }
+
+    template<>
+    dim_t TopPMask::max_num_classes<Device::CUDA>() {
+      return num_threads * 32;
     }
 
 #define DECLARE_IMPL(T)                                                 \
