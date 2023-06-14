@@ -382,6 +382,24 @@ namespace ctranslate2 {
       }
     }
 
+    std::shared_ptr<Vocabulary>
+    Model::load_vocabulary_file(ModelReader& model_reader,
+                                const std::string& filename,
+                                VocabularyInfo vocab_info) const {
+      static const std::vector<std::string> extensions = {"json", "txt"};
+
+      for (const auto& extension : extensions) {
+        const auto file = model_reader.get_file(filename + "." + extension);
+
+        if (file) {
+          Vocabulary vocabulary = Vocabulary::from_file(*file, extension, std::move(vocab_info));
+          return std::make_shared<Vocabulary>(std::move(vocabulary));
+        }
+      }
+
+      return nullptr;
+    }
+
     static DataType get_dtype_from_item_size(uint8_t item_size) {
       // This is the old (and flawed) logic of resolving the dtype of saved variables.
       switch (item_size) {

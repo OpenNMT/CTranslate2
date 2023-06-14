@@ -1,12 +1,12 @@
 #include "ctranslate2/vocabulary.h"
 
+#include <nlohmann/json.hpp>
+
 #include "ctranslate2/utils.h"
 
 namespace ctranslate2 {
 
-  Vocabulary::Vocabulary(std::istream& in, VocabularyInfo info)
-    : _info(std::move(info))
-  {
+  static std::vector<std::string> load_tokens_from_text_file(std::istream& in) {
     std::vector<std::string> tokens;
     std::string line;
 
@@ -21,12 +21,40 @@ namespace ctranslate2 {
       tokens.emplace_back(std::move(line));
     }
 
+    if (remove_carriage_return) {
+      for (auto& token : tokens)
+        token.pop_back();
+    }
+
+    return tokens;
+  }
+
+  static std::vector<std::string> load_tokens_from_json_file(std::istream& in) {
+    return nlohmann::json::parse(in).get<std::vector<std::string>>();
+  }
+
+  Vocabulary Vocabulary::from_file(std::istream& in,
+                                   const std::string& file_extension,
+                                   VocabularyInfo info) {
+    std::vector<std::string> tokens;
+
+    if (file_extension == "json")
+      tokens = load_tokens_from_json_file(in);
+    else if (file_extension == "txt")
+      tokens = load_tokens_from_text_file(in);
+    else
+      throw std::invalid_argument("Invalid vocabulary file extension: " + file_extension);
+
+    return Vocabulary(std::move(tokens), std::move(info));
+  }
+
+  Vocabulary::Vocabulary(std::vector<std::string> tokens, VocabularyInfo info)
+    : _info(std::move(info))
+  {
     _token_to_id.reserve(tokens.size());
     _id_to_token.reserve(tokens.size());
 
     for (auto& token : tokens) {
-      if (remove_carriage_return)
-        token.pop_back();
       add_token(std::move(token));
     }
 

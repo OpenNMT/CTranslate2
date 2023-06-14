@@ -17,7 +17,11 @@ namespace ctranslate2 {
   class Vocabulary
   {
   public:
-    Vocabulary(std::istream& in, VocabularyInfo info = VocabularyInfo());
+    static Vocabulary from_file(std::istream& in,
+                                const std::string& file_extension = "txt",
+                                VocabularyInfo info = VocabularyInfo());
+
+    Vocabulary(std::vector<std::string> tokens, VocabularyInfo info = VocabularyInfo());
 
     bool contains(const std::string& token) const;
     const std::string& to_token(size_t id) const;
