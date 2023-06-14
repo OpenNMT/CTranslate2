@@ -1,7 +1,5 @@
 #include "ctranslate2/ops/topp_mask.h"
 
-#include <limits>
-
 #include <cub/block/block_radix_sort.cuh>
 
 #include "cuda/helpers.h"
@@ -91,7 +89,7 @@ namespace ctranslate2 {
           cuda::device_cast(probs.data<T>()),                           \
           cuda::device_cast(output.data<T>()),                          \
           _p,                                                           \
-          -std::numeric_limits<float>::infinity(),                      \
+          _mask_value,                                                  \
           depth);                                                       \
         break
 

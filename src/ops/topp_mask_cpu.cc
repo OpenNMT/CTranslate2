@@ -1,7 +1,6 @@
 #include "ctranslate2/ops/topp_mask.h"
 
 #include <algorithm>
-#include <limits>
 #include <numeric>
 
 #include "cpu/parallel.h"
@@ -50,7 +49,7 @@ namespace ctranslate2 {
       topp_mask_kernel(input.data<T>(),
                        probs.data<T>(),
                        _p,
-                       -std::numeric_limits<T>::infinity(),
+                       _mask_value,
                        batch_size,
                        depth,
                        output.data<T>());

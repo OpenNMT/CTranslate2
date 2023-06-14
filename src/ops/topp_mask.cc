@@ -7,8 +7,9 @@
 namespace ctranslate2 {
   namespace ops {
 
-    TopPMask::TopPMask(const float p)
+    TopPMask::TopPMask(const float p, const float mask_value)
       : _p(p)
+      , _mask_value(mask_value)
     {
     }
 

@@ -1,5 +1,7 @@
 #pragma once
 
+#include <limits>
+
 #include "op.h"
 
 namespace ctranslate2 {
@@ -7,7 +9,7 @@ namespace ctranslate2 {
 
     class TopPMask : public Op {
     public:
-      TopPMask(const float p);
+      TopPMask(const float p, const float mask_value = -std::numeric_limits<float>::infinity());
 
       static dim_t max_num_classes(const Device device);
 
@@ -15,6 +17,7 @@ namespace ctranslate2 {
 
     private:
       const float _p;
+      const float _mask_value;
 
       template <Device D>
       static dim_t max_num_classes();
