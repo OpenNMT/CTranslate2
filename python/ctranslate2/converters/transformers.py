@@ -1473,7 +1473,8 @@ class XLMRobertaLoader(ModelLoader):
         spec.encodings = module.weight.numpy()
         offset = getattr(module, "padding_idx", 0)
         if offset > 0:
-            spec.encodings = spec.encodings[offset+1:]
+            spec.encodings = spec.encodings[offset + 1:]
+
 
 def main():
     parser = argparse.ArgumentParser(
