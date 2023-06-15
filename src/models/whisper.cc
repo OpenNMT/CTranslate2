@@ -28,7 +28,7 @@ namespace ctranslate2 {
       vocab_info.bos_token = "<|startoftranscript|>";
       vocab_info.eos_token = "<|endoftext|>";
 
-      _vocabulary = load_vocabulary_file(model_reader, "vocabulary", std::move(vocab_info));
+      _vocabulary = load_vocabulary(model_reader, "vocabulary", std::move(vocab_info));
       if (!_vocabulary)
         throw std::runtime_error("Cannot load the vocabulary from the model directory");
     }

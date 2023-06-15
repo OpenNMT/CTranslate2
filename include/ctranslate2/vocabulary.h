@@ -17,9 +17,8 @@ namespace ctranslate2 {
   class Vocabulary
   {
   public:
-    static Vocabulary from_file(std::istream& in,
-                                const std::string& file_extension = "txt",
-                                VocabularyInfo info = VocabularyInfo());
+    static Vocabulary from_text_file(std::istream& in, VocabularyInfo info = VocabularyInfo());
+    static Vocabulary from_json_file(std::istream& in, VocabularyInfo info = VocabularyInfo());
 
     Vocabulary(std::vector<std::string> tokens, VocabularyInfo info = VocabularyInfo());
 

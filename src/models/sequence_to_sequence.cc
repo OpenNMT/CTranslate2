@@ -17,30 +17,31 @@ namespace ctranslate2 {
         vocab_info.bos_token = config["bos_token"];
         vocab_info.eos_token = config["eos_token"];
 
-        const auto shared_vocabulary = load_vocabulary_file(model_reader,
-                                                            "shared_vocabulary",
-                                                            vocab_info);
+        auto shared_vocabulary = load_vocabulary(model_reader, "shared_vocabulary", vocab_info);
 
         if (shared_vocabulary) {
           _target_vocabulary = shared_vocabulary;
           _source_vocabularies = {shared_vocabulary};
 
         } else {
-          _target_vocabulary = load_vocabulary_file(model_reader, "target_vocabulary", vocab_info);
+          _target_vocabulary = load_vocabulary(model_reader, "target_vocabulary", vocab_info);
           if (!_target_vocabulary)
             throw std::runtime_error("Cannot load the target vocabulary from the model direcory");
 
-          for (size_t i = 0;; i++) {
-            const std::string filename = (i == 0
-                                          ? "source_vocabulary"
-                                          : "source_" + std::to_string(i) + "_vocabulary");
+          auto source_vocabulary = load_vocabulary(model_reader, "source_vocabulary", vocab_info);
 
-            const auto vocabulary = load_vocabulary_file(model_reader, filename, vocab_info);
+          if (source_vocabulary) {
+            _source_vocabularies = {source_vocabulary};
+          } else {
+            for (size_t i = 1;; i++) {
+              const std::string filename = "source_" + std::to_string(i) + "_vocabulary";
+              auto vocabulary = load_vocabulary(model_reader, filename, vocab_info);
 
-            if (!vocabulary)
-              break;
+              if (!vocabulary)
+                break;
 
-            _source_vocabularies.emplace_back(vocabulary);
+              _source_vocabularies.emplace_back(vocabulary);
+            }
           }
 
           if (_source_vocabularies.empty())

@@ -6,7 +6,7 @@
 
 namespace ctranslate2 {
 
-  static std::vector<std::string> load_tokens_from_text_file(std::istream& in) {
+  Vocabulary Vocabulary::from_text_file(std::istream& in, VocabularyInfo info) {
     std::vector<std::string> tokens;
     std::string line;
 
@@ -26,26 +26,11 @@ namespace ctranslate2 {
         token.pop_back();
     }
 
-    return tokens;
-  }
-
-  static std::vector<std::string> load_tokens_from_json_file(std::istream& in) {
-    return nlohmann::json::parse(in).get<std::vector<std::string>>();
-  }
-
-  Vocabulary Vocabulary::from_file(std::istream& in,
-                                   const std::string& file_extension,
-                                   VocabularyInfo info) {
-    std::vector<std::string> tokens;
-
-    if (file_extension == "json")
-      tokens = load_tokens_from_json_file(in);
-    else if (file_extension == "txt")
-      tokens = load_tokens_from_text_file(in);
-    else
-      throw std::invalid_argument("Invalid vocabulary file extension: " + file_extension);
-
     return Vocabulary(std::move(tokens), std::move(info));
+  }
+
+  Vocabulary Vocabulary::from_json_file(std::istream& in, VocabularyInfo info) {
+    return Vocabulary(nlohmann::json::parse(in).get<std::vector<std::string>>(), std::move(info));
   }
 
   Vocabulary::Vocabulary(std::vector<std::string> tokens, VocabularyInfo info)

@@ -7,7 +7,6 @@
 
 #include "ctranslate2/models/model_reader.h"
 #include "ctranslate2/storage_view.h"
-#include "ctranslate2/vocabulary.h"
 
 namespace ctranslate2 {
   namespace models {
@@ -144,11 +143,6 @@ namespace ctranslate2 {
 
       // Runs some initialization after the model is loaded.
       virtual void initialize(ModelReader&) {}
-
-      std::shared_ptr<Vocabulary>
-      load_vocabulary_file(ModelReader& model_reader,
-                           const std::string& filename,
-                           VocabularyInfo vocab_info) const;
 
       virtual std::unique_ptr<Model> clone() const = 0;
 
