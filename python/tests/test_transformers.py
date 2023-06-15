@@ -152,16 +152,16 @@ _TRANSFORMERS_GENERATION_TESTS = [
     (
         # loads the smallest available llama.
         "openlm-research/open_llama_3b",
-        '▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to',
+        "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to",
         17,
-        '▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to'
-        ' ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a',
+        "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to"
+        " ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a",
     ),
     (
         "Salesforce/codegen-350M-mono",
-        'def Ġhello _ name ( name ):',
+        "def Ġhello _ name ( name ):",
         25,
-        'def Ġhello _ name ( name ):'
+        "def Ġhello _ name ( name ):"
         ' Ċ      print ( f " Hello Ġ{ name } ") Ċ Ċ hello _ name (" John ")',
     ),
     (
