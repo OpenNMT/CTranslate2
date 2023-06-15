@@ -1438,6 +1438,15 @@ class BertLoader(ModelLoader):
 
         return spec
 
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+
+        return tokens
+    
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
 
