@@ -26,7 +26,7 @@ namespace ctranslate2 {
         } else {
           _target_vocabulary = load_vocabulary(model_reader, "target_vocabulary", vocab_info);
           if (!_target_vocabulary)
-            throw std::runtime_error("Cannot load the target vocabulary from the model direcory");
+            throw std::runtime_error("Cannot load the target vocabulary from the model directory");
 
           auto source_vocabulary = load_vocabulary(model_reader, "source_vocabulary", vocab_info);
 
@@ -45,7 +45,7 @@ namespace ctranslate2 {
           }
 
           if (_source_vocabularies.empty())
-            throw std::runtime_error("Cannot load the source vocabulary from the model direcory");
+            throw std::runtime_error("Cannot load the source vocabulary from the model directory");
         }
       }
 
