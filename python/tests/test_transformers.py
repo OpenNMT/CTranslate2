@@ -150,6 +150,30 @@ def test_transformers_translation(
 
 _TRANSFORMERS_GENERATION_TESTS = [
     (
+        # loads the smallest available llama.
+        "openlm-research/open_llama_3b",
+        '▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to',
+        17,
+        '▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to'
+        ' ▁to ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a',
+    ),
+    (
+        "Salesforce/codegen-350M-mono",
+        'def Ġhello _ name ( name ):',
+        25,
+        'def Ġhello _ name ( name ):'
+        ' Ċ      print ( f " Hello Ġ{ name } ") Ċ Ċ hello _ name (" John ")',
+    ),
+    (
+        "bigcode/gpt_bigcode-santacoder",
+        "<fim-prefix> def Ġprint _ hello _ world ():"
+        " ĊĠĠĠĠ <fim-suffix> ĊĠĠĠ Ġprint (' Hello Ġworld !') <fim-middle>",
+        23,
+        "<fim-prefix> def Ġprint _ hello _ world ():"
+        " ĊĠĠĠĠ <fim-suffix> ĊĠĠĠ Ġprint (' Hello Ġworld !') <fim-middle>"
+        ' """ Print s Ġhello Ġworld ."""',
+    ),
+    (
         "gpt2",
         "<|endoftext|>",
         10,
@@ -198,6 +222,8 @@ def test_transformers_generation(
     generator = ctranslate2.Generator(output_dir)
     results = generator.generate_batch([start_tokens.split()], max_length=max_length)
     output_tokens = " ".join(results[0].sequences[0])
+    print(output_tokens)
+    print(expected_tokens)
     assert output_tokens == expected_tokens
 
     # Test empty inputs.
