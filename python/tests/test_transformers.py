@@ -155,7 +155,7 @@ _TRANSFORMERS_GENERATION_TESTS = [
         '▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to',
         17,
         '▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to'
-        ' ▁to ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a',
+        ' ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a',
     ),
     (
         "Salesforce/codegen-350M-mono",
