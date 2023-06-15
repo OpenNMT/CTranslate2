@@ -203,3 +203,45 @@ def test_fuse_linear_no_bias():
     assert test_utils.array_equal(spec.bias[:64], np.zeros([64], dtype=np.float32))
     assert test_utils.array_equal(spec.bias[64:128], np.ones([64], dtype=np.float32))
     assert test_utils.array_equal(spec.bias[128:], np.zeros([64], dtype=np.float32))
+
+
+@pytest.mark.parametrize("variable_dtype", ["float32", "float16", "bfloat16"])
+@pytest.mark.parametrize(
+    "quantization,expected_weight_dtype,expected_bias_dtype",
+    [
+        (None, "float32", "float32"),
+        ("int8", "int8", "float32"),
+        ("int8_float16", "int8", "float16"),
+        ("int8_bfloat16", "int8", "bfloat16"),
+        ("int16", "int16", "float32"),
+        ("float16", "float16", "float16"),
+        ("bfloat16", "bfloat16", "bfloat16"),
+    ],
+)
+def test_torch_variables(
+    tmp_dir, variable_dtype, quantization, expected_weight_dtype, expected_bias_dtype
+):
+    import torch
+
+    variable_dtype = getattr(torch, variable_dtype)
+
+    class TorchModel(ctranslate2.specs.ModelSpec):
+        def __init__(self):
+            super().__init__()
+            self.dense = common_spec.LinearSpec()
+            self.dense.weight = torch.ones([16, 4], dtype=variable_dtype)
+            self.dense.bias = torch.ones([16], dtype=variable_dtype)
+
+        @property
+        def name(self):
+            return "TorchModel"
+
+    model = TorchModel()
+    model.validate()
+    model.optimize(quantization)
+
+    variables = model.variables()
+    assert variables["dense/weight"].dtype() == expected_weight_dtype
+    assert variables["dense/bias"].dtype() == expected_bias_dtype
+
+    model.save(tmp_dir)
