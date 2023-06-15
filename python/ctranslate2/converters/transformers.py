@@ -1446,7 +1446,7 @@ class BertLoader(ModelLoader):
             tokens.append("<extra_id_%d>" % i)
 
         return tokens
-    
+
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
 
