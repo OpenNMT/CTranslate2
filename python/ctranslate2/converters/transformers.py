@@ -1434,7 +1434,8 @@ class XLMRobertaLoader(ModelLoader):
             spec.encoder.embeddings[1], model.roberta.embeddings.token_type_embeddings
         )
         self.set_position_encodings(
-            spec.encoder.position_encodings, model.roberta.embeddings.position_embeddings
+            spec.encoder.position_encodings,
+            model.roberta.embeddings.position_embeddings,
         )
         self.set_layer_norm(
             spec.encoder.layernorm_embedding, model.roberta.embeddings.LayerNorm
@@ -1473,7 +1474,7 @@ class XLMRobertaLoader(ModelLoader):
         spec.encodings = module.weight.numpy()
         offset = getattr(module, "padding_idx", 0)
         if offset > 0:
-            spec.encodings = spec.encodings[offset + 1:]
+            spec.encodings = spec.encodings[offset + 1 :]
 
 
 def main():
