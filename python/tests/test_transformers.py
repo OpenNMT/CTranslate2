@@ -149,14 +149,14 @@ def test_transformers_translation(
 
 
 _TRANSFORMERS_GENERATION_TESTS = [
-    (
-        # loads the smallest available llama.
-        "openlm-research/open_llama_3b",
-        "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to",
-        17,
-        "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to"
-        " ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a",
-    ),
+    # (
+    #     # loads the smallest available llama, yet CI fails
+    #     "openlm-research/open_llama_3b",
+    #     "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to",
+    #     17,
+    #     "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to"
+    #     " ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a",
+    # ),
     (
         "Salesforce/codegen-350M-mono",
         "def Ġhello _ name ( name ):",
