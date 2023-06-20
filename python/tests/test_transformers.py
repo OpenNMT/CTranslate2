@@ -149,29 +149,21 @@ def test_transformers_translation(
 
 
 _TRANSFORMERS_GENERATION_TESTS = [
-    # (
-    #     # loads the smallest available llama, yet CI fails
-    #     "openlm-research/open_llama_3b",
-    #     "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to",
-    #     17,
-    #     "▁My ▁name ▁is ▁Michael ▁and ▁I ▁like ▁to"
-    #     " ▁write ▁about ▁the ▁things ▁I ▁love . ▁I ▁am ▁a",
-    # ),
+    (
+        "bigcode/tiny_starcoder_py",
+        ("<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
+        "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"),
+        26,
+        ("<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
+        "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"
+        " print (' two ')"),
+    ),
     (
         "Salesforce/codegen-350M-mono",
         "def Ġhello _ name ( name ):",
         25,
         "def Ġhello _ name ( name ):"
         ' Ċ      print ( f " Hello Ġ{ name } ") Ċ Ċ hello _ name (" John ")',
-    ),
-    (
-        "bigcode/gpt_bigcode-santacoder",
-        "<fim-prefix> def Ġprint _ hello _ world ():"
-        " ĊĠĠĠĠ <fim-suffix> ĊĠĠĠ Ġprint (' Hello Ġworld !') <fim-middle>",
-        23,
-        "<fim-prefix> def Ġprint _ hello _ world ():"
-        " ĊĠĠĠĠ <fim-suffix> ĊĠĠĠ Ġprint (' Hello Ġworld !') <fim-middle>"
-        ' """ Print s Ġhello Ġworld ."""',
     ),
     (
         "gpt2",
