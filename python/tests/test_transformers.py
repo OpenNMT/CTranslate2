@@ -151,12 +151,16 @@ def test_transformers_translation(
 _TRANSFORMERS_GENERATION_TESTS = [
     (
         "bigcode/tiny_starcoder_py",
-        ("<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
-        "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"),
+        (
+            "<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
+            "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"
+        ),
         26,
-        ("<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
-        "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"
-        " print (' two ')"),
+        (
+            "<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
+            "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"
+            " print (' two ')"
+        ),
     ),
     (
         "Salesforce/codegen-350M-mono",
@@ -214,8 +218,7 @@ def test_transformers_generation(
     generator = ctranslate2.Generator(output_dir)
     results = generator.generate_batch([start_tokens.split()], max_length=max_length)
     output_tokens = " ".join(results[0].sequences[0])
-    print(output_tokens)
-    print(expected_tokens)
+
     assert output_tokens == expected_tokens
 
     # Test empty inputs.
