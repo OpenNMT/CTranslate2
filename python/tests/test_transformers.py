@@ -218,7 +218,6 @@ def test_transformers_generation(
     generator = ctranslate2.Generator(output_dir)
     results = generator.generate_batch([start_tokens.split()], max_length=max_length)
     output_tokens = " ".join(results[0].sequences[0])
-
     assert output_tokens == expected_tokens
 
     # Test empty inputs.
