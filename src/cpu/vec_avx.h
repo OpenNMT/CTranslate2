@@ -5,6 +5,13 @@
 
 #include "vec.h"
 
+// __FMA__ is not defined in MSVC, however it is implied with AVX2.
+#if defined(_MSC_VER) && defined(__AVX2__)
+#  ifndef __FMA__
+#  define __FMA__
+#  endif
+#endif
+
 #if defined(__GNUC__)
 #  define __ct2_align32__ __attribute__((aligned(32)))
 #elif defined(_WIN32)
