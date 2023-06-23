@@ -682,7 +682,7 @@ class PyTorchVariable(Variable):
     @classmethod
     def from_numpy(cls, array):
         tensor = torch.from_numpy(array)
-        return cls(array)
+        return cls(tensor)
 
     def shape(self) -> List[int]:
         return list(self.tensor.shape)
