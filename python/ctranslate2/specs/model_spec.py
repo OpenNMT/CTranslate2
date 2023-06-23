@@ -250,7 +250,7 @@ def _dtype_to_type_id(object_dtype):
     except ValueError:
         raise ValueError(
             "%s is not in list of supported dtypes: %s"
-            % (str(object_dtype), ", ".join(dtypes))
+            % (object_dtype, ", ".join(dtypes))
         )
 
 
