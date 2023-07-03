@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Translator &mdash; CTranslate2 3.16.0 documentation</title>
+  <title>Translator &mdash; CTranslate2 3.16.1 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -371,8 +371,9 @@ beam_size*patience hypotheses are finished.</p></li>
 this value.</p></li>
 <li><p><strong>sampling_temperature</strong> – Sampling temperature to generate more random samples.</p></li>
 <li><p><strong>replace_unknowns</strong> – Replace unknown target tokens by the source token with the highest attention.</p></li>
-<li><p><strong>callback</strong> – Optional function that is called for each generated token.
-This requires a beam size of 1.</p></li>
+<li><p><strong>callback</strong> – Optional function that is called for each generated token when
+<code class="xref py py-obj docutils literal notranslate"><span class="pre">beam_size</span></code> is 1. If the callback function returns <code class="docutils literal notranslate"><span class="pre">True</span></code>, the
+decoding will stop for this batch.</p></li>
 </ul>
 </dd>
 <dt class="field-even">Returns</dt>
