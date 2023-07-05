@@ -59,8 +59,25 @@ namespace ctranslate2 {
   template void primitives<Device::CUDA>::convert(const float16_t*, float*, dim_t);
   template void primitives<Device::CUDA>::convert(const float*, bfloat16_t*, dim_t);
   template void primitives<Device::CUDA>::convert(const bfloat16_t*, float*, dim_t);
-  template void primitives<Device::CUDA>::convert(const float16_t*, bfloat16_t*, dim_t);
-  template void primitives<Device::CUDA>::convert(const bfloat16_t*, float16_t*, dim_t);
+
+  struct convert_via_float {
+    template <typename T>
+    __device__ float operator()(T x) const {
+      return x;
+    }
+  };
+
+  template<>
+  template<>
+  void primitives<Device::CUDA>::convert(const float16_t* x, bfloat16_t* y, dim_t size) {
+    cuda::unary_transform(x, y, size, convert_via_float());
+  }
+
+  template<>
+  template<>
+  void primitives<Device::CUDA>::convert(const bfloat16_t* x, float16_t* y, dim_t size) {
+    cuda::unary_transform(x, y, size, convert_via_float());
+  }
 
   template<>
   template <typename T>
