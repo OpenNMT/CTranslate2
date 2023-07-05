@@ -88,7 +88,19 @@ namespace ctranslate2 {
   }
 
   bool mayiuse_bfloat16(const Device device, const int device_index) {
-    return mayiuse_float16(device, device_index);
+    switch (device) {
+    case Device::CUDA: {
+#ifdef CT2_WITH_CUDA
+      static const bool allow_bfloat16 = read_bool_from_env("CT2_CUDA_ALLOW_BF16");
+      return allow_bfloat16 || cuda::get_device_properties(device_index).major >= 8;
+#else
+      (void)device_index;
+      return false;
+#endif
+    }
+    default:
+      return false;
+    }
   }
 
   bool mayiuse_float16(const Device device, const int device_index) {
@@ -302,7 +314,6 @@ namespace ctranslate2 {
                                     const int device_index) {
 #ifdef CT2_WITH_CUDA
     if (device == Device::CUDA) {
-      // TODO bfloat16
       if ((compute_type == ComputeType::FLOAT16 || compute_type == ComputeType::BFLOAT16)
           && cuda::gpu_has_fp16_tensor_cores(device_index))
         return 8;
