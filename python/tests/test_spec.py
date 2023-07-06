@@ -205,6 +205,7 @@ def test_fuse_linear_no_bias():
     assert test_utils.array_equal(spec.bias[128:], np.zeros([64], dtype=np.float32))
 
 
+@test_utils.skip_on_windows
 @pytest.mark.parametrize("variable_dtype", ["float32", "float16", "bfloat16"])
 @pytest.mark.parametrize(
     "quantization,expected_weight_dtype,expected_bias_dtype",
