@@ -8,6 +8,13 @@ from typing import List, Optional
 
 import numpy as np
 
+try:
+    import huggingface_hub
+    import torch
+    import transformers
+except ImportError:
+    pass
+
 from ctranslate2.converters import utils
 from ctranslate2.converters.converter import Converter
 from ctranslate2.specs import common_spec, model_spec, transformer_spec, whisper_spec
@@ -77,9 +84,6 @@ class TransformersConverter(Converter):
         self._trust_remote_code = trust_remote_code
 
     def _load(self):
-        import torch
-        import transformers
-
         with torch.no_grad():
             config = transformers.AutoConfig.from_pretrained(
                 self._model_name_or_path, trust_remote_code=self._trust_remote_code
@@ -139,8 +143,6 @@ class TransformersConverter(Converter):
         if os.path.isdir(self._model_name_or_path):
             path = os.path.join(self._model_name_or_path, filename)
         else:
-            import huggingface_hub
-
             try:
                 path = huggingface_hub.hf_hub_download(
                     repo_id=self._model_name_or_path, filename=filename
@@ -196,8 +198,6 @@ class ModelLoader(abc.ABC):
         spec.beta = module.bias
 
     def set_linear(self, spec, module):
-        import transformers
-
         spec.weight = module.weight
         if isinstance(module, transformers.Conv1D):
             spec.weight = spec.weight.transpose(0, 1)
@@ -659,8 +659,6 @@ class GPTJLoader(ModelLoader):
         config.unk_token = tokenizer.unk_token
 
     def set_decoder(self, spec, module, rotary_dim, num_heads):
-        import torch
-
         spec.scale_embeddings = False
         self.set_embeddings(spec.embeddings, module.wte)
         self.set_layer_norm(spec.layer_norm, module.ln_f)
@@ -737,8 +735,6 @@ class CodeGenLoader(ModelLoader):
         config.unk_token = tokenizer.unk_token
 
     def set_decoder(self, spec, module, rotary_dim, num_heads, embed_dim, mp_num):
-        import torch
-
         spec.scale_embeddings = False
         self.set_embeddings(spec.embeddings, module.wte)
         self.set_layer_norm(spec.layer_norm, module.ln_f)
@@ -1176,8 +1172,6 @@ class MPTLoader(ModelLoader):
             self.set_linear(layer_spec.ffn.linear_1, layer.ffn.down_proj)
 
     def set_layer_norm(self, spec, module):
-        import torch
-
         spec.gamma = module.weight
         spec.beta = torch.zeros_like(spec.gamma)
 
@@ -1216,8 +1210,6 @@ class LlamaLoader(ModelLoader):
         spec.gamma = layer_norm.weight
 
     def set_decoder(self, spec, module):
-        import torch
-
         spec.scale_embeddings = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)
         self.set_layer_norm(spec.layer_norm, module.norm)
@@ -1336,8 +1328,6 @@ class RWLoader(ModelLoader):
             self.set_linear(layer_spec.ffn.linear_1, layer.mlp.dense_4h_to_h)
 
     def set_qkv_linear(self, spec, module, num_heads, num_kv=None):
-        import torch
-
         weight = module.weight
 
         if num_kv is None:
