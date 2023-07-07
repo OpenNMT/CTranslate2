@@ -181,6 +181,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
             key = _split_scope(name)[-1]
             scale = None
             is_quantizable = hasattr(spec, "%s_scale" % key)
+            is_convertible = value.dtype in ("float32", "float16", "bfloat16")
 
             if is_quantizable:
                 if quantization == "int16":
@@ -211,7 +212,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 else:
                     value = value.to("float32")
 
-            else:
+            elif is_convertible:
                 if quantization in ("float16", "int8_float16"):
                     value = value.to("float16")
                 elif quantization in ("bfloat16", "int8_bfloat16"):
