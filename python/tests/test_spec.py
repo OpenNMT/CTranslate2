@@ -206,6 +206,40 @@ def test_fuse_linear_no_bias():
 
 
 @test_utils.skip_on_windows
+def test_fuse_linear_torch():
+    import torch
+
+    layers = []
+    for _ in range(3):
+        spec = common_spec.LinearSpec()
+        spec.weight = torch.zeros([64, 64], dtype=torch.float32)
+        spec.bias = torch.zeros([64], dtype=torch.float32)
+        layers.append(spec)
+
+    spec = common_spec.LinearSpec()
+    conversion_utils.fuse_linear(spec, layers)
+    assert spec.weight.shape[0] == 64 * 3
+    assert spec.bias.shape[0] == 64 * 3
+
+
+@test_utils.skip_on_windows
+def test_smooth_activation_torch():
+    import torch
+
+    layer_norm = common_spec.LayerNormSpec()
+    layer_norm.beta = torch.rand([64], dtype=torch.float16)
+    layer_norm.gamma = torch.rand([64], dtype=torch.float16)
+
+    linear = common_spec.LinearSpec()
+    linear.weight = torch.rand([64, 64], dtype=torch.float16)
+
+    activation_scales = torch.rand([64], dtype=torch.float32)
+
+    # Just check that no error is raised.
+    conversion_utils.smooth_activation(layer_norm, linear, activation_scales)
+
+
+@test_utils.skip_on_windows
 @pytest.mark.parametrize("variable_dtype", ["float32", "float16", "bfloat16"])
 @pytest.mark.parametrize(
     "quantization,expected_weight_dtype,expected_bias_dtype",

@@ -111,7 +111,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 if value != OPTIONAL:
                     value = np.frombuffer(value.encode("utf-8"), dtype=np.int8)
 
-            if isinstance(value, np.ndarray):
+            if isinstance(value, np.ndarray) or isinstance(value, np.generic):
                 value = NumpyVariable(value)
             elif torch_is_available and isinstance(value, torch.Tensor):
                 value = PyTorchVariable(value)
@@ -175,7 +175,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
         """Possibly quantizes the variable of the layer."""
 
         def _quantize(spec, name, value):
-            if not isinstance(value, Variable):
+            if not isinstance(value, Variable) or value.is_scalar():
                 return
 
             key = _split_scope(name)[-1]
@@ -211,12 +211,13 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 else:
                     value = value.to("float32")
 
-            elif quantization in ("float16", "int8_float16"):
-                value = value.to("float16")
-            elif quantization in ("bfloat16", "int8_bfloat16"):
-                value = value.to("bfloat16")
             else:
-                value = value.to("float32")
+                if quantization in ("float16", "int8_float16"):
+                    value = value.to("float16")
+                elif quantization in ("bfloat16", "int8_bfloat16"):
+                    value = value.to("bfloat16")
+                else:
+                    value = value.to("float32")
 
             setattr(spec, key, value)
             if scale is not None:
@@ -364,10 +365,10 @@ class ModelSpec(LayerSpec):
             model.write(struct.pack("I", len(variables)))
             for name, value in variables:
                 _write_string(name)
-                model.write(struct.pack("B", len(value.shape())))
-                for dim in value.shape():
+                model.write(struct.pack("B", len(value.shape)))
+                for dim in value.shape:
                     model.write(struct.pack("I", dim))
-                model.write(struct.pack("B", _dtype_to_type_id(value.dtype())))
+                model.write(struct.pack("B", _dtype_to_type_id(value.dtype)))
                 model.write(struct.pack("I", value.num_bytes()))
                 model.write(value.to_bytes())
             model.write(struct.pack("I", len(aliases)))
@@ -589,19 +590,21 @@ def _save_vocabulary(output_dir, name, tokens):
 class Variable(abc.ABC):
     """Abstract base class for model variables."""
 
+    @property
     @abc.abstractmethod
     def shape(self) -> List[int]:
         raise NotImplementedError()
 
     def is_scalar(self) -> bool:
-        return len(self.shape()) == 0
+        return len(self.shape) == 0
 
+    @property
     @abc.abstractmethod
     def dtype(self) -> str:
         raise NotImplementedError()
 
     def to(self, dtype: str) -> "Variable":
-        if dtype == self.dtype():
+        if dtype == self.dtype:
             return self
         return self._to(dtype)
 
@@ -635,9 +638,11 @@ class NumpyVariable(Variable):
     def __init__(self, array):
         self.array = array
 
+    @property
     def shape(self) -> List[int]:
         return self.array.shape
 
+    @property
     def dtype(self) -> str:
         return self.array.dtype.name
 
@@ -677,6 +682,11 @@ class PyTorchVariable(Variable):
     """Model variable as a PyTorch tensor."""
 
     def __init__(self, tensor):
+        import torch
+
+        if isinstance(tensor, torch.nn.Parameter):
+            tensor = tensor.data
+
         self.tensor = tensor.contiguous()
 
     @classmethod
@@ -684,9 +694,11 @@ class PyTorchVariable(Variable):
         tensor = torch.from_numpy(array)
         return cls(tensor)
 
+    @property
     def shape(self) -> List[int]:
         return list(self.tensor.shape)
 
+    @property
     def dtype(self) -> str:
         return str(self.tensor.dtype).replace("torch.", "")
 
@@ -694,12 +706,10 @@ class PyTorchVariable(Variable):
         return self.tensor.numpy()
 
     def num_bytes(self) -> int:
-        storage = self.tensor.untyped_storage()
-        return storage.nbytes()
+        return self.tensor.numel() * self.tensor.element_size()
 
     def to_bytes(self) -> bytes:
-        storage = self.tensor.untyped_storage()
-        return ctypes.string_at(storage.data_ptr(), storage.nbytes())
+        return ctypes.string_at(self.tensor.data_ptr(), self.num_bytes())
 
     def _to(self, dtype: str) -> Variable:
         dtype = getattr(torch, dtype)
