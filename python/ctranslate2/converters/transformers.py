@@ -111,9 +111,7 @@ class TransformersConverter(Converter):
             model = self.load_model(model_class, self._model_name_or_path, **kwargs)
 
             tokenizer = self.load_tokenizer(
-                tokenizer_class,
-                self._model_name_or_path,
-                **kwargs
+                tokenizer_class, self._model_name_or_path, **kwargs
             )
 
             spec = loader(model, tokenizer)
