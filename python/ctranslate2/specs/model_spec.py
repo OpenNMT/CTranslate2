@@ -683,8 +683,6 @@ class PyTorchVariable(Variable):
     """Model variable as a PyTorch tensor."""
 
     def __init__(self, tensor):
-        import torch
-
         if isinstance(tensor, torch.nn.Parameter):
             tensor = tensor.data
 
