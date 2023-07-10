@@ -109,7 +109,7 @@ class TransformersConverter(Converter):
                 kwargs["trust_remote_code"] = self._trust_remote_code
 
             model = self.load_model(model_class, self._model_name_or_path, **kwargs)
-            
+
             tokenizer_kwargs = {}
             if self._trust_remote_code:
                 tokenizer_kwargs["trust_remote_code"] = self._trust_remote_code
