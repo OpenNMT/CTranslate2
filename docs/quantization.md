@@ -85,7 +85,8 @@ By default, the runtime tries to use the type that is saved in the converted mod
 
 | Compute Capability | int8 | int8_float16 | int8_bfloat16 | int16 | float16 | bfloat16 |
 | --- | --- | --- | --- | --- |
-| >= 7.0 | int8 | int8_float16 | int8_bfloat16 | float16 | float16 | bfloat16 |
+| >= 8.0 | int8 | int8_float16 | int8_bfloat16 | float16 | float16 | bfloat16 |
+| >= 7.0, < 8.0 | int8 | int8_float16 | int8 | float16 | float16 | float32 |
 | 6.2 | float32 | float32 | float32 | float32 | float32 | float32 |
 | 6.1 | int8 | int8 | int8 | float32 | float32 | float32 |
 | <= 6.0 | float32 | float32 | float32 | float32 | float32 | float32 |
