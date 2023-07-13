@@ -1245,8 +1245,8 @@ class LlamaLoader(ModelLoader):
             gc.collect()
 
 
-@register_loader("RWConfig")
-class RWLoader(ModelLoader):
+@register_loader("FalconConfig")
+class FalconLoader(ModelLoader):
     @property
     def architecture_name(self):
         return "AutoModelForCausalLM"
