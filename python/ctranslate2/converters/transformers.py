@@ -1322,7 +1322,8 @@ class FalconLoader(ModelLoader):
                     layer.self_attention.query_key_value,
                     layer.self_attention.num_heads,
                     layer.self_attention.num_kv_heads
-                    if layer.self_attention.num_kv_heads < layer.self_attention.num_heads
+                    if layer.self_attention.num_kv_heads
+                    < layer.self_attention.num_heads
                     else None,
                 )
 
