@@ -979,16 +979,6 @@ class T5Loader(ModelLoader):
         for i, (layer_spec, block) in enumerate(zip(spec.layer, module.block)):
             self.set_self_attention(layer_spec.self_attention, block.layer[0])
 
-            if i > 0:
-                # Reuse relative attention bias from the first layer.
-                first_self_attention = spec.layer[0].self_attention
-                layer_spec.self_attention.relative_attention_bias = (
-                    first_self_attention.relative_attention_bias
-                )
-                layer_spec.self_attention.relative_attention_max_distance = (
-                    first_self_attention.relative_attention_max_distance
-                )
-
             if is_decoder:
                 self.set_cross_attention(layer_spec.attention, block.layer[1])
 

@@ -62,12 +62,12 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
         self.layer = [
             TransformerEncoderLayerSpec(
                 relative_position=relative_position,
-                relative_attention_bias=relative_attention_bias,
+                relative_attention_bias=relative_attention_bias if i == 0 else False,
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
                 num_heads_kv=1 if multi_query_attention else None,
             )
-            for _ in range(num_layers)
+            for i in range(num_layers)
         ]
 
 
@@ -176,7 +176,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
             TransformerDecoderLayerSpec(
                 with_encoder_attention=with_encoder_attention,
                 relative_position=relative_position,
-                relative_attention_bias=relative_attention_bias,
+                relative_attention_bias=relative_attention_bias if i == 0 else False,
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
                 rotary_dim=rotary_dim,
@@ -185,7 +185,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 shared_layer_norm=shared_layer_norm,
                 num_heads_kv=num_heads_kv,
             )
-            for _ in range(num_layers)
+            for i in range(num_layers)
         ]
         self.start_from_zero_embedding = False
 
