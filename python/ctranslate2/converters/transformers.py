@@ -1213,7 +1213,7 @@ class LlamaLoader(ModelLoader):
         tokens = super().get_vocabulary(model, tokenizer)
 
         if len(tokens) > model.config.vocab_size:
-            tokens = tokens[:model.config.vocab_size]
+            tokens = tokens[: model.config.vocab_size]
 
         return tokens
 
