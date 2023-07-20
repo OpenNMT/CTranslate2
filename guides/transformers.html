@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 3.17.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 3.17.1 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -78,6 +78,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#bert">BERT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#bloom">BLOOM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#falcon">Falcon</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#llama-2">Llama 2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#marianmt">MarianMT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#mpt">MPT</a></li>
@@ -135,7 +136,7 @@
 <li><p>BLOOM</p></li>
 <li><p>CodeGen</p></li>
 <li><p>Falcon</p></li>
-<li><p>LLaMa</p></li>
+<li><p>Llama</p></li>
 <li><p>M2M100</p></li>
 <li><p>MarianMT</p></li>
 <li><p>MBART</p></li>
@@ -287,6 +288,22 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 
 <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
 </pre></div>
+</div>
+</section>
+<section id="llama-2">
+<h2>Llama 2<a class="headerlink" href="#llama-2" title="Permalink to this headline"></a></h2>
+<p><a class="reference external" href="https://ai.meta.com/llama/">Llama 2</a> is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters.</p>
+<p>The models with the suffix “-hf” such as <a class="reference external" href="https://huggingface.co/meta-llama/Llama-2-7b-chat-hf">meta-llama/Llama-2-7b-chat-hf</a> can be converted with the Transformers converter. For example:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>meta-llama/Llama-2-7b-chat-hf<span class="w"> </span>--quantization<span class="w"> </span>float16<span class="w"> </span>--output_dir<span class="w"> </span>llama-2-7b-chat-ct2
+</pre></div>
+</div>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>You need to request an access to the Llama 2 models before you can download them from the Hugging Face Hub. See the instructions on the <a class="reference external" href="https://huggingface.co/meta-llama/Llama-2-7b-chat-hf">model page</a>. Once you have access to the model, you should login with <code class="docutils literal notranslate"><span class="pre">huggingface-cli</span> <span class="pre">login</span></code> before running the conversion command.</p>
+</div>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>The example <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/tree/master/examples/llama2">Chat with Llama 2</a> which demonstrates how to implement an interactive chat session using CTranslate2.</p>
 </div>
 </section>
 <section id="marianmt">
