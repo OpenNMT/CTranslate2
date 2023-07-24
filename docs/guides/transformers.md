@@ -3,13 +3,18 @@
 CTranslate2 supports selected models from Hugging Face's [Transformers](https://github.com/huggingface/transformers). The following models are currently supported:
 
 * BART
+* BERT
 * BLOOM
+* CodeGen
+* Falcon
+* Llama
 * M2M100
 * MarianMT
 * MBART
 * MPT
 * NLLB
 * OpenAI GPT2
+* GPTBigCode
 * GPT-J
 * GPT-NeoX
 * OPT
@@ -71,6 +76,53 @@ target = results[0].hypotheses[0]
 print(tokenizer.decode(tokenizer.convert_tokens_to_ids(target), skip_special_tokens=True))
 ```
 
+## BERT
+
+[BERT](https://huggingface.co/docs/transformers/model_doc/bert) is pretrained model on English language using a masked language modeling objective.
+
+CTranslate2 only implements the `BertModel` class from Transformers which includes the Transformer encoder and the pooling layer. Task-specific layers should be run with PyTorch as shown in the example below.
+
+```bash
+ct2-transformers-converter --model textattack/bert-base-uncased-yelp-polarity --output_dir bert-base-uncased-yelp-polarity
+```
+
+```python
+import ctranslate2
+import numpy as np
+import torch
+import transformers
+
+device = "cuda"
+encoder = ctranslate2.Encoder("bert-base-uncased-yelp-polarity", device=device)
+
+model_name = "textattack/bert-base-uncased-yelp-polarity"
+tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+classifier = transformers.AutoModelForSequenceClassification.from_pretrained(model_name).classifier
+classifier.eval()
+classifier.to(device)
+
+inputs = ["It was good!", "Worst experience in my life.", "It was not good."]
+tokens = tokenizer(inputs).input_ids
+
+output = encoder.forward_batch(tokens)
+pooler_output = output.pooler_output
+
+if device == "cuda":
+    pooler_output = torch.as_tensor(pooler_output, device=device)
+else:
+    pooler_output = np.array(pooler_output)
+    pooler_output = torch.as_tensor(pooler_output)
+
+logits = classifier(pooler_output)
+predicted_class_ids = logits.argmax(1)
+
+print(predicted_class_ids)
+```
+
+```{warning}
+The [token type input](https://huggingface.co/docs/transformers/glossary#token-type-ids) is currently not implemented. All tokens are assumed to come from the same sentence.
+```
+
 ## BLOOM
 
 [BLOOM](https://huggingface.co/docs/transformers/model_doc/bloom) is a collection of multilingual language models trained by the [BigScience workshop](https://bigscience.huggingface.co/).
@@ -92,6 +144,53 @@ text = "Hello, I am"
 start_tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(text))
 results = generator.generate_batch([start_tokens], max_length=30, sampling_topk=10)
 print(tokenizer.decode(results[0].sequences_ids[0]))
+```
+
+## Falcon
+
+[Falcon](https://huggingface.co/tiiuae/falcon-7b) is a collection of generative language models trained by [TII](https://www.tii.ae/). The example below uses "Falcon-7B-Instruct" which is based on "Falcon-7B" and finetuned on a mixture of chat/instruct datasets.
+
+```bash
+ct2-transformers-converter --model tiiuae/falcon-7b-instruct --quantization float16 --output_dir falcon-7b-instruct --trust_remote_code
+```
+
+```python
+import ctranslate2
+import transformers
+
+generator = ctranslate2.Generator("falcon-7b-instruct", device="cuda")
+tokenizer = transformers.AutoTokenizer.from_pretrained("tiiuae/falcon-7b-instruct")
+
+prompt = (
+    "Girafatron is obsessed with giraffes, the most glorious animal on the face of this Earth. "
+    "Giraftron believes all other animals are irrelevant when compared to the glorious majesty "
+    "of the giraffe.\nDaniel: Hello, Girafatron!\nGirafatron:"
+)
+
+tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(prompt))
+
+results = generator.generate_batch([tokens], sampling_topk=10, max_length=200, include_prompt_in_result=False)
+output = tokenizer.decode(results[0].sequences_ids[0])
+
+print(output)
+```
+
+## Llama 2
+
+[Llama 2](https://ai.meta.com/llama/) is a collection of pretrained and fine-tuned generative text models ranging in scale from 7 billion to 70 billion parameters.
+
+The models with the suffix "-hf" such as [meta-llama/Llama-2-7b-chat-hf](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf) can be converted with the Transformers converter. For example:
+
+```bash
+ct2-transformers-converter --model meta-llama/Llama-2-7b-chat-hf --quantization float16 --output_dir llama-2-7b-chat-ct2
+```
+
+```{important}
+You need to request an access to the Llama 2 models before you can download them from the Hugging Face Hub. See the instructions on the [model page](https://huggingface.co/meta-llama/Llama-2-7b-chat-hf). Once you have access to the model, you should login with `huggingface-cli login` before running the conversion command.
+```
+
+```{seealso}
+The example [Chat with Llama 2](https://github.com/OpenNMT/CTranslate2/tree/master/examples/llama2) which demonstrates how to implement an interactive chat session using CTranslate2.
 ```
 
 ## MarianMT
@@ -224,6 +323,30 @@ print(tokenizer.decode(results[0].sequences_ids[0]))
 start_tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode("It is"))
 results = generator.generate_batch([start_tokens], max_length=30, sampling_topk=10)
 print(tokenizer.decode(results[0].sequences_ids[0]))
+```
+
+## GPTBigCode
+
+[GPTBigCode](https://huggingface.co/docs/transformers/model_doc/gpt_bigcode) model was first proposed in SantaCoder: don’t reach for the stars, and used by models like StarCoder.
+
+```bash
+ct2-transformers-converter --model bigcode/starcoder --revision main --quantization float16 --output_dir starcoder_ct2
+```
+
+```python
+import ctranslate2
+import transformers
+
+generator = ctranslate2.Generator("starcoder_ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("bigcode/starcoder")
+
+prompt = "<fim_prefix>def print_hello_world():\n    <fim_suffix>\n    print('Hello world!')<fim_middle>"
+tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(prompt))
+
+results = generator.generate_batch([tokens], max_length=30, include_prompt_in_result=False)
+
+text = tokenizer.decode(results[0].sequences_ids[0])
+print(text)
 ```
 
 ## GPT-J

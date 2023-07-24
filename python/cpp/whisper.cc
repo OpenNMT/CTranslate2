@@ -167,8 +167,8 @@ namespace ctranslate2 {
                    device: Device to use (possible values are: cpu, cuda, auto).
                    device_index: Device IDs where to place this model on.
                    compute_type: Model computation type or a dictionary mapping a device name
-                        to the computation type
-                        (possible values are: default, auto, int8, int8_float16, int16, float16, float32).
+                     to the computation type (possible values are: default, auto, int8, int8_float16,
+                     int8_bfloat16, int16, float16, bfloat16, float32).
                    inter_threads: Number of workers to allow executing multiple batches in parallel.
                    intra_threads: Number of OpenMP threads per worker (0 to use a default value).
                    max_queued_batches: Maximum numbers of batches in the worker queue (-1 for unlimited,
@@ -183,6 +183,12 @@ namespace ctranslate2 {
                                "Device this model is running on.")
         .def_property_readonly("device_index", &WhisperWrapper::device_index,
                                "List of device IDs where this model is running on.")
+        .def_property_readonly("num_workers", &WhisperWrapper::num_replicas,
+                               "Number of model workers backing this instance.")
+        .def_property_readonly("num_queued_batches", &WhisperWrapper::num_queued_batches,
+                               "Number of batches waiting to be processed.")
+        .def_property_readonly("num_active_batches", &WhisperWrapper::num_active_batches,
+                               "Number of batches waiting to be processed or currently processed.")
 
         .def("encode", &WhisperWrapper::encode,
              py::arg("features"),

@@ -29,13 +29,16 @@ namespace ctranslate2 {
                      bool return_end_token,
                      size_t max_length,
                      size_t min_length,
+                     const std::optional<std::vector<std::string>>& static_prompt,
+                     bool cache_static_prompt,
                      bool include_prompt_in_result,
                      bool return_scores,
                      bool return_alternatives,
                      float min_alternative_expansion_prob,
                      size_t sampling_topk,
+                     float sampling_topp,
                      float sampling_temperature,
-                     std::function<void(GenerationStepResult)> callback) {
+                     std::function<bool(GenerationStepResult)> callback) {
         if (tokens.empty())
           return {};
 
@@ -48,6 +51,7 @@ namespace ctranslate2 {
         options.no_repeat_ngram_size = no_repeat_ngram_size;
         options.disable_unk = disable_unk;
         options.sampling_topk = sampling_topk;
+        options.sampling_topp = sampling_topp;
         options.sampling_temperature = sampling_temperature;
         options.max_length = max_length;
         options.min_length = min_length;
@@ -55,6 +59,7 @@ namespace ctranslate2 {
         options.return_end_token = return_end_token;
         options.return_scores = return_scores;
         options.return_alternatives = return_alternatives;
+        options.cache_static_prompt = cache_static_prompt;
         options.include_prompt_in_result = include_prompt_in_result;
         options.min_alternative_expansion_prob = min_alternative_expansion_prob;
         options.callback = std::move(callback);
@@ -62,6 +67,8 @@ namespace ctranslate2 {
           options.suppress_sequences = suppress_sequences.value();
         if (end_token)
           options.end_token = end_token.value();
+        if (static_prompt)
+          options.static_prompt = static_prompt.value();
 
         auto futures = _pool->generate_batch_async(tokens, options, max_batch_size, batch_type);
         return maybe_wait_on_futures(std::move(futures), asynchronous);
@@ -139,8 +146,8 @@ namespace ctranslate2 {
                    device: Device to use (possible values are: cpu, cuda, auto).
                    device_index: Device IDs where to place this generator on.
                    compute_type: Model computation type or a dictionary mapping a device name
-                     to the computation type
-                     (possible values are: default, auto, int8, int8_float16, int16, float16, float32).
+                     to the computation type (possible values are: default, auto, int8, int8_float16,
+                     int8_bfloat16, int16, float16, bfloat16, float32).
                    inter_threads: Maximum number of parallel generations.
                    intra_threads: Number of OpenMP threads per generator (0 to use a default value).
                    max_queued_batches: Maximum numbers of batches in the queue (-1 for unlimited,
@@ -180,16 +187,34 @@ namespace ctranslate2 {
              py::arg("return_end_token")=false,
              py::arg("max_length")=512,
              py::arg("min_length")=0,
+             py::arg("static_prompt")=py::none(),
+             py::arg("cache_static_prompt")=true,
              py::arg("include_prompt_in_result")=true,
              py::arg("return_scores")=false,
              py::arg("return_alternatives")=false,
              py::arg("min_alternative_expansion_prob")=0,
              py::arg("sampling_topk")=1,
+             py::arg("sampling_topp")=1,
              py::arg("sampling_temperature")=1,
              py::arg("callback")=nullptr,
              py::call_guard<py::gil_scoped_release>(),
              R"pbdoc(
                  Generates from a batch of start tokens.
+
+                 Note:
+                   The way the start tokens are forwarded in the decoder depends on the argument
+                   :obj:`include_prompt_in_result`:
+
+                   * If :obj:`include_prompt_in_result` is ``True`` (the default), the decoding loop
+                     is constrained to generate the start tokens that are then included in the result.
+                   * If :obj:`include_prompt_in_result` is ``False``, the start tokens are forwarded
+                     in the decoder at once to initialize its state (i.e. the KV cache for
+                     Transformer models). For variable-length inputs, only the tokens up to the
+                     minimum length in the batch are forwarded at once. The remaining tokens are
+                     generated in the decoding loop with constrained decoding.
+
+                   Consider setting ``include_prompt_in_result=False`` to increase the performance
+                   for long inputs.
 
                  Arguments:
                    start_tokens: Batch of start tokens. If the decoder starts from a special
@@ -216,14 +241,22 @@ namespace ctranslate2 {
                    return_end_token: Include the end token in the results.
                    max_length: Maximum generation length.
                    min_length: Minimum generation length.
+                   static_prompt: If the model expects a static prompt (a.k.a. system prompt)
+                     it can be set here to simplify the inputs and optionally cache the model
+                     state for this prompt to accelerate future generations.
+                   cache_static_prompt: Cache the model state after the static prompt and
+                     reuse it for future generations using the same static prompt.
                    include_prompt_in_result: Include the :obj:`start_tokens` in the result.
                    return_scores: Include the scores in the output.
                    return_alternatives: Return alternatives at the first unconstrained decoding position.
                    min_alternative_expansion_prob: Minimum initial probability to expand an alternative.
                    sampling_topk: Randomly sample predictions from the top K candidates.
+                   sampling_topp: Keep the most probable tokens whose cumulative probability exceeds
+                     this value.
                    sampling_temperature: Sampling temperature to generate more random samples.
-                   callback: Optional function that is called for each generated token.
-                     This requires a beam size of 1.
+                   callback: Optional function that is called for each generated token when
+                     :obj:`beam_size` is 1. If the callback function returns ``True``, the
+                     decoding will stop for this batch.
 
                  Returns:
                    A list of generation results.

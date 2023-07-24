@@ -2,8 +2,10 @@
 
 #include <algorithm>
 #include <cmath>
+#include <numeric>
 
 #include "dispatch.h"
+#include "cpu/parallel.h"
 
 namespace ctranslate2 {
   namespace layers {
@@ -35,18 +37,21 @@ namespace ctranslate2 {
                                                     dim_t max_distance,
                                                     dim_t query_offset = 0) {
       StorageView relative_buckets({query_length, key_length}, DataType::INT32);
+      int32_t* relative_buckets_data = relative_buckets.data<int32_t>();
 
       if (bidirectional)
         num_buckets /= 2;
 
       const dim_t max_exact = num_buckets / 2;
+      const float log_max_distance_over_max_exact = std::log(float(max_distance) / float(max_exact));
 
-      for (dim_t i = 0; i < query_length; ++i) {
-        for (dim_t j = 0; j < key_length; ++j) {
+      cpu::parallel_for(0, query_length * key_length, 8, [&](const dim_t begin, const dim_t end) {
+        for (dim_t flat_index = begin; flat_index < end; ++flat_index) {
+          const dim_t i = flat_index / key_length;
+          const dim_t j = flat_index % key_length;
+
           int32_t relative_position = j - (i + query_offset);
-          int32_t& relative_bucket = relative_buckets.at<int32_t>(i * key_length + j);
-
-          relative_bucket = 0;
+          int32_t relative_bucket = 0;
 
           if (bidirectional) {
             if (relative_position > 0)
@@ -63,15 +68,15 @@ namespace ctranslate2 {
             relative_position = std::min(
               int32_t(float(max_exact)
                       + std::log(float(relative_position) / float(max_exact))
-                      / std::log(float(max_distance) / float(max_exact))
+                      / log_max_distance_over_max_exact
                       * float(num_buckets - max_exact)),
               int32_t(num_buckets - 1));
           }
 
           relative_bucket += relative_position;
-
+          relative_buckets_data[flat_index] = relative_bucket;
         }
-      }
+      });
 
       return relative_buckets;
     }
@@ -102,12 +107,9 @@ namespace ctranslate2 {
       return values_t;
     }
 
-    StorageView build_alibi(dim_t batch_size,
-                            dim_t num_heads,
-                            dim_t query_max_length,
-                            dim_t key_max_length,
-                            const StorageView* key_lengths,
-                            bool use_positive_positions) {
+    static StorageView build_alibi(dim_t num_heads,
+                                   dim_t key_max_length,
+                                   bool use_positive_positions) {
       const float closest_power_of_2_f = std::pow(2.f, std::floor(std::log2f(num_heads)));
       const dim_t closest_power_of_2 = closest_power_of_2_f;
 
@@ -128,18 +130,18 @@ namespace ctranslate2 {
           slopes.emplace_back(std::pow(extra_base, float(power)));
       }
 
-      StorageView alibi({batch_size, num_heads, query_max_length, key_max_length});
+      std::vector<float> positions(key_max_length);
+      std::iota(positions.begin(),
+                positions.end(),
+                use_positive_positions ? 0 : -key_max_length + 1);
 
-      for (dim_t b = 0; b < batch_size; ++b) {
-        for (dim_t h = 0; h < num_heads; ++h) {
-          for (dim_t q = 0; q < query_max_length; ++q) {
-            for (dim_t k = 0; k < key_max_length; ++k) {
-              dim_t length = key_lengths ? key_lengths->scalar_at<int32_t>({b}) : key_max_length;
-              float position = use_positive_positions ? k : -key_max_length + k + 1;
-              alibi.at<float>({b, h, q, k}) = k >= length ? 0 : position * slopes[h];
-            }
-          }
-        }
+      StorageView alibi({1, num_heads, 1, key_max_length});
+
+      for (dim_t h = 0; h < num_heads; ++h) {
+        primitives<Device::CPU>::mul(slopes[h],
+                                     positions.data(),
+                                     alibi.index<float>({0, h, 0, 0}),
+                                     key_max_length);
       }
 
       return alibi;
@@ -198,7 +200,6 @@ namespace ctranslate2 {
     static void dot_product_attention(const StorageView& queries,
                                       const StorageView& keys,
                                       const StorageView& values,
-                                      const StorageView* alibi,
                                       const StorageView* values_lengths,
                                       const StorageView* relative_position_keys,
                                       const StorageView* relative_position_values,
@@ -210,7 +211,9 @@ namespace ctranslate2 {
                                       float queries_scale = 1,
                                       bool is_decoder = false,
                                       bool with_cache = false,
-                                      dim_t beam_size = 1) {
+                                      dim_t beam_size = 1,
+                                      Alibi* alibi = nullptr,
+                                      StorageView* position_bias = nullptr) {
       PROFILE("dot_product_attention");
 
       std::unique_ptr<const StorageView> relative_positions;
@@ -232,24 +235,31 @@ namespace ctranslate2 {
                                      output);
 
       if (relative_attention_bias) {
-        const dim_t query_length = queries.dim(2);
-        const dim_t key_length = keys.dim(2);
-        const StorageView position_bias = compute_relative_bias(*relative_attention_bias,
-                                                                query_length,
-                                                                key_length,
-                                                                maximum_relative_position,
-                                                                is_decoder,
-                                                                with_cache ? key_length - 1 : 0);
+        StorageView local_position_bias(output.dtype(), output.device());
+
+        if (!position_bias)
+          position_bias = &local_position_bias;
+
+        if (position_bias->empty()) {
+          const dim_t query_length = queries.dim(2);
+          const dim_t key_length = keys.dim(2);
+          *position_bias = compute_relative_bias(*relative_attention_bias,
+                                                 query_length,
+                                                 key_length,
+                                                 maximum_relative_position,
+                                                 is_decoder,
+                                                 with_cache ? key_length - 1 : 0);
+        }
 
         DEVICE_AND_TYPE_DISPATCH(output.device(), output.dtype(),
-                                 primitives<D>::add_batch_broadcast(position_bias.data<T>(),
+                                 primitives<D>::add_batch_broadcast(position_bias->data<T>(),
                                                                     output.data<T>(),
-                                                                    position_bias.size(),
+                                                                    position_bias->size(),
                                                                     output.size()));
       }
 
       if (alibi)
-        ops::Add()(output, *alibi, output);
+        alibi->apply(output);
 
       StorageView attn(values.dtype(), values.device());
       ops::SoftMax()(output, values_lengths, attn);
@@ -293,6 +303,12 @@ namespace ctranslate2 {
         transpose_op(x, y);
         x = std::move(y);
       }
+    }
+
+    static void replicate_heads(StorageView& x, dim_t repeats) {
+      x.expand_dims(2);
+      ops::Tile(2, repeats)(x);
+      x.reshape({x.dim(0), x.dim(1) * x.dim(2), x.dim(3), x.dim(4)});
     }
 
     static void combine_heads(StorageView& x,
@@ -346,21 +362,29 @@ namespace ctranslate2 {
                                            dim_t num_heads,
                                            bool self_attention,
                                            bool pre_norm,
-                                           bool is_decoder)
+                                           bool is_decoder,
+                                           Alibi* alibi)
       : _num_heads(num_heads)
       , _self_attention(self_attention)
       , _is_decoder(is_decoder)
       , _linear(make_linear_layers(model, scope, self_attention))
       , _d_model(_linear.back().output_size())
+      , _d_head(_d_model / _num_heads)
       , _pre_norm(pre_norm)
       , _layer_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
       , _rotary_embeddings(make_rotary_embeddings(model, scope))
+      , _alibi(alibi)
       , _relative_attention_bias(model.get_variable_if_exists(scope + "/relative_attention_bias"))
       , _relative_position_keys(model.get_variable_if_exists(scope + "/relative_position_keys"))
       , _relative_position_values(model.get_variable_if_exists(scope + "/relative_position_values"))
       , _queries_scale(model.get_attribute_with_default<float>(
                          scope + "/queries_scale",
-                         1.f / std::sqrt(static_cast<float>(_d_model / _num_heads))))
+                         1.f / std::sqrt(static_cast<float>(_d_head))))
+      , _num_heads_kv(model.get_flag_with_default(scope + "/multi_query", false)
+                      ? 1
+                      : model.get_attribute_with_default<int32_t>(scope + "/num_heads_kv",
+                                                                  _num_heads))
+      , _cache_time_dim(_num_heads_kv == 1 ? 1 : 2)
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
@@ -389,7 +413,7 @@ namespace ctranslate2 {
                                         const Padder* queries_padder,
                                         const Padder* values_padder,
                                         bool return_normalized_attention,
-                                        const StorageView* alibi) const {
+                                        StorageView* position_bias) const {
       PROFILE("MultiHeadAttention");
       const Device device = queries.device();
       const DataType dtype = queries.dtype();
@@ -413,8 +437,15 @@ namespace ctranslate2 {
 
         if (cached_keys == nullptr || cached_keys->empty()) {
           _linear[1](values, fused_proj);
-          split_heads(fused_proj, 2 * _num_heads, values_padder);
-          ops::Split(1)(fused_proj, keys_proj, values_proj);
+
+          if (_num_heads_kv == 1) {
+            if (values_padder)
+              values_padder->add_padding(fused_proj);
+            ops::Split(2, {_d_head, _d_head})(fused_proj, keys_proj, values_proj);
+          } else {
+            split_heads(fused_proj, 2 * _num_heads, values_padder);
+            ops::Split(1)(fused_proj, keys_proj, values_proj);
+          }
 
           if (cached_keys != nullptr) {
             *cached_keys = std::move(keys_proj);
@@ -424,16 +455,57 @@ namespace ctranslate2 {
 
         if (queries_proj.dim(1) == 1 && cached_keys)
           beam_size = queries_proj.dim(0) / cached_keys->dim(0);
-        split_heads(queries_proj, _num_heads, queries_padder, beam_size);
+
+        if (_num_heads_kv == 1) {
+          if (queries_padder)
+            queries_padder->add_padding(queries_proj);
+          queries_proj.reshape({queries_proj.dim(0) / beam_size, -1, _d_head});
+        } else {
+          split_heads(queries_proj, _num_heads, queries_padder, beam_size);
+        }
 
       } else {
-        split_heads(fused_proj, 3 * _num_heads, queries_padder);
-        ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
+
+        if (_num_heads_kv < _num_heads) {
+          if (queries_padder)
+            queries_padder->add_padding(fused_proj);
+
+          const ops::Split split_op(2, {_d_model, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          split_op(fused_proj, queries_proj, keys_proj, values_proj);
+
+          if (_num_heads_kv == 1) {
+            queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
+          } else {
+            split_heads(queries_proj, _num_heads);
+            split_heads(keys_proj, _num_heads_kv);
+            split_heads(values_proj, _num_heads_kv);
+
+            replicate_heads(keys_proj, _num_heads / _num_heads_kv);
+            replicate_heads(values_proj, _num_heads / _num_heads_kv);
+          }
+
+        } else {
+          split_heads(fused_proj, 3 * _num_heads, queries_padder);
+          ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
+        }
 
         if (_rotary_embeddings) {
-          const dim_t offset = cached_keys && !cached_keys->empty() ? cached_keys->dim(2) : 0;
+          const dim_t offset = (cached_keys && !cached_keys->empty()
+                                ? cached_keys->dim(_cache_time_dim)
+                                : 0);
+
+          if (_num_heads_kv == 1) {
+            queries_proj.reshape({queries_proj.dim(0), -1, _d_model});
+            split_heads(queries_proj, _num_heads);
+          }
+
           _rotary_embeddings->apply(queries_proj, offset);
           _rotary_embeddings->apply(keys_proj, offset);
+
+          if (_num_heads_kv == 1) {
+            combine_heads(queries_proj, _num_heads);
+            queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
+          }
         }
 
         if (cached_keys != nullptr) {
@@ -441,11 +513,12 @@ namespace ctranslate2 {
             *cached_keys = std::move(keys_proj);
             *cached_values = std::move(values_proj);
           } else {
+            const ops::Concat concat_op(_cache_time_dim);
             StorageView& tmp = fused_proj;  // Reuse storage.
             tmp = std::move(*cached_keys);
-            ops::Concat(2)({&tmp, &keys_proj}, *cached_keys);
+            concat_op({&tmp, &keys_proj}, *cached_keys);
             tmp = std::move(*cached_values);
-            ops::Concat(2)({&tmp, &values_proj}, *cached_values);
+            concat_op({&tmp, &values_proj}, *cached_values);
           }
         }
       }
@@ -459,7 +532,6 @@ namespace ctranslate2 {
       dot_product_attention(queries_proj,
                             keys_proj,
                             values_proj,
-                            alibi,
                             values_lengths,
                             _relative_position_keys,
                             _relative_position_values,
@@ -471,9 +543,18 @@ namespace ctranslate2 {
                             _queries_scale,
                             _is_decoder,
                             bool(cached_keys),
-                            beam_size);
+                            beam_size,
+                            _alibi,
+                            position_bias);
 
-      combine_heads(context, _num_heads, queries_padder, beam_size);
+      if (_num_heads_kv == 1) {
+        context.reshape(queries.shape());
+        if (queries_padder)
+          queries_padder->remove_padding(context);
+      } else {
+        combine_heads(context, _num_heads, queries_padder, beam_size);
+      }
+
       _linear.back()(context, output);
 
       if (_layer_norm) {
@@ -487,15 +568,23 @@ namespace ctranslate2 {
     StorageView MultiHeadAttention::prepare_length_mask(const StorageView& lengths,
                                                         const dim_t num_heads,
                                                         const dim_t num_queries,
-                                                        const bool mask_future) {
+                                                        const bool mask_future,
+                                                        const bool multi_query) {
       const Device device = lengths.device();
       const dim_t batch_size = lengths.size();
-      StorageView mask({batch_size, num_heads, num_queries}, lengths.dtype(), device);
+      StorageView mask(lengths.dtype(), device);
+
+      if (multi_query)
+        mask.resize({batch_size, num_queries, num_heads});
+      else
+        mask.resize({batch_size, num_heads, num_queries});
+
       DEVICE_DISPATCH(device, (primitives<D>::prepare_length_mask(lengths.data<int32_t>(),
                                                                   batch_size,
                                                                   num_heads,
                                                                   num_queries,
                                                                   mask_future,
+                                                                  multi_query,
                                                                   mask.data<int32_t>())));
       return mask;
     }
@@ -545,32 +634,62 @@ namespace ctranslate2 {
       StorageView inv_freq({1, dim / 2});
       for (dim_t i = 0; i < inv_freq.size(); ++i)
         inv_freq.at<float>(i) = 1.f / std::pow(_base, float(i * 2) / float(dim));
+      if (inv_freq.device() != device)
+        inv_freq = inv_freq.to(device);
 
       StorageView t({num_positions, 1});
       for (dim_t i = 0; i < t.size(); ++i)
         t.at<float>(i) = i;
+      if (t.device() != device)
+        t = t.to(device);
 
-      StorageView freqs;
+      StorageView freqs(device);
       ops::MatMul()(t, inv_freq, freqs);
 
       if (_interleave)
         freqs.expand_dims(-1);
 
-      StorageView emb;
+      StorageView emb(device);
       ops::Concat(-1)({&freqs, &freqs}, emb);
 
       if (_interleave)
         emb.reshape({num_positions, dim});
 
-      StorageView sin_tmp;
-      ops::Sin()(emb, sin_tmp);
-      sin_tmp.move_to(device, dtype);
-      _sin = std::move(sin_tmp);
+      StorageView sin(device);
+      ops::Sin()(emb, sin);
+      if (sin.dtype() == dtype)
+        _sin = std::move(sin);
+      else
+        _sin = sin.to(dtype);
 
-      StorageView cos_tmp;
-      ops::Cos()(emb, cos_tmp);
-      cos_tmp.move_to(device, dtype);
-      _cos = std::move(cos_tmp);
+      StorageView cos(device);
+      ops::Cos()(emb, cos);
+      if (cos.dtype() == dtype)
+        _cos = std::move(cos);
+      else
+        _cos = cos.to(dtype);
+    }
+
+
+    Alibi::Alibi(const bool use_positive_positions, const dim_t num_initial_positions)
+      : _use_positive_positions(use_positive_positions)
+      , _num_initial_positions(num_initial_positions)
+      , _alibi_op(use_positive_positions)
+    {
+    }
+
+    void Alibi::apply(StorageView& x) {
+      const dim_t cur_length = _alibi ? _alibi.dim(-1) : 0;
+      const dim_t key_length = x.dim(-1);
+
+      if (key_length > cur_length) {
+        const dim_t num_heads = x.dim(1);
+        const dim_t new_length = cur_length + _num_initial_positions;
+        _alibi = build_alibi(num_heads, new_length, _use_positive_positions);
+        _alibi.move_to(x.device(), x.dtype());
+      }
+
+      _alibi_op(x, _alibi, x);
     }
 
   }

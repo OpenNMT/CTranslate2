@@ -4,6 +4,105 @@
 
 ### Fixes and improvements
 
+## [v3.17.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.17.1) (2023-07-20)
+
+### Fixes and improvements
+
+* Fix an error when running models with the new `int8_bfloat16` computation type
+* Fix a vocabulary error when converting Llama 2 models with the Transformers converter
+* Update the Transformers converter to correctly convert Llama models using GQA
+* Stop the decoding when the generator returned by the method `generate_tokens` is closed
+
+## [v3.17.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.17.0) (2023-07-18)
+
+### New features
+
+* Add new computation types: `bfloat16` and `int8_bfloat16` (require a GPU with Compute Capability 8.0 or above)
+* Support multi-query attention for encoder-decoder models
+* Allow converters to register weights as PyTorch tensors instead of Numpy arrays
+
+### Fixes and improvements
+
+* Pass the flag `trust_remote_code` when loading the tokenizer in the Transformers converter
+* Improve performance of T5 models by reusing the same relative position bias in every layers
+* Whisper: disable the first timestamp decoding rule when a prefix is used
+* Install the CMake configuration in the correct library directory (e.g. some platforms use `lib64` instead of `lib`)
+
+## [v3.16.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.16.1) (2023-07-03)
+
+### Fixes and improvements
+
+* Fix repeated outputs in version 3.16.0 when using `include_prompt_in_result=False` and a batch input with variable lengths: a typo in the code led to `min_length` being incorrectly applied
+* Update the Transformers converter to accept extra tokens for Falcon models
+* Release the Python GIL when loading the model
+* Initialize the rotary embeddings on the GPU instead of the CPU
+* Avoid a copy for the input features passed to the Whisper methods
+* Vectorize copy in the Tile CUDA operator
+
+## [v3.16.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.16.0) (2023-06-15)
+
+### New features
+
+* Update the Transformers converter to support more architectures:
+  * Falcon-40B
+  * XLM-RoBERTa
+* Add the generation option `sampling_topp` to enable top-p (nucleus) sampling
+* Save vocabulary files in the JSON format to better support tokens containing newlines or carriage returns
+
+### Fixes and improvements
+
+* Fix the application of `min_length` and `max_length` when using `include_prompt_in_result=False` and a batch input with variable lengths: the length constraint should only apply to the sequence after the prompt
+* Update oneDNN to 3.1.1
+
+## [v3.15.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.15.1) (2023-06-09)
+
+### Fixes and improvements
+
+* Fix an error when using the new `static_prompt` argument in the methods `generate_tokens` and `generate_batch`
+* Improve the performance of models using ALiBi
+
+## [v3.15.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.15.0) (2023-06-06)
+
+### New features
+
+* Initial support of encoder-only Transformer model via a new class `ctranslate2.Encoder`
+* Update the Transformers converter to support the Falcon models
+* Add a generation argument `static_prompt` to optimize the execution for models using system prompts: the model state for this prompt is cached and reused in future calls
+* Support early stopping in greedy search when the callback function returns `True`
+* Make the layer norm epsilon value configurable in the model configuration file `config.json`
+* Add Tanh as a possible activation function
+
+### Fixes and improvements
+
+* Fix a performance issue when running models using ALiBi on the GPU
+* Fix application of the rotary embeddings when the multi-query attention is used
+* Fix conversion of Marian models using `tied-embeddings-all: false`
+* Remove `use_fast` argument when loading Hugging Face tokenizers to use the default tokenizer for the model
+
+## [v3.14.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.14.0) (2023-05-26)
+
+### New features
+
+* Update the Transformers converter with new architectures:
+  * CodeGen
+  * GPTBigCode
+  * LLaMa
+  * MPT
+* Update the OpenNMT-py converter to support some recent options:
+  * `layer_norm="rms"`
+  * `max_relative_positions=-1` (rotary embeddings)
+  * `max_relative_positions=-2` (ALiBi)
+  * `pos_ffn_activation_fn="silu"`
+* Update the OpenNMT-tf converter to support models using different configurations for the encoder and decoder (e.g. post-norm in the encoder and pre-norm in the decoder)
+* Implement the multi-query attention (used by GPTBigCode)
+
+### Fixes and improvements
+
+* Support paths containing Unicode characters on Windows
+* Fix the `generate_tokens` method to properly raise the underlying exception instead of hanging indefinitely
+* Fix compilation error when using `-DBUILD_SHARED_LIBS=OFF`
+* Fix runtime errors when linking against `libctranslate2.a` without using the "whole archive" flags
+
 ## [v3.13.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v3.13.0) (2023-04-25)
 
 ### New features

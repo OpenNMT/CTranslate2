@@ -11,6 +11,7 @@
 #include <spdlog/spdlog.h>
 
 #include "ctranslate2/devices.h"
+#include "ctranslate2/logging.h"
 
 #include "cpu/backend.h"
 #include "cpu/cpu_info.h"
@@ -25,6 +26,8 @@ namespace ctranslate2 {
   }
 
   void log_system_config() {
+    init_logger();
+
     if (!spdlog::should_log(spdlog::level::info))
       return;
 
@@ -62,6 +65,7 @@ namespace ctranslate2 {
       spdlog::info(" - Allow FP16: {} (with Tensor Cores: {})",
                    mayiuse_float16(Device::CUDA, i),
                    cuda::gpu_has_fp16_tensor_cores(i));
+      spdlog::info(" - Allow BF16: {}", mayiuse_bfloat16(Device::CUDA, i));
     }
 #endif
   }

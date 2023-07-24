@@ -1,7 +1,5 @@
 import enum
 
-import numpy as np
-
 from ctranslate2.specs import model_spec
 
 
@@ -14,6 +12,7 @@ class Activation(enum.IntEnum):
     SWISH = 2
     GELU = 3
     GELUSigmoid = 4
+    Tanh = 5
 
 
 # This enum should match the C++ equivalent in include/ctranslate2/layers/common.h.
@@ -39,7 +38,7 @@ class LinearSpec(model_spec.LayerSpec):
         self.keep_in_float32 = False
 
     def has_bias(self):
-        return isinstance(self.bias, np.ndarray)
+        return not isinstance(self.bias, str)
 
 
 class Conv1DSpec(model_spec.LayerSpec):

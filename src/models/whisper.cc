@@ -3,7 +3,6 @@
 #include <algorithm>
 
 #include "ctranslate2/decoding.h"
-#include "ctranslate2/models/model_factory.h"
 
 #include "dispatch.h"
 #include "dtw.h"
@@ -14,8 +13,6 @@
 
 namespace ctranslate2 {
   namespace models {
-
-    static auto register_whisper = register_model<WhisperModel>("WhisperSpec");
 
     const Vocabulary& WhisperModel::get_vocabulary() const {
       return *_vocabulary;
@@ -30,8 +27,10 @@ namespace ctranslate2 {
       vocab_info.unk_token = "<|endoftext|>";
       vocab_info.bos_token = "<|startoftranscript|>";
       vocab_info.eos_token = "<|endoftext|>";
-      _vocabulary = std::make_shared<Vocabulary>(*model_reader.get_required_file("vocabulary.txt"),
-                                                 std::move(vocab_info));
+
+      _vocabulary = load_vocabulary(model_reader, "vocabulary", std::move(vocab_info));
+      if (!_vocabulary)
+        throw std::runtime_error("Cannot load the vocabulary from the model directory");
     }
 
     bool WhisperModel::is_quantizable(const std::string& variable_name) const {
@@ -644,9 +643,10 @@ namespace ctranslate2 {
     }
 
     std::future<StorageView> Whisper::encode(const StorageView& features, const bool to_cpu) {
-      return post<StorageView>([features = features.sync_copy(), to_cpu](WhisperReplica& replica) {
-        return replica.encode(std::move(features), to_cpu);
-      });
+      return post<StorageView>(
+        [features = features.sync_copy(), to_cpu](WhisperReplica& replica) mutable {
+          return replica.encode(std::move(features), to_cpu);
+        });
     }
 
     std::vector<std::future<WhisperGenerationResult>>
@@ -656,7 +656,7 @@ namespace ctranslate2 {
       const size_t batch_size = features.dim(0);
       return post_batch<WhisperGenerationResult>(
         [features = features.sync_copy(), prompts = std::move(prompts), options]
-        (WhisperReplica& replica) {
+        (WhisperReplica& replica) mutable {
           return replica.generate(std::move(features), prompts, options);
         },
         batch_size);
@@ -669,7 +669,7 @@ namespace ctranslate2 {
       const size_t batch_size = features.dim(0);
       return post_batch<WhisperGenerationResult>(
         [features = features.sync_copy(), prompts = std::move(prompts), options]
-        (WhisperReplica& replica) {
+        (WhisperReplica& replica) mutable {
           return replica.generate(std::move(features), prompts, options);
         },
         batch_size);
@@ -679,7 +679,7 @@ namespace ctranslate2 {
     Whisper::detect_language(const StorageView& features) {
       const size_t batch_size = features.dim(0);
       return post_batch<std::vector<std::pair<std::string, float>>>(
-        [features = features.sync_copy()](WhisperReplica& replica) {
+        [features = features.sync_copy()](WhisperReplica& replica) mutable {
           return replica.detect_language(std::move(features));
         },
         batch_size);
@@ -746,7 +746,7 @@ namespace ctranslate2 {
           // Suppress <|notimestamps|>.
           disable_tokens.add(batch_id, _no_timestamps_id);
 
-          if (step == sample_begin) {
+          if (step == sample_begin && step == 0) {
             // Suppress non timestamps at the beginning.
             for (size_t i = 0; i < _timestamp_begin_id; ++i)
               disable_tokens.add(batch_id, i);

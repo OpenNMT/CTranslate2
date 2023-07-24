@@ -1,10 +1,11 @@
 #pragma once
 
+#include "ctranslate2/layers/encoder.h"
 #include "ctranslate2/layers/decoder.h"
 #include "ctranslate2/models/model.h"
+#include "ctranslate2/encoding.h"
 #include "ctranslate2/generation.h"
 #include "ctranslate2/scoring.h"
-#include "ctranslate2/vocabulary.h"
 
 namespace ctranslate2 {
   namespace models {
@@ -12,13 +13,19 @@ namespace ctranslate2 {
     // Base class for language models.
     class LanguageModel : public Model {
     public:
+      LanguageModel();
+
       const Vocabulary& get_vocabulary() const;
+
+      // The returned cache is thread safe.
+      layers::DecoderStateCache& get_state_cache() const;
 
     protected:
       void initialize(ModelReader& model_reader) override;
 
     private:
       std::shared_ptr<const Vocabulary> _vocabulary;
+      std::shared_ptr<layers::DecoderStateCache> _state_cache;
     };
 
 
@@ -100,6 +107,50 @@ namespace ctranslate2 {
     private:
       const std::shared_ptr<const LanguageModel> _model;
       const std::unique_ptr<layers::Decoder> _decoder;
+    };
+
+
+    // Base class for sequence encoders.
+    class SequenceEncoderReplica : public ModelReplica {
+    public:
+      SequenceEncoderReplica(const std::shared_ptr<const LanguageModel>& model)
+        : ModelReplica(model)
+        , _model(model)
+      {
+      }
+
+      static std::unique_ptr<SequenceEncoderReplica> create_from_model(const Model& model) {
+        return model.as_sequence_encoder();
+      }
+
+      EncoderForwardOutput forward(const std::vector<std::vector<std::string>>& tokens);
+      EncoderForwardOutput forward(const std::vector<std::vector<size_t>>& ids);
+      EncoderForwardOutput forward(const StorageView& ids, const StorageView& lengths);
+
+    protected:
+      virtual EncoderForwardOutput
+      forward_impl(const StorageView& ids, const StorageView& lengths) = 0;
+
+    private:
+      const std::shared_ptr<const LanguageModel> _model;
+    };
+
+
+    // A model encoding sequences with an encoder layer.
+    class EncoderReplica : public SequenceEncoderReplica {
+    public:
+      EncoderReplica(const std::shared_ptr<const LanguageModel>& model,
+                     std::unique_ptr<layers::Encoder> encoder);
+
+    protected:
+      EncoderForwardOutput
+      forward_impl(const StorageView& ids, const StorageView& lengths) override;
+
+    private:
+      const std::shared_ptr<const LanguageModel> _model;
+      const std::unique_ptr<layers::Encoder> _encoder;
+      const ops::ActivationType _pooler_activation;
+      const std::unique_ptr<layers::Dense> _pooler_dense;
     };
 
   }

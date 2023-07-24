@@ -5,8 +5,17 @@
 namespace ctranslate2 {
   namespace models {
 
+    LanguageModel::LanguageModel()
+      : _state_cache(std::make_shared<layers::DecoderStateCache>())
+    {
+    }
+
     const Vocabulary& LanguageModel::get_vocabulary() const {
       return *_vocabulary;
+    }
+
+    layers::DecoderStateCache& LanguageModel::get_state_cache() const {
+      return *_state_cache;
     }
 
     void LanguageModel::initialize(ModelReader& model_reader) {
@@ -21,8 +30,9 @@ namespace ctranslate2 {
       vocab_info.bos_token = config["bos_token"];
       vocab_info.eos_token = config["eos_token"];
 
-      _vocabulary = std::make_shared<Vocabulary>(*model_reader.get_required_file("vocabulary.txt"),
-                                                 std::move(vocab_info));
+      _vocabulary = load_vocabulary(model_reader, "vocabulary", std::move(vocab_info));
+      if (!_vocabulary)
+        throw std::runtime_error("Cannot load the vocabulary from the model directory");
     }
 
 
@@ -121,6 +131,20 @@ namespace ctranslate2 {
       return tokens.size() < 2;
     }
 
+    static void copy_state(const layers::DecoderState& from,
+                           layers::DecoderState& to,
+                           dim_t batch_size) {
+      if (batch_size == 1) {
+        for (const auto& [name, value] : from)
+          to[name] = value;
+
+      } else {
+        const ops::Tile tile_op(/*axis=*/0, /*repeats=*/batch_size);
+        for (const auto& [name, value] : from)
+          tile_op(value, to[name]);
+      }
+    }
+
     std::vector<GenerationResult>
     DecoderReplica::run_generation(const std::vector<std::vector<std::string>>& start_tokens,
                                    const GenerationOptions& options) {
@@ -136,6 +160,7 @@ namespace ctranslate2 {
       decoding_options.max_length = options.max_length;
       decoding_options.min_length = options.min_length;
       decoding_options.sampling_topk = options.sampling_topk;
+      decoding_options.sampling_topp = options.sampling_topp;
       decoding_options.sampling_temperature = options.sampling_temperature;
       decoding_options.num_hypotheses = options.num_hypotheses;
       decoding_options.return_scores = options.return_scores;
@@ -150,12 +175,42 @@ namespace ctranslate2 {
       if (options.disable_unk)
         decoding_options.disable_ids.push_back(vocabulary.unk_id());
       if (options.callback)
-        decoding_options.callback = [&options, &vocabulary](DecodingStepResult step_result) {
-          options.callback(GenerationStepResult(step_result, vocabulary));
+        decoding_options.callback = [&options, &vocabulary](DecodingStepResult step_result) -> bool {
+          return options.callback(GenerationStepResult(step_result, vocabulary));
         };
 
       std::vector<std::vector<size_t>> start_ids = vocabulary.to_ids(start_tokens);
       layers::DecoderState state = _decoder->initial_state();
+
+      if (!options.static_prompt.empty()) {
+        std::vector<size_t> static_prompt_ids;
+        static_prompt_ids.reserve(options.static_prompt.size());
+        for (const auto& token : options.static_prompt)
+          static_prompt_ids.emplace_back(vocabulary.to_id(token));
+
+        auto& cache = _model->get_state_cache();
+        const dim_t batch_size = start_ids.size();
+        const layers::DecoderState* cached_state = (options.cache_static_prompt
+                                                    ? cache.get(static_prompt_ids)
+                                                    : nullptr);
+
+        if (cached_state) {
+          copy_state(*cached_state, state, batch_size);
+
+        } else {
+          layers::DecoderState static_state = _decoder->initial_state();
+          StorageView static_prompt = layers::make_sequence_inputs({static_prompt_ids},
+                                                                   _decoder->device());
+
+          (*_decoder)(0, static_prompt, static_state);
+          copy_state(static_state, state, batch_size);
+
+          if (options.cache_static_prompt)
+            cache.save(static_prompt_ids, std::move(static_state));
+        }
+
+        decoding_options.start_step += static_prompt_ids.size();
+      }
 
       if (!options.include_prompt_in_result) {
         size_t min_prompt_length = start_ids[0].size();
@@ -173,9 +228,9 @@ namespace ctranslate2 {
           }
 
           StorageView prompt = layers::make_sequence_inputs(prompt_ids, _decoder->device());
-          (*_decoder)(0, prompt, state);
+          (*_decoder)(decoding_options.start_step, prompt, state);
 
-          decoding_options.start_step = prompt.dim(1);
+          decoding_options.start_step += prompt.dim(1);
           decoding_options.return_prefix = false;
         }
       }
@@ -238,6 +293,99 @@ namespace ctranslate2 {
       StorageView logits(decoder.output_type(), decoder.device());
       decoder(ids, lengths, state, logits);
       return logits;
+    }
+
+
+    EncoderForwardOutput
+    SequenceEncoderReplica::forward(const std::vector<std::vector<std::string>>& tokens) {
+      const auto& vocabulary = _model->get_vocabulary();
+      return forward(vocabulary.to_ids(tokens));
+    }
+
+    EncoderForwardOutput
+    SequenceEncoderReplica::forward(const std::vector<std::vector<size_t>>& ids) {
+      StorageView lengths;
+      StorageView input_ids = layers::make_sequence_inputs(ids, Device::CPU, 1, &lengths);
+      return forward(input_ids, lengths);
+    }
+
+    EncoderForwardOutput
+    SequenceEncoderReplica::forward(const StorageView& ids, const StorageView& lengths) {
+      PROFILE("SequenceEncoderReplica::forward");
+      const auto& model = *this->model();
+      const auto device = model.device();
+      const auto scoped_device_setter = model.get_scoped_device_setter();
+
+      EncoderForwardOutput output;
+
+      if (ids.device() != device)
+        output = forward_impl(ids.to(device), lengths.to(device));
+      else
+        output = forward_impl(ids, lengths);
+
+      // Ensure all operations are finished before returning the output.
+      synchronize_stream(device);
+      return output;
+    }
+
+
+    EncoderReplica::EncoderReplica(const std::shared_ptr<const LanguageModel>& model,
+                                   std::unique_ptr<layers::Encoder> encoder)
+      : SequenceEncoderReplica(model)
+      , _model(model)
+      , _encoder(std::move(encoder))
+      , _pooler_activation(model->get_enum_value<ops::ActivationType>("pooler_activation"))
+      , _pooler_dense(layers::build_optional_layer<layers::Dense>(*model,
+                                                                  "pooler_dense",
+                                                                  &_pooler_activation))
+    {
+    }
+
+    EncoderForwardOutput
+    EncoderReplica::forward_impl(const StorageView& ids, const StorageView& lengths) {
+      if (ids.rank() != 2)
+        throw std::invalid_argument("Expected input ids to have 2 dimensions, but got "
+                                    + std::to_string(ids.rank())
+                                    + " dimension(s) instead");
+      if (lengths.size() != ids.dim(0))
+        throw std::invalid_argument("Expected lengths vector to have size "
+                                    + std::to_string(ids.dim(0))
+                                    + ", but got size "
+                                    + std::to_string(lengths.size())
+                                    + " instead");
+
+      const Device device = _model->device();
+      const DataType dtype = _encoder->output_type();
+
+      std::vector<StorageView> inputs{ids};
+
+      if (_encoder->num_input_features() > 1) {
+        StorageView token_type_ids(ids.shape(), ids.dtype(), device);
+        token_type_ids.zero();
+        inputs.emplace_back(std::move(token_type_ids));
+      }
+
+      StorageView last_hidden_state(dtype, device);
+      (*_encoder)(inputs, lengths, last_hidden_state);
+
+      EncoderForwardOutput output;
+      output.last_hidden_state = std::move(last_hidden_state);
+
+      if (_pooler_dense) {
+        StorageView first_index({ids.dim(0)}, int32_t(0), device);
+        StorageView first_token_state(dtype, device);
+
+        ops::Gather(/*axis=*/1, /*batch_dims=*/1)(output.last_hidden_state,
+                                                  first_index,
+                                                  first_token_state);
+
+        StorageView pooler_output(dtype, device);
+        (*_pooler_dense)(first_token_state, pooler_output);
+
+        output.pooler_output = std::move(pooler_output);
+      }
+
+      return output;
     }
 
   }

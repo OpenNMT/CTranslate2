@@ -63,10 +63,21 @@ namespace ctranslate2 {
     void TransformerEncoderLayer::operator()(const StorageView& input,
                                              const StorageView* lengths,
                                              StorageView& output,
-                                             const Padder* padder) const {
+                                             const Padder* padder,
+                                             StorageView* position_bias) const {
       PROFILE("TransformerEncoderLayer");
       StorageView context(input.dtype(), input.device());
-      _self_attention(input, input, lengths, context, nullptr, nullptr, nullptr, padder, padder);
+      _self_attention(input,
+                      input,
+                      lengths,
+                      context,
+                      nullptr,
+                      nullptr,
+                      nullptr,
+                      padder,
+                      padder,
+                      true,
+                      position_bias);
       _ff(context, output);
     }
 
@@ -75,13 +86,15 @@ namespace ctranslate2 {
                                                      const std::string& scope,
                                                      const dim_t num_heads,
                                                      const bool pre_norm,
-                                                     const ops::ActivationType activation_type)
+                                                     const ops::ActivationType activation_type,
+                                                     Alibi* alibi)
       : _self_attention(model,
                         scope + "/self_attention",
                         num_heads,
                         /*self_attention=*/true,
                         pre_norm,
-                        /*is_decoder=*/true)
+                        /*is_decoder=*/true,
+                        alibi)
       , _shared_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/shared_layer_norm"))
       , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm"))
       , _post_attention_layer_norm(build_optional_layer<LayerNorm>(
@@ -108,7 +121,7 @@ namespace ctranslate2 {
                                              const Padder* input_padder,
                                              const Padder* memory_padder,
                                              bool return_normalized_attention,
-                                             const StorageView* alibi) const {
+                                             StorageView* position_bias) const {
       PROFILE("TransformerDecoderLayer");
 
       const DataType dtype = input.dtype();
@@ -136,7 +149,7 @@ namespace ctranslate2 {
                         input_padder,
                         input_padder,
                         true,
-                        alibi);
+                        position_bias);
 
         if (_post_attention_layer_norm)
           (*_post_attention_layer_norm)(input, hidden);
@@ -159,7 +172,7 @@ namespace ctranslate2 {
                       input_padder,
                       input_padder,
                       true,
-                      alibi);
+                      position_bias);
 
       StorageView context(dtype, device);
       if (_encoder_attention) {
@@ -231,7 +244,7 @@ namespace ctranslate2 {
                   _num_heads,
                   model.get_flag_with_default(scope + "/pre_norm", true),
                   model.get_enum_value<ops::ActivationType>(scope + "/activation")))
-      , _position_encoder(_layers.front()->has_positional_embeddings()
+      , _position_encoder(_layers.front()->get_self_attention().has_positional_embeddings()
                           ? nullptr
                           : build_position_encoder(model, scope + "/position_encodings", _embeddings))
     {
@@ -266,8 +279,10 @@ namespace ctranslate2 {
           layers::MultiHeadAttention::prepare_length_mask(*lengths, _num_heads, max_time));
       }
 
+      StorageView position_bias(output.dtype(), output.device());
+
       for (size_t l = 0; l < _layers.size(); ++l) {
-        (*_layers[l])(input, lengths_mask.get(), output, padder.get());
+        (*_layers[l])(input, lengths_mask.get(), output, padder.get(), &position_bias);
         if (l + 1 < _layers.size())
           input = std::move(output);
       }
@@ -278,6 +293,17 @@ namespace ctranslate2 {
     }
 
 
+    static std::unique_ptr<Alibi> make_alibi(const models::Model& model, const std::string& scope) {
+      const bool use_alibi = model.get_flag_with_default(scope + "/alibi", false);
+      if (!use_alibi)
+        return nullptr;
+
+      const bool use_positive_positions = model.get_flag_with_default(
+        scope + "/alibi_use_positive_positions", true);
+
+      return std::make_unique<Alibi>(use_positive_positions);
+    }
+
     TransformerDecoder::TransformerDecoder(const models::Model& model, const std::string& scope)
       : Decoder(model.device())
       , _num_heads(model.get_attribute_with_default<int32_t>(scope + "/num_heads", 8))
@@ -285,20 +311,20 @@ namespace ctranslate2 {
       , _embeddings(model, scope + "/embeddings")
       , _start_from_zero_embedding(model.get_flag_with_default(scope + "/start_from_zero_embedding",
                                                                false))
-      , _use_alibi(model.get_flag_with_default(scope + "/alibi", false))
-      , _use_positive_positions_in_alibi(model.get_flag_with_default(scope + "/alibi_use_positive_positions", true))
       , _embeddings_scale(build_embeddings_scale(model, scope, _embeddings))
       , _layernorm_embedding(build_optional_layer<LayerNorm>(model, scope + "/layernorm_embedding"))
       , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
       , _project_in(build_optional_layer<Dense>(model, scope + "/project_in"))
       , _project_out(build_optional_layer<Dense>(model, scope + "/project_out"))
+      , _alibi(make_alibi(model, scope))
       , _layers(build_layers_list<const TransformerDecoderLayer>(
                   model,
                   scope + "/layer",
                   _num_heads,
                   model.get_flag_with_default(scope + "/pre_norm", true),
-                  model.get_enum_value<ops::ActivationType>(scope + "/activation")))
-      , _position_encoder(_layers.front()->has_positional_embeddings() || _use_alibi
+                  model.get_enum_value<ops::ActivationType>(scope + "/activation"),
+                  _alibi.get()))
+      , _position_encoder(_layers.front()->get_self_attention().has_positional_embeddings()
                           ? nullptr
                           : build_position_encoder(model, scope + "/position_encodings", _embeddings))
       , _with_encoder_attention(_layers.front()->has_cross_attention())
@@ -325,8 +351,13 @@ namespace ctranslate2 {
 
     DecoderState TransformerDecoder::initial_state(bool iterative_decoding) const {
       DecoderState state;
+
       if (iterative_decoding) {
+        const size_t state_size = _layers.size() * (_with_encoder_attention ? 4 : 2);
+        state.reserve(state_size);
+
         const DataType dtype = output_type();
+
         for (size_t i = 0; i < _layers.size(); ++i) {
           const std::string i_str = std::to_string(i);
           state.emplace("self_keys_" + i_str, StorageView(dtype, _device));
@@ -337,6 +368,7 @@ namespace ctranslate2 {
           }
         }
       }
+
       return state;
     }
 
@@ -441,10 +473,6 @@ namespace ctranslate2 {
       std::unique_ptr<const StorageView> input_lengths_mask;
 
       if (is_sequence && !lengths) {
-        if (step > 0)
-          throw std::runtime_error("Forwarding a sequence in the Transformer decoder after the "
-                                   "first decoding step is currently not supported");
-
         input_lengths = std::make_unique<StorageView>(Shape{ids.dim(0)}, int32_t(max_time), device);
         lengths = input_lengths.get();
       }
@@ -454,11 +482,20 @@ namespace ctranslate2 {
           input_padder = std::make_unique<Padder>(*lengths, max_time);
           input_padder->remove_padding(layer_in);
         }
-        input_lengths_mask = std::make_unique<StorageView>(
-          layers::MultiHeadAttention::prepare_length_mask(*lengths,
-                                                          _num_heads,
-                                                          max_time,
-                                                          /*mask_future=*/true));
+
+        const bool multi_query = _layers.front()->get_self_attention().multi_query();
+
+        StorageView lengths_mask = layers::MultiHeadAttention::prepare_length_mask(
+          *lengths,
+          _num_heads,
+          max_time,
+          /*mask_future=*/true,
+          multi_query);
+
+        if (step > 0)
+          ops::Add()(lengths_mask, StorageView(int32_t(step)), lengths_mask);
+
+        input_lengths_mask = std::make_unique<StorageView>(std::move(lengths_mask));
       }
 
       StorageView* memory = nullptr;
@@ -486,21 +523,11 @@ namespace ctranslate2 {
         }
       }
 
-      std::unique_ptr<StorageView> alibi;
-      if (_use_alibi) {
-        alibi = std::make_unique<StorageView>(
-          build_alibi(batch_size,
-                      _num_heads,
-                      max_time,
-                      step > 0 ? step + 1 : max_time,
-                      lengths,
-                      _use_positive_positions_in_alibi));
-        alibi->move_to(device, dtype);
-      }
-
       std::vector<StorageView> alignment_heads;
       if (attention)
         alignment_heads.reserve(_layers.size());
+
+      StorageView position_bias(dtype, device);
 
       for (size_t l = 0; l < _layers.size(); ++l) {
         StorageView* cached_self_attn_keys = nullptr;
@@ -536,7 +563,7 @@ namespace ctranslate2 {
                       input_padder.get(),
                       memory_padder.get(),
                       return_normalized_attention(),
-                      alibi.get());
+                      &position_bias);
         layer_in = std::move(layer_out);
 
         if (layer_attention) {

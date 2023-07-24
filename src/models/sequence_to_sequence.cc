@@ -7,9 +7,6 @@
 namespace ctranslate2 {
   namespace models {
 
-    static const std::string shared_vocabulary_file = "shared_vocabulary.txt";
-    static const std::string source_vocabulary_file = "source_vocabulary.txt";
-    static const std::string target_vocabulary_file = "target_vocabulary.txt";
     static const std::string vmap_file = "vmap.txt";
 
 
@@ -20,37 +17,35 @@ namespace ctranslate2 {
         vocab_info.bos_token = config["bos_token"];
         vocab_info.eos_token = config["eos_token"];
 
-        auto shared_vocabulary = model_reader.get_file(shared_vocabulary_file);
+        auto shared_vocabulary = load_vocabulary(model_reader, "shared_vocabulary", vocab_info);
+
         if (shared_vocabulary) {
-          _target_vocabulary = std::make_shared<Vocabulary>(*shared_vocabulary, vocab_info);
-          _source_vocabularies.emplace_back(_target_vocabulary);
+          _target_vocabulary = shared_vocabulary;
+          _source_vocabularies = {shared_vocabulary};
+
         } else {
+          _target_vocabulary = load_vocabulary(model_reader, "target_vocabulary", vocab_info);
+          if (!_target_vocabulary)
+            throw std::runtime_error("Cannot load the target vocabulary from the model directory");
 
-          {
-            auto source_vocabulary = model_reader.get_file(source_vocabulary_file);
-            if (source_vocabulary)
-              _source_vocabularies.emplace_back(std::make_shared<Vocabulary>(*source_vocabulary,
-                                                                             vocab_info));
-            else {
-              for (size_t i = 1;; i++) {
-                const std::string filename = "source_" + std::to_string(i) + "_vocabulary.txt";
-                const auto vocabulary_file = model_reader.get_file(filename);
-                if (!vocabulary_file)
-                  break;
-                _source_vocabularies.emplace_back(std::make_shared<Vocabulary>(*vocabulary_file,
-                                                                               vocab_info));
-              }
+          auto source_vocabulary = load_vocabulary(model_reader, "source_vocabulary", vocab_info);
+
+          if (source_vocabulary) {
+            _source_vocabularies = {source_vocabulary};
+          } else {
+            for (size_t i = 1;; i++) {
+              const std::string filename = "source_" + std::to_string(i) + "_vocabulary";
+              auto vocabulary = load_vocabulary(model_reader, filename, vocab_info);
+
+              if (!vocabulary)
+                break;
+
+              _source_vocabularies.emplace_back(vocabulary);
             }
-
-            // If no source vocabularies were loaded, raise an error for the first filename.
-            if (_source_vocabularies.empty())
-              model_reader.get_required_file(source_vocabulary_file);
           }
 
-          {
-            auto target_vocabulary = model_reader.get_required_file(target_vocabulary_file);
-            _target_vocabulary = std::make_shared<Vocabulary>(*target_vocabulary, vocab_info);
-          }
+          if (_source_vocabularies.empty())
+            throw std::runtime_error("Cannot load the source vocabulary from the model directory");
         }
       }
 
@@ -348,6 +343,7 @@ namespace ctranslate2 {
       decoding_options.max_length = options.max_decoding_length;
       decoding_options.min_length = options.min_decoding_length;
       decoding_options.sampling_topk = options.sampling_topk;
+      decoding_options.sampling_topp = options.sampling_topp;
       decoding_options.sampling_temperature = options.sampling_temperature;
       decoding_options.num_hypotheses = options.num_hypotheses;
       decoding_options.return_scores = options.return_scores;
@@ -363,8 +359,8 @@ namespace ctranslate2 {
       if (options.disable_unk)
         decoding_options.disable_ids.push_back(target_vocabulary.unk_id());
       if (options.callback)
-        decoding_options.callback = [&options, &target_vocabulary](DecodingStepResult step_result) {
-          options.callback(GenerationStepResult(step_result, target_vocabulary));
+        decoding_options.callback = [&options, &target_vocabulary](DecodingStepResult step_result) -> bool {
+          return options.callback(GenerationStepResult(step_result, target_vocabulary));
         };
 
       const auto end_ids(std::visit(ResolveEndToken(target_vocabulary), options.end_token));

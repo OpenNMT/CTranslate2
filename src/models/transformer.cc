@@ -1,6 +1,5 @@
 #include "ctranslate2/models/transformer.h"
 
-#include "ctranslate2/models/model_factory.h"
 #include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
@@ -33,12 +32,6 @@ namespace ctranslate2 {
       return name;
     }
 
-
-    // Empty spec name, TransformerBase, and TransformerBig are there for backward compatibility.
-    static auto register_empty = register_model<TransformerModel>("", /*num_heads=*/8);
-    static auto register_base = register_model<TransformerModel>("TransformerBase", /*num_heads=*/8);
-    static auto register_big = register_model<TransformerModel>("TransformerBig", /*num_heads=*/16);
-    static auto register_generic = register_model<TransformerModel>("TransformerSpec");
 
     TransformerModel::TransformerModel(size_t num_heads)
       : _num_heads(num_heads) {
@@ -101,10 +94,8 @@ namespace ctranslate2 {
     }
 
 
-    static auto register_decoder = register_model<TransformerDecoderModel>("TransformerDecoderSpec");
-
     size_t TransformerDecoderModel::current_spec_revision() const {
-      return 5;
+      return 7;
     }
 
     void TransformerDecoderModel::initialize(ModelReader& model_reader) {
@@ -133,6 +124,29 @@ namespace ctranslate2 {
 
     std::unique_ptr<Model> TransformerDecoderModel::clone() const {
       return std::make_unique<TransformerDecoderModel>(*this);
+    }
+
+
+    size_t TransformerEncoderModel::current_spec_revision() const {
+      return 1;
+    }
+
+    std::unique_ptr<SequenceEncoderReplica>
+    TransformerEncoderModel::as_sequence_encoder() const {
+      const auto scoped_device_setter = get_scoped_device_setter();
+
+      auto encoder = std::make_unique<layers::TransformerEncoder>(*this, "encoder");
+
+      const auto model = std::static_pointer_cast<const TransformerEncoderModel>(shared_from_this());
+      return std::make_unique<EncoderReplica>(model, std::move(encoder));
+    }
+
+    bool TransformerEncoderModel::is_linear_weight(const std::string& variable_name) const {
+      return is_quantizable(variable_name) && variable_name.find("embeddings") == std::string::npos;
+    }
+
+    std::unique_ptr<Model> TransformerEncoderModel::clone() const {
+      return std::make_unique<TransformerEncoderModel>(*this);
     }
 
   }

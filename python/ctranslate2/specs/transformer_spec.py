@@ -22,6 +22,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
         relative_attention_bias: bool = False,
         ffn_glu: bool = False,
         rms_norm: bool = False,
+        multi_query_attention: bool = False,
     ):
         """Initializes a Transformer encoder specification.
 
@@ -42,6 +43,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
           ffn_glu: Use gated linear units in the FFN layers as described in
             https://arxiv.org/abs/2002.05202.
           rms_norm: Use the root mean square layer normalization.
+          multi_query_attention: Use multi-query attention.
         """
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
@@ -63,6 +65,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
                 relative_attention_bias=relative_attention_bias,
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
+                num_heads_kv=1 if multi_query_attention else None,
             )
             for _ in range(num_layers)
         ]
@@ -91,6 +94,8 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         rotary_interleave: bool = True,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
+        multi_query_attention: bool = False,
+        num_heads_kv: Optional[int] = None,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -123,12 +128,27 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
             attention layer norms.
+          multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
+          num_heads_kv: Number of attention heads for the key and value.
         """
         if parallel_residual:
             if not pre_norm:
                 raise ValueError("The GPT-J block expects a pre-norm architecture")
             if with_encoder_attention:
                 raise ValueError("The GPT-J block does not have cross attention")
+
+        if multi_query_attention:
+            if num_heads_kv is not None and num_heads_kv != 1:
+                raise ValueError(
+                    "Enabling multi_query_attention implies num_heads_kv=1"
+                )
+            num_heads_kv = 1
+
+        if with_encoder_attention and num_heads_kv not in (None, 1, num_heads):
+            raise ValueError(
+                "num_heads_kv=%d is not supported in the cross-attention layers"
+                % num_heads_kv
+            )
 
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
@@ -163,6 +183,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 rotary_interleave=rotary_interleave,
                 parallel_residual=parallel_residual,
                 shared_layer_norm=shared_layer_norm,
+                num_heads_kv=num_heads_kv,
             )
             for _ in range(num_layers)
         ]
@@ -180,12 +201,14 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
         relative_attention_bias=False,
         ffn_glu=False,
         rms_norm=False,
+        num_heads_kv=None,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
             relative_position=relative_position,
             relative_attention_bias=relative_attention_bias,
             rms_norm=rms_norm,
+            num_heads_kv=num_heads_kv,
         )
         self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
 
@@ -202,6 +225,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         rotary_interleave=True,
         parallel_residual=False,
         shared_layer_norm=False,
+        num_heads_kv=None,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
@@ -210,9 +234,15 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             rms_norm=rms_norm,
             rotary_dim=rotary_dim,
             rotary_interleave=rotary_interleave,
+            num_heads_kv=num_heads_kv,
         )
+
         if with_encoder_attention:
-            self.attention = attention_spec.MultiHeadAttentionSpec(rms_norm=rms_norm)
+            self.attention = attention_spec.MultiHeadAttentionSpec(
+                rms_norm=rms_norm,
+                num_heads_kv=num_heads_kv,
+            )
+
         self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
 
         if parallel_residual:
@@ -238,6 +268,19 @@ class FeedForwardSpec(model_spec.LayerSpec):
 class PositionEncoderSpec(model_spec.LayerSpec):
     def __init__(self):
         self.encodings = model_spec.OPTIONAL
+
+
+class TransformerConfig(model_spec.SequenceToSequenceModelConfig):
+    """Configuration for Transformer models."""
+
+    def __init__(self, layer_norm_epsilon: Optional[float] = None, **kwargs):
+        """Initializes the configuration for Transformer models.
+
+        Args:
+          layer_norm_epsilon: The layer norm epsilon value.
+          **kwargs: Additional configuration.
+        """
+        super().__init__(layer_norm_epsilon=layer_norm_epsilon, **kwargs)
 
 
 class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
@@ -282,6 +325,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         relative_attention_bias: bool = False,
         ffn_glu: bool = False,
         rms_norm: bool = False,
+        multi_query_attention: bool = False,
     ):
         """Creates a Transformer model specification.
 
@@ -305,6 +349,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
           ffn_glu: Use gated linear units in the FFN layer as described in
             https://arxiv.org/abs/2002.05202.
           rms_norm: Use the root mean square layer normalization.
+          multi_query_attention: Use multi-query attention.
         """
         if isinstance(num_layers, (list, tuple)):
             num_encoder_layers, num_decoder_layers = num_layers
@@ -324,6 +369,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             relative_attention_bias=relative_attention_bias,
             ffn_glu=ffn_glu,
             rms_norm=rms_norm,
+            multi_query_attention=multi_query_attention,
         )
 
         decoder = TransformerDecoderSpec(
@@ -339,6 +385,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             alignment_heads=alignment_heads,
             ffn_glu=ffn_glu,
             rms_norm=rms_norm,
+            multi_query_attention=multi_query_attention,
         )
 
         return cls(encoder, decoder)
@@ -351,11 +398,27 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
     def revision(self):
         return 7
 
+    def get_default_config(self):
+        return TransformerConfig()
+
     def get_source_vocabulary_size(self):
         return [spec.weight.shape[0] for spec in self.encoder.embeddings]
 
     def get_target_vocabulary_size(self):
         return self.decoder.embeddings.weight.shape[0]
+
+
+class TransformerDecoderModelConfig(model_spec.LanguageModelConfig):
+    """Configuration for Transformer decoder models."""
+
+    def __init__(self, layer_norm_epsilon: Optional[float] = None, **kwargs):
+        """Initializes the configuration for Transformer decoder models.
+
+        Args:
+          layer_norm_epsilon: The layer norm epsilon value.
+          **kwargs: Additional configuration.
+        """
+        super().__init__(layer_norm_epsilon=layer_norm_epsilon, **kwargs)
 
 
 class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
@@ -392,6 +455,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         rotary_interleave: bool = True,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
+        multi_query_attention: bool = False,
+        num_heads_kv: Optional[int] = None,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -418,6 +483,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
             attention layer norms.
+          multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
+          num_heads_kv: Number of attention heads for the key and value.
         """
         decoder = TransformerDecoderSpec(
             num_layers,
@@ -437,6 +504,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             rotary_interleave=rotary_interleave,
             parallel_residual=parallel_residual,
             shared_layer_norm=shared_layer_norm,
+            multi_query_attention=multi_query_attention,
+            num_heads_kv=num_heads_kv,
         )
 
         return cls(decoder)
@@ -447,7 +516,64 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
     @property
     def revision(self):
-        return 5
+        return 7
+
+    def get_default_config(self):
+        return TransformerDecoderModelConfig()
 
     def get_vocabulary_size(self):
         return self.decoder.embeddings.weight.shape[0]
+
+
+class TransformerEncoderModelConfig(model_spec.LanguageModelConfig):
+    """Configuration for Transformer encoder models."""
+
+    def __init__(self, layer_norm_epsilon: Optional[float] = None, **kwargs):
+        """Initializes the configuration for Transformer encoder models.
+
+        Args:
+          layer_norm_epsilon: The layer norm epsilon value.
+          **kwargs: Additional configuration.
+        """
+        super().__init__(layer_norm_epsilon=layer_norm_epsilon, **kwargs)
+
+
+class TransformerEncoderModelSpec(model_spec.LanguageModelSpec):
+    """Describes a Transformer encoder model (e.g. BERT)."""
+
+    def __init__(
+        self,
+        encoder: TransformerEncoderSpec,
+        pooling_layer: bool = False,
+        pooling_activation: common_spec.Activation = common_spec.Activation.Tanh,
+    ):
+        """Initializes a Transformer encoder model specification.
+
+        Args:
+          encoder: The encoder specification.
+          pooling_layer: Add the pooling layer.
+          pooling_activation: The activation to apply after the pooling layer.
+        """
+        if not isinstance(encoder, TransformerEncoderSpec):
+            raise TypeError("encoder argument must be a TransformerEncoderSpec")
+
+        super().__init__()
+        self.encoder = encoder
+
+        if pooling_layer:
+            self.pooler_dense = common_spec.LinearSpec()
+            self.pooler_activation = np.dtype("int8").type(pooling_activation)
+
+    @property
+    def name(self):
+        return "TransformerEncoderSpec"
+
+    @property
+    def revision(self):
+        return 1
+
+    def get_default_config(self):
+        return TransformerEncoderModelConfig()
+
+    def get_vocabulary_size(self):
+        return self.encoder.embeddings[0].weight.shape[0]

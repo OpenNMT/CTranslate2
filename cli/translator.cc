@@ -40,7 +40,7 @@ int main(int argc, char* argv[]) {
 
   cmd_options.add_options("Model")
     ("model", "Path to the CTranslate2 model directory.", cxxopts::value<std::string>())
-    ("compute_type", "The type used for computation: default, auto, float32, float16, int16, int8, or int8_float16",
+    ("compute_type", "The type used for computation: default, auto, float32, float16, bfloat16, int16, int8, int8_float16, or int8_bfloat16",
      cxxopts::value<std::string>()->default_value("default"))
     ("cuda_compute_type", "Computation type on CUDA devices (overrides compute_type)",
      cxxopts::value<std::string>())
@@ -76,6 +76,8 @@ int main(int argc, char* argv[]) {
      cxxopts::value<float>()->default_value("1"))
     ("sampling_topk", "Sample randomly from the top K candidates.",
      cxxopts::value<size_t>()->default_value("1"))
+    ("sampling_topp", "Keep the most probable tokens whose cumulative probability exceeds this value.",
+     cxxopts::value<float>()->default_value("1"))
     ("sampling_temperature", "Sampling temperature.",
      cxxopts::value<float>()->default_value("1"))
     ("n_best", "Also output the n-best hypotheses.",
@@ -194,6 +196,7 @@ int main(int argc, char* argv[]) {
     options.disable_unk = args["disable_unk"].as<bool>();
     options.prefix_bias_beta = args["prefix_bias_beta"].as<float>();
     options.sampling_topk = args["sampling_topk"].as<size_t>();
+    options.sampling_topp = args["sampling_topp"].as<float>();
     options.sampling_temperature = args["sampling_temperature"].as<float>();
     options.max_input_length = args["max_input_length"].as<size_t>();
     options.max_decoding_length = args["max_decoding_length"].as<size_t>();

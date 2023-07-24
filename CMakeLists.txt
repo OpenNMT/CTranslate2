@@ -69,6 +69,9 @@ if(NOT CTRANSLATE2_VERSION)
   message(FATAL_ERROR "Version can't be read from version.py")
 endif()
 
+string(REPLACE "." ";" CTRANSLATE2_VERSION_LIST ${CTRANSLATE2_VERSION})
+list(GET CTRANSLATE2_VERSION_LIST 0 CTRANSLATE2_MAJOR_VERSION)
+
 if(MSVC)
   if(BUILD_SHARED_LIBS)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -105,6 +108,7 @@ set(SOURCES
   src/decoding_utils.cc
   src/devices.cc
   src/dtw.cc
+  src/encoder.cc
   src/env.cc
   src/filesystem.cc
   src/generator.cc
@@ -116,18 +120,22 @@ set(SOURCES
   src/logging.cc
   src/models/language_model.cc
   src/models/model.cc
+  src/models/model_factory.cc
   src/models/model_reader.cc
   src/models/sequence_to_sequence.cc
   src/models/transformer.cc
   src/models/whisper.cc
   src/ops/activation.cc
   src/ops/add.cc
+  src/ops/alibi_add.cc
+  src/ops/alibi_add_cpu.cc
   src/ops/bias_add.cc
   src/ops/bias_add_cpu.cc
   src/ops/concat.cc
   src/ops/concat_split_cpu.cc
   src/ops/conv1d.cc
   src/ops/conv1d_cpu.cc
+  src/ops/cos.cc
   src/ops/dequantize.cc
   src/ops/dequantize_cpu.cc
   src/ops/gather.cc
@@ -154,6 +162,7 @@ set(SOURCES
   src/ops/rms_norm_cpu.cc
   src/ops/rotary.cc
   src/ops/rotary_cpu.cc
+  src/ops/sin.cc
   src/ops/softmax.cc
   src/ops/softmax_cpu.cc
   src/ops/split.cc
@@ -164,6 +173,8 @@ set(SOURCES
   src/ops/tile_cpu.cc
   src/ops/topk.cc
   src/ops/topk_cpu.cc
+  src/ops/topp_mask.cc
+  src/ops/topp_mask_cpu.cc
   src/ops/transpose.cc
   src/padder.cc
   src/profiler.cc
@@ -490,6 +501,7 @@ if (WITH_CUDA)
     src/cuda/primitives.cu
     src/cuda/random.cu
     src/cuda/utils.cc
+    src/ops/alibi_add_gpu.cu
     src/ops/bias_add_gpu.cu
     src/ops/concat_split_gpu.cu
     src/ops/conv1d_gpu.cu
@@ -504,6 +516,7 @@ if (WITH_CUDA)
     src/ops/softmax_gpu.cu
     src/ops/tile_gpu.cu
     src/ops/topk_gpu.cu
+    src/ops/topp_mask_gpu.cu
     src/ops/quantize_gpu.cu
     )
 elseif(WITH_CUDNN)
@@ -515,9 +528,9 @@ endif()
 include(GenerateExportHeader)
 generate_export_header(${PROJECT_NAME})
 set_property(TARGET ${PROJECT_NAME} PROPERTY VERSION ${CTRANSLATE2_VERSION})
-set_property(TARGET ${PROJECT_NAME} PROPERTY SOVERSION 3)
+set_property(TARGET ${PROJECT_NAME} PROPERTY SOVERSION ${CTRANSLATE2_MAJOR_VERSION})
 set_property(TARGET ${PROJECT_NAME} PROPERTY
-  INTERFACE_${PROJECT_NAME}_MAJOR_VERSION 3)
+  INTERFACE_${PROJECT_NAME}_MAJOR_VERSION ${CTRANSLATE2_MAJOR_VERSION})
 set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY
   COMPATIBLE_INTERFACE_STRING ${PROJECT_NAME}_MAJOR_VERSION
 )
@@ -570,7 +583,7 @@ configure_file(cmake/${PROJECT_NAME}Config.cmake
   COPYONLY
 )
 
-set(ConfigPackageLocation lib/cmake/${PROJECT_NAME})
+set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 if(BUILD_SHARED_LIBS)
   install(EXPORT ${PROJECT_NAME}Targets

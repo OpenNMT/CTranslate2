@@ -147,6 +147,7 @@ namespace ctranslate2 {
                                     dim_t num_heads,
                                     dim_t num_queries,
                                     bool mask_future,
+                                    bool multi_query,
                                     int32_t* mask);
 
     template <typename T>
@@ -162,9 +163,11 @@ namespace ctranslate2 {
     static void exp(const float* x, float* y, dim_t size);
     template <typename T>
     static void log(const T* x, T* y, dim_t size);
-    static void cos(const float* x, float* y, dim_t size);
-    static void sin(const float* x, float* y, dim_t size);
 
+    template <typename T>
+    static void cos(const T* x, T* y, dim_t size);
+    template <typename T>
+    static void sin(const T* x, T* y, dim_t size);
     template <typename T>
     static void tanh(const T* x, T* y, dim_t size);
 

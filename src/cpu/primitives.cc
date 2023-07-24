@@ -76,6 +76,10 @@ namespace ctranslate2 {
 
   template void primitives<Device::CPU>::convert(const float*, float16_t*, dim_t);
   template void primitives<Device::CPU>::convert(const float16_t*, float*, dim_t);
+  template void primitives<Device::CPU>::convert(const float*, bfloat16_t*, dim_t);
+  template void primitives<Device::CPU>::convert(const bfloat16_t*, float*, dim_t);
+  template void primitives<Device::CPU>::convert(const float16_t*, bfloat16_t*, dim_t);
+  template void primitives<Device::CPU>::convert(const bfloat16_t*, float16_t*, dim_t);
 
   template<>
   template <typename T>
@@ -346,6 +350,7 @@ namespace ctranslate2 {
   }
 
   template<>
+  template<>
   void primitives<Device::CPU>::cos(const float* x, float* y, dim_t size) {
 #ifdef CT2_WITH_MKL
     if (cpu::mayiuse_mkl())
@@ -354,6 +359,7 @@ namespace ctranslate2 {
     CPU_ISA_DISPATCH((cpu::cos<ISA>(x, y, size)));
   }
 
+  template<>
   template<>
   void primitives<Device::CPU>::sin(const float* x, float* y, dim_t size) {
 #ifdef CT2_WITH_MKL
@@ -370,7 +376,10 @@ namespace ctranslate2 {
     if (cpu::mayiuse_mkl())
       return vsTanh(size, x, y);
 #endif
-    CPU_ISA_DISPATCH((cpu::tanh<ISA>(x, y, size)));
+    cpu::parallel_for(0, size, /*grain_size=*/512,
+                      [x, y](dim_t begin, dim_t end) {
+                        CPU_ISA_DISPATCH((cpu::tanh<ISA>(x + begin, y + begin, end - begin)));
+                      });
   }
 
   template<>
@@ -400,13 +409,15 @@ namespace ctranslate2 {
                                                     dim_t num_heads,
                                                     dim_t num_queries,
                                                     bool mask_future,
+                                                    bool multi_query,
                                                     int32_t* mask) {
     for (dim_t b = 0; b < batch_size; ++b) {
       const auto length = lengths[b];
       auto* batch_mask = mask + b * num_heads * num_queries;
       for (dim_t i = 0; i < num_heads * num_queries; ++i) {
         batch_mask[i] = (mask_future
-                         ? std::min(length, int32_t((i % num_queries) + 1))
+                         ? std::min(length,
+                                    int32_t((multi_query ? i / num_heads : i % num_queries) + 1))
                          : length);
       }
     }
@@ -1145,5 +1156,6 @@ namespace ctranslate2 {
   DECLARE_IMPL_NO_FLOAT(int16_t)
   DECLARE_IMPL_NO_FLOAT(int32_t)
   DECLARE_IMPL_NO_FLOAT(float16_t)
+  DECLARE_IMPL_NO_FLOAT(bfloat16_t)
 
 }

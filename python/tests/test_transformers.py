@@ -150,6 +150,26 @@ def test_transformers_translation(
 
 _TRANSFORMERS_GENERATION_TESTS = [
     (
+        "bigcode/tiny_starcoder_py",
+        (
+            "<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
+            "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"
+        ),
+        26,
+        (
+            "<fim_prefix> def Ġprint _ one _ two _ three (): ĊĠĠĠ Ġprint (' one ') "
+            "ĊĠĠĠĠ <fim_suffix> ĊĠĠĠ Ġprint (' three ') <fim_middle>"
+            " print (' two ')"
+        ),
+    ),
+    (
+        "Salesforce/codegen-350M-mono",
+        "def Ġhello _ name ( name ):",
+        25,
+        "def Ġhello _ name ( name ):"
+        ' Ċ      print ( f " Hello Ġ{ name } ") Ċ Ċ hello _ name (" John ")',
+    ),
+    (
         "gpt2",
         "<|endoftext|>",
         10,
@@ -215,8 +235,9 @@ def test_transformers_marianmt_vocabulary(clear_transformers_cache, tmp_dir):
     output_dir = str(tmp_dir.join("ctranslate2_model"))
     output_dir = converter.convert(output_dir)
 
-    with open(os.path.join(output_dir, "shared_vocabulary.txt")) as vocab_file:
-        vocab = list(line.rstrip("\n") for line in vocab_file)
+    vocabulary_path = os.path.join(output_dir, "shared_vocabulary.json")
+    with open(vocabulary_path, encoding="utf-8") as vocabulary_file:
+        vocab = json.load(vocabulary_file)
 
     assert vocab[-1] != "<pad>"
 
@@ -236,6 +257,101 @@ def test_transformers_marianmt_disable_unk(
     translator = ctranslate2.Translator(output_dir)
     output = translator.translate_batch([tokens], beam_size=beam_size, disable_unk=True)
     assert "<unk>" not in output[0].hypotheses[0]
+
+
+@test_utils.only_on_linux
+@test_utils.on_available_devices
+def test_transformers_bert(clear_transformers_cache, tmp_dir, device):
+    import torch
+    import transformers
+
+    text = ["Hello world!", "Hello, my dog is cute"]
+
+    model_name = "bert-base-uncased"
+    model = transformers.BertModel.from_pretrained(model_name)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+
+    inputs = tokenizer(text, return_tensors="pt", padding=True)
+    inputs.to(device)
+    model.to(device)
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    mask = inputs.attention_mask.unsqueeze(-1).cpu().numpy()
+    ref_last_hidden_state = outputs.last_hidden_state.cpu().numpy()
+    ref_pooler_output = outputs.pooler_output.cpu().numpy()
+
+    converter = ctranslate2.converters.TransformersConverter(model_name)
+    output_dir = str(tmp_dir.join("ctranslate2_model"))
+    output_dir = converter.convert(output_dir)
+
+    encoder = ctranslate2.Encoder(output_dir, device=device)
+
+    ids = [tokenizer(t).input_ids for t in text]
+    outputs = encoder.forward_batch(ids)
+
+    last_hidden_state = _to_numpy(outputs.last_hidden_state, device)
+    assert last_hidden_state.shape == ref_last_hidden_state.shape
+
+    last_hidden_state *= mask
+    ref_last_hidden_state *= mask
+    np.testing.assert_array_almost_equal(
+        last_hidden_state, ref_last_hidden_state, decimal=5
+    )
+
+    pooler_output = _to_numpy(outputs.pooler_output, device)
+    assert pooler_output.shape == ref_pooler_output.shape
+    np.testing.assert_array_almost_equal(pooler_output, ref_pooler_output, decimal=5)
+
+
+def _to_numpy(storage, device):
+    import torch
+
+    return (
+        np.array(storage)
+        if device == "cpu"
+        else torch.as_tensor(storage, device=device).cpu().numpy()
+    )
+
+
+@test_utils.only_on_linux
+def test_transformers_gptbigcode(clear_transformers_cache, tmp_dir):
+    import transformers
+
+    _check_generator_logits(
+        tmp_dir,
+        "hf-internal-testing/tiny-random-GPTBigCodeForCausalLM",
+        transformers.GPTBigCodeForCausalLM,
+        transformers.AutoTokenizer,
+        "hello",
+    )
+
+
+def _check_generator_logits(
+    tmp_dir, model_name, hf_model_class, hf_tokenizer_class, input_text
+):
+    import torch
+
+    model = hf_model_class.from_pretrained(model_name)
+    tokenizer = hf_tokenizer_class.from_pretrained(model_name)
+
+    inputs = tokenizer(input_text, return_tensors="pt")
+    with torch.no_grad():
+        outputs = model(**inputs, labels=inputs["input_ids"])
+    ref_logits = outputs.logits.numpy()
+
+    converter = ctranslate2.converters.TransformersConverter(model_name)
+    output_dir = str(tmp_dir.join("ctranslate2_model"))
+    output_dir = converter.convert(output_dir)
+
+    generator = ctranslate2.Generator(output_dir)
+    tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(input_text))
+    logits = generator.forward_batch([tokens])
+    logits = np.array(logits)
+
+    assert logits.shape == ref_logits.shape
+    np.testing.assert_array_almost_equal(logits, ref_logits)
 
 
 class TestGeneration:
@@ -405,6 +521,76 @@ class TestGeneration:
         assert cum_score_wo_prompt == pytest.approx(cum_score_w_prompt, abs=1e-4)
 
     @test_utils.only_on_linux
+    @pytest.mark.parametrize("beam_size", [1, 2])
+    def test_transformers_generator_ignore_prompt_batch(self, tmp_dir, beam_size):
+        converter = ctranslate2.converters.TransformersConverter("gpt2")
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+        generator = ctranslate2.Generator(output_dir)
+
+        new_tokens = 2
+        prompt = [
+            "Ċ The Ġfirst Ġtime ĠI".split(),
+            "Ċ The Ġfirst".split(),
+        ]
+
+        results = generator.generate_batch(
+            prompt,
+            beam_size=beam_size,
+            min_length=new_tokens,
+            max_length=new_tokens,
+            include_prompt_in_result=False,
+        )
+
+        for tokens, result in zip(prompt, results):
+            assert len(result.sequences[0]) == new_tokens
+
+    @test_utils.only_on_linux
+    def test_transformers_generator_static_prompt(self, tmp_dir):
+        converter = ctranslate2.converters.TransformersConverter("gpt2")
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+        generator = ctranslate2.Generator(output_dir)
+
+        max_length = 20
+        prompt = "Ċ The Ġfirst Ġtime ĠI".split()
+
+        expected_result = generator.generate_batch(
+            [prompt],
+            max_length=max_length,
+            include_prompt_in_result=False,
+        )[0]
+
+        result = generator.generate_batch(
+            [[expected_result.sequences[0][0]]],
+            max_length=max_length - 1,
+            static_prompt=prompt,
+        )[0]
+
+        assert result.sequences[0] == expected_result.sequences[0]
+
+        result = generator.generate_batch(
+            [expected_result.sequences[0][:2]],
+            max_length=max_length - 2,
+            static_prompt=prompt,
+            include_prompt_in_result=False,
+        )[0]
+
+        assert (
+            expected_result.sequences[0][:2] + result.sequences[0]
+            == expected_result.sequences[0]
+        )
+
+        batch_results = generator.generate_batch(
+            [[expected_result.sequences[0][0]], [expected_result.sequences[0][0]]],
+            max_length=max_length - 1,
+            static_prompt=prompt,
+        )
+
+        assert batch_results[0].sequences[0] == expected_result.sequences[0]
+        assert batch_results[1].sequences[0] == expected_result.sequences[0]
+
+    @test_utils.only_on_linux
     @pytest.mark.parametrize("return_log_prob", [True, False])
     def test_transformers_generator_token_streaming(self, tmp_dir, return_log_prob):
         converter = ctranslate2.converters.TransformersConverter("gpt2")
@@ -450,6 +636,20 @@ class TestGeneration:
             assert cum_log_probs / len(ids) == pytest.approx(
                 expected_result.scores[0], abs=1e-5
             )
+
+    @test_utils.only_on_linux
+    def test_transformers_generator_token_streaming_early_stop(self, tmp_dir):
+        converter = ctranslate2.converters.TransformersConverter("gpt2")
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+        generator = ctranslate2.Generator(output_dir)
+
+        prompt = "Ċ The Ġfirst Ġtime ĠI".split()
+        results = generator.generate_tokens(prompt)
+        for result in results:
+            break
+
+        results.close()
 
 
 class TestWhisper:

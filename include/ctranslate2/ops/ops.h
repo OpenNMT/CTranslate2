@@ -28,6 +28,7 @@
 #include "swish.h"
 #include "tile.h"
 #include "topk.h"
+#include "topp_mask.h"
 #include "transpose.h"
 #include "dequantize.h"
 #include "unsqueeze.h"
@@ -37,3 +38,4 @@
 #include "tanh.h"
 #include "median_filter.h"
 #include "rotary.h"
+#include "alibi_add.h"

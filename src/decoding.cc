@@ -328,6 +328,57 @@ namespace ctranslate2 {
     return std::round(float(beam_size) * patience);
   }
 
+  static dim_t get_max_step(const dim_t max_length,
+                            const bool return_prefix,
+                            const std::vector<std::vector<size_t>>* prefix_ids) {
+    dim_t max_step = 0;
+
+    if (prefix_ids && !return_prefix) {
+      for (const auto& ids : *prefix_ids) {
+        const dim_t prefix_length = ids.size();
+        max_step = std::max(max_step, prefix_length + max_length);
+      }
+
+    } else {
+      max_step = max_length;
+    }
+
+    return max_step;
+  }
+
+  static inline bool is_last_step(const dim_t step,
+                                  const dim_t max_length,
+                                  const dim_t prefix_length,
+                                  const bool return_prefix) {
+    return step + 1 == max_length + (return_prefix ? 0 : prefix_length);
+  }
+
+  static void apply_min_length(const dim_t step,
+                               const dim_t min_length,
+                               const std::vector<size_t>& end_ids,
+                               DisableTokens& disable_tokens,
+                               const std::vector<dim_t>& batch_offset,
+                               const bool return_prefix,
+                               const std::vector<std::vector<size_t>>* prefix_ids) {
+    if (prefix_ids && !return_prefix) {
+      const size_t batch_size = batch_offset.size();
+
+      for (size_t i = 0; i < batch_size; ++i) {
+        const dim_t batch_id = batch_offset[i];
+        const dim_t prefix_length = prefix_ids->at(batch_id).size();
+
+        if (step < prefix_length + min_length) {
+          for (const size_t end_id : end_ids)
+            disable_tokens.add(i, end_id);
+        }
+      }
+
+    } else if (step < min_length) {
+      for (const size_t end_id : end_ids)
+        disable_tokens.add(end_id);
+    }
+  }
+
 
   BeamSearch::BeamSearch(const dim_t beam_size,
                          const float length_penalty,
@@ -406,7 +457,11 @@ namespace ctranslate2 {
     StorageView alive_seq(topk_ids.dtype());
     StorageView alive_attention;
 
-    for (dim_t step = 0; step < max_length; ++step) {
+    const dim_t max_step = get_max_step(max_length,
+                                        return_prefix,
+                                        use_hard_prefix ? prefix_ids : nullptr);
+
+    for (dim_t step = 0; step < max_step; ++step) {
       const bool is_expanded = (!expand_after_first_step || step > 0);
 
       // Compute log probs for the current step.
@@ -423,10 +478,13 @@ namespace ctranslate2 {
       DisableTokens disable_tokens(logits);
 
       // Prevent the generation of end_ids until the minimum length is reached.
-      if (step < min_length) {
-        for (const size_t end_id : end_ids)
-          disable_tokens.add(end_id);
-      }
+      apply_min_length(step,
+                       min_length,
+                       end_ids,
+                       disable_tokens,
+                       batch_offset,
+                       return_prefix,
+                       prefix_ids);
 
       if (!logits_processors.empty()) {
         if (alive_seq)
@@ -510,15 +568,20 @@ namespace ctranslate2 {
 
       for (dim_t i = 0; i < cur_batch_size; ++i) {
         const dim_t batch_id = batch_offset[i];
+        const dim_t prefix_length = use_hard_prefix ? prefix_ids->at(batch_id).size() : 0;
+        const bool is_last_step_for_batch = is_last_step(step,
+                                                         max_length,
+                                                         prefix_length,
+                                                         return_prefix);
+
         auto& result = results[batch_id];
         dim_t secondary_candidates_offset = _beam_size;
 
         for (dim_t k = 0; k < _beam_size; ++k) {
           const size_t last_id = topk_ids.at<int32_t>({i, k});
-          const dim_t prefix_length = use_hard_prefix ? prefix_ids->at(batch_id).size() : 0;
           dim_t next_beam_id = k;
 
-          if ((is_eos(last_id, end_ids) && step >= prefix_length) || step + 1 == max_length) {
+          if ((is_eos(last_id, end_ids) && step >= prefix_length) || is_last_step_for_batch) {
             if (k == 0)
               top_beam_finished[i] = true;
 
@@ -547,7 +610,7 @@ namespace ctranslate2 {
         }
 
         bool is_finished = false;
-        if (step + 1 == max_length)
+        if (is_last_step_for_batch)
           is_finished = true;
         else if (allow_early_exit)
           is_finished = top_beam_finished[i] && result.hypotheses.size() >= num_hypotheses;
@@ -619,7 +682,7 @@ namespace ctranslate2 {
 
   GreedySearch::GreedySearch(const float length_penalty,
                              const float coverage_penalty,
-                             std::function<void(DecodingStepResult)> callback)
+                             std::function<bool(DecodingStepResult)> callback)
     : _length_penalty(length_penalty)
     , _coverage_penalty(coverage_penalty)
     , _callback(std::move(callback))
@@ -717,7 +780,9 @@ namespace ctranslate2 {
     StorageView attention_step;
     StorageView attention_step_device(dtype, device);
 
-    for (dim_t step = 0; step < max_length; ++step) {
+    const dim_t max_step = get_max_step(max_length, return_prefix, prefix_ids);
+
+    for (dim_t step = 0; step < max_step; ++step) {
       convert_to_original_word_ids(decoder, sample_from);
       decoder(start_step + step,
               sample_from.to(device),
@@ -728,10 +793,13 @@ namespace ctranslate2 {
       DisableTokens disable_tokens(logits);
 
       // Prevent the generation of end_id until the minimum length is reached.
-      if (step < min_length) {
-        for (const size_t end_id : end_ids)
-          disable_tokens.add(end_id);
-      }
+      apply_min_length(step,
+                       min_length,
+                       end_ids,
+                       disable_tokens,
+                       batch_offset,
+                       return_prefix,
+                       prefix_ids);
 
       for (const auto& logits_processor : logits_processors)
         logits_processor->apply(step, logits, disable_tokens, alive_seq, batch_offset, prefix_ids);
@@ -781,8 +849,8 @@ namespace ctranslate2 {
         if (return_scores)
           results[batch_id].scores[0] += score;
 
-        const bool is_finished = ((is_eos(word_id, end_ids) && step >= prefix_length)
-                                  || (step + 1 == max_length));
+        bool is_finished = ((is_eos(word_id, end_ids) && step >= prefix_length)
+                            || (is_last_step(step, max_length, prefix_length, return_prefix)));
 
         if (_callback && (return_prefix || step >= prefix_length)) {
           DecodingStepResult step_result;
@@ -792,7 +860,9 @@ namespace ctranslate2 {
           step_result.is_last = is_finished;
           if (return_scores)
             step_result.log_prob = score;
-          _callback(std::move(step_result));
+          if (_callback(std::move(step_result))) {
+            is_finished = true;
+          }
         }
 
         if (is_finished) {
@@ -876,7 +946,7 @@ namespace ctranslate2 {
     return std::make_pair(std::move(start_ids), std::move(prefix_ids));
   }
 
-  static void validate_decoding_options(const DecodingOptions& options) {
+  static void validate_decoding_options(const DecodingOptions& options, const Device device) {
     if (options.beam_size == 0)
       throw std::invalid_argument("The beam size must be > 0");
     if (options.patience <= 0)
@@ -908,6 +978,15 @@ namespace ctranslate2 {
     if (options.callback && (options.beam_size != 1 || options.prefix_bias_beta > 0))
       throw std::invalid_argument("The callback function is not compatible with "
                                   "beam_size > 1 or prefix_bias_beta > 0");
+
+    if (options.sampling_topp <= 0 || options.sampling_topp > 1)
+      throw std::invalid_argument("The sampling_topp parameter must be between 0 and 1");
+    if (options.sampling_topp < 1
+        && options.sampling_topk > static_cast<size_t>(ops::TopPMask::max_num_classes(device)))
+      throw std::invalid_argument(
+        "The sampling_topp parameter currently requires sampling_topk <= "
+        + std::to_string(ops::TopPMask::max_num_classes(device))
+        + " when running on a " + device_to_str(device) + " device");
   }
 
   static std::unique_ptr<const Sampler>
@@ -915,7 +994,9 @@ namespace ctranslate2 {
     if (options.sampling_topk == 1)
       return std::make_unique<BestSampler>();
     else
-      return std::make_unique<RandomSampler>(options.sampling_topk, options.sampling_temperature);
+      return std::make_unique<RandomSampler>(options.sampling_topk,
+                                             options.sampling_topp,
+                                             options.sampling_temperature);
   }
 
   static std::unique_ptr<const SearchStrategy>
@@ -1142,7 +1223,7 @@ namespace ctranslate2 {
          std::vector<std::vector<size_t>> start_tokens,
          std::vector<size_t> end_ids,
          DecodingOptions options) {
-    validate_decoding_options(options);
+    validate_decoding_options(options, decoder.device());
     const size_t batch_size = start_tokens.size();
 
     if (batch_size == 0)
@@ -1198,13 +1279,11 @@ namespace ctranslate2 {
                                         prefix_ids.empty() ? nullptr : &prefix_ids);
     }
 
-    for (size_t b = 0; b < batch_size; ++b) {
-      auto& result = results[b];
-
-      for (size_t i = 0; i < result.hypotheses.size(); ++i) {
-        // Restore original word ids.
-        if (decoder.output_layer_is_updated()) {
-          for (auto& id : result.hypotheses[i])
+    if (decoder.output_layer_is_updated()) {
+      // Restore original word ids.
+      for (auto& result : results) {
+        for (auto& hypothesis : result.hypotheses) {
+          for (auto& id : hypothesis)
             id = decoder.to_original_word_id(id);
         }
       }

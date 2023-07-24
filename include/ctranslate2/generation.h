@@ -43,6 +43,8 @@ namespace ctranslate2 {
 
     // Randomly sample from the top K candidates (set 0 to sample from the full output distribution).
     size_t sampling_topk = 1;
+    // Keep the most probable tokens whose cumulative probability exceeds this value.
+    float sampling_topp = 1;
     // High temperature increase randomness.
     float sampling_temperature = 1;
 
@@ -58,11 +60,19 @@ namespace ctranslate2 {
     // Minimum probability to expand an alternative.
     float min_alternative_expansion_prob = 0;
 
+    // The static prompt will prefix all inputs for this model.
+    std::vector<std::string> static_prompt;
+
+    // Cache the model state after the static prompt and reuse it for future runs using
+    // the same static prompt.
+    bool cache_static_prompt = true;
+
     // Include the input tokens in the generation result.
     bool include_prompt_in_result = true;
 
     // Function to call for each generated token in greedy search.
-    std::function<void(GenerationStepResult)> callback = nullptr;
+    // Returns true indicate the current generation is considered finished thus can be stopped early.
+    std::function<bool(GenerationStepResult)> callback = nullptr;
   };
 
   struct GenerationResult {

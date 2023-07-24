@@ -34,6 +34,10 @@ namespace ctranslate2 {
     Dequantize::dequantize<Device::CUDA, int8_t, float16_t>(const StorageView&,
                                                             const StorageView&,
                                                             StorageView&) const;
+    template void
+    Dequantize::dequantize<Device::CUDA, int8_t, bfloat16_t>(const StorageView&,
+                                                             const StorageView&,
+                                                             StorageView&) const;
 
 
     template <typename Epilogue, typename T>
@@ -113,6 +117,12 @@ namespace ctranslate2 {
           break;
         }
 
+        case ActivationType::Tanh: {
+          dequantize_gemm_output_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
+            c, a_scales, b_scales, transpose_a, transpose_b, bias, cuda::tanh_func<T>(), y, depth);
+          break;
+        }
+
         }
       }
     }
@@ -156,6 +166,14 @@ namespace ctranslate2 {
                                                                 const bool,
                                                                 const StorageView*,
                                                                 StorageView&) const;
+    template void
+    Dequantize::dequantize_gemm_output<Device::CUDA, bfloat16_t>(const StorageView&,
+                                                                 const StorageView&,
+                                                                 const StorageView&,
+                                                                 const bool,
+                                                                 const bool,
+                                                                 const StorageView*,
+                                                                 StorageView&) const;
 
   }
 }
