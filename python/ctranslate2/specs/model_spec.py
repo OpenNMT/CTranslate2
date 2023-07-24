@@ -179,7 +179,6 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 return
 
             key = _split_scope(name)[-1]
-
             scale = None
             is_quantizable = hasattr(spec, "%s_scale" % key)
             is_convertible = value.dtype in ("float32", "float16", "bfloat16")
