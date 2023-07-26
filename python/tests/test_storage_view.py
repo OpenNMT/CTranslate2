@@ -27,7 +27,10 @@ def test_storageview_cpu(dtype, name):
     x = np.ones((2, 4), dtype=dtype)
     s = ctranslate2.StorageView.from_array(x)
 
+    assert s.device == "cpu"
+    assert s.device_index == 0
     assert s.dtype.name == name
+    assert s.shape == [2, 4]
 
     _assert_same_array(s.__array_interface__, x.__array_interface__)
 
@@ -50,6 +53,11 @@ def test_storageview_cuda():
 
     x = torch.ones((2, 4), device="cuda")
     s = ctranslate2.StorageView.from_array(x)
+
+    assert s.device == "cuda"
+    assert s.device_index == 0
+    assert s.dtype == ctranslate2.DataType.float32
+    assert s.shape == [2, 4]
 
     _assert_same_array(s.__cuda_array_interface__, x.__cuda_array_interface__)
 

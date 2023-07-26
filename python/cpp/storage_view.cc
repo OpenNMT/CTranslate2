@@ -155,6 +155,18 @@ namespace ctranslate2 {
         .def_property_readonly("dtype", &StorageView::dtype,
                                "Data type used by the storage.")
 
+        .def_property_readonly("shape", &StorageView::shape,
+                               "Shape of the storage view.")
+
+        .def_property_readonly("device_index", &StorageView::device_index,
+                               "Device index.")
+
+        .def_property_readonly("device",
+                               [](const StorageView& view) {
+                                 return device_to_str(view.device());
+                               },
+                               "Device where the storage is allocated (\"cpu\" or \"cuda\").")
+
         .def_property_readonly("__array_interface__", [](const StorageView& view) {
           if (view.device() == Device::CUDA)
             throw py::attribute_error("Cannot get __array_interface__ when the StorageView "
