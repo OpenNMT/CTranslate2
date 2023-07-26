@@ -27,6 +27,8 @@ def test_storageview_cpu(dtype, name):
     x = np.ones((2, 4), dtype=dtype)
     s = ctranslate2.StorageView.from_array(x)
 
+    assert s.dtype.name == name
+
     _assert_same_array(s.__array_interface__, x.__array_interface__)
 
     with pytest.raises(AttributeError, match="CPU"):
@@ -62,6 +64,18 @@ def test_storageview_cuda():
 
     y = torch.as_tensor(s, device="cuda")
     _assert_same_array(s.__cuda_array_interface__, y.__cuda_array_interface__)
+
+
+def test_storageview_conversion():
+    x = np.ones((2, 4), dtype=np.float32)
+    s = ctranslate2.StorageView.from_array(x)
+    assert s.dtype == ctranslate2.DataType.float32
+
+    s = s.to(ctranslate2.DataType.bfloat16)
+    assert s.dtype == ctranslate2.DataType.bfloat16
+
+    with pytest.raises(RuntimeError, match="not supported in the array interface"):
+        s.__array_interface__
 
 
 def test_storageview_strides():
