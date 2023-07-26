@@ -801,8 +801,9 @@ namespace ctranslate2 {
           for (const dim_t batch_id : check_timestamps_prob_for_batch) {
             bool sample_timestamp = false;
 
-            DEVICE_AND_FLOAT_DISPATCH("ApplyTimestampRules", log_probs.device(), log_probs.dtype(),
-                                      (should_sample_timestamp<D, T>(log_probs, batch_id)));
+            DEVICE_AND_FLOAT_DISPATCH(
+              "ApplyTimestampRules", log_probs.device(), log_probs.dtype(),
+              (sample_timestamp = should_sample_timestamp<D, T>(log_probs, batch_id)));
 
             if (sample_timestamp) {
               for (size_t i = 0; i < _timestamp_begin_id; ++i)
