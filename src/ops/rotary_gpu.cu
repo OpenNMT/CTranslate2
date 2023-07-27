@@ -29,17 +29,26 @@ namespace ctranslate2 {
                                   const T* sin,
                                   const T* cos,
                                   T* y,
+                                  const int32_t* offsets,
+                                  const cuda::index_t step,
                                   const cuda::index_t max_time,
                                   const cuda::index_t ndims,
                                   const cuda::index_t depth) {
+      const auto batch = blockIdx.x / max_time;
       const auto time = blockIdx.x % max_time;
       const auto middle = ndims / 2;
+
+      const int32_t offset = offsets ? offsets[batch] : 0;
+      const int32_t signal_time = time - offset + step;
+
+      if (signal_time < 0)
+        return;
 
       x += blockIdx.x * depth;
       y += blockIdx.x * depth;
 
-      sin += time * ndims;
-      cos += time * ndims;
+      sin += signal_time * ndims;
+      cos += signal_time * ndims;
 
       using C = typename ComputeType<T>::type;
 
@@ -54,7 +63,9 @@ namespace ctranslate2 {
     }
 
     template <Device D, typename T>
-    void Rotary::compute(const StorageView& input,
+    void Rotary::compute(const dim_t step,
+                         const StorageView* offsets,
+                         const StorageView& input,
                          const StorageView& sin,
                          const StorageView& cos,
                          StorageView& output) const {
@@ -68,21 +79,24 @@ namespace ctranslate2 {
       const auto* x = cuda::device_cast(input.data<T>());
       const auto* s = cuda::device_cast(sin.data<T>());
       const auto* c = cuda::device_cast(cos.data<T>());
+      const auto* o = offsets ? offsets->data<int32_t>() : nullptr;
       auto* y = cuda::device_cast(output.data<T>());
 
       using DeviceT = cuda::device_type<T>;
 
       if (_interleave)
         rotary_kernel<DeviceT, true><<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-          x, s, c, y, max_time, ndims, depth);
+          x, s, c, y, o, step, max_time, ndims, depth);
       else
         rotary_kernel<DeviceT, false><<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-          x, s, c, y, max_time, ndims, depth);
+          x, s, c, y, o, step, max_time, ndims, depth);
     }
 
 #define DECLARE_IMPL(T)                                                 \
     template void                                                       \
-    Rotary::compute<Device::CUDA, T>(const StorageView&,                \
+    Rotary::compute<Device::CUDA, T>(const dim_t,                       \
+                                     const StorageView*,                \
+                                     const StorageView&,                \
                                      const StorageView&,                \
                                      const StorageView&,                \
                                      StorageView&) const;

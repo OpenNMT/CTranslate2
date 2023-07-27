@@ -602,28 +602,20 @@ namespace ctranslate2 {
     {
     }
 
-    void RotaryEmbeddings::apply(StorageView& x, const dim_t offset) {
+    void RotaryEmbeddings::apply(StorageView& x, const dim_t step, const StorageView* offsets) {
       const Device device = x.device();
       const DataType dtype = x.dtype();
       const dim_t max_time = x.dim(-2);
       const dim_t dim = _dim == 0 ? x.dim(-1) : _dim;
 
-      if (!_sin || offset + max_time > _sin.dim(0)) {
+      if (!_sin || step + max_time > _sin.dim(0)) {
         const dim_t cur_num_positions = _sin ? _sin.dim(0) : 0;
         const dim_t new_num_positions = cur_num_positions + _num_initial_positions;
         initialize(new_num_positions, dim, device, dtype);
       }
 
-      StorageView sin(dtype, device);
-      StorageView cos(dtype, device);
-      TYPE_DISPATCH(dtype,
-                    {
-                      sin.view(_sin.index<T>({offset, 0}), {max_time, dim});
-                      cos.view(_cos.index<T>({offset, 0}), {max_time, dim});
-                    });
-
       StorageView y(dtype, device);
-      _rotary_op(x, sin, cos, y);
+      _rotary_op(x, _sin, _cos, y, offsets, step);
       x = std::move(y);
     }
 
