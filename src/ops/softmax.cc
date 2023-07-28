@@ -45,21 +45,17 @@ namespace ctranslate2 {
       if (depth == 0)
         return;
 
-      if (lengths) {
-        if (lengths->size() != batch_size)
-          throw std::invalid_argument("Length mask has size "
-                                      + std::to_string(lengths->size())
-                                      + " which is different than the current batch size "
-                                      + std::to_string(batch_size));
-      }
+      if (lengths && lengths->size() != batch_size)
+        throw std::invalid_argument("Length mask has size "
+                                    + std::to_string(lengths->size())
+                                    + " which is different than the current batch size "
+                                    + std::to_string(batch_size));
 
-      if (offsets) {
-        if (offsets->size() != batch_size)
-          throw std::invalid_argument("Offsets input has size "
-                                      + std::to_string(offsets->size())
-                                      + " which is different than the current batch size "
-                                      + std::to_string(batch_size));
-      }
+      if (offsets && offsets->size() != batch_size)
+        throw std::invalid_argument("Offsets input has size "
+                                    + std::to_string(offsets->size())
+                                    + " which is different than the current batch size "
+                                    + std::to_string(batch_size));
 
       DEVICE_AND_FLOAT_DISPATCH("SoftMax", x.device(), x.dtype(),
                                 (compute<D, T>(x, lengths, offsets, y)));
