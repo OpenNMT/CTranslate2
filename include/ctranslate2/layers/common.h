@@ -89,10 +89,14 @@ namespace ctranslate2 {
     // Base class for position encoders.
     class PositionEncoder : public Layer {
     public:
-      void operator()(StorageView& input, dim_t index = 0);
-      void operator()(const StorageView& input, StorageView& output, dim_t index = 0);
+      void operator()(const StorageView& input,
+                      StorageView& output,
+                      dim_t step = 0,
+                      const StorageView* offsets = nullptr);
     protected:
       virtual const StorageView& get_position_encoding(dim_t max_time) = 0;
+    private:
+      const ops::PositionEncodingsAdd _add_op;
     };
 
     // Concrete position encoder loading encoding vectors from the model.
