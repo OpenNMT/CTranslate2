@@ -367,6 +367,7 @@ namespace ctranslate2 {
     template<>
     void softmax<TARGET_ISA>(const float* input,
                              const int32_t* lengths,
+                             const int32_t* offsets,
                              float* output,
                              dim_t batch_size,
                              dim_t depth,
@@ -376,23 +377,24 @@ namespace ctranslate2 {
 
       parallel_for(0, batch_size, 1, [&](dim_t begin, dim_t end) {
         for (dim_t i = begin; i < end; ++i) {
+          const dim_t start = offsets ? offsets[i] : 0;
+          const dim_t size = lengths ? lengths[i] : depth - start;
+
+          if (size == 0)
+            continue;
+
           const dim_t offset = i * depth;
           const float* x = input + offset;
           float* y = output + offset;
 
-          dim_t size = depth;
-          if (lengths) {
-            size = lengths[i];
+          // Directly set 0 in output for out of range positions.
+          for (dim_t j = 0; j < start; ++j)
+            y[j] = 0;
+          for (dim_t j = start + size; j < depth; ++j)
+            y[j] = 0;
 
-            // Directly set 0 in output for out of range positions.
-            for (dim_t j = size; j < depth; ++j) {
-              y[j] = 0;
-            }
-
-            if (size == 0) {
-              continue;
-            }
-          }
+          x += start;
+          y += start;
 
           const auto x_max = reduce_max<TARGET_ISA>(x, size);
           const auto vec_x_max = VecType::load(x_max);

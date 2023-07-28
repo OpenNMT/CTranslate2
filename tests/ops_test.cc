@@ -661,6 +661,23 @@ TEST_P(OpDeviceFPTest, MaskedSoftMax) {
   expect_storage_eq(y.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, MaskedSoftMaxLeftPadding) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  StorageView x({2, 5}, std::vector<float>{
+      0.0, -0.2, 3.0, 1.2, -1.1,
+      4.6, 3.3, 0.2, -1.6, 1.0}, device);
+  StorageView lengths({2}, std::vector<int32_t>{3, 4}, device);
+  StorageView offsets({2}, std::vector<int32_t>{1, 0}, device);
+  StorageView expected({2, 5}, std::vector<float>{
+      0, 0.033797, 0.829145, 0.137056, 0,
+      0.777098, 0.211783, 0.009540, 0.001577, 0}, device);
+  StorageView y(dtype, device);
+  ops::SoftMax()(x.to(dtype), lengths, offsets, y);
+  expect_storage_eq(y.to_float32(), expected, error);
+}
+
 TEST_P(OpDeviceFPTest, MaskedSoftMaxTriangular) {
   const Device device = GetParam().device;
   const DataType dtype = GetParam().dtype;
