@@ -52,7 +52,7 @@ namespace ctranslate2 {
       _gelu(output, output);
 
       _transpose(output, input);
-      _position_embedding(input);
+      _position_embedding(input, input);
 
       for (const auto& layer : _layers) {
         (*layer)(input, nullptr, output);

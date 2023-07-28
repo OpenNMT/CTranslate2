@@ -259,7 +259,7 @@ namespace ctranslate2 {
       if (_embeddings_scale)
         ops::Mul()(input, *_embeddings_scale, input);
       if (_position_encoder)
-        (*_position_encoder)(input);
+        (*_position_encoder)(input, input);
       if (_layernorm_embedding)
         (*_layernorm_embedding)(input, input);
 
@@ -460,7 +460,7 @@ namespace ctranslate2 {
       if (layer_in.rank() == 2)
         layer_in.expand_dims(1);
       if (_position_encoder)
-        (*_position_encoder)(layer_in, std::max(step, dim_t(0)));
+        (*_position_encoder)(layer_in, layer_in, std::max(step, dim_t(0)));
       if (_layernorm_embedding)
         (*_layernorm_embedding)(layer_in, layer_in);
 
