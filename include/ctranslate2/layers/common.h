@@ -96,7 +96,7 @@ namespace ctranslate2 {
     protected:
       virtual const StorageView& get_position_encoding(dim_t max_time) = 0;
     private:
-      const ops::PositionEncodingsAdd _add_op;
+      ops::PositionEncodingsAdd _add_op;
     };
 
     // Concrete position encoder loading encoding vectors from the model.
