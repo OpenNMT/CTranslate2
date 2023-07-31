@@ -10,6 +10,7 @@ def fuse_linear(spec, layers):
         f_concatenate = np_api.concatenate
     else:
         import torch as np_api
+
         f_concatenate = np_api.cat
 
     spec.weight = f_concatenate([layer.weight for layer in layers])
