@@ -68,6 +68,7 @@ def test_get_supported_compute_types():
     compute_types = ctranslate2.get_supported_compute_types("cpu")
     assert "float32" in compute_types
     assert "int8" in compute_types
+    assert "int8_float32" in compute_types
 
 
 def test_translator_properties():
