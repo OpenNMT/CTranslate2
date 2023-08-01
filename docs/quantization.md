@@ -30,7 +30,9 @@ For example,
 ct2-opennmt-py-converter --model_path model.pt --quantization int8 --output_dir ct2_model
 ```
 
-```{note}
+When the option `--quantization` is not set, the converted model will be saved with the same type as the original model (typically one of float32, float16, or bfloat16).
+
+```{important}
 Whatever quantization type is selected here, the runtime ensures the model can be loaded and executed efficiently. This implies the model weights are possibly converted to another type when the model is loaded, see {ref}`quantization:implicit type conversion on load`.
 ```
 
