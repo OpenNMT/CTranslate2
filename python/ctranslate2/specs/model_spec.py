@@ -197,7 +197,12 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     value = value.astype(np.int16)
                     scale = NumpyVariable(scale)
                     value = NumpyVariable(value)
-                elif quantization in ("int8", "int8_float16", "int8_bfloat16"):
+                elif quantization in (
+                    "int8",
+                    "int8_float32",
+                    "int8_float16",
+                    "int8_bfloat16",
+                ):
                     value = value.to("float32").numpy()
                     amax = np.amax(np.absolute(value), axis=1)
                     amax[amax == 0] = 127.0
@@ -207,17 +212,15 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     value = value.astype(np.int8)
                     scale = NumpyVariable(scale)
                     value = NumpyVariable(value)
-                elif quantization in ("float16", "bfloat16"):
+                elif quantization in ("float16", "bfloat16", "float32"):
                     value = value.to(quantization)
-                else:
-                    value = value.to("float32")
 
             elif is_convertible:
                 if quantization in ("float16", "int8_float16"):
                     value = value.to("float16")
                 elif quantization in ("bfloat16", "int8_bfloat16"):
                     value = value.to("bfloat16")
-                else:
+                elif quantization in ("float32", "int16", "int8_float32"):
                     value = value.to("float32")
 
             setattr(spec, key, value)
