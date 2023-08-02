@@ -24,6 +24,17 @@ except ImportError:
 OPTIONAL = "__optional"
 CURRENT_BINARY_VERSION = 6
 
+ACCEPTED_MODEL_TYPES = (
+    "int8",
+    "int8_float32",
+    "int8_float16",
+    "int8_bfloat16",
+    "int16",
+    "float16",
+    "bfloat16",
+    "float32",
+)
+
 
 def _join_scope(scope, name):
     if not scope:
@@ -173,6 +184,11 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
 
     def _quantize(self, quantization):
         """Possibly quantizes the variable of the layer."""
+        if quantization is not None and quantization not in ACCEPTED_MODEL_TYPES:
+            raise ValueError(
+                "%s is not a valid quantization type. Accepted types are: %s"
+                % (quantization, ", ".join(ACCEPTED_MODEL_TYPES))
+            )
 
         def _quantize(spec, name, value):
             if not isinstance(value, Variable) or value.is_scalar():
@@ -236,8 +252,8 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
         * Quantize weights.
 
         Arguments:
-          quantization: Weight quantization scheme
-            (possible values are: int8, int8_float16, int16, float16).
+          quantization: Weight quantization scheme (possible values are: int8, int8_float32,
+            int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
         """
         self._alias_variables()
         self._quantize(quantization)

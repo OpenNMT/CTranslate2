@@ -92,6 +92,11 @@ def test_layer_spec_optimize():
     assert spec.sub.weight.dtype == "float16"
     assert spec.sub.a.dtype == "float16"
 
+    spec = Spec()
+    spec.validate()
+    with pytest.raises(ValueError, match="not a valid quantization type"):
+        spec.optimize(quantization="int32")
+
 
 def test_int8_quantization():
     class Spec(ctranslate2.specs.LayerSpec):
