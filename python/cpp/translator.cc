@@ -409,6 +409,8 @@ namespace ctranslate2 {
                                "Device this translator is running on.")
         .def_property_readonly("device_index", &TranslatorWrapper::device_index,
                                "List of device IDs where this translator is running on.")
+        .def_property_readonly("compute_type", &TranslatorWrapper::compute_type,
+                               "Computation type used by the model.")
         .def_property_readonly("num_translators", &TranslatorWrapper::num_replicas,
                                "Number of translators backing this instance.")
         .def_property_readonly("num_queued_batches", &TranslatorWrapper::num_queued_batches,

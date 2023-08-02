@@ -162,6 +162,8 @@ namespace ctranslate2 {
                                "Device this generator is running on.")
         .def_property_readonly("device_index", &GeneratorWrapper::device_index,
                                "List of device IDs where this generator is running on.")
+        .def_property_readonly("compute_type", &GeneratorWrapper::compute_type,
+                               "Computation type used by the model.")
         .def_property_readonly("num_generators", &GeneratorWrapper::num_replicas,
                                "Number of generators backing this instance.")
         .def_property_readonly("num_queued_batches", &GeneratorWrapper::num_queued_batches,

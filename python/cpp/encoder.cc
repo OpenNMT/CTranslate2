@@ -97,6 +97,8 @@ namespace ctranslate2 {
                                "Device this encoder is running on.")
         .def_property_readonly("device_index", &EncoderWrapper::device_index,
                                "List of device IDs where this encoder is running on.")
+        .def_property_readonly("compute_type", &EncoderWrapper::compute_type,
+                               "Computation type used by the model.")
         .def_property_readonly("num_encoders", &EncoderWrapper::num_replicas,
                                "Number of encoders backing this instance.")
         .def_property_readonly("num_queued_batches", &EncoderWrapper::num_queued_batches,

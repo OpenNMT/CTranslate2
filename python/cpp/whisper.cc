@@ -183,6 +183,8 @@ namespace ctranslate2 {
                                "Device this model is running on.")
         .def_property_readonly("device_index", &WhisperWrapper::device_index,
                                "List of device IDs where this model is running on.")
+        .def_property_readonly("compute_type", &WhisperWrapper::compute_type,
+                               "Computation type used by the model.")
         .def_property_readonly("num_workers", &WhisperWrapper::num_replicas,
                                "Number of model workers backing this instance.")
         .def_property_readonly("num_queued_batches", &WhisperWrapper::num_queued_batches,
