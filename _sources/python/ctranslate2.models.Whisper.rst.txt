@@ -10,6 +10,7 @@ Whisper
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.models.Whisper.compute_type`
     - :obj:`~ctranslate2.models.Whisper.device`
     - :obj:`~ctranslate2.models.Whisper.device_index`
     - :obj:`~ctranslate2.models.Whisper.is_multilingual`

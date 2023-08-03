@@ -10,6 +10,7 @@ Generator
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.Generator.compute_type`
     - :obj:`~ctranslate2.Generator.device`
     - :obj:`~ctranslate2.Generator.device_index`
     - :obj:`~ctranslate2.Generator.num_active_batches`

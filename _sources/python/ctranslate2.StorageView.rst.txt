@@ -8,6 +8,14 @@ StorageView
 
     **Inherits from:** :class:`pybind11_builtins.pybind11_object`
 
+    **Attributes:**
+
+    - :obj:`~ctranslate2.StorageView.device`
+    - :obj:`~ctranslate2.StorageView.device_index`
+    - :obj:`~ctranslate2.StorageView.dtype`
+    - :obj:`~ctranslate2.StorageView.shape`
+
     **Methods:**
 
     - :obj:`~ctranslate2.StorageView.from_array`
+    - :obj:`~ctranslate2.StorageView.to`

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>contains_model &mdash; CTranslate2 3.18.0 documentation</title>
+  <title>DataType &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="get_cuda_device_count" href="ctranslate2.get_cuda_device_count.html" />
-    <link rel="prev" title="Translator" href="ctranslate2.Translator.html" /> 
+    <link rel="next" title="Encoder" href="ctranslate2.Encoder.html" />
+    <link rel="prev" title="AsyncTranslationResult" href="ctranslate2.AsyncTranslationResult.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -80,7 +80,7 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.DataType.html">DataType</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">DataType</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.Encoder.html">Encoder</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html">EncoderForwardOutput</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a></li>
@@ -91,7 +91,7 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.Translator.html">Translator</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">contains_model</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.contains_model.html">contains_model</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html">get_cuda_device_count</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_log_level.html">get_log_level</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_supported_compute_types.html">get_supported_compute_types</a></li>
@@ -128,7 +128,7 @@
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="overview.html">Python</a> &raquo;</li>
           <li><a href="ctranslate2.html">ctranslate2</a> &raquo;</li>
-      <li>contains_model</li>
+      <li>DataType</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -137,12 +137,62 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="contains-model">
-<h1>contains_model<a class="headerlink" href="#contains-model" title="Permalink to this headline"></a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="ctranslate2.contains_model">
-<span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">contains_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">bool</span></span></span><a class="headerlink" href="#ctranslate2.contains_model" title="Permalink to this definition"></a></dt>
-<dd><p>Helper function to check if a directory seems to contain a CTranslate2 model.</p>
+  <section id="datatype">
+<h1>DataType<a class="headerlink" href="#datatype" title="Permalink to this headline"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ctranslate2.DataType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">DataType</span></span><a class="headerlink" href="#ctranslate2.DataType" title="Permalink to this definition"></a></dt>
+<dd><p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
+<p><strong>Attributes:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.DataType.name" title="ctranslate2.DataType.name"><code class="xref py py-obj docutils literal notranslate"><span class="pre">name</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.DataType.value" title="ctranslate2.DataType.value"><code class="xref py py-obj docutils literal notranslate"><span class="pre">value</span></code></a></p></li>
+</ul>
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.DataType.__init__">
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.DataType.__init__" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ctranslate2.DataType.bfloat16">
+<span class="sig-name descname"><span class="pre">bfloat16</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;DataType.bfloat16:</span> <span class="pre">5&gt;</span></em><a class="headerlink" href="#ctranslate2.DataType.bfloat16" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ctranslate2.DataType.float16">
+<span class="sig-name descname"><span class="pre">float16</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;DataType.float16:</span> <span class="pre">4&gt;</span></em><a class="headerlink" href="#ctranslate2.DataType.float16" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ctranslate2.DataType.float32">
+<span class="sig-name descname"><span class="pre">float32</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;DataType.float32:</span> <span class="pre">0&gt;</span></em><a class="headerlink" href="#ctranslate2.DataType.float32" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ctranslate2.DataType.int16">
+<span class="sig-name descname"><span class="pre">int16</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;DataType.int16:</span> <span class="pre">2&gt;</span></em><a class="headerlink" href="#ctranslate2.DataType.int16" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ctranslate2.DataType.int32">
+<span class="sig-name descname"><span class="pre">int32</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;DataType.int32:</span> <span class="pre">3&gt;</span></em><a class="headerlink" href="#ctranslate2.DataType.int32" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ctranslate2.DataType.int8">
+<span class="sig-name descname"><span class="pre">int8</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;DataType.int8:</span> <span class="pre">1&gt;</span></em><a class="headerlink" href="#ctranslate2.DataType.int8" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.DataType.name">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">name</span></span><a class="headerlink" href="#ctranslate2.DataType.name" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.DataType.value">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">value</span></span><a class="headerlink" href="#ctranslate2.DataType.value" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </section>
@@ -151,8 +201,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ctranslate2.Translator.html" class="btn btn-neutral float-left" title="Translator" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.get_cuda_device_count.html" class="btn btn-neutral float-right" title="get_cuda_device_count" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.AsyncTranslationResult.html" class="btn btn-neutral float-left" title="AsyncTranslationResult" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.Encoder.html" class="btn btn-neutral float-right" title="Encoder" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

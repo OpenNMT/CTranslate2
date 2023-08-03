@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Memory management &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>Memory management &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -45,7 +45,6 @@
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -115,11 +114,11 @@
 <h1>Memory management<a class="headerlink" href="#memory-management" title="Permalink to this headline"></a></h1>
 <section id="from-python">
 <h2>From Python<a class="headerlink" href="#from-python" title="Permalink to this headline"></a></h2>
-<p>To release the resources used by <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> and <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> instances, you can simply delete the object, e.g.:</p>
+<p>To release the resources used by model instances, you can simply delete the object, e.g.:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">del</span> <span class="n">translator</span>
 </pre></div>
 </div>
-<p>In some cases, you might want to temporarily unload the model and load it back later. The <code class="docutils literal notranslate"><span class="pre">Translator</span></code> object provides the methods <code class="docutils literal notranslate"><span class="pre">unload_model</span></code> and <code class="docutils literal notranslate"><span class="pre">load_model</span></code> for this purpose. The model can be either fully unloaded or moved to the CPU memory.</p>
+<p>In some cases, you might want to temporarily unload the model and load it back later. The <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> object provides the methods <code class="docutils literal notranslate"><span class="pre">unload_model</span></code> and <code class="docutils literal notranslate"><span class="pre">load_model</span></code> for this purpose. The model can be either fully unloaded or moved to the CPU memory.</p>
 </section>
 </section>
 

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransformersConverter &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>TransformersConverter &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -45,7 +45,6 @@
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -178,8 +177,8 @@ with <code class="docutils literal notranslate"><span class="pre">from_pretraine
 <li><p><strong>output_dir</strong> – Output directory where the CTranslate2 model is saved.</p></li>
 <li><p><strong>vmap</strong> – Optional path to a vocabulary mapping file that will be included
 in the converted model directory.</p></li>
-<li><p><strong>quantization</strong> – Weight quantization scheme
-(possible values are: int8, int8_float16, int16, float16).</p></li>
+<li><p><strong>quantization</strong> – Weight quantization scheme (possible values are: int8, int8_float32,
+int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).</p></li>
 <li><p><strong>force</strong> – Override the output directory if it already exists.</p></li>
 </ul>
 </dd>

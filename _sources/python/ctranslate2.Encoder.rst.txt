@@ -10,6 +10,7 @@ Encoder
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.Encoder.compute_type`
     - :obj:`~ctranslate2.Encoder.device`
     - :obj:`~ctranslate2.Encoder.device_index`
     - :obj:`~ctranslate2.Encoder.num_active_batches`

@@ -10,6 +10,7 @@ Translator
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.Translator.compute_type`
     - :obj:`~ctranslate2.Translator.device`
     - :obj:`~ctranslate2.Translator.device_index`
     - :obj:`~ctranslate2.Translator.model_is_loaded`

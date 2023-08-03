@@ -1,0 +1,14 @@
+DataType
+========
+
+.. autoclass:: ctranslate2.DataType
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.DataType.name`
+    - :obj:`~ctranslate2.DataType.value`

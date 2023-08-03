@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Decoding features &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>Decoding features &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -45,7 +45,6 @@
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -119,7 +118,11 @@
              
   <section id="decoding-features">
 <h1>Decoding features<a class="headerlink" href="#decoding-features" title="Permalink to this headline"></a></h1>
-<p>This page describes CTranslate2 decoding features. The text translation API is used for demonstration but most features are also available for text generation.</p>
+<p>This page describes CTranslate2 decoding features.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The text translation API is used for demonstration but most features are also available for text generation.</p>
+</div>
 <p>The examples use the following symbols that are left unspecified:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">translator</span></code>: a <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">ctranslate2.Translator</span></code></span></a> instance</p></li>
@@ -175,7 +178,7 @@
 </section>
 <section id="autocompletion">
 <h2>Autocompletion<a class="headerlink" href="#autocompletion" title="Permalink to this headline"></a></h2>
-<p>The <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument can be used to force the start of the translation. Let’s say we want to replace the first occurence of <code class="docutils literal notranslate"><span class="pre">die</span></code> by <code class="docutils literal notranslate"><span class="pre">das</span></code> in the translation:</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument can be used to force the start of the translation. Let’s say we want to replace the first occurrence of <code class="docutils literal notranslate"><span class="pre">die</span></code> by <code class="docutils literal notranslate"><span class="pre">das</span></code> in the translation:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
     <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf das&quot;</span><span class="p">)],</span>

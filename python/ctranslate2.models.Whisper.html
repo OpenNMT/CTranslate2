@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Whisper &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>Whisper &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -45,7 +45,6 @@
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -134,6 +133,7 @@
 <p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
 <p><strong>Attributes:</strong></p>
 <ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.models.Whisper.compute_type" title="ctranslate2.models.Whisper.compute_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_type</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.device" title="ctranslate2.models.Whisper.device"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.device_index" title="ctranslate2.models.Whisper.device_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device_index</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.is_multilingual" title="ctranslate2.models.Whisper.is_multilingual"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_multilingual</span></code></a></p></li>
@@ -159,8 +159,8 @@
 <li><p><strong>device</strong> – Device to use (possible values are: cpu, cuda, auto).</p></li>
 <li><p><strong>device_index</strong> – Device IDs where to place this model on.</p></li>
 <li><p><strong>compute_type</strong> – Model computation type or a dictionary mapping a device name
-to the computation type (possible values are: default, auto, int8, int8_float16,
-int8_bfloat16, int16, float16, bfloat16, float32).</p></li>
+to the computation type (possible values are: default, auto, int8, int8_float32,
+int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).</p></li>
 <li><p><strong>inter_threads</strong> – Number of workers to allow executing multiple batches in parallel.</p></li>
 <li><p><strong>intra_threads</strong> – Number of OpenMP threads per worker (0 to use a default value).</p></li>
 <li><p><strong>max_queued_batches</strong> – Maximum numbers of batches in the worker queue (-1 for unlimited,
@@ -275,6 +275,12 @@ of symbols as defined in the model <code class="docutils literal notranslate"><s
 <dd class="field-even"><p>A list of generation results.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.models.Whisper.compute_type">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_type</span></span><a class="headerlink" href="#ctranslate2.models.Whisper.compute_type" title="Permalink to this definition"></a></dt>
+<dd><p>Computation type used by the model.</p>
 </dd></dl>
 
 <dl class="py property">

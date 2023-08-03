@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Encoder &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>Encoder &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="EncoderForwardOutput" href="ctranslate2.EncoderForwardOutput.html" />
-    <link rel="prev" title="AsyncTranslationResult" href="ctranslate2.AsyncTranslationResult.html" /> 
+    <link rel="prev" title="DataType" href="ctranslate2.DataType.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -45,7 +45,6 @@
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -81,6 +80,7 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.DataType.html">DataType</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">Encoder</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html">EncoderForwardOutput</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a></li>
@@ -151,6 +151,7 @@
 <p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
 <p><strong>Attributes:</strong></p>
 <ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.Encoder.compute_type" title="ctranslate2.Encoder.compute_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_type</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.Encoder.device" title="ctranslate2.Encoder.device"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.Encoder.device_index" title="ctranslate2.Encoder.device_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device_index</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.Encoder.num_active_batches" title="ctranslate2.Encoder.num_active_batches"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_active_batches</span></code></a></p></li>
@@ -172,8 +173,8 @@
 <li><p><strong>device</strong> – Device to use (possible values are: cpu, cuda, auto).</p></li>
 <li><p><strong>device_index</strong> – Device IDs where to place this encoder on.</p></li>
 <li><p><strong>compute_type</strong> – Model computation type or a dictionary mapping a device name
-to the computation type (possible values are: default, auto, int8, int8_float16,
-int8_bfloat16, int16, float16, bfloat16, float32).</p></li>
+to the computation type (possible values are: default, auto, int8, int8_float32,
+int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).</p></li>
 <li><p><strong>inter_threads</strong> – Maximum number of parallel generations.</p></li>
 <li><p><strong>intra_threads</strong> – Number of OpenMP threads per encoder (0 to use a default value).</p></li>
 <li><p><strong>max_queued_batches</strong> – Maximum numbers of batches in the queue (-1 for unlimited,
@@ -205,6 +206,12 @@ This argument can also be a dense int32 array with shape
 <dd class="field-even"><p>The encoder model output.</p>
 </dd>
 </dl>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.Encoder.compute_type">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_type</span></span><a class="headerlink" href="#ctranslate2.Encoder.compute_type" title="Permalink to this definition"></a></dt>
+<dd><p>Computation type used by the model.</p>
 </dd></dl>
 
 <dl class="py property">
@@ -245,7 +252,7 @@ This argument can also be a dense int32 array with shape
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ctranslate2.AsyncTranslationResult.html" class="btn btn-neutral float-left" title="AsyncTranslationResult" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.DataType.html" class="btn btn-neutral float-left" title="DataType" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="ctranslate2.EncoderForwardOutput.html" class="btn btn-neutral float-right" title="EncoderForwardOutput" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 

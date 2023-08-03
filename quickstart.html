@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quickstart &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>Quickstart &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -20,7 +20,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="C++ Quickstart" href="quickstart_cpp.html" />
+    <link rel="next" title="Installation" href="installation.html" />
     <link rel="prev" title="Index" href="index.html" /> 
 </head>
 
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -44,8 +44,11 @@
         </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul class="current">
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart_cpp.html">C++ Quickstart</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Quickstart</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#python">Python</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#c">C++</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -110,7 +113,14 @@
              
   <section id="quickstart">
 <h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline"></a></h1>
-<p>Start using CTranslate2 by converting a pretrained model and running your first translation.</p>
+<p>Get started with CTranslate2 with end-to-end examples using machine translation models.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>The <a class="reference internal" href="guides/transformers.html"><span class="doc std std-doc">Transformers guide</span></a> which contains a bunch of examples for various models.</p>
+</div>
+<section id="python">
+<h2>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h2>
+<p>Start using CTranslate2 from Python by converting a pretrained model and running your first translation.</p>
 <p><strong>1. Install the Python packages</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>ctranslate2<span class="w"> </span>OpenNMT-py<span class="o">==</span><span class="m">2</span>.*<span class="w"> </span>sentencepiece
 </pre></div>
@@ -148,13 +158,86 @@ tar<span class="w"> </span>xf<span class="w"> </span>transformer-ende-wmt-pyOnmt
 </div></blockquote>
 <p>If that’s the case, you successfully converted and executed a translation model with CTranslate2! Consider browsing the other sections for more information and examples.</p>
 </section>
+<section id="c">
+<h2>C++<a class="headerlink" href="#c" title="Permalink to this headline"></a></h2>
+<p>Start using the CTranslate2 library in your own C++ project.</p>
+<p><strong>1. Compile and Install CTranslate2</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>..
+make<span class="w"> </span>-j4<span class="w"> </span>install
+</pre></div>
+</div>
+<p>It is important that the library is getting installed into a directory that is on the <code class="docutils literal notranslate"><span class="pre">CMAKE_PREFIX_PATH</span></code>, otherwise you can install to a custom directory, e.g.:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">export</span><span class="w"> </span><span class="nv">CTRANSLATE_INSTALL_PATH</span><span class="o">=</span><span class="k">$(</span><span class="nb">pwd</span><span class="k">)</span>/install
+cmake<span class="w"> </span>..<span class="w"> </span>-DCMAKE_INSTALL_PREFIX<span class="o">=</span><span class="nv">$CTRANSLATE_INSTALL_PATH</span>
+make<span class="w"> </span>-j4<span class="w"> </span>install
+</pre></div>
+</div>
+<p>See the <a class="reference internal" href="installation.html"><span class="doc std std-doc">installation guide</span></a> for more information.</p>
+<p><strong>2. Add CTranslate2 to your CMakeLists.txt</strong></p>
+<div class="highlight-cmake notranslate"><div class="highlight"><pre><span></span><span class="nb">cmake_minimum_required</span><span class="w"> </span><span class="p">(</span><span class="s">VERSION</span><span class="w"> </span><span class="s">2.8.11</span><span class="p">)</span>
+<span class="nb">project</span><span class="w"> </span><span class="p">(</span><span class="s">CTRANSLATE2_DEMO</span><span class="p">)</span>
+
+<span class="nb">find_package</span><span class="p">(</span><span class="s">ctranslate2</span><span class="p">)</span>
+
+<span class="nb">add_executable</span><span class="w"> </span><span class="p">(</span><span class="s">main</span><span class="w"> </span><span class="s">main.cpp</span><span class="p">)</span>
+<span class="nb">target_link_libraries</span><span class="p">(</span><span class="s">main</span><span class="w"> </span><span class="s">CTranslate2::ctranslate2</span><span class="p">)</span>
+</pre></div>
+</div>
+<p><strong>3. Have a model ready in the CTranslate2 format</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>Helsinki-NLP/opus-mt-en-de<span class="w"> </span>--output_dir<span class="w"> </span>opus-mt-en-de
+</pre></div>
+</div>
+<p><strong>4. Write the translation C++ code using the API</strong></p>
+<p>You will need to have your input string tokenised, which depends on what type of model you are using. Have a look at the guides to get tokens from your input string.</p>
+<div class="highlight-cpp notranslate"><div class="highlight"><pre><span></span><span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;iostream&gt;</span>
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&lt;vector&gt;</span>
+
+<span class="cp">#include</span><span class="w"> </span><span class="cpf">&quot;ctranslate2/translator.h&quot;</span>
+
+<span class="kt">int</span><span class="w"> </span><span class="nf">main</span><span class="p">(</span><span class="kt">int</span><span class="w"> </span><span class="n">argc</span><span class="p">,</span><span class="w"> </span><span class="kt">char</span><span class="o">*</span><span class="w"> </span><span class="n">argv</span><span class="p">[])</span><span class="w"> </span><span class="p">{</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="w"> </span><span class="n">model_path</span><span class="p">(</span><span class="s">&quot;opus-mt-en-de&quot;</span><span class="p">);</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">models</span><span class="o">::</span><span class="n">ModelLoader</span><span class="w"> </span><span class="n">model_loader</span><span class="p">(</span><span class="n">model_path</span><span class="p">);</span>
+
+<span class="w">  </span><span class="n">ctranslate2</span><span class="o">::</span><span class="n">Translator</span><span class="w"> </span><span class="n">translator</span><span class="p">(</span><span class="n">model_loader</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">vector</span><span class="o">&lt;</span><span class="n">std</span><span class="o">::</span><span class="n">string</span><span class="o">&gt;&gt;</span><span class="w"> </span><span class="n">batch</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="p">{{</span><span class="s">&quot;▁Hello&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;▁World&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;!&quot;</span><span class="p">,</span><span class="w"> </span><span class="s">&quot;&lt;/s&gt;&quot;</span><span class="p">}};</span>
+<span class="w">  </span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="w"> </span><span class="n">translation</span><span class="w"> </span><span class="o">=</span><span class="w"> </span><span class="n">translator</span><span class="p">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">batch</span><span class="p">);</span>
+
+<span class="w">  </span><span class="k">for</span><span class="w"> </span><span class="p">(</span><span class="k">const</span><span class="w"> </span><span class="k">auto</span><span class="o">&amp;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">:</span><span class="w"> </span><span class="n">translation</span><span class="p">[</span><span class="mi">0</span><span class="p">].</span><span class="n">output</span><span class="p">())</span>
+<span class="w">    </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">token</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="sc">&#39; &#39;</span><span class="p">;</span>
+<span class="w">  </span><span class="n">std</span><span class="o">::</span><span class="n">cout</span><span class="w"> </span><span class="o">&lt;&lt;</span><span class="w"> </span><span class="n">std</span><span class="o">::</span><span class="n">endl</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+<p><strong>5. Compile and run the example</strong></p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cmake<span class="w"> </span>.
+make
+./main
+</pre></div>
+</div>
+<p>If you have installed the CTranslate library to a custom path use:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cmake<span class="w"> </span>-DCMAKE_PREFIX_PATH<span class="o">=</span><span class="nv">$CTRANSLATE_INSTALL_PATH</span><span class="w"> </span>.
+</pre></div>
+</div>
+<p>This code should print the output tokens:</p>
+<blockquote>
+<div><p>▁Hall o ▁Welt !</p>
+</div></blockquote>
+<p>If that’s the case, you successfully converted and executed a translation model with CTranslate2!</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p>(De)tokenisation is handled outside of CTranslate2, so make sure to properly tokenise the input and detokenise the output.</p>
+</div>
+</section>
+</section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="index.html" class="btn btn-neutral float-left" title="Index" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="quickstart_cpp.html" class="btn btn-neutral float-right" title="C++ Quickstart" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="installation.html" class="btn btn-neutral float-right" title="Installation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

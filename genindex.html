@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>Index &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -29,7 +29,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -42,7 +42,6 @@
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -150,6 +149,8 @@
 </li>
         <li><a href="python/ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.__init__">(ctranslate2.converters.TransformersConverter method)</a>
 </li>
+        <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.__init__">(ctranslate2.DataType method)</a>
+</li>
         <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.__init__">(ctranslate2.Encoder method)</a>
 </li>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.__init__">(ctranslate2.Generator method)</a>
@@ -208,11 +209,25 @@
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.batch_id">batch_id (ctranslate2.GenerationStepResult property)</a>
 </li>
   </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.bfloat16">bfloat16 (ctranslate2.DataType attribute)</a>
+</li>
+  </ul></td>
 </tr></table>
 
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.compute_type">compute_type (ctranslate2.Encoder property)</a>
+
+      <ul>
+        <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.compute_type">(ctranslate2.Generator property)</a>
+</li>
+        <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.compute_type">(ctranslate2.models.Whisper property)</a>
+</li>
+        <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.compute_type">(ctranslate2.Translator property)</a>
+</li>
+      </ul></li>
       <li><a href="python/ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.CONCAT">CONCAT (ctranslate2.specs.EmbeddingsMerge attribute)</a>
 </li>
       <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.config">config (ctranslate2.specs.LanguageModelSpec property)</a>
@@ -307,6 +322,8 @@
 <h2 id="D">D</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType">DataType (class in ctranslate2)</a>
+</li>
       <li><a href="python/ctranslate2.converters.Converter.html#ctranslate2.converters.Converter.declare_arguments">declare_arguments() (ctranslate2.converters.Converter static method)</a>
 
       <ul>
@@ -334,6 +351,8 @@
 </li>
         <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device">(ctranslate2.models.Whisper property)</a>
 </li>
+        <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.device">(ctranslate2.StorageView property)</a>
+</li>
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.device">(ctranslate2.Translator property)</a>
 </li>
       </ul></li>
@@ -345,6 +364,8 @@
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.device_index">(ctranslate2.Generator property)</a>
 </li>
         <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device_index">(ctranslate2.models.Whisper property)</a>
+</li>
+        <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.device_index">(ctranslate2.StorageView property)</a>
 </li>
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.device_index">(ctranslate2.Translator property)</a>
 </li>
@@ -359,6 +380,8 @@
         <li><a href="python/ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync.done">(ctranslate2.models.WhisperGenerationResultAsync method)</a>
 </li>
       </ul></li>
+      <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.dtype">dtype (ctranslate2.StorageView property)</a>
+</li>
   </ul></td>
 </tr></table>
 
@@ -384,6 +407,10 @@
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter">FairseqConverter (class in ctranslate2.converters)</a>
+</li>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.float16">float16 (ctranslate2.DataType attribute)</a>
+</li>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.float32">float32 (ctranslate2.DataType attribute)</a>
 </li>
       <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.forward_batch">forward_batch() (ctranslate2.Encoder method)</a>
 
@@ -495,10 +522,16 @@
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.is_last">is_last (ctranslate2.GenerationStepResult property)</a>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.int16">int16 (ctranslate2.DataType attribute)</a>
+</li>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.int32">int32 (ctranslate2.DataType attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.int8">int8 (ctranslate2.DataType attribute)</a>
+</li>
+      <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.is_last">is_last (ctranslate2.GenerationStepResult property)</a>
+</li>
       <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.is_multilingual">is_multilingual (ctranslate2.models.Whisper property)</a>
 </li>
   </ul></td>
@@ -558,9 +591,11 @@
 <h2 id="N">N</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.name">name (ctranslate2.specs.LanguageModelSpec property)</a>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.name">name (ctranslate2.DataType property)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.name">(ctranslate2.specs.LanguageModelSpec property)</a>
+</li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.name">(ctranslate2.specs.ModelSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.name">(ctranslate2.specs.SequenceToSequenceModelSpec property)</a>
@@ -802,6 +837,8 @@
 </li>
       <li><a href="python/ctranslate2.set_random_seed.html#ctranslate2.set_random_seed">set_random_seed() (in module ctranslate2)</a>
 </li>
+      <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.shape">shape (ctranslate2.StorageView property)</a>
+</li>
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.step">step (ctranslate2.GenerationStepResult property)</a>
 </li>
       <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView">StorageView (class in ctranslate2)</a>
@@ -816,6 +853,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.Tanh">Tanh (ctranslate2.specs.Activation attribute)</a>
 </li>
+      <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.to">to() (ctranslate2.StorageView method)</a>
+</li>
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.token">token (ctranslate2.GenerationStepResult property)</a>
 </li>
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.token_id">token_id (ctranslate2.GenerationStepResult property)</a>
@@ -828,10 +867,10 @@
 </li>
       <li><a href="python/ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec">TransformerDecoderSpec (class in ctranslate2.specs)</a>
 </li>
-      <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec">TransformerEncoderModelSpec (class in ctranslate2.specs)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec">TransformerEncoderModelSpec (class in ctranslate2.specs)</a>
+</li>
       <li><a href="python/ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec">TransformerEncoderSpec (class in ctranslate2.specs)</a>
 </li>
       <li><a href="python/ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter">TransformersConverter (class in ctranslate2.converters)</a>
@@ -886,6 +925,8 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.value">value (ctranslate2.DataType property)</a>
+</li>
       <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.variables">variables() (ctranslate2.specs.LanguageModelSpec method)</a>
 
       <ul>

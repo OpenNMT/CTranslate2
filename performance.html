@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Performance tips &mdash; CTranslate2 3.17.1 documentation</title>
+  <title>Performance tips &mdash; CTranslate2 3.18.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.17
+                3.18
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -45,7 +45,6 @@
               <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
-<li class="toctree-l1"><a class="reference internal" href="quickstart_cpp.html">C++ Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
@@ -62,7 +61,13 @@
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
 <li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
-<li class="toctree-l1 current"><a class="current reference internal" href="#">Performance tips</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Performance tips</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#cpu">CPU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gpu">GPU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#translator">Translator</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#generator">Generator</a></li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="environment_variables.html">Environment variables</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
@@ -110,28 +115,47 @@
              
   <section id="performance-tips">
 <h1>Performance tips<a class="headerlink" href="#performance-tips" title="Permalink to this headline"></a></h1>
-<p>Below are some general recommendations to further improve performance. Many of these recommendations were used in the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/tree/master/examples/wngt2020">WNGT 2020 efficiency task submission</a>.</p>
+<p>Below are some general recommendations to further improve performance.</p>
+<section id="cpu">
+<h2>CPU<a class="headerlink" href="#cpu" title="Permalink to this headline"></a></h2>
 <ul class="simple">
-<li><p>Set the compute type to “auto” to automatically select the fastest execution path on the current system</p></li>
-<li><p>Reduce the beam size to the minimum value that meets your quality requirement</p></li>
-<li><p>When using a beam size of 1, keep <code class="docutils literal notranslate"><span class="pre">return_scores</span></code> disabled if you are not using prediction scores: the final softmax layer can be skipped</p></li>
-<li><p>Set <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code> and pass a larger batch to <code class="docutils literal notranslate"><span class="pre">*_batch</span></code> methods: the input sentences will be sorted by length and split by chunk of <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code> elements for improved efficiency</p></li>
-<li><p>Prefer the “tokens” <code class="docutils literal notranslate"><span class="pre">batch_type</span></code> to make the total number of elements in a batch more constant</p></li>
-<li><p>Consider using <a class="reference internal" href="translation.html#dynamic-vocabulary-reduction"><span class="std std-ref">Dynamic vocabulary reduction</span></a> for translation</p></li>
-</ul>
-<p><strong>On CPU</strong></p>
-<ul class="simple">
+<li><p>Use int8 quantization</p></li>
 <li><p>Use an Intel CPU supporting AVX512</p></li>
 <li><p>If you are processing a large volume of data, prefer increasing <code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> over <code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> and use stream methods (methods whose name ends with <code class="docutils literal notranslate"><span class="pre">_file</span></code> or <code class="docutils literal notranslate"><span class="pre">_iterable</span></code>)</p></li>
 <li><p>Avoid the total number of threads <code class="docutils literal notranslate"><span class="pre">inter_threads</span> <span class="pre">*</span> <span class="pre">intra_threads</span></code> to be larger than the number of physical cores</p></li>
 <li><p>For single core execution on Intel CPUs, consider enabling packed GEMM (set the environment variable <code class="docutils literal notranslate"><span class="pre">CT2_USE_EXPERIMENTAL_PACKED_GEMM=1</span></code>)</p></li>
 </ul>
-<p><strong>On GPU</strong></p>
+</section>
+<section id="gpu">
+<h2>GPU<a class="headerlink" href="#gpu" title="Permalink to this headline"></a></h2>
 <ul class="simple">
-<li><p>Use a larger batch size</p></li>
+<li><p>Use a larger batch size whenever possible</p></li>
 <li><p>Use a NVIDIA GPU with Tensor Cores (Compute Capability &gt;= 7.0)</p></li>
 <li><p>Pass multiple GPU IDs to <code class="docutils literal notranslate"><span class="pre">device_index</span></code> to execute on multiple GPUs</p></li>
 </ul>
+</section>
+<section id="translator">
+<h2>Translator<a class="headerlink" href="#translator" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>The default beam size for translation is 2, but consider setting <code class="docutils literal notranslate"><span class="pre">beam_size=1</span></code> to improve performance</p></li>
+<li><p>When using a beam size of 1, keep <code class="docutils literal notranslate"><span class="pre">return_scores</span></code> disabled if you are not using prediction scores: the final softmax layer can be skipped</p></li>
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code> and pass a larger batch to <code class="docutils literal notranslate"><span class="pre">*_batch</span></code> methods: the input sentences will be sorted by length and split by chunk of <code class="docutils literal notranslate"><span class="pre">max_batch_size</span></code> elements for improved efficiency</p></li>
+<li><p>Prefer the “tokens” <code class="docutils literal notranslate"><span class="pre">batch_type</span></code> to make the total number of elements in a batch more constant</p></li>
+<li><p>Consider using <a class="reference internal" href="translation.html#dynamic-vocabulary-reduction"><span class="std std-ref">Dynamic vocabulary reduction</span></a> for translation</p></li>
+</ul>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>The <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/tree/master/examples/wngt2020">WNGT 2020 efficiency task submission</a> which applies many of these recommendations to optimize machine translation models.</p>
+</div>
+</section>
+<section id="generator">
+<h2>Generator<a class="headerlink" href="#generator" title="Permalink to this headline"></a></h2>
+<ul class="simple">
+<li><p>Set <code class="docutils literal notranslate"><span class="pre">include_prompt_in_result=False</span></code> so that the input prompt can be forwarded in the decoder at once</p></li>
+<li><p>If the model uses a system prompt, consider passing it to the argument <code class="docutils literal notranslate"><span class="pre">static_prompt</span></code> for it to be cached</p></li>
+<li><p>When using a beam size of 1, keep <code class="docutils literal notranslate"><span class="pre">return_scores</span></code> disabled if you are not using prediction scores: the final softmax layer can be skipped</p></li>
+</ul>
+</section>
 </section>
 
 
