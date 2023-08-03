@@ -151,7 +151,7 @@ print(tokenizer.decode(results[0].sequences_ids[0]))
 
 [DistilBERT](https://huggingface.co/docs/transformers/model_doc/distilbert) is a small, fast, cheap and light Transformer Encoder model trained by distilling BERT base.
 
-CTranslate2 only implements the `DistilBertModel` class from Transformers which includes the Transformer encoder. Task-specific layers should be run with PyTorch, similar to the example for BERT.
+CTranslate2 only implements the `DistilBertModel` class from Transformers which includes the Transformer encoder. Task-specific layers should be run with PyTorch, similar to the example for {ref}`guides/transformers:bert`.
 
 ```bash
 ct2-transformers-converter --model distilbert-base-uncased --output_dir distilbert-base-uncased
