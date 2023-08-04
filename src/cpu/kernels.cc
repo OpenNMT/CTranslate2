@@ -628,21 +628,19 @@ namespace ctranslate2 {
 
       for (dim_t i = 0; i < m; i += VecType::width) {
         auto v = VecType::load_and_convert(c + i);
+        v = VecType::mul(v, vec_r_a_scale);
         v = VecType::div(v, VecType::load(b_scale + i));
         if (with_bias)
-          v = VecType::mul_add(v, vec_r_a_scale, VecType::load(bias + i));
-        else
-          v = VecType::mul(v, vec_r_a_scale);
+          v = VecType::add(v, VecType::load(bias + i));
         VecType::store(epilogue_func(v), y + i);
       }
 
       if (remaining != 0) {
         auto v = VecType::load_and_convert(c + m, remaining);
+        v = VecType::mul(v, vec_r_a_scale);
         v = VecType::div(v, VecType::load(b_scale + m, remaining));
         if (with_bias)
-          v = VecType::mul_add(v, vec_r_a_scale, VecType::load(bias + m, remaining));
-        else
-          v = VecType::mul(v, vec_r_a_scale);
+          v = VecType::add(v, VecType::load(bias + m, remaining));
         VecType::store(epilogue_func(v), y + m, remaining);
       }
     }
