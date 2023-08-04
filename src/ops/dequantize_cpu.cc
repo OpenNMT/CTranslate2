@@ -63,6 +63,7 @@ namespace ctranslate2 {
       if (a_scale.is_scalar() && b_scale.is_scalar()) {
         const auto scale = a_scale.as_scalar<float>() * b_scale.as_scalar<float>();
         dequantize_kernel(c_data, scale, c.size(), y_data);
+        apply_bias_and_activation(y, bias, _activation_type);
 
       } else {
         const dim_t batch_size = a_scale.size();
