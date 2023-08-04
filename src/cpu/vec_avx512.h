@@ -35,7 +35,7 @@ namespace ctranslate2 {
       }
 
       static inline value_type load_and_convert(const int32_t* ptr) {
-        return _mm512_cvtepi32_ps(_mm512_loadu_epi32(ptr));
+        return _mm512_cvtepi32_ps(_mm512_loadu_si512(ptr));
       }
 
       static inline value_type load_and_convert(const int32_t* ptr,
