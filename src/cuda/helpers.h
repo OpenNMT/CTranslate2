@@ -218,15 +218,24 @@ namespace ctranslate2 {
     template <typename T>
     struct relu_func {
       __device__ T operator()(T x) const {
-        return x > T(0.f) ? x : T(0.f);
+        return fmaxf(x, 0.f);
       }
     };
 
-#if !CUDA_CAN_USE_HALF
+#if CUDA_CAN_USE_HALF
     template<>
     struct relu_func<__half> {
       __device__ __half operator()(__half x) const {
-        return float(x) > float(0) ? x : __half(0);
+        return __hmax(x, __half(0.f));
+      }
+    };
+#endif
+
+#if CUDA_CAN_USE_BF16_MATH
+    template<>
+    struct relu_func<__nv_bfloat16> {
+      __device__ __nv_bfloat16 operator()(__nv_bfloat16 x) const {
+        return __hmax(x, __nv_bfloat16(0.f));
       }
     };
 #endif
