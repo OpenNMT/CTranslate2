@@ -123,11 +123,8 @@ namespace ctranslate2 {
         return model.as_sequence_encoder();
       }
 
-      EncoderForwardOutput forward(const std::vector<std::vector<std::string>>& tokens);
       EncoderForwardOutput forward(const std::vector<std::vector<std::string>>& tokens, const std::vector<std::vector<size_t>>& token_type_ids);
-      EncoderForwardOutput forward(const std::vector<std::vector<size_t>>& ids);
       EncoderForwardOutput forward(const std::vector<std::vector<size_t>>& ids, const std::vector<std::vector<size_t>>& token_type_ids);
-      EncoderForwardOutput forward(const StorageView& ids, const StorageView& lengths);
       EncoderForwardOutput forward(const StorageView& ids, const StorageView& lengths, const std::vector<std::vector<size_t>>& token_type_ids);
 
     protected:
