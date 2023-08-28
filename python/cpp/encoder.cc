@@ -14,21 +14,27 @@ namespace ctranslate2 {
       EncoderForwardOutput
       forward_batch(const std::variant<BatchTokens, BatchIds, StorageView>& inputs,
                     const std::optional<StorageView>& lengths,
-                    const std::optional<BatchIds>& token_type_ids
-                    ) {
+                    const std::optional<BatchIds>& token_type_ids) {
         std::future<EncoderForwardOutput> future;
 
         switch (inputs.index()) {
         case 0:
-          future = _pool->forward_batch_async(std::get<BatchTokens>(inputs), token_type_ids.value_or(std::vector<std::vector<size_t>>()));
+          future = _pool->forward_batch_async(
+            std::get<BatchTokens>(inputs),
+            token_type_ids.value_or(std::vector<std::vector<size_t>>()));
           break;
         case 1:
-          future = _pool->forward_batch_async(std::get<BatchIds>(inputs), token_type_ids.value_or(std::vector<std::vector<size_t>>()));
+          future = _pool->forward_batch_async(
+            std::get<BatchIds>(inputs),
+            token_type_ids.value_or(std::vector<std::vector<size_t>>()));
           break;
         case 2:
           if (!lengths)
             throw std::invalid_argument("lengths vector is required when passing a dense input");
-          future =  _pool->forward_batch_async(std::get<StorageView>(inputs), lengths.value(), token_type_ids.value_or(std::vector<std::vector<size_t>>()));
+          future = _pool->forward_batch_async(
+            std::get<StorageView>(inputs),
+            lengths.value(),
+            token_type_ids.value_or(std::vector<std::vector<size_t>>()));
           break;
         }
 

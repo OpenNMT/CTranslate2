@@ -294,22 +294,27 @@ namespace ctranslate2 {
       decoder(ids, lengths, state, logits);
       return logits;
     }
-    
+
+
     EncoderForwardOutput
-    SequenceEncoderReplica::forward(const std::vector<std::vector<std::string>>& tokens, const std::vector<std::vector<size_t>>& token_type_ids = {}) {
+    SequenceEncoderReplica::forward(const std::vector<std::vector<std::string>>& tokens,
+                                    const std::vector<std::vector<size_t>>& token_type_ids) {
       const auto& vocabulary = _model->get_vocabulary();
       return forward(vocabulary.to_ids(tokens), token_type_ids);
     }
-    
+
     EncoderForwardOutput
-    SequenceEncoderReplica::forward(const std::vector<std::vector<size_t>>& ids, const std::vector<std::vector<size_t>>& token_type_ids = {}) {
+    SequenceEncoderReplica::forward(const std::vector<std::vector<size_t>>& ids,
+                                    const std::vector<std::vector<size_t>>& token_type_ids) {
       StorageView lengths;
       StorageView input_ids = layers::make_sequence_inputs(ids, Device::CPU, 1, &lengths);
       return forward(input_ids, lengths, token_type_ids);
     }
-    
+
     EncoderForwardOutput
-    SequenceEncoderReplica::forward(const StorageView& ids, const StorageView& lengths, const std::vector<std::vector<size_t>>& token_type_ids = {}) {
+    SequenceEncoderReplica::forward(const StorageView& ids,
+                                    const StorageView& lengths,
+                                    const std::vector<std::vector<size_t>>& token_type_ids) {
       PROFILE("SequenceEncoderReplica::forward");
       const auto& model = *this->model();
       const auto device = model.device();
@@ -342,7 +347,9 @@ namespace ctranslate2 {
     }
 
     EncoderForwardOutput
-    EncoderReplica::forward_impl(const StorageView& ids, const StorageView& lengths, const StorageView& token_type_ids) {
+    EncoderReplica::forward_impl(const StorageView& ids,
+                                 const StorageView& lengths,
+                                 const StorageView& token_type_ids) {
       if (ids.rank() != 2)
         throw std::invalid_argument("Expected input ids to have 2 dimensions, but got "
                                     + std::to_string(ids.rank())
