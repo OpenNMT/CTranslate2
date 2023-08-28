@@ -46,7 +46,9 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
 
             if rotary_scaling_type is not None:
                 self.rotary_scaling_type = np.dtype("int8").type(rotary_scaling_type)
-                self.rotary_scaling_factor = np.dtype("float32").type(rotary_scaling_factor)
+                self.rotary_scaling_factor = np.dtype("float32").type(
+                    rotary_scaling_factor
+                )
 
         if num_heads_kv is not None:
             self.num_heads_kv = np.dtype("int32").type(num_heads_kv)
