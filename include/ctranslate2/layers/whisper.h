@@ -31,7 +31,7 @@ namespace ctranslate2 {
         return output_time() * 2;
       }
 
-      bool is_encoded(const StorageView& features) {
+      bool is_encoded(const StorageView& features) const {
         return (features.rank() == 3
                 && features.dim(2) == output_size()
                 && features.dim(1) != input_size());
