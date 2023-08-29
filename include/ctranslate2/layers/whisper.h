@@ -23,8 +23,18 @@ namespace ctranslate2 {
         return _position_embedding.num_positions();
       }
 
+      dim_t input_size() const {
+        return _conv1.input_size();
+      }
+
       dim_t input_time() const {
         return output_time() * 2;
+      }
+
+      bool is_encoded(const StorageView& features) {
+        return (features.rank() == 3
+                && features.dim(2) == output_size()
+                && features.dim(1) != input_size());
       }
 
     private:
