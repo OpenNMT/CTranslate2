@@ -26,13 +26,13 @@ namespace ctranslate2 {
                                     + std::to_string(features.rank())
                                     + " dimension(s) instead");
 
-      if (features.dim(1) != input_size() || features.dim(2) > input_time())
+      if (features.dim(1) != input_size() || features.dim(2) > max_input_time())
         throw std::invalid_argument("Invalid input features shape: expected an input with shape ("
                                     + std::to_string(features.dim(0))
                                     + ", "
                                     + std::to_string(input_size())
                                     + ", "
-                                    + std::to_string(std::min(features.dim(2), input_time()))
+                                    + std::to_string(std::min(features.dim(2), max_input_time()))
                                     + "), but got an input with shape ("
                                     + std::to_string(features.dim(0))
                                     + ", "
