@@ -219,7 +219,9 @@ def test_transformers_generation(
 ):
 
     trust_remote_code = True if "falcon" in model else False
-    converter = ctranslate2.converters.TransformersConverter(model, trust_remote_code=trust_remote_code)
+    converter = ctranslate2.converters.TransformersConverter(
+        model, trust_remote_code=trust_remote_code
+    )
     output_dir = str(tmp_dir.join("ctranslate2_model"))
     output_dir = converter.convert(output_dir)
 

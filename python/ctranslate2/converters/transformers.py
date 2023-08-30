@@ -1292,7 +1292,7 @@ class RWLoader(ModelLoader):
             activation=common_spec.Activation.GELU,
             alibi=model.config.alibi,
             alibi_use_positive_positions=True,
-            scale_alibi = True,
+            scale_alibi=True,
             rotary_dim=model.config.head_dim if model.config.rotary else None,
             rotary_interleave=False,
             parallel_residual=model.config.parallel_attn,
@@ -1351,9 +1351,7 @@ class RWLoader(ModelLoader):
                     layer_spec.self_attention.linear[0],
                     layer.self_attention.query_key_value,
                     layer.self_attention.num_heads,
-                    num_kv
-                    if num_kv < layer.self_attention.num_heads
-                    else None,
+                    num_kv if num_kv < layer.self_attention.num_heads else None,
                 )
 
             self.set_linear(
@@ -1409,12 +1407,12 @@ class RWLoader(ModelLoader):
 
 @register_loader("FalconConfig")
 class FalconLoader(RWLoader):
-
     def get_falcon_spec(self, model):
         self._num_layers = model.config.num_hidden_layers
         self._num_heads = model.config.num_attention_heads
         self._num_heads_kv = getattr(model.config, "num_kv_heads", None)
         self._num_kv_attr = "num_kv_heads"
+
 
 @register_loader("DistilBertConfig")
 class DistilBertLoader(ModelLoader):
