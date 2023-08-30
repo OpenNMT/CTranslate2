@@ -1293,7 +1293,7 @@ class RWLoader(ModelLoader):
             alibi=model.config.alibi,
             alibi_use_positive_positions=True,
             scale_alibi=True,
-            rotary_dim=model.config.head_dim if model.config.rotary else None,
+            rotary_dim=0 if model.config.rotary else None,
             rotary_interleave=False,
             parallel_residual=model.config.parallel_attn,
             shared_layer_norm=num_heads_kv == 1,
