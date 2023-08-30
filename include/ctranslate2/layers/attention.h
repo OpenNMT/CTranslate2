@@ -101,7 +101,7 @@ namespace ctranslate2 {
     public:
       Alibi(const bool use_positive_positions = false, const bool scale_alibi = false, const dim_t num_initial_positions = 2048);
 
-      void apply(StorageView& x, const float scale=1);
+      void apply(StorageView& x, const float scale = 1);
 
     private:
       const bool _use_positive_positions;
