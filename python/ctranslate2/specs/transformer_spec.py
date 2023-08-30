@@ -479,7 +479,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
           rms_norm: Use the root mean square layer normalization.
           alibi: Use attention with linear biases.
           alibi_use_positive_positions: Use positive positions in the ALiBi definition.
-          scale_alibi : Apply scaling to ALiBi.
+          scale_alibi: Apply the dot product scale factor to ALiBi.
           rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
             embeddings are applied to all dimensions.
           rotary_interleave: Interleave the head dimensions when rotary embeddings are applied.
