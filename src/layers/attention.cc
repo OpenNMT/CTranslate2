@@ -228,7 +228,6 @@ namespace ctranslate2 {
 
       const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
       keys_matmul(queries, keys, output);
-
       if (relative_position_keys)
         add_relative_representations(queries,
                                      *relative_positions,
