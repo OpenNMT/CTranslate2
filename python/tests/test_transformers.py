@@ -194,6 +194,12 @@ _TRANSFORMERS_GENERATION_TESTS = [
         "Hello , ĠI Ġam Ġa Ġnew bie Ġin Ġthe Ġworld Ġof Ġweb Ġdesign Ġand ĠI Ġam "
         "Ġlooking Ġfor Ġa Ġweb Ġdeveloper",
     ),
+    (
+        "tiiuae/falcon-rw-1b",
+        "Hello , ĠFalcon ,",
+        16,
+        "Hello , ĠFalcon , Ċ I âĢ Ļ m Ġso Ġglad Ġyou âĢ Ļ re Ġhere .",
+    ),
 ]
 
 
@@ -211,7 +217,9 @@ def test_transformers_generation(
     max_length,
     expected_tokens,
 ):
-    converter = ctranslate2.converters.TransformersConverter(model)
+
+    trust_remote_code = True if "falcon" in model else False
+    converter = ctranslate2.converters.TransformersConverter(model, trust_remote_code=trust_remote_code)
     output_dir = str(tmp_dir.join("ctranslate2_model"))
     output_dir = converter.convert(output_dir)
 

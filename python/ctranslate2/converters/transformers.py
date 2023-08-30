@@ -1271,20 +1271,29 @@ class RWLoader(ModelLoader):
     def architecture_name(self):
         return "AutoModelForCausalLM"
 
+    def get_falcon_spec(self, model):
+        self._num_layers = model.config.n_layer
+        self._num_heads = model.config.n_head
+        self._num_heads_kv = getattr(model.config, "n_head_kv", None)
+        self._num_kv_attr = "num_kv"
+
     def get_model_spec(self, model):
+        self.get_falcon_spec(model)
+
         if getattr(model.config, "multi_query", False):
             num_heads_kv = 1
         else:
-            num_heads_kv = getattr(model.config, "n_head_kv", None)
+            num_heads_kv = self._num_heads_kv
 
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
-            model.config.n_layer,
-            model.config.n_head,
+            self._num_layers,
+            self._num_heads,
             pre_norm=True,
             activation=common_spec.Activation.GELU,
             alibi=model.config.alibi,
             alibi_use_positive_positions=True,
-            rotary_dim=0,
+            scale_alibi = True,
+            rotary_dim=model.config.head_dim if model.config.rotary else None,
             rotary_interleave=False,
             parallel_residual=model.config.parallel_attn,
             shared_layer_norm=num_heads_kv == 1,
@@ -1331,7 +1340,8 @@ class RWLoader(ModelLoader):
                     layer_spec.ffn.layer_norm, layer.post_attention_layernorm
                 )
 
-            if layer.self_attention.num_kv == 1:
+            num_kv = getattr(layer.self_attention, self._num_kv_attr)
+            if num_kv == 1:
                 self.set_linear(
                     layer_spec.self_attention.linear[0],
                     layer.self_attention.query_key_value,
@@ -1341,8 +1351,8 @@ class RWLoader(ModelLoader):
                     layer_spec.self_attention.linear[0],
                     layer.self_attention.query_key_value,
                     layer.self_attention.num_heads,
-                    layer.self_attention.num_kv
-                    if layer.self_attention.num_kv < layer.self_attention.num_heads
+                    num_kv
+                    if num_kv < layer.self_attention.num_heads
                     else None,
                 )
 
@@ -1396,6 +1406,15 @@ class RWLoader(ModelLoader):
 
             spec.bias = bias
 
+
+@register_loader("FalconConfig")
+class FalconLoader(RWLoader):
+
+    def get_falcon_spec(self, model):
+        self._num_layers = model.config.num_hidden_layers
+        self._num_heads = model.config.num_attention_heads
+        self._num_heads_kv = getattr(model.config, "num_kv_heads", None)
+        self._num_kv_attr = "num_kv_heads"
 
 @register_loader("DistilBertConfig")
 class DistilBertLoader(ModelLoader):
