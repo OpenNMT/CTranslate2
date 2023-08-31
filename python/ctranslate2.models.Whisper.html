@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Whisper &mdash; CTranslate2 3.18.0 documentation</title>
+  <title>Whisper &mdash; CTranslate2 3.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.18
+                3.19
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -182,9 +182,9 @@ file names to file contents as file-like or bytes objects. If this is set,
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>features</strong> – Mel spectogram of the audio, as a float array with shape
-<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">3000]</span></code>. This method also accepts the encoded features
-returned by the method <a class="reference internal" href="#ctranslate2.models.Whisper.encode" title="ctranslate2.models.Whisper.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.models.Whisper.encode()</span></code></a>, which
-have shape <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">1500,</span> <span class="pre">d_model]</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">chunk_length]</span></code>. This method also accepts the encoded
+features returned by the method <a class="reference internal" href="#ctranslate2.models.Whisper.encode" title="ctranslate2.models.Whisper.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.models.Whisper.encode()</span></code></a>,
+which have shape <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">chunk_length</span> <span class="pre">//</span> <span class="pre">2,</span> <span class="pre">d_model]</span></code>.</p></li>
 <li><p><strong>start_sequence</strong> – The start sequence tokens.</p></li>
 <li><p><strong>text_tokens</strong> – Batch of text tokens to align.</p></li>
 <li><p><strong>num_frames</strong> – Number of non padding frames in the features.</p></li>
@@ -204,9 +204,9 @@ have shape <code class="docutils literal notranslate"><span class="pre">[batch_s
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><p><strong>features</strong> – Mel spectogram of the audio, as a float array with shape
-<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">3000]</span></code>. This method also accepts the encoded features
-returned by the method <a class="reference internal" href="#ctranslate2.models.Whisper.encode" title="ctranslate2.models.Whisper.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.models.Whisper.encode()</span></code></a>, which
-have shape <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">1500,</span> <span class="pre">d_model]</span></code>.</p>
+<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">chunk_length]</span></code>. This method also accepts the encoded
+features returned by the method <a class="reference internal" href="#ctranslate2.models.Whisper.encode" title="ctranslate2.models.Whisper.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.models.Whisper.encode()</span></code></a>,
+which have shape <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">chunk_length</span> <span class="pre">//</span> <span class="pre">2,</span> <span class="pre">d_model]</span></code>.</p>
 </dd>
 <dt class="field-even">Returns</dt>
 <dd class="field-even"><p>For each batch, a list of pairs (language, probability) ordered from
@@ -226,7 +226,7 @@ best to worst probability.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>features</strong> – Mel spectogram of the audio, as a float array with shape
-<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">3000]</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">chunk_length]</span></code>.</p></li>
 <li><p><strong>to_cpu</strong> – Copy the encoder output to the CPU before returning the value.</p></li>
 </ul>
 </dd>
@@ -244,9 +244,9 @@ best to worst probability.</p>
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>features</strong> – Mel spectogram of the audio, as a float array with shape
-<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">3000]</span></code>. This method also accepts the encoded features
-returned by the method <a class="reference internal" href="#ctranslate2.models.Whisper.encode" title="ctranslate2.models.Whisper.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.models.Whisper.encode()</span></code></a>, which
-have shape <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">1500,</span> <span class="pre">d_model]</span></code>.</p></li>
+<code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">80,</span> <span class="pre">chunk_length]</span></code>. This method also accepts the encoded
+features returned by the method <a class="reference internal" href="#ctranslate2.models.Whisper.encode" title="ctranslate2.models.Whisper.encode"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.models.Whisper.encode()</span></code></a>,
+which have shape <code class="docutils literal notranslate"><span class="pre">[batch_size,</span> <span class="pre">chunk_length</span> <span class="pre">//</span> <span class="pre">2,</span> <span class="pre">d_model]</span></code>.</p></li>
 <li><p><strong>prompts</strong> – Batch of initial string tokens or token IDs.</p></li>
 <li><p><strong>asynchronous</strong> – Run the model asynchronously.</p></li>
 <li><p><strong>beam_size</strong> – Beam size (1 for greedy search).</p></li>

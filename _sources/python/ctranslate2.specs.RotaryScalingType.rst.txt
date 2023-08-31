@@ -1,0 +1,9 @@
+RotaryScalingType
+=================
+
+.. autoclass:: ctranslate2.specs.RotaryScalingType
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`enum.IntEnum`

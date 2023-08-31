@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>set_random_seed &mdash; CTranslate2 3.19.0 documentation</title>
+  <title>RotaryScalingType &mdash; CTranslate2 3.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="ctranslate2.converters" href="ctranslate2.converters.html" />
-    <link rel="prev" title="set_log_level" href="ctranslate2.set_log_level.html" /> 
+    <link rel="next" title="SequenceToSequenceModelSpec" href="ctranslate2.specs.SequenceToSequenceModelSpec.html" />
+    <link rel="prev" title="ModelSpec" href="ctranslate2.specs.ModelSpec.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -76,32 +76,25 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="overview.html">Python</a><ul class="current">
-<li class="toctree-l2 current"><a class="reference internal" href="ctranslate2.html">ctranslate2</a><ul class="current">
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.DataType.html">DataType</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Encoder.html">Encoder</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html">EncoderForwardOutput</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationStepResult.html">GenerationStepResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Translator.html">Translator</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.contains_model.html">contains_model</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html">get_cuda_device_count</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_log_level.html">get_log_level</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_supported_compute_types.html">get_supported_compute_types</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.set_log_level.html">set_log_level</a></li>
-<li class="toctree-l3 current"><a class="current reference internal" href="#">set_random_seed</a></li>
-</ul>
-</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.html">ctranslate2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.html">ctranslate2.converters</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.html">ctranslate2.models</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a></li>
+<li class="toctree-l2 current"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a><ul class="current">
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html">Activation</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html">EmbeddingsMerge</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html">LanguageModelSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html">LayerSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html">ModelSpec</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">RotaryScalingType</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html">SequenceToSequenceModelSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html">TransformerDecoderModelSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html">TransformerDecoderSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html">TransformerEncoderModelSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html">TransformerEncoderSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html">TransformerSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html">WhisperSpec</a></li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>
@@ -127,8 +120,8 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="overview.html">Python</a> &raquo;</li>
-          <li><a href="ctranslate2.html">ctranslate2</a> &raquo;</li>
-      <li>set_random_seed</li>
+          <li><a href="ctranslate2.specs.html">ctranslate2.specs</a> &raquo;</li>
+      <li>RotaryScalingType</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -137,12 +130,18 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="set-random-seed">
-<h1>set_random_seed<a class="headerlink" href="#set-random-seed" title="Permalink to this headline"></a></h1>
-<dl class="py function">
-<dt class="sig sig-object py" id="ctranslate2.set_random_seed">
-<span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">set_random_seed</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">seed</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.set_random_seed" title="Permalink to this definition"></a></dt>
-<dd><p>Sets the seed of random generators.</p>
+  <section id="rotaryscalingtype">
+<h1>RotaryScalingType<a class="headerlink" href="#rotaryscalingtype" title="Permalink to this headline"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ctranslate2.specs.RotaryScalingType">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.specs.</span></span><span class="sig-name descname"><span class="pre">RotaryScalingType</span></span><a class="headerlink" href="#ctranslate2.specs.RotaryScalingType" title="Permalink to this definition"></a></dt>
+<dd><p>RoPE scaling type.</p>
+<p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">enum.IntEnum</span></code></p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="ctranslate2.specs.RotaryScalingType.Linear">
+<span class="sig-name descname"><span class="pre">Linear</span></span><em class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></em><a class="headerlink" href="#ctranslate2.specs.RotaryScalingType.Linear" title="Permalink to this definition"></a></dt>
+<dd></dd></dl>
+
 </dd></dl>
 
 </section>
@@ -151,8 +150,8 @@
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ctranslate2.set_log_level.html" class="btn btn-neutral float-left" title="set_log_level" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.converters.html" class="btn btn-neutral float-right" title="ctranslate2.converters" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.specs.ModelSpec.html" class="btn btn-neutral float-left" title="ModelSpec" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.specs.SequenceToSequenceModelSpec.html" class="btn btn-neutral float-right" title="SequenceToSequenceModelSpec" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

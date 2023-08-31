@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 3.18.0 documentation</title>
+  <title>Transformers &mdash; CTranslate2 3.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.18
+                3.19
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -76,6 +76,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#bart">BART</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#bert">BERT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#bloom">BLOOM</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#distilbert">DistilBERT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#falcon">Falcon</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#llama-2">Llama 2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#marianmt">MarianMT</a></li>
@@ -134,6 +135,7 @@
 <li><p>BERT</p></li>
 <li><p>BLOOM</p></li>
 <li><p>CodeGen</p></li>
+<li><p>DistilBERT</p></li>
 <li><p>Falcon</p></li>
 <li><p>Llama</p></li>
 <li><p>M2M100</p></li>
@@ -237,10 +239,6 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 <span class="nb">print</span><span class="p">(</span><span class="n">predicted_class_ids</span><span class="p">)</span>
 </pre></div>
 </div>
-<div class="admonition warning">
-<p class="admonition-title">Warning</p>
-<p>The <a class="reference external" href="https://huggingface.co/docs/transformers/glossary#token-type-ids">token type input</a> is currently not implemented. All tokens are assumed to come from the same sentence.</p>
-</div>
 </section>
 <section id="bloom">
 <h2>BLOOM<a class="headerlink" href="#bloom" title="Permalink to this headline"></a></h2>
@@ -259,6 +257,14 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 <span class="n">start_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">text</span><span class="p">))</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">start_tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">30</span><span class="p">,</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+</pre></div>
+</div>
+</section>
+<section id="distilbert">
+<h2>DistilBERT<a class="headerlink" href="#distilbert" title="Permalink to this headline"></a></h2>
+<p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/distilbert">DistilBERT</a> is a small, fast, cheap and light Transformer Encoder model trained by distilling BERT base.</p>
+<p>CTranslate2 only implements the <code class="docutils literal notranslate"><span class="pre">DistilBertModel</span></code> class from Transformers which includes the Transformer encoder. Task-specific layers should be run with PyTorch, similar to the example for <a class="reference internal" href="#bert"><span class="std std-ref">BERT</span></a>.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>distilbert-base-uncased<span class="w"> </span>--output_dir<span class="w"> </span>distilbert-base-uncased
 </pre></div>
 </div>
 </section>

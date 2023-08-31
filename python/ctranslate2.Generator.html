@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Generator &mdash; CTranslate2 3.18.0 documentation</title>
+  <title>Generator &mdash; CTranslate2 3.19.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.18
+                3.19
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -294,7 +294,7 @@ decoding will stop for this batch.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.Generator.generate_iterable">
 <span class="sig-name descname"><span class="pre">generate_iterable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">start_tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">32</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'examples'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult" title="ctranslate2.GenerationResult"><span class="pre">GenerationResult</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#ctranslate2.Generator.generate_iterable" title="Permalink to this definition"></a></dt>
-<dd><p>Generates from an iterable of start tokens.</p>
+<dd><p>Generates from an iterable of tokenized prompts.</p>
 <p>This method is built on top of <a class="reference internal" href="#ctranslate2.Generator.generate_batch" title="ctranslate2.Generator.generate_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.Generator.generate_batch()</span></code></a>
 to efficiently run generation on an arbitrarily large stream of data. It enables
 the following optimizations:</p>
@@ -307,7 +307,7 @@ the following optimizations:</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>start_tokens</strong> – An iterable on start tokens.</p></li>
+<li><p><strong>start_tokens</strong> – An iterable of tokenized prompts.</p></li>
 <li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
 <li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
 <li><p><strong>**kwargs</strong> – Any generation options accepted by
@@ -385,7 +385,7 @@ minimized.</p></li>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.Generator.score_iterable">
 <span class="sig-name descname"><span class="pre">score_iterable</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokens</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><span class="pre">List</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="n"><span class="pre">max_batch_size</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">int</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">64</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">batch_type</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">'examples'</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Iterable</span><span class="p"><span class="pre">[</span></span><a class="reference internal" href="ctranslate2.ScoringResult.html#ctranslate2.ScoringResult" title="ctranslate2.ScoringResult"><span class="pre">ScoringResult</span></a><span class="p"><span class="pre">]</span></span></span></span><a class="headerlink" href="#ctranslate2.Generator.score_iterable" title="Permalink to this definition"></a></dt>
-<dd><p>Scores an iterable of tokens.</p>
+<dd><p>Scores an iterable of tokenized examples.</p>
 <p>This method is built on top of <a class="reference internal" href="#ctranslate2.Generator.score_batch" title="ctranslate2.Generator.score_batch"><code class="xref py py-meth docutils literal notranslate"><span class="pre">ctranslate2.Generator.score_batch()</span></code></a>
 to efficiently score an arbitrarily large stream of data. It enables
 the following optimizations:</p>
@@ -398,7 +398,7 @@ the following optimizations:</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>tokens</strong> – An iterable on tokens.</p></li>
+<li><p><strong>tokens</strong> – An iterable of tokenized examples.</p></li>
 <li><p><strong>max_batch_size</strong> – The maximum batch size.</p></li>
 <li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
 <li><p><strong>**kwargs</strong> – Any score options accepted by

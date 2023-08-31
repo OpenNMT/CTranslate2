@@ -11,6 +11,7 @@ GenerationStepResult
     **Attributes:**
 
     - :obj:`~ctranslate2.GenerationStepResult.batch_id`
+    - :obj:`~ctranslate2.GenerationStepResult.hypothesis_id`
     - :obj:`~ctranslate2.GenerationStepResult.is_last`
     - :obj:`~ctranslate2.GenerationStepResult.log_prob`
     - :obj:`~ctranslate2.GenerationStepResult.step`

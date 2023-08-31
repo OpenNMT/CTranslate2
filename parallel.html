@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Multithreading and parallelism &mdash; CTranslate2 3.18.0 documentation</title>
+  <title>Multithreading and parallelism &mdash; CTranslate2 3.19.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.18
+                3.19
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -60,7 +60,9 @@
 <li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
 <li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Multithreading and parallelism</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="#parallel-execution">Parallel execution</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#intra-op-multithreading-on-cpu">Intra-op multithreading on CPU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#data-parallelism">Data parallelism</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-and-tensor-parallelism">Model and tensor parallelism</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#asynchronous-execution">Asynchronous execution</a></li>
 </ul>
 </li>
@@ -113,30 +115,30 @@
              
   <section id="multithreading-and-parallelism">
 <h1>Multithreading and parallelism<a class="headerlink" href="#multithreading-and-parallelism" title="Permalink to this headline"></a></h1>
-<p>CTranslate2 has 2 levels of parallelization:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> which is the maximum number of batches executed in parallel.<br/><strong>=&gt; Increase this value to increase the throughput.</strong></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> which is the number of computation threads that is used per batch.<br/><strong>=&gt; Increase this value to decrease the latency on CPU.</strong></p></li>
-</ul>
-<p>The total number of computing threads launched by the process is <code class="docutils literal notranslate"><span class="pre">inter_threads</span> <span class="pre">*</span> <span class="pre">intra_threads</span></code>.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>Even though the model data are shared between parallel replicas, increasing <code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> will still increase the memory usage as some internal buffers are duplicated for thread safety.</p>
+<section id="intra-op-multithreading-on-cpu">
+<h2>Intra-op multithreading on CPU<a class="headerlink" href="#intra-op-multithreading-on-cpu" title="Permalink to this headline"></a></h2>
+<p>Most model operations (matmul, softmax, etc.) are using multiple threads on CPU. The number of threads can be configured with the parameter <code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> (the default value is 4):</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">intra_threads</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
+</pre></div>
 </div>
-<p>On GPU, batches processed in parallel are using separate CUDA streams. Depending on the workload and GPU specifications this may or may not improve the global throughput. For better parallelism on GPU, consider using multiple GPUs as described below.</p>
-<section id="parallel-execution">
-<h2>Parallel execution<a class="headerlink" href="#parallel-execution" title="Permalink to this headline"></a></h2>
+<p>This multithreading is generally implemented with <a class="reference external" href="https://www.openmp.org/">OpenMP</a> so the threads behavior can also be customized with the different <code class="docutils literal notranslate"><span class="pre">OMP_*</span></code> environment variables.</p>
+<p>When OpenMP is disabled (which is the case for example in the Python ARM64 wheels for macOS), the multithreading is implemented with <a class="reference external" href="https://github.com/bshoshany/thread-pool"><code class="docutils literal notranslate"><span class="pre">BS::thread_pool</span></code></a>.</p>
+</section>
+<section id="data-parallelism">
+<h2>Data parallelism<a class="headerlink" href="#data-parallelism" title="Permalink to this headline"></a></h2>
 <p>Objects running models such as the <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> and <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> can be configured to process multiple batches in parallel, including on multiple GPUs:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a CPU translator with 4 workers each using 1 thread:</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a CPU translator with 4 workers each using 1 intra-op thread:</span>
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">inter_threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">intra_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 
 <span class="c1"># Create a GPU translator with 4 workers each running on a separate GPU:</span>
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span> <span class="n">device_index</span><span class="o">=</span><span class="p">[</span><span class="mi">0</span><span class="p">,</span> <span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="mi">3</span><span class="p">])</span>
 
 <span class="c1"># Create a GPU translator with 4 workers each using a different CUDA stream:</span>
+<span class="c1"># (Note: depending on the workload and GPU specifications this may not improve the global throughput.)</span>
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span> <span class="n">inter_threads</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 </pre></div>
 </div>
+<p>When the workers are running on the same device, the model weights are shared to save on memory.</p>
 <p>Multiple batches should be submitted concurrently to enable this parallelization. Parallel executions are enabled in the following cases:</p>
 <ul class="simple">
 <li><p>When calling methods from multiple Python threads.</p></li>
@@ -148,6 +150,10 @@
 <p class="admonition-title">Note</p>
 <p>Parallelization with multiple Python threads is possible because all computation methods release the <a class="reference external" href="https://wiki.python.org/moin/GlobalInterpreterLock">Python GIL</a>.</p>
 </div>
+</section>
+<section id="model-and-tensor-parallelism">
+<h2>Model and tensor parallelism<a class="headerlink" href="#model-and-tensor-parallelism" title="Permalink to this headline"></a></h2>
+<p>These types of parallelism are not yet implemented in CTranslate2.</p>
 </section>
 <section id="asynchronous-execution">
 <h2>Asynchronous execution<a class="headerlink" href="#asynchronous-execution" title="Permalink to this headline"></a></h2>
