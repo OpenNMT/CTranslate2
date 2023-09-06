@@ -487,15 +487,16 @@ def _generate_tokens(process_func, *args, **kwargs):
                 result.result()
         except Exception as e:
             step_results.put(e)
+        step_results.put(None)
         generation_done.set()
 
     thread = threading.Thread(target=_catch_exception, daemon=True)
     thread.start()
 
     while not step_results.empty() or not generation_done.is_set():
-        try:
-            step_result = step_results.get_nowait()
-        except queue.Empty:
+        step_result = step_results.wait()
+
+        if step_result is None:
             continue
 
         if isinstance(step_result, Exception):
