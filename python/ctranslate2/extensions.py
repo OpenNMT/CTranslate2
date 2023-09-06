@@ -494,7 +494,7 @@ def _generate_tokens(process_func, *args, **kwargs):
     thread.start()
 
     while not step_results.empty() or not generation_done.is_set():
-        step_result = step_results.wait()
+        step_result = step_results.get()
 
         if step_result is None:
             continue
