@@ -93,6 +93,7 @@ namespace ctranslate2 {
     size_t step;
     size_t batch_id;
     size_t token_id;
+    size_t hypothesis_id;
     std::string token;
     std::optional<float> log_prob;
     bool is_last;
@@ -102,12 +103,29 @@ namespace ctranslate2 {
       : step(result.step)
       , batch_id(result.batch_id)
       , token_id(result.token_id)
+      , hypothesis_id(result.hypothesis_id)
       , token(vocabulary.to_token(result.token_id))
       , log_prob(result.log_prob)
       , is_last(result.is_last)
     {
     }
   };
+
+  template <typename Options>
+  Options restore_batch_ids_in_callback(Options options, const std::vector<size_t>& example_index) {
+    if (options.callback) {
+      std::function<bool(GenerationStepResult)> wrapped_callback =
+        [&example_index, callback = std::move(options.callback)]
+        (GenerationStepResult step_result) {
+          step_result.batch_id = example_index[step_result.batch_id];
+          return callback(std::move(step_result));
+        };
+
+      options.callback = std::move(wrapped_callback);
+    }
+
+    return options;
+  }
 
   class ResolveEndToken {
   private:

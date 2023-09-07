@@ -1,6 +1,10 @@
 # Decoding features
 
-This page describes CTranslate2 decoding features. The text translation API is used for demonstration but most features are also available for text generation.
+This page describes CTranslate2 decoding features.
+
+```{note}
+The text translation API is used for demonstration but most features are also available for text generation.
+```
 
 The examples use the following symbols that are left unspecified:
 
@@ -60,7 +64,7 @@ By default, the input is truncated after 1024 tokens to limit the maximum memory
 
 ## Autocompletion
 
-The `target_prefix` argument can be used to force the start of the translation. Let's say we want to replace the first occurence of `die` by `das` in the translation:
+The `target_prefix` argument can be used to force the start of the translation. Let's say we want to replace the first occurrence of `die` by `das` in the translation:
 
 ```python
 results = translator.translate_batch(

@@ -167,8 +167,8 @@ namespace ctranslate2 {
                    device: Device to use (possible values are: cpu, cuda, auto).
                    device_index: Device IDs where to place this model on.
                    compute_type: Model computation type or a dictionary mapping a device name
-                     to the computation type (possible values are: default, auto, int8, int8_float16,
-                     int8_bfloat16, int16, float16, bfloat16, float32).
+                     to the computation type (possible values are: default, auto, int8, int8_float32,
+                     int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
                    inter_threads: Number of workers to allow executing multiple batches in parallel.
                    intra_threads: Number of OpenMP threads per worker (0 to use a default value).
                    max_queued_batches: Maximum numbers of batches in the worker queue (-1 for unlimited,
@@ -183,6 +183,8 @@ namespace ctranslate2 {
                                "Device this model is running on.")
         .def_property_readonly("device_index", &WhisperWrapper::device_index,
                                "List of device IDs where this model is running on.")
+        .def_property_readonly("compute_type", &WhisperWrapper::compute_type,
+                               "Computation type used by the model.")
         .def_property_readonly("num_workers", &WhisperWrapper::num_replicas,
                                "Number of model workers backing this instance.")
         .def_property_readonly("num_queued_batches", &WhisperWrapper::num_queued_batches,
@@ -199,7 +201,7 @@ namespace ctranslate2 {
 
                  Arguments:
                    features: Mel spectogram of the audio, as a float array with shape
-                     ``[batch_size, 80, 3000]``.
+                     ``[batch_size, 80, chunk_length]``.
                    to_cpu: Copy the encoder output to the CPU before returning the value.
 
                  Returns:
@@ -231,9 +233,9 @@ namespace ctranslate2 {
 
                  Arguments:
                    features: Mel spectogram of the audio, as a float array with shape
-                     ``[batch_size, 80, 3000]``. This method also accepts the encoded features
-                     returned by the method :meth:`ctranslate2.models.Whisper.encode`, which
-                     have shape ``[batch_size, 1500, d_model]``.
+                     ``[batch_size, 80, chunk_length]``. This method also accepts the encoded
+                     features returned by the method :meth:`ctranslate2.models.Whisper.encode`,
+                     which have shape ``[batch_size, chunk_length // 2, d_model]``.
                    prompts: Batch of initial string tokens or token IDs.
                    asynchronous: Run the model asynchronously.
                    beam_size: Beam size (1 for greedy search).
@@ -269,9 +271,9 @@ namespace ctranslate2 {
 
                  Arguments:
                    features: Mel spectogram of the audio, as a float array with shape
-                     ``[batch_size, 80, 3000]``. This method also accepts the encoded features
-                     returned by the method :meth:`ctranslate2.models.Whisper.encode`, which
-                     have shape ``[batch_size, 1500, d_model]``.
+                     ``[batch_size, 80, chunk_length]``. This method also accepts the encoded
+                     features returned by the method :meth:`ctranslate2.models.Whisper.encode`,
+                     which have shape ``[batch_size, chunk_length // 2, d_model]``.
 
                  Returns:
                    For each batch, a list of pairs (language, probability) ordered from
@@ -294,9 +296,9 @@ namespace ctranslate2 {
 
                  Arguments:
                    features: Mel spectogram of the audio, as a float array with shape
-                     ``[batch_size, 80, 3000]``. This method also accepts the encoded features
-                     returned by the method :meth:`ctranslate2.models.Whisper.encode`, which
-                     have shape ``[batch_size, 1500, d_model]``.
+                     ``[batch_size, 80, chunk_length]``. This method also accepts the encoded
+                     features returned by the method :meth:`ctranslate2.models.Whisper.encode`,
+                     which have shape ``[batch_size, chunk_length // 2, d_model]``.
                    start_sequence: The start sequence tokens.
                    text_tokens: Batch of text tokens to align.
                    num_frames: Number of non padding frames in the features.

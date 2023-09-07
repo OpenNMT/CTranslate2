@@ -53,8 +53,8 @@ if output_ids:
 If you `break` out of the loop, the generation will still run to completion in the background. To stop the generation early you should close the generator, for example using `step_results.close()`.
 ```
 
-```{tip}
-To implement a similar mechanism for batch generation, you can use the arguments `callback` and `include_prompt_in_result=False` in the method `generate_batch`. This is what `generate_tokens` use internally.
+```{seealso}
+The `callback` argument in the method `generate_batch` which can also be used to implement token streaming. This is what `generate_tokens` use internally.
 ```
 
 ```{seealso}
@@ -97,10 +97,6 @@ step_results = generator.generate_tokens(
 
 ```{note}
 At this time the cache size is unlimited and the cache is only cleared when the model is unloaded. Also if the model is loaded on multiple GPUs, each model replica manages its own cache to avoid copying the state between devices.
-```
-
-```{seealso}
-The example [Chat with Llama 2](https://github.com/OpenNMT/CTranslate2/tree/master/examples/llama2) which caches the system prompt in an interactive chat session.
 ```
 
 ## Special tokens

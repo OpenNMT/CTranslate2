@@ -6,11 +6,15 @@ def fuse_linear(spec, layers):
         raise ValueError("Cannot fuse linear layers: at least one layer is required")
 
     if isinstance(layers[0].weight, np.ndarray):
-        np_api = np
+        concatenate = np.concatenate
+        zeros = np.zeros
     else:
-        import torch as np_api
+        import torch
 
-    spec.weight = np_api.concatenate([layer.weight for layer in layers])
+        concatenate = torch.cat
+        zeros = torch.zeros
+
+    spec.weight = concatenate([layer.weight for layer in layers])
 
     bias_dtype = None
     for layer in layers:
@@ -19,11 +23,11 @@ def fuse_linear(spec, layers):
             break
 
     if bias_dtype is not None:
-        spec.bias = np_api.concatenate(
+        spec.bias = concatenate(
             [
                 layer.bias
                 if layer.has_bias()
-                else np_api.zeros([layer.weight.shape[0]], dtype=bias_dtype)
+                else zeros([layer.weight.shape[0]], dtype=bias_dtype)
                 for layer in layers
             ]
         )

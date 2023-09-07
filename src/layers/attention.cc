@@ -10,20 +10,18 @@
 namespace ctranslate2 {
   namespace layers {
 
-    StorageView make_relative_positions(dim_t length, dim_t max_position, bool with_cache) {
-      StorageView positions({with_cache ? 1 : length, length}, DataType::INT32);
+    StorageView make_relative_positions(dim_t queries_length,
+                                        dim_t keys_length,
+                                        dim_t max_position) {
+      StorageView positions({queries_length, keys_length}, DataType::INT32);
       auto* positions_data = positions.data<int32_t>();
 
-      if (with_cache) {
-        for (dim_t i = 0; i < length; ++i) {
-          positions_data[i] = std::max(i - length + 1, -max_position) + max_position;
-        }
-      } else {
-        for (dim_t i = 0; i < length; ++i) {
-          auto* row = positions_data + i * length;
-          for (dim_t j = 0; j < length; ++j) {
-            row[j] = std::min(std::max(j - i, -max_position), max_position) + max_position;
-          }
+      const dim_t offset = keys_length - queries_length;
+
+      for (dim_t i = 0; i < queries_length; ++i) {
+        auto* row = positions_data + i * keys_length;
+        for (dim_t j = 0; j < keys_length; ++j) {
+          row[j] = std::min(std::max(j - (i + offset), -max_position), max_position) + max_position;
         }
       }
 
@@ -109,7 +107,8 @@ namespace ctranslate2 {
 
     static StorageView build_alibi(dim_t num_heads,
                                    dim_t key_max_length,
-                                   bool use_positive_positions) {
+                                   bool use_positive_positions,
+                                   const float scale) {
       const float closest_power_of_2_f = std::pow(2.f, std::floor(std::log2f(num_heads)));
       const dim_t closest_power_of_2 = closest_power_of_2_f;
 
@@ -138,7 +137,7 @@ namespace ctranslate2 {
       StorageView alibi({1, num_heads, 1, key_max_length});
 
       for (dim_t h = 0; h < num_heads; ++h) {
-        primitives<Device::CPU>::mul(slopes[h],
+        primitives<Device::CPU>::mul(slopes[h] * scale,
                                      positions.data(),
                                      alibi.index<float>({0, h, 0, 0}),
                                      key_max_length);
@@ -219,11 +218,12 @@ namespace ctranslate2 {
 
       std::unique_ptr<const StorageView> relative_positions;
       if (relative_position_keys || relative_position_values) {
-        const dim_t max_time = keys.dim(2);
+        const dim_t query_length = queries.dim(2);
+        const dim_t key_length = keys.dim(2);
         relative_positions = std::make_unique<StorageView>(
-          make_relative_positions(max_time,
-                                  maximum_relative_position,
-                                  with_cache).to(queries.device()));
+          make_relative_positions(query_length,
+                                  key_length,
+                                  maximum_relative_position).to(queries.device()));
       }
 
       const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
@@ -260,7 +260,7 @@ namespace ctranslate2 {
       }
 
       if (alibi)
-        alibi->apply(output);
+        alibi->apply(output, queries_scale);
 
       StorageView attn(values.dtype(), values.device());
       ops::SoftMax()(output, values_lengths, values_offsets, attn);
@@ -354,7 +354,18 @@ namespace ctranslate2 {
         return nullptr;
 
       const bool interleave = model.get_flag_with_default(scope + "/rotary_interleave", true);
-      return std::make_unique<RotaryEmbeddings>(rotary_dim, interleave);
+      const float base = model.get_attribute_with_default<float>(scope + "/rotary_base", 10000.f);
+
+      const auto scaling_type = model.get_enum_value<RotaryScalingType>(
+        scope + "/rotary_scaling_type", -1);
+      const auto scaling_factor = model.get_attribute_with_default<float>(
+        scope + "/rotary_scaling_factor", 1.f);
+
+      return std::make_unique<RotaryEmbeddings>(rotary_dim,
+                                                interleave,
+                                                scaling_type,
+                                                scaling_factor,
+                                                base);
     }
 
 
@@ -385,7 +396,11 @@ namespace ctranslate2 {
                       ? 1
                       : model.get_attribute_with_default<int32_t>(scope + "/num_heads_kv",
                                                                   _num_heads))
-      , _cache_time_dim(_num_heads_kv == 1 ? 1 : 2)
+      , _merge_time_and_head_dims(_num_heads_kv == 1
+                                  && !_relative_attention_bias
+                                  && !_relative_position_keys
+                                  && !_relative_position_values)
+      , _cache_time_dim(_merge_time_and_head_dims ? 1 : 2)
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
@@ -475,7 +490,7 @@ namespace ctranslate2 {
           const ops::Split split_op(2, {_d_model, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
           split_op(fused_proj, queries_proj, keys_proj, values_proj);
 
-          if (_num_heads_kv == 1) {
+          if (_merge_time_and_head_dims) {
             queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
           } else {
             split_heads(queries_proj, _num_heads);
@@ -496,7 +511,7 @@ namespace ctranslate2 {
                                 ? cached_keys->dim(_cache_time_dim)
                                 : 0);
 
-          if (_num_heads_kv == 1) {
+          if (_merge_time_and_head_dims) {
             queries_proj.reshape({queries_proj.dim(0), -1, _d_model});
             split_heads(queries_proj, _num_heads);
           }
@@ -504,7 +519,7 @@ namespace ctranslate2 {
           _rotary_embeddings->apply(queries_proj, offset);
           _rotary_embeddings->apply(keys_proj, offset);
 
-          if (_num_heads_kv == 1) {
+          if (_merge_time_and_head_dims) {
             combine_heads(queries_proj, _num_heads);
             queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
           }
@@ -550,7 +565,7 @@ namespace ctranslate2 {
                             _alibi,
                             position_bias);
 
-      if (_num_heads_kv == 1) {
+      if (_merge_time_and_head_dims) {
         context.reshape(queries.shape());
         if (queries_padder)
           queries_padder->remove_padding(context);
@@ -611,12 +626,16 @@ namespace ctranslate2 {
 
     RotaryEmbeddings::RotaryEmbeddings(const dim_t dim,
                                        const bool interleave,
-                                       const dim_t num_initial_positions,
-                                       const float base)
+                                       const RotaryScalingType scaling_type,
+                                       const float scaling_factor,
+                                       const float base,
+                                       const dim_t num_initial_positions)
       : _dim(dim)
       , _interleave(interleave)
-      , _num_initial_positions(num_initial_positions)
+      , _scaling_type(scaling_type)
+      , _scaling_factor(scaling_factor)
       , _base(base)
+      , _num_initial_positions(num_initial_positions)
       , _rotary_op(dim, interleave)
     {
     }
@@ -658,7 +677,7 @@ namespace ctranslate2 {
 
       StorageView t({num_positions, 1});
       for (dim_t i = 0; i < t.size(); ++i)
-        t.at<float>(i) = i;
+        t.at<float>(i) = _scaling_type == RotaryScalingType::None ? i : float(i) / _scaling_factor;
       if (t.device() != device)
         t = t.to(device);
 
@@ -690,21 +709,22 @@ namespace ctranslate2 {
     }
 
 
-    Alibi::Alibi(const bool use_positive_positions, const dim_t num_initial_positions)
+    Alibi::Alibi(const bool use_positive_positions, const bool scale_alibi, const dim_t num_initial_positions)
       : _use_positive_positions(use_positive_positions)
       , _num_initial_positions(num_initial_positions)
+      , _scale_alibi(scale_alibi)
       , _alibi_op(use_positive_positions)
     {
     }
 
-    void Alibi::apply(StorageView& x) {
+    void Alibi::apply(StorageView& x, const float scale) {
       const dim_t cur_length = _alibi ? _alibi.dim(-1) : 0;
       const dim_t key_length = x.dim(-1);
 
       if (key_length > cur_length) {
         const dim_t num_heads = x.dim(1);
         const dim_t new_length = cur_length + _num_initial_positions;
-        _alibi = build_alibi(num_heads, new_length, _use_positive_positions);
+        _alibi = build_alibi(num_heads, new_length, _use_positive_positions, _scale_alibi ? scale : 1);
         _alibi.move_to(x.device(), x.dtype());
       }
 

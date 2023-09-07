@@ -1,3 +1,4 @@
+import collections
 import inspect
 import io
 import logging
@@ -68,6 +69,7 @@ def test_get_supported_compute_types():
     compute_types = ctranslate2.get_supported_compute_types("cpu")
     assert "float32" in compute_types
     assert "int8" in compute_types
+    assert "int8_float32" in compute_types
 
 
 def test_translator_properties():
@@ -85,8 +87,14 @@ def test_compute_type():
         ctranslate2.Translator(model_path, compute_type="float64")
     with pytest.raises(TypeError, match="incompatible constructor arguments"):
         ctranslate2.Translator(model_path, compute_type=["int8", "int16"])
-    ctranslate2.Translator(model_path, compute_type="int8")
-    ctranslate2.Translator(model_path, compute_type={"cuda": "float16", "cpu": "int8"})
+
+    translator = ctranslate2.Translator(model_path, compute_type="int8")
+    assert translator.compute_type == "int8_float32"
+
+    translator = ctranslate2.Translator(
+        model_path, compute_type={"cuda": "float16", "cpu": "int8"}
+    )
+    assert translator.compute_type == "int8_float32"
 
 
 @pytest.mark.parametrize("max_batch_size", [0, 1])
@@ -198,6 +206,56 @@ def test_token_streaming_exception():
 
     with pytest.raises(ValueError, match="decoding length"):
         step_results = list(step_results)
+
+
+def test_callback_hypothesis_id():
+    hypotheses = collections.defaultdict(list)
+
+    def _callback(step_result):
+        assert step_result.batch_id == 0
+        hypotheses[step_result.hypothesis_id].append(step_result.token)
+
+    source = ["آ", "ت", "ز", "م", "و", "ن"]
+    translator = _get_transliterator()
+    translator.translate_batch(
+        [source],
+        beam_size=1,
+        sampling_topk=20,
+        num_hypotheses=3,
+        callback=_callback,
+    )
+
+    assert len(hypotheses) == 3
+
+
+def test_callback_batch_id():
+    # The method will internally sort the input from longest to shortest,
+    # but we check that the returned batch ids match the user input.
+
+    source = [
+        ["ن"] * 1,
+        ["ن"] * 2,
+        ["ن"] * 3,
+    ]
+
+    target_prefix = [
+        ["a"],
+        ["b"],
+        ["c"],
+    ]
+
+    def _callback(step_result):
+        assert step_result.token == target_prefix[step_result.batch_id][0]
+        return True
+
+    translator = _get_transliterator()
+    translator.translate_batch(
+        source,
+        target_prefix,
+        max_batch_size=2,
+        beam_size=1,
+        callback=_callback,
+    )
 
 
 def test_file_translation(tmp_dir):

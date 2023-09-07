@@ -1,7 +1,5 @@
 #pragma once
 
-// Operators following ONNX specifications.
-
 #include "add.h"
 #include "bias_add.h"
 #include "concat.h"
@@ -19,7 +17,6 @@
 #include "multinomial.h"
 #include "quantize.h"
 #include "relu.h"
-#include "reshape.h"
 #include "sin.h"
 #include "softmax.h"
 #include "split.h"

@@ -90,8 +90,12 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         rms_norm: bool = False,
         alibi: bool = False,
         alibi_use_positive_positions: bool = False,
+        scale_alibi: bool = False,
         rotary_dim: Optional[int] = None,
         rotary_interleave: bool = True,
+        rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
+        rotary_scaling_factor: float = 1,
+        rotary_base: float = 10000,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
@@ -120,10 +124,14 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           rms_norm: Use the root mean square layer normalization.
           alibi: Use attention with linear biases.
           alibi_use_positive_positions: Use positive positions in the ALiBi definition.
+          scale_alibi: Apply the dot product scale factor to ALiBi.
           rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
             embeddings are applied to all dimensions.
           rotary_interleave: Interleave the head dimensions when rotary embeddings are applied.
             Otherwise the head dimensions are sliced in half.
+          rotary_scaling_type: Type of RoPE scaling.
+          rotary_scaling_factor: Factor used in the RoPE scaling.
+          rotary_base: The base period of the rotary embeddings.
           parallel_residual: Use parallel residual connections in each layer block, as used
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
@@ -160,6 +168,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         self.scale_outputs = model_spec.OPTIONAL
         self.alibi = alibi
         self.alibi_use_positive_positions = alibi_use_positive_positions
+        self.scale_alibi = scale_alibi
         if (
             not relative_position
             and not relative_attention_bias
@@ -181,6 +190,9 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 rms_norm=rms_norm,
                 rotary_dim=rotary_dim,
                 rotary_interleave=rotary_interleave,
+                rotary_scaling_type=rotary_scaling_type,
+                rotary_scaling_factor=rotary_scaling_factor,
+                rotary_base=rotary_base,
                 parallel_residual=parallel_residual,
                 shared_layer_norm=shared_layer_norm,
                 num_heads_kv=num_heads_kv,
@@ -223,6 +235,9 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         rms_norm=False,
         rotary_dim=None,
         rotary_interleave=True,
+        rotary_scaling_type=None,
+        rotary_scaling_factor=1,
+        rotary_base=10000,
         parallel_residual=False,
         shared_layer_norm=False,
         num_heads_kv=None,
@@ -234,6 +249,9 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             rms_norm=rms_norm,
             rotary_dim=rotary_dim,
             rotary_interleave=rotary_interleave,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=rotary_base,
             num_heads_kv=num_heads_kv,
         )
 
@@ -451,8 +469,12 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         rms_norm: bool = False,
         alibi: bool = False,
         alibi_use_positive_positions: bool = False,
+        scale_alibi: bool = False,
         rotary_dim: Optional[int] = None,
         rotary_interleave: bool = True,
+        rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
+        rotary_scaling_factor: float = 1,
+        rotary_base: float = 10000,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
@@ -475,10 +497,14 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
           rms_norm: Use the root mean square layer normalization.
           alibi: Use attention with linear biases.
           alibi_use_positive_positions: Use positive positions in the ALiBi definition.
+          scale_alibi: Apply the dot product scale factor to ALiBi.
           rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
             embeddings are applied to all dimensions.
           rotary_interleave: Interleave the head dimensions when rotary embeddings are applied.
             Otherwise the head dimensions are sliced in half.
+          rotary_scaling_type: Type of RoPE scaling.
+          rotary_scaling_factor: Factor used in the RoPE scaling.
+          rotary_base: The base period of the rotary embeddings.
           parallel_residual: Use parallel residual connections in each layer block, as used
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
@@ -500,8 +526,12 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             rms_norm=rms_norm,
             alibi=alibi,
             alibi_use_positive_positions=alibi_use_positive_positions,
+            scale_alibi=scale_alibi,
             rotary_dim=rotary_dim,
             rotary_interleave=rotary_interleave,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=rotary_base,
             parallel_residual=parallel_residual,
             shared_layer_norm=shared_layer_norm,
             multi_query_attention=multi_query_attention,
@@ -516,7 +546,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
     @property
     def revision(self):
-        return 7
+        return 8
 
     def get_default_config(self):
         return TransformerDecoderModelConfig()

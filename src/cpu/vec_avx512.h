@@ -34,6 +34,18 @@ namespace ctranslate2 {
         return _mm512_mask_loadu_ps(padding, mask, ptr);
       }
 
+      static inline value_type load_and_convert(const int32_t* ptr) {
+        return _mm512_cvtepi32_ps(_mm512_loadu_si512(ptr));
+      }
+
+      static inline value_type load_and_convert(const int32_t* ptr,
+                                                dim_t count,
+                                                int32_t default_value = 0) {
+        auto padding = _mm512_set1_epi32(default_value);
+        mask_type mask = get_length_mask(count);
+        return _mm512_cvtepi32_ps(_mm512_mask_loadu_epi32(padding, mask, ptr));
+      }
+
       static inline void store(value_type value, float* ptr) {
         _mm512_storeu_ps(ptr, value);
       }
@@ -52,7 +64,7 @@ namespace ctranslate2 {
       }
 
       static inline mask_type lt(value_type a, value_type b) {
-        return _mm512_cmplt_ps_mask(a, b);
+        return _mm512_cmp_ps_mask(a, b, _CMP_LT_OS);
       }
 
       static inline value_type select(mask_type mask, value_type a, value_type b) {

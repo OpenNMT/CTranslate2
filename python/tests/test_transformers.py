@@ -228,6 +228,18 @@ def test_transformers_generation(
 
 
 @test_utils.only_on_linux
+def test_transformers_dtype(clear_transformers_cache, tmp_dir):
+    converter = ctranslate2.converters.TransformersConverter("facebook/opt-350m")
+    output_dir = str(tmp_dir.join("ctranslate2_model"))
+    output_dir = converter.convert(output_dir)
+
+    model_b = os.path.getsize(os.path.join(output_dir, "model.bin"))
+    model_mb = model_b / (1000**2)
+
+    assert model_mb < 700
+
+
+@test_utils.only_on_linux
 def test_transformers_marianmt_vocabulary(clear_transformers_cache, tmp_dir):
     converter = ctranslate2.converters.TransformersConverter(
         "Helsinki-NLP/opus-mt-en-de"
@@ -257,6 +269,55 @@ def test_transformers_marianmt_disable_unk(
     translator = ctranslate2.Translator(output_dir)
     output = translator.translate_batch([tokens], beam_size=beam_size, disable_unk=True)
     assert "<unk>" not in output[0].hypotheses[0]
+
+
+@test_utils.only_on_linux
+@test_utils.on_available_devices
+@pytest.mark.parametrize(
+    "model_name",
+    [
+        "distilbert-base-uncased",
+        "distilbert-base-cased-distilled-squad",
+        "typeform/distilbert-base-uncased-mnli",
+    ],
+)
+def test_transformers_distilbert(clear_transformers_cache, tmp_dir, device, model_name):
+    import torch
+    import transformers
+
+    text = ["Hello world!", "Hello, my dog is cute"]
+
+    model = transformers.DistilBertModel.from_pretrained(model_name)
+    tokenizer = transformers.DistilBertTokenizer.from_pretrained(model_name)
+
+    inputs = tokenizer(text, return_tensors="pt", padding=True)
+
+    inputs.to(device)
+    model.to(device)
+
+    with torch.no_grad():
+        outputs = model(**inputs)
+
+    mask = inputs.attention_mask.unsqueeze(-1).cpu().numpy()
+    ref_last_hidden_state = outputs.last_hidden_state.cpu().numpy()
+
+    converter = ctranslate2.converters.TransformersConverter(model_name)
+    output_dir = str(tmp_dir.join("ctranslate2_model"))
+    output_dir = converter.convert(output_dir)
+
+    encoder = ctranslate2.Encoder(output_dir, device=device)
+
+    ids = [tokenizer(t).input_ids for t in text]
+    outputs = encoder.forward_batch(ids)
+
+    last_hidden_state = _to_numpy(outputs.last_hidden_state, device)
+    assert last_hidden_state.shape == ref_last_hidden_state.shape
+
+    last_hidden_state *= mask
+    ref_last_hidden_state *= mask
+    np.testing.assert_array_almost_equal(
+        last_hidden_state, ref_last_hidden_state, decimal=5
+    )
 
 
 @test_utils.only_on_linux
@@ -909,7 +970,7 @@ class TestWhisper:
         )
 
     @test_utils.only_on_linux
-    def test_transformers_whisper_invalid_shape(self, tmp_dir):
+    def test_transformers_whisper_partial_audio_context(self, tmp_dir):
         import transformers
 
         model_name = "openai/whisper-tiny"
@@ -927,13 +988,9 @@ class TestWhisper:
         features = ctranslate2.StorageView.from_array(inputs.input_features)
 
         model = ctranslate2.models.Whisper(output_dir)
+        encoder_output = model.encode(features)
 
-        with pytest.raises(ValueError) as exception_info:
-            model.detect_language(features)
-
-        error_message = str(exception_info.value)
-        assert "(1, 80, 3000)" in error_message
-        assert "(1, 80, 1100)" in error_message
+        assert encoder_output.shape == [1, features.shape[2] // 2, 384]
 
     @test_utils.only_on_linux
     def test_transformers_whisper_include_tokenizer_json(self, tmp_dir):

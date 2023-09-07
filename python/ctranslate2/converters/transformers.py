@@ -17,7 +17,13 @@ except ImportError:
 
 from ctranslate2.converters import utils
 from ctranslate2.converters.converter import Converter
-from ctranslate2.specs import common_spec, model_spec, transformer_spec, whisper_spec
+from ctranslate2.specs import (
+    attention_spec,
+    common_spec,
+    model_spec,
+    transformer_spec,
+    whisper_spec,
+)
 
 _SUPPORTED_ACTIVATIONS = {
     "gelu": common_spec.Activation.GELU,
@@ -29,6 +35,10 @@ _SUPPORTED_ACTIVATIONS = {
     "relu": common_spec.Activation.RELU,
     "silu": common_spec.Activation.SWISH,
     "swish": common_spec.Activation.SWISH,
+}
+
+_SUPPORTED_ROPE_SCALING = {
+    "linear": attention_spec.RotaryScalingType.Linear,
 }
 
 _MODEL_LOADERS = {}
@@ -102,9 +112,14 @@ class TransformersConverter(Converter):
             model_class = getattr(transformers, loader.architecture_name)
             tokenizer_class = transformers.AutoTokenizer
 
-            kwargs = {}
-            if self._load_as_float16:
-                kwargs["torch_dtype"] = torch.float16
+            kwargs = {
+                "torch_dtype": (
+                    torch.float16
+                    if self._load_as_float16
+                    else getattr(config, "torch_dtype", None)
+                )
+            }
+
             if self._revision:
                 kwargs["revision"] = self._revision
             if self._low_cpu_mem_usage:
@@ -1193,6 +1208,21 @@ class LlamaLoader(ModelLoader):
         if num_heads_kv == num_heads:
             num_heads_kv = None
 
+        rope_scaling = getattr(model.config, "rope_scaling", None)
+        if rope_scaling:
+            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_scaling["type"])
+            rotary_scaling_factor = rope_scaling["factor"]
+
+            if rotary_scaling_type is None:
+                raise NotImplementedError(
+                    "RoPE scaling type '%s' is not yet implemented. "
+                    "The following RoPE scaling types are currently supported: %s"
+                    % (rope_scaling["type"], ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
+                )
+        else:
+            rotary_scaling_type = None
+            rotary_scaling_factor = 1
+
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
             num_layers,
             num_heads,
@@ -1202,12 +1232,24 @@ class LlamaLoader(ModelLoader):
             rms_norm=True,
             rotary_dim=0,
             rotary_interleave=False,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=getattr(model.config, "rope_theta", 10000),
             num_heads_kv=num_heads_kv,
         )
 
         self.set_decoder(spec.decoder, model.model)
         self.set_linear(spec.decoder.projection, model.lm_head)
         return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+
+        return tokens
 
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
@@ -1257,20 +1299,29 @@ class RWLoader(ModelLoader):
     def architecture_name(self):
         return "AutoModelForCausalLM"
 
+    def get_falcon_spec(self, model):
+        self._num_layers = model.config.n_layer
+        self._num_heads = model.config.n_head
+        self._num_heads_kv = getattr(model.config, "n_head_kv", None)
+        self._num_kv_attr = "num_kv"
+
     def get_model_spec(self, model):
+        self.get_falcon_spec(model)
+
         if getattr(model.config, "multi_query", False):
             num_heads_kv = 1
         else:
-            num_heads_kv = getattr(model.config, "n_head_kv", None)
+            num_heads_kv = self._num_heads_kv
 
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
-            model.config.n_layer,
-            model.config.n_head,
+            self._num_layers,
+            self._num_heads,
             pre_norm=True,
             activation=common_spec.Activation.GELU,
             alibi=model.config.alibi,
             alibi_use_positive_positions=True,
-            rotary_dim=0,
+            scale_alibi=True,
+            rotary_dim=0 if model.config.rotary else None,
             rotary_interleave=False,
             parallel_residual=model.config.parallel_attn,
             shared_layer_norm=num_heads_kv == 1,
@@ -1317,7 +1368,8 @@ class RWLoader(ModelLoader):
                     layer_spec.ffn.layer_norm, layer.post_attention_layernorm
                 )
 
-            if layer.self_attention.num_kv == 1:
+            num_kv = getattr(layer.self_attention, self._num_kv_attr)
+            if num_kv == 1:
                 self.set_linear(
                     layer_spec.self_attention.linear[0],
                     layer.self_attention.query_key_value,
@@ -1327,9 +1379,7 @@ class RWLoader(ModelLoader):
                     layer_spec.self_attention.linear[0],
                     layer.self_attention.query_key_value,
                     layer.self_attention.num_heads,
-                    layer.self_attention.num_kv
-                    if layer.self_attention.num_kv < layer.self_attention.num_heads
-                    else None,
+                    num_kv if num_kv < layer.self_attention.num_heads else None,
                 )
 
             self.set_linear(
@@ -1381,6 +1431,73 @@ class RWLoader(ModelLoader):
                 )
 
             spec.bias = bias
+
+
+@register_loader("FalconConfig")
+class FalconLoader(RWLoader):
+    def get_falcon_spec(self, model):
+        self._num_layers = model.config.num_hidden_layers
+        self._num_heads = model.config.num_attention_heads
+        self._num_heads_kv = getattr(model.config, "num_kv_heads", None)
+        self._num_kv_attr = "num_kv_heads"
+
+
+@register_loader("DistilBertConfig")
+class DistilBertLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "DistilBertModel"
+
+    def get_model_spec(self, model):
+        encoder_spec = transformer_spec.TransformerEncoderSpec(
+            model.config.n_layers,
+            model.config.n_heads,
+            pre_norm=False,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.activation],
+            layernorm_embedding=True,
+        )
+        spec = transformer_spec.TransformerEncoderModelSpec(
+            encoder_spec,
+        )
+
+        spec.encoder.scale_embeddings = False
+
+        self.set_embeddings(
+            spec.encoder.embeddings[0], model.embeddings.word_embeddings
+        )
+        self.set_position_encodings(
+            spec.encoder.position_encodings, model.embeddings.position_embeddings
+        )
+        self.set_layer_norm(
+            spec.encoder.layernorm_embedding, model.embeddings.LayerNorm
+        )
+
+        for layer_spec, layer in zip(spec.encoder.layer, model.transformer.layer):
+            split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(split_layers[0], layer.attention.q_lin)
+            self.set_linear(split_layers[1], layer.attention.k_lin)
+            self.set_linear(split_layers[2], layer.attention.v_lin)
+            utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+
+            self.set_linear(
+                layer_spec.self_attention.linear[1], layer.attention.out_lin
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm, layer.sa_layer_norm
+            )
+
+            self.set_linear(layer_spec.ffn.linear_0, layer.ffn.lin1)
+            self.set_linear(layer_spec.ffn.linear_1, layer.ffn.lin2)
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.output_layer_norm)
+
+        return spec
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.unk_token = tokenizer.unk_token
+        config.layer_norm_epsilon = 1e-12
 
 
 @register_loader("BertConfig")

@@ -1,9 +1,10 @@
+import asyncio
 import collections
 import itertools
 import queue
 import threading
 
-from typing import Iterable, List, Optional, Union
+from typing import AsyncIterable, Iterable, List, Optional, Union
 
 from ctranslate2._ext import (
     GenerationResult,
@@ -23,6 +24,7 @@ def register_extensions():
     setattr(Generator, "generate_iterable", generator_generate_iterable)
     setattr(Generator, "score_iterable", generator_score_iterable)
     setattr(Generator, "generate_tokens", generator_generate_tokens)
+    setattr(Generator, "async_generate_tokens", generator_async_generate_tokens)
 
 
 def translator_translate_iterable(
@@ -33,7 +35,7 @@ def translator_translate_iterable(
     batch_type: str = "examples",
     **kwargs,
 ) -> Iterable[TranslationResult]:
-    """Translates an iterable of tokens.
+    """Translates an iterable of tokenized examples.
 
     This method is built on top of :meth:`ctranslate2.Translator.translate_batch`
     to efficiently translate an arbitrarily large stream of data. It enables the
@@ -45,8 +47,8 @@ def translator_translate_iterable(
     * local sorting by length
 
     Arguments:
-      source: An iterable on source tokens.
-      target_prefix: An optional iterable on target tokens used as prefix.
+      source: An iterable of tokenized source examples.
+      target_prefix: An optional iterable of tokenized target prefixes.
       max_batch_size: The maximum batch size.
       batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
       **kwargs: Any translation options accepted by
@@ -54,6 +56,24 @@ def translator_translate_iterable(
 
     Returns:
       A generator iterator over :class:`ctranslate2.TranslationResult` instances.
+
+    Example:
+      This method can be used to efficiently translate text files:
+
+      .. code-block:: python
+
+          # Replace by your own tokenization and detokenization functions.
+          tokenize_fn = lambda line: line.strip().split()
+          detokenize_fn = lambda tokens: " ".join(tokens)
+
+          with open("input.txt") as input_file:
+              source = map(tokenize_fn, input_file)
+              results = translator.translate_iterable(source, max_batch_size=64)
+
+              for result in results:
+                  tokens = result.hypotheses[0]
+                  target = detokenize_fn(tokens)
+                  print(target)
     """
     iterables = [source]
     if target_prefix is not None:
@@ -76,7 +96,7 @@ def translator_score_iterable(
     batch_type: str = "examples",
     **kwargs,
 ) -> Iterable[ScoringResult]:
-    """Scores an iterable of tokens.
+    """Scores an iterable of tokenized examples.
 
     This method is built on top of :meth:`ctranslate2.Translator.score_batch`
     to efficiently score an arbitrarily large stream of data. It enables the
@@ -88,8 +108,8 @@ def translator_score_iterable(
     * local sorting by length
 
     Arguments:
-      source: An iterable on source tokens.
-      target: An iterable on target tokens.
+      source: An iterable of tokenized source examples.
+      target: An iterable of tokenized target examples.
       max_batch_size: The maximum batch size.
       batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
       **kwargs: Any scoring options accepted by
@@ -114,7 +134,7 @@ def generator_generate_iterable(
     batch_type: str = "examples",
     **kwargs,
 ) -> Iterable[GenerationResult]:
-    """Generates from an iterable of start tokens.
+    """Generates from an iterable of tokenized prompts.
 
     This method is built on top of :meth:`ctranslate2.Generator.generate_batch`
     to efficiently run generation on an arbitrarily large stream of data. It enables
@@ -126,7 +146,7 @@ def generator_generate_iterable(
     * local sorting by length
 
     Arguments:
-      start_tokens: An iterable on start tokens.
+      start_tokens: An iterable of tokenized prompts.
       max_batch_size: The maximum batch size.
       batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
       **kwargs: Any generation options accepted by
@@ -151,7 +171,7 @@ def generator_score_iterable(
     batch_type: str = "examples",
     **kwargs,
 ) -> Iterable[ScoringResult]:
-    """Scores an iterable of tokens.
+    """Scores an iterable of tokenized examples.
 
     This method is built on top of :meth:`ctranslate2.Generator.score_batch`
     to efficiently score an arbitrarily large stream of data. It enables
@@ -163,7 +183,7 @@ def generator_score_iterable(
     * local sorting by length
 
     Arguments:
-      tokens: An iterable on tokens.
+      tokens: An iterable of tokenized examples.
       max_batch_size: The maximum batch size.
       batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
       **kwargs: Any score options accepted by
@@ -249,7 +269,9 @@ def translator_generate_tokens(
 
 def generator_generate_tokens(
     generator: Generator,
-    prompt: List[str],
+    prompt: Union[List[str], List[List[str]]],
+    max_batch_size: int = 0,
+    batch_type: str = "examples",
     *,
     max_length: int = 512,
     min_length: int = 0,
@@ -268,7 +290,10 @@ def generator_generate_tokens(
     """Yields tokens as they are generated by the model.
 
     Arguments:
-      prompt: The prompt tokens.
+      prompt: Batch of start tokens. If the decoder starts from a
+        special start token like <s>, this token should be added to this input.
+      max_batch_size: The maximum batch size.
+      batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
       max_length: Maximum generation length.
       min_length: Minimum generation length.
       sampling_topk: Randomly sample predictions from the top K candidates.
@@ -294,9 +319,13 @@ def generator_generate_tokens(
     Note:
       This generation method is not compatible with beam search which requires a complete decoding.
     """
+    if len(prompt) > 0 and isinstance(prompt[0], str):
+        prompt = [prompt]
     yield from _generate_tokens(
         generator.generate_batch,
-        [prompt],
+        prompt,
+        max_batch_size=max_batch_size,
+        batch_type=batch_type,
         repetition_penalty=repetition_penalty,
         no_repeat_ngram_size=no_repeat_ngram_size,
         disable_unk=disable_unk,
@@ -314,15 +343,129 @@ def generator_generate_tokens(
     )
 
 
+async def generator_async_generate_tokens(
+    generator: Generator,
+    prompt: Union[List[str], List[List[str]]],
+    max_batch_size: int = 0,
+    batch_type: str = "examples",
+    *,
+    max_length: int = 512,
+    min_length: int = 0,
+    sampling_topk: int = 1,
+    sampling_topp: float = 1,
+    sampling_temperature: float = 1,
+    return_log_prob: bool = False,
+    repetition_penalty: float = 1,
+    no_repeat_ngram_size: int = 0,
+    disable_unk: bool = False,
+    suppress_sequences: Optional[List[List[str]]] = None,
+    end_token: Optional[Union[str, List[str], List[int]]] = None,
+    static_prompt: Optional[List[str]] = None,
+    cache_static_prompt: bool = True,
+) -> AsyncIterable[GenerationStepResult]:
+    """Yields tokens asynchronously as they are generated by the model.
+
+    Arguments:
+      prompt: Batch of start tokens. If the decoder starts from a
+        special start token like <s>, this token should be added to this input.
+      max_batch_size: The maximum batch size.
+      batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
+      max_length: Maximum generation length.
+      min_length: Minimum generation length.
+      sampling_topk: Randomly sample predictions from the top K candidates.
+      sampling_topp: Keep the most probable tokens whose cumulative probability exceeds this value.
+      sampling_temperature: Sampling temperature to generate more random samples.
+      return_log_prob: Include the token log probability in the result.
+      repetition_penalty: Penalty applied to the score of previously generated tokens
+        (set > 1 to penalize).
+      no_repeat_ngram_size: Prevent repetitions of ngrams with this size
+        (set 0 to disable).
+      disable_unk: Disable the generation of the unknown token.
+      suppress_sequences: Disable the generation of some sequences of tokens.
+      end_token: Stop the decoding on one of these tokens (defaults to the model EOS token).
+      static_prompt: If the model expects a static prompt (a.k.a. system prompt)
+        it can be set here to simplify the inputs and optionally cache the model
+        state for this prompt to accelerate future generations.
+      cache_static_prompt: Cache the model state after the static prompt and
+        reuse it for future generations using the same static prompt.
+
+    Returns:
+      An async generator iterator over :class:`ctranslate2.GenerationStepResult` instances.
+
+    Note:
+      This generation method is not compatible with beam search which requires a complete decoding.
+    """
+    if len(prompt) > 0 and isinstance(prompt[0], str):
+        prompt = [prompt]
+    async for step_result in AsyncGenerator(
+        generator.generate_batch,
+        prompt,
+        max_batch_size=max_batch_size,
+        batch_type=batch_type,
+        repetition_penalty=repetition_penalty,
+        no_repeat_ngram_size=no_repeat_ngram_size,
+        disable_unk=disable_unk,
+        suppress_sequences=suppress_sequences,
+        end_token=end_token,
+        max_length=max_length,
+        min_length=min_length,
+        sampling_topk=sampling_topk,
+        sampling_topp=sampling_topp,
+        sampling_temperature=sampling_temperature,
+        return_scores=return_log_prob,
+        static_prompt=static_prompt,
+        cache_static_prompt=cache_static_prompt,
+        include_prompt_in_result=False,
+    ):
+        yield step_result
+
+
+class AsyncGenerator:
+    def __init__(self, process_func, *args, **kwargs):
+        self.queue = asyncio.Queue()
+        self.shutdown_event = threading.Event()
+        self.iterator_task = None
+        self.process_func = process_func
+        self.args = args
+        self.kwargs = kwargs
+
+    async def producer(self):
+        # Data generation logic here
+        for step_result in _generate_tokens(
+            self.process_func, *self.args, **self.kwargs
+        ):
+            await self.queue.put(step_result)
+            await asyncio.sleep(0.0001)
+            # asyc sleep otherwise this doesn't yield any result
+            if self.shutdown_event.is_set():
+                break
+        await self.queue.put(None)
+
+    def __aiter__(self):
+        self.iterator_task = asyncio.create_task(self.producer())
+        return self
+
+    async def __anext__(self):
+        if self.shutdown_event.is_set():
+            raise StopAsyncIteration
+
+        try:
+            item = await self.queue.get()
+            if item is None:
+                self.shutdown_event.set()
+                raise StopAsyncIteration
+            return item
+        except asyncio.CancelledError:
+            self.shutdown_event.set()
+            raise StopAsyncIteration
+
+
 def _generate_tokens(process_func, *args, **kwargs):
     step_results = queue.Queue()
     generator_closed = threading.Event()
 
     def _callback(step_result):
         step_results.put(step_result)
-
-        if step_result.is_last:
-            step_results.put(None)
 
         return generator_closed.is_set()
 
@@ -334,13 +477,15 @@ def _generate_tokens(process_func, *args, **kwargs):
         }
     )
 
-    async_result = process_func(*args, **kwargs)[0]
+    async_results = process_func(*args, **kwargs)
 
     def _catch_exception():
         try:
-            async_result.result()
+            for result in async_results:
+                result.result()
         except Exception as e:
             step_results.put(e)
+        step_results.put(None)
 
     thread = threading.Thread(target=_catch_exception, daemon=True)
     thread.start()
