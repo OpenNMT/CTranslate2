@@ -723,6 +723,31 @@ class TestWhisper:
                     pytest.approx(0.062380101531744, abs=1e-3),
                 ],
             ),
+            (
+                "openai/whisper-tiny.en",
+                [
+                    ["<|startoftranscript|>"],
+                    [
+                        "<|startofprev|>",
+                        "ĠAnd",
+                        "Ġthen",
+                        "Ġthe",
+                        "ĠPresident",
+                        "Ġshouted",
+                        ":",
+                        "<|startoftranscript|>",
+                    ],
+                ],
+                [
+                    " Mr. Quilter is the apostle of the middle classes, and we are glad"
+                    " to welcome his gospel.",
+                    " And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+                ],
+                [
+                    pytest.approx(0.02644546702504158, abs=1e-4),
+                    pytest.approx(0.008309835568070412, abs=1e-3),
+                ],
+            ),
         ],
     )
     def test_transformers_whisper(

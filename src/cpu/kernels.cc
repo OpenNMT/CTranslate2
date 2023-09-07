@@ -380,7 +380,7 @@ namespace ctranslate2 {
           const dim_t start = offsets ? offsets[i] : 0;
           const dim_t size = lengths ? lengths[i] : depth - start;
 
-          if (size == 0)
+          if (size <= 0)
             continue;
 
           const dim_t offset = i * depth;

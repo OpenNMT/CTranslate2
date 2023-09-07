@@ -196,6 +196,23 @@ TEST(LayerTest, Padder) {
   expect_storage_eq(x, w_padding);
 }
 
+TEST(LayerTest, PadderOffsets) {
+  const StorageView lengths({3}, std::vector<int32_t>{2, 3, 1});
+  const StorageView offsets({3}, std::vector<int32_t>{2, 1, 3});
+  const Padder padder(lengths, &offsets, /*max_time=*/4);
+
+  StorageView x({3, 4}, std::vector<int32_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+  const StorageView wo_padding({6}, std::vector<int32_t>{2, 3, 5, 6, 7, 11});
+  const StorageView w_padding({3, 4}, std::vector<int32_t>{2, 2, 2, 3, 5, 5, 6, 7, 11, 11, 11, 11});
+
+  padder.remove_padding(x);
+  ASSERT_EQ(x.rank(), 1);
+  expect_storage_eq(x, wo_padding);
+  padder.add_padding(x);
+  ASSERT_EQ(x.rank(), 2);
+  expect_storage_eq(x, w_padding);
+}
+
 TEST(LayerTest, PadderToMultiple) {
   const StorageView lengths({3}, std::vector<int32_t>{2, 3, 1});
   const Padder padder(lengths, /*max_time=*/4, /*pad_batch_to_multiple=*/8);

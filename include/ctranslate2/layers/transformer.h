@@ -80,6 +80,7 @@ namespace ctranslate2 {
 
       void operator()(const StorageView& input,
                       const StorageView* input_lengths,
+                      const StorageView* input_offsets,
                       const StorageView* memory,
                       const StorageView* memory_lengths,
                       StorageView* cached_self_attn_keys,

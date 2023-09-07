@@ -28,6 +28,7 @@ namespace ctranslate2 {
       void operator()(const StorageView& queries,
                       const StorageView& values,
                       const StorageView* values_lengths,
+                      const StorageView* values_offsets,
                       StorageView& output,
                       StorageView* cached_keys = nullptr,
                       StorageView* cached_values = nullptr,
@@ -45,11 +46,14 @@ namespace ctranslate2 {
         return _num_heads_kv == 1;
       }
 
-      static StorageView prepare_length_mask(const StorageView& lengths,
+      static StorageView prepare_values_mask(const StorageView& lengths,
                                              const dim_t num_heads,
                                              const dim_t num_queries,
                                              const bool mask_future = false,
-                                             const bool multi_query = false);
+                                             const bool multi_query = false,
+                                             const dim_t step = 0,
+                                             const StorageView* offsets = nullptr,
+                                             StorageView* values_offsets = nullptr);
 
     private:
       const dim_t _num_heads;

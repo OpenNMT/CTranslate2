@@ -216,6 +216,9 @@ namespace at {
       const index_t size = lengths ? lengths[row] : classes - start;
       const index_t end = start + size;
 
+      if (size <= 0)
+        return;
+
       if (start > 0 || end < classes) {
         // Directly set 0 in output for out of range positions.
         for (index_t i = threadIdx.x; i < classes; i += blockDim.x) {
