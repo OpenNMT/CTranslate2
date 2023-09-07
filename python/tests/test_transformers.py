@@ -802,7 +802,8 @@ class TestWhisper:
                 [
                     " Mr. Quilter is the apostle of the middle classes, and we are glad"
                     " to welcome his gospel.",
-                    " And so my fellow Americans ask not what your country can do for you, ask what you can do for your country.",
+                    " And so my fellow Americans ask not what your country can do for you,"
+                    " ask what you can do for your country.",
                 ],
                 [
                     pytest.approx(0.02644546702504158, abs=1e-4),
