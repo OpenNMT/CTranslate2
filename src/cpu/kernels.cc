@@ -403,14 +403,18 @@ namespace ctranslate2 {
           const dim_t start = offsets ? offsets[i] : 0;
           const dim_t size = lengths ? lengths[i] : depth - start;
 
-          if (size <= 0)
-            continue;
-
           const dim_t offset = i * depth;
           const float* x = input + offset;
           float* y = output + offset;
 
           // Directly set 0 in output for out of range positions.
+
+          if (size <= 0) {
+            for (dim_t j = 0; j < depth; ++j)
+              y[j] = 0;
+            continue;
+          }
+
           for (dim_t j = 0; j < start; ++j)
             y[j] = 0;
           for (dim_t j = start + size; j < depth; ++j)
