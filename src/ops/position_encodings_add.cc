@@ -30,18 +30,20 @@ namespace ctranslate2 {
 
       output.resize_as(input);
 
-      DEVICE_AND_FLOAT_DISPATCH(
-        "PositionEncodingsAdd", input.device(), input.dtype(),
-        ({
-          if (offsets)
-            compute<D, T>(step, offsets, input, encodings, output);
-          else
-            primitives<D>::add_batch_broadcast(encodings.data<T>() + step * depth,
-                                               input.data<T>(),
-                                               output.data<T>(),
-                                               time * depth,
-                                               input.size());
-        }));
+      if (offsets) {
+        DEVICE_AND_FLOAT_DISPATCH(
+          "PositionEncodingsAdd", input.device(), input.dtype(),
+          (compute<D, T>(step, offsets, input, encodings, output)));
+
+      } else {
+        DEVICE_AND_FLOAT_DISPATCH(
+          "PositionEncodingsAdd", input.device(), input.dtype(),
+          (primitives<D>::add_batch_broadcast(encodings.data<T>() + step * depth,
+                                              input.data<T>(),
+                                              output.data<T>(),
+                                              time * depth,
+                                              input.size())));
+      }
     }
 
   }
