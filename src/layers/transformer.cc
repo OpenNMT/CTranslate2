@@ -487,7 +487,6 @@ namespace ctranslate2 {
       std::unique_ptr<const Padder> input_padder;
       std::unique_ptr<const StorageView> input_lengths;
       std::unique_ptr<const StorageView> input_lengths_mask;
-      //std::unique_ptr<StorageView> input_offsets_mask;
 
       if ((is_sequence || left_padding) && !lengths) {
         input_lengths = std::make_unique<StorageView>(Shape{ids.dim(0)}, int32_t(max_time), device);
