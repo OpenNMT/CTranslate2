@@ -86,7 +86,7 @@ namespace ctranslate2 {
                        const float base = 10000,
                        const dim_t num_initial_positions = 2048);
 
-      void apply(StorageView& x, const dim_t offset = 0);
+      void apply(StorageView& x, const dim_t step = 0, const StorageView* offsets = nullptr);
 
     private:
       void initialize(const dim_t num_positions,
