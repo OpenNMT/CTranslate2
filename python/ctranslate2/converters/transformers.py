@@ -109,7 +109,11 @@ class TransformersConverter(Converter):
                     % (config_name, ", ".join(sorted(_MODEL_LOADERS.keys())))
                 )
 
-            model_class = getattr(transformers, loader.architecture_name)
+            model_class = getattr(transformers, loader.architecture_name, None)
+            # load model class from hf if available in auto_map
+            if not model_class and hasattr(config, 'auto_map'):
+                cls_name = next(filter(lambda k: k.startswith('AutoModel'), config.auto_map.keys()), None)
+                model_class = getattr(transformers, cls_name)
             tokenizer_class = transformers.AutoTokenizer
 
             kwargs = {
@@ -1291,6 +1295,57 @@ class LlamaLoader(ModelLoader):
             delattr(layer, "self_attn")
             delattr(layer, "mlp")
             gc.collect()
+
+
+@register_loader("MixFormerSequentialConfig")
+class MixFormerSequentialLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "MixFormerSequentialForCausalLM"
+
+    def get_model_spec(self, model):
+        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
+            num_layers=model.config.n_layer,
+            num_heads=model.config.n_head,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.activation_function],
+            rotary_dim=model.config.rotary_dim,
+            parallel_residual=True,
+            shared_layer_norm=True,
+        )
+
+        self.set_decoder(spec.decoder, model.layers)
+        self.set_linear(spec.decoder.projection, model.layers[-1].linear)
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = tokenizer.bos_token
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = tokenizer.unk_token
+
+    def set_decoder(self, spec, module):
+        spec.scale_embeddings = False
+        self.set_embeddings(spec.embeddings, module[0].wte)
+        self.set_layer_norm(spec.layer_norm, module[-1].ln)
+
+        for layer_spec, layer in zip(spec.layer, module[1: -1]):
+            self.set_layer_norm(layer_spec.shared_layer_norm, layer.ln)
+            self.set_linear(layer_spec.self_attention.linear[0], layer.mixer.Wqkv)
+            self.set_linear(layer_spec.self_attention.linear[1], layer.mixer.out_proj)
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.fc1)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.fc2)
 
 
 @register_loader("RWConfig")
