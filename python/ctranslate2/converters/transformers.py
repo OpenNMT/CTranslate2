@@ -109,14 +109,7 @@ class TransformersConverter(Converter):
                     % (config_name, ", ".join(sorted(_MODEL_LOADERS.keys())))
                 )
 
-            model_class = getattr(transformers, loader.architecture_name, None)
-            # load model class from hf if available in auto_map
-            if not model_class and hasattr(config, "auto_map"):
-                cls_name = next(
-                    filter(lambda k: k.startswith("AutoModel"), config.auto_map.keys()),
-                    None,
-                )
-                model_class = getattr(transformers, cls_name)
+            model_class = getattr(transformers, loader.architecture_name)
             tokenizer_class = transformers.AutoTokenizer
 
             kwargs = {
@@ -1304,7 +1297,7 @@ class LlamaLoader(ModelLoader):
 class MixFormerSequentialLoader(ModelLoader):
     @property
     def architecture_name(self):
-        return "MixFormerSequentialForCausalLM"
+        return "AutoModelForCausalLM"
 
     def get_model_spec(self, model):
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
