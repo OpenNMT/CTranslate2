@@ -1306,6 +1306,7 @@ class MixFormerSequentialLoader(ModelLoader):
             pre_norm=True,
             activation=_SUPPORTED_ACTIVATIONS[model.config.activation_function],
             rotary_dim=model.config.rotary_dim,
+            rotary_interleave=False,
             parallel_residual=True,
             shared_layer_norm=True,
         )
