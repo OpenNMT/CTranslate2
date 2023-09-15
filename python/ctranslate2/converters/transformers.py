@@ -111,8 +111,11 @@ class TransformersConverter(Converter):
 
             model_class = getattr(transformers, loader.architecture_name, None)
             # load model class from hf if available in auto_map
-            if not model_class and hasattr(config, 'auto_map'):
-                cls_name = next(filter(lambda k: k.startswith('AutoModel'), config.auto_map.keys()), None)
+            if not model_class and hasattr(config, "auto_map"):
+                cls_name = next(
+                    filter(lambda k: k.startswith("AutoModel"), config.auto_map.keys()),
+                    None,
+                )
                 model_class = getattr(transformers, cls_name)
             tokenizer_class = transformers.AutoTokenizer
 
@@ -1340,7 +1343,7 @@ class MixFormerSequentialLoader(ModelLoader):
         self.set_embeddings(spec.embeddings, module[0].wte)
         self.set_layer_norm(spec.layer_norm, module[-1].ln)
 
-        for layer_spec, layer in zip(spec.layer, module[1: -1]):
+        for layer_spec, layer in zip(spec.layer, module[1:-1]):
             self.set_layer_norm(layer_spec.shared_layer_norm, layer.ln)
             self.set_linear(layer_spec.self_attention.linear[0], layer.mixer.Wqkv)
             self.set_linear(layer_spec.self_attention.linear[1], layer.mixer.out_proj)
