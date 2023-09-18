@@ -59,6 +59,7 @@ namespace ctranslate2 {
       std::vector<std::vector<std::string>> sequences;
       std::vector<std::vector<size_t>> sequences_ids;
       std::vector<float> scores;
+      std::vector<std::vector<float>> log_probs;
       float no_speech_prob = 0;
 
       size_t num_sequences() const {

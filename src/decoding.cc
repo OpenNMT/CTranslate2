@@ -133,6 +133,16 @@ namespace ctranslate2 {
     return std::vector<size_t>(ids + start, ids + end);
   }
 
+    static std::vector<float> build_logprobs(const StorageView& history,
+                                              const dim_t batch,
+                                              const dim_t beam,
+                                              const dim_t start,
+                                              const dim_t end) {
+    const auto* ids = history.index<float>({batch, beam, 0});
+    return std::vector<float>(ids + start, ids + end);
+  }
+
+
   static std::vector<std::vector<float>> build_attention(const StorageView& history,
                                                          const dim_t batch,
                                                          const dim_t beam,
@@ -196,11 +206,13 @@ namespace ctranslate2 {
 
     result.hypotheses = index_vector(result.hypotheses, idx);
 
-    if (keep_scores)
+    if (keep_scores) {
       result.scores = index_vector(result.scores, idx);
-    else
+      result.log_probs = index_vector(result.log_probs, idx);
+    } else {
       result.scores.clear();
-
+      result.log_probs.clear();
+    }
     if (keep_attention)
       result.attention = index_vector(result.attention, idx);
     else
@@ -379,6 +391,29 @@ namespace ctranslate2 {
     }
   }
 
+  StorageView static select_columns(const StorageView& data, const StorageView& indices) {
+    // Check dimensions and ensure data is 2D and indices is 1D or (1xN)
+    if (indices.rank() > 2 || data.rank() != 2) {
+        throw std::invalid_argument("Invalid dimensions for column selection");
+    }
+
+    // Convert indices to a std::vector
+    std::vector<int32_t> index_vec = indices.to_vector<int32_t>();
+
+    // Create a new StorageView to hold the selected columns
+    // Assuming float as the data type for simplicity
+    StorageView result({1, static_cast<dim_t>(index_vec.size())}, DataType::FLOAT32, data.device());
+
+    // Populate the result StorageView
+    for (size_t col_idx = 0; col_idx < index_vec.size(); ++col_idx) {
+        int32_t target_col = index_vec[col_idx];
+        // Access the (0, target_col) element from data and store it in the result
+        float value = data.at<float>({0, target_col});
+        result.at<float>({0, static_cast<dim_t>(col_idx)}) = value;
+    }
+
+    return result;
+  }
 
   BeamSearch::BeamSearch(const dim_t beam_size,
                          const float length_penalty,
@@ -455,6 +490,7 @@ namespace ctranslate2 {
 
     StorageView logits(dtype, device);
     StorageView alive_seq(topk_ids.dtype());
+    StorageView alive_logprob(dtype);
     StorageView alive_attention;
 
     const dim_t max_step = get_max_step(max_length,
@@ -497,34 +533,33 @@ namespace ctranslate2 {
 
       disable_tokens.apply();
 
-      StorageView log_probs(dtype, device);
+      StorageView cum_log_probs(dtype, device);
       if (bias_towards_prefix) {
         biased_decoder->decode(cur_batch_size,
                                step,
                                batch_offset,
                                beams_diverged_from_prefix,
                                logits,
-                               log_probs);
+                               cum_log_probs);
       } else {
         ops::LogSoftMax()(logits);
-        log_probs.shallow_copy(logits);
+        cum_log_probs.copy_from(logits);
       }
 
       // Multiply by the current beam log probs.
       if (topk_scores) {
-        DEVICE_AND_TYPE_DISPATCH(log_probs.device(), log_probs.dtype(),
+        DEVICE_AND_TYPE_DISPATCH(cum_log_probs.device(), cum_log_probs.dtype(),
                                  primitives<D>::add_depth_broadcast(topk_scores.to(device).data<T>(),
-                                                                    log_probs.data<T>(),
+                                                                    cum_log_probs.data<T>(),
                                                                     topk_scores.size(),
-                                                                    log_probs.size()));
+                                                                    cum_log_probs.size()));
       }
-
+      
       // Flatten the probs into a list of candidates.
-      log_probs.reshape({cur_batch_size, -1});
+      cum_log_probs.reshape({cur_batch_size, -1});
 
-      // TopK candidates.
-      sampler(log_probs, topk_ids, topk_scores, num_candidates);
-
+      sampler(cum_log_probs, topk_ids, topk_scores, num_candidates);
+      
       // Unflatten the ids.
       StorageView gather_indices = unflatten_ids(topk_ids, _beam_size, vocabulary_size, is_expanded);
 
@@ -549,7 +584,9 @@ namespace ctranslate2 {
       }
 
       // Append last prediction.
+      StorageView current_logprob = select_columns(logits, topk_ids);
       append_step_output(alive_seq, topk_ids, &gather_indices);
+      append_step_output(alive_logprob, current_logprob, &gather_indices);
 
       if (attention_step) {
         if (!is_expanded)
@@ -569,10 +606,7 @@ namespace ctranslate2 {
       for (dim_t i = 0; i < cur_batch_size; ++i) {
         const dim_t batch_id = batch_offset[i];
         const dim_t prefix_length = use_hard_prefix ? prefix_ids->at(batch_id).size() : 0;
-        const bool is_last_step_for_batch = is_last_step(step,
-                                                         max_length,
-                                                         prefix_length,
-                                                         return_prefix);
+        const bool is_last_step_for_batch = is_last_step(step, max_length, prefix_length, return_prefix);
 
         auto& result = results[batch_id];
         dim_t secondary_candidates_offset = _beam_size;
@@ -592,9 +626,10 @@ namespace ctranslate2 {
             // Register this hypothesis.
             result.scores.emplace_back(topk_scores.scalar_at<float>({i, k}));
             result.hypotheses.emplace_back(build_hypothesis(alive_seq, i, k, start, end));
+            result.log_probs.emplace_back(build_logprobs(alive_logprob, i, k, start, end));
+
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
-
             // Move another active beam to this position.
             for (dim_t j = secondary_candidates_offset; j < num_candidates; ++j) {
               const auto candidate = topk_ids.at<int32_t>({i, j});
@@ -644,6 +679,7 @@ namespace ctranslate2 {
       gather_beam_flat(topk_ids, active_beams, _beam_size);
       gather_beam_flat(topk_scores, active_beams, _beam_size);
       gather_beam_flat(alive_seq, active_beams, _beam_size);
+      gather_beam_flat(alive_logprob, active_beams, _beam_size);
       if (alive_attention)
         gather_beam_flat(alive_attention, active_beams, _beam_size);
 
@@ -659,12 +695,12 @@ namespace ctranslate2 {
         gather(topk_ids, *keep_batches);
         gather(topk_scores, *keep_batches);
         gather(alive_seq, *keep_batches);
+        gather(alive_logprob, *keep_batches);
         if (alive_attention)
           gather(alive_attention, *keep_batches);
         if (keep_batches->device() != device)
           *keep_batches = keep_batches->to(device);
       }
-
       if (gather_indices.device() != device)
         gather_indices = gather_indices.to(device);
       decoder.update_state(state, gather_indices, _beam_size, keep_batches.get());
@@ -783,8 +819,10 @@ namespace ctranslate2 {
       batch_offset[i] = i;
       sample_from.at<int32_t>(i) = start_ids[i];
       results[i].hypotheses.resize(1);
-      if (return_scores)
+      if (return_scores) {
         results[i].scores.resize(1, 0.f);
+        results[i].log_probs.resize(1);
+      }
       if (return_attention)
         results[i].attention.resize(1);
     }
@@ -859,6 +897,7 @@ namespace ctranslate2 {
             const auto* attn = attention_step.index<float>({i, 0});
             results[batch_id].attention[0].emplace_back(attn, attn + attention_step.dim(-1));
           }
+          results[batch_id].log_probs[0].emplace_back(score);
         }
 
         if (return_scores)

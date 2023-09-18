@@ -355,6 +355,7 @@ namespace ctranslate2 {
         final_result.sequences = vocabulary.to_tokens(result.hypotheses);
         final_result.sequences_ids = std::move(result.hypotheses);
         final_result.scores = std::move(result.scores);
+        final_result.log_probs = std::move(result.log_probs);
         if (options.return_no_speech_prob)
           final_result.no_speech_prob = no_speech_probs[i];
 

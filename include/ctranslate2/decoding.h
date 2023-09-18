@@ -13,8 +13,9 @@ namespace ctranslate2 {
 
   struct DecodingResult {
     std::vector<std::vector<size_t>> hypotheses;
-    std::vector<float> scores;
+    std::vector<float> scores;  // scores[beam_size]
     std::vector<std::vector<std::vector<float>>> attention;
+    std::vector<std::vector<float>> log_probs;  // log_probs[beam_size][seq_id]
   };
 
   struct DecodingStepResult {
@@ -25,7 +26,6 @@ namespace ctranslate2 {
     std::optional<float> log_prob;
     bool is_last = false;
   };
-
 
   class SearchStrategy {
   public:
