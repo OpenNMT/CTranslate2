@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 3.19.0 documentation</title>
+  <title>Installation &mdash; CTranslate2 3.20.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.19
+                3.20
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -178,7 +178,8 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
 cmake<span class="w"> </span>..
 make<span class="w"> </span>-j4
-make<span class="w"> </span>install
+sudo<span class="w"> </span>make<span class="w"> </span>install
+sudo<span class="w"> </span>ldconfig
 </pre></div>
 </div>
 <p>By default, the library is compiled with the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> backend which should be installed separately. See the <a class="reference internal" href="#build-options"><span class="std std-ref">Build options</span></a> to select or add another backend.</p>

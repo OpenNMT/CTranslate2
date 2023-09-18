@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text generation &mdash; CTranslate2 3.19.0 documentation</title>
+  <title>Text generation &mdash; CTranslate2 3.20.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.19
+                3.20
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -182,9 +182,9 @@
 <p class="admonition-title">Warning</p>
 <p>If you <code class="docutils literal notranslate"><span class="pre">break</span></code> out of the loop, the generation will still run to completion in the background. To stop the generation early you should close the generator, for example using <code class="docutils literal notranslate"><span class="pre">step_results.close()</span></code>.</p>
 </div>
-<div class="admonition tip">
-<p class="admonition-title">Tip</p>
-<p>To implement a similar mechanism for batch generation, you can use the arguments <code class="docutils literal notranslate"><span class="pre">callback</span></code> and <code class="docutils literal notranslate"><span class="pre">include_prompt_in_result=False</span></code> in the method <code class="docutils literal notranslate"><span class="pre">generate_batch</span></code>. This is what <code class="docutils literal notranslate"><span class="pre">generate_tokens</span></code> use internally.</p>
+<div class="admonition seealso">
+<p class="admonition-title">See also</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">callback</span></code> argument in the method <code class="docutils literal notranslate"><span class="pre">generate_batch</span></code> which can also be used to implement token streaming. This is what <code class="docutils literal notranslate"><span class="pre">generate_tokens</span></code> use internally.</p>
 </div>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>

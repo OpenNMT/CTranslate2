@@ -19,6 +19,7 @@ Generator
 
     **Methods:**
 
+    - :obj:`~ctranslate2.Generator.async_generate_tokens`
     - :obj:`~ctranslate2.Generator.forward_batch`
     - :obj:`~ctranslate2.Generator.generate_batch`
     - :obj:`~ctranslate2.Generator.generate_iterable`
