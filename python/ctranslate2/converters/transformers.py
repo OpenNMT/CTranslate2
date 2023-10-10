@@ -1712,6 +1712,7 @@ class XLMRobertaLoader(ModelLoader):
         if offset > 0:
             spec.encodings = spec.encodings[offset + 1 :]
 
+
 @register_loader("MistralConfig")
 class MistralLoader(ModelLoader):
     @property
