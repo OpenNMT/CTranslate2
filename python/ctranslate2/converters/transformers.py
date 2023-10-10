@@ -1715,9 +1715,9 @@ class XLMRobertaLoader(ModelLoader):
 
 @register_loader("RobertaConfig")
 class RobertaLoader (BertLoader):
-  @property
-  def architecture_name(self):
-      return "RobertaModel"
+    @property
+    def architecture_name(self):
+        return "RobertaModel"
 
 
 def main():
