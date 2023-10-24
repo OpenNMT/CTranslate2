@@ -4,8 +4,10 @@ import numpy as np
 
 from ctranslate2.specs import common_spec, model_spec, transformer_spec
 
+
 class Wav2Vec2Config(model_spec.ModelConfig):
     """Configuration for the Wav2Vec2 model."""
+
     def __init__(self):
         return
 

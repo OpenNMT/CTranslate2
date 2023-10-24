@@ -964,8 +964,6 @@ class Wav2Vec2Loader(BartLoader):
         return spec
 
     def set_config(self, config, model, tokenizer):
-        num_layers = model.wav2vec2.encoder.config.num_hidden_layers
-        num_heads = model.wav2vec2.encoder.config.num_attention_heads
         return
 
     def get_vocabulary(self, model, tokenizer):
