@@ -1,20 +1,20 @@
 import os
 import os.path
+
+import librosa
+import numpy as np
 import torch
 import torchaudio
-import librosa
-from transformers import (
-    Wav2Vec2ForCTC,
-    Wav2Vec2Processor,
-)
+
+from torchaudio.utils import download_asset
+from transformers import Wav2Vec2ForCTC, Wav2Vec2Processor
 from transformers.modeling_outputs import (
+    BaseModelOutput,
     CausalLMOutput,
     Wav2Vec2BaseModelOutput,
-    BaseModelOutput,
 )
+
 import ctranslate2
-from torchaudio.utils import download_asset
-import numpy as np
 
 # Models Conversion & Preparation
 compute_type = "int8"

@@ -22,8 +22,8 @@ from ctranslate2.specs import (
     common_spec,
     model_spec,
     transformer_spec,
-    whisper_spec,
     wav2vec2_spec,
+    whisper_spec,
 )
 
 _SUPPORTED_ACTIVATIONS = {
