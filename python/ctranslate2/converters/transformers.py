@@ -23,6 +23,7 @@ from ctranslate2.specs import (
     model_spec,
     transformer_spec,
     whisper_spec,
+    wav2vec2_spec,
 )
 
 _SUPPORTED_ACTIVATIONS = {
@@ -933,6 +934,51 @@ class WhisperLoader(BartLoader):
     def set_conv1d(self, spec, module):
         spec.weight = module.weight
         spec.bias = module.bias
+
+
+@register_loader("Wav2Vec2Config")
+class Wav2Vec2Loader(BartLoader):
+    @property
+    def architecture_name(self):
+        return "Wav2Vec2ForCTC"
+
+    def get_model_spec(self, model):
+        # Wav2Vec2 encoder Wav2Vec2PositionalConvEmbedding conv1d has groups 16
+        # that doesn't look available here so we make Wav2Vec2 encoder layers only
+        spec = wav2vec2_spec.Wav2Vec2Spec(
+            model.wav2vec2.encoder.config.num_hidden_layers,
+            model.wav2vec2.encoder.config.num_attention_heads,
+        )
+
+        # layer component name matching (no duplications saving)
+        for layer in model.wav2vec2.encoder.layers:
+            layer.self_attn = layer.attention
+            layer.self_attn_layer_norm = layer.layer_norm
+            layer.activation_fn = layer.feed_forward.intermediate_act_fn
+            layer.fc1 = layer.feed_forward.intermediate_dense
+            layer.fc2 = layer.feed_forward.output_dense
+
+        self.set_encoder(spec.encoder, model.wav2vec2.encoder)
+        self.set_linear(spec.lm_head, model.lm_head)
+        # only for Wav2Vec2Spec.get_vocabulary_size()
+        return spec
+
+    def set_config(self, config, model, tokenizer):
+        num_layers = model.wav2vec2.encoder.config.num_hidden_layers
+        num_heads = model.wav2vec2.encoder.config.num_attention_heads
+        return
+
+    def get_vocabulary(self, model, tokenizer):
+        return tokenizer.vocab
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_encoder(self, spec, encoder):
+        super().set_encoder(spec, encoder)
+
+    def set_common_layers(self, spec, module):
+        self.set_layer_norm(spec.layer_norm, module.layer_norm)
 
 
 @register_loader("T5Config")
