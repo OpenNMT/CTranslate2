@@ -7,15 +7,12 @@ import torch
 import torchaudio
 
 from torchaudio.utils import download_asset
-from transformers.models.wav2vec2 import (
-    Wav2Vec2ForCTC,
-    Wav2Vec2Processor,
-)
 from transformers.modeling_outputs import (
     BaseModelOutput,
     CausalLMOutput,
     Wav2Vec2BaseModelOutput,
 )
+from transformers.models.wav2vec2 import Wav2Vec2ForCTC, Wav2Vec2Processor
 
 import ctranslate2
 
