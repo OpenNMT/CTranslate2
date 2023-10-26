@@ -958,7 +958,7 @@ class TestWav2Vec2:
             (
                 "facebook/wav2vec2-large-robust-ft-swbd-300h",
                 "tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav",
-                "I HAD THAT CURIOSITY BESIDE ME AT THIS MOMENT"
+                "I HAD THAT CURIOSITY BESIDE ME AT THIS MOMENT",
             ),
         ],
     )
@@ -970,12 +970,15 @@ class TestWav2Vec2:
         audio_name,
         expected_transcription,
     ):
-        import transformers
         import torch
         import torchaudio
+        import transformers
+
         from torchaudio.utils import download_asset
 
-        converter = ctranslate2.converters.TransformersConverter(model_name,load_as_float16="int8")
+        converter = ctranslate2.converters.TransformersConverter(
+            model_name, load_as_float16="int8"
+        )
         output_dir = str(tmp_dir.join("ctranslate2_model"))
         output_dir = converter.convert(output_dir)
         # 24 x Wav2Vec2EncoderLayerStableLayerNorm converted & saved
@@ -983,14 +986,14 @@ class TestWav2Vec2:
         w2v2_model = transformers.Wav2Vec2ForCTC.from_pretrained(model_name)
         del w2v2_model.wav2vec2.encoder.layers
         del w2v2_model.wav2vec2.encoder.layer_norm
-        torch.save(w2v2_model, output_dir+"/wav2vec2_partial.bin")
+        torch.save(w2v2_model, output_dir + "/wav2vec2_partial.bin")
         w2v2_processor = transformers.Wav2Vec2Processor.from_pretrained(model_name)
-        torch.save(w2v2_processor, output_dir+"/wav2vec2_processor.bin")
+        torch.save(w2v2_processor, output_dir + "/wav2vec2_processor.bin")
 
         device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
         cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
-        w2v2_model = torch.load(output_dir+"/wav2vec2_partial.bin").to(device)
-        w2v2_processor = torch.load(output_dir+"/wav2vec2_processor.bin")
+        w2v2_model = torch.load(output_dir + "/wav2vec2_partial.bin").to(device)
+        w2v2_processor = torch.load(output_dir + "/wav2vec2_processor.bin")
         ct2_w2v2_model = ctranslate2.models.Wav2Vec2(
             output_dir,
             device=device,
@@ -1000,24 +1003,28 @@ class TestWav2Vec2:
             inter_threads=1,
         )
 
-        SAMPLE_WAV = download_asset("tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav")
+        SAMPLE_WAV = download_asset(
+            "tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav"
+        )
         waveform, sampling_rate = torchaudio.load(SAMPLE_WAV)
         speech_array = waveform[0].numpy()
         input_values = w2v2_processor(
             speech_array.astype(np.float32),
             padding=True,
             return_tensors="pt",
-            sampling_rate=resample_rate,
+            sampling_rate=16000,
         ).input_values
 
         with torch.no_grad():
-                extract_features = w2v2_model.wav2vec2.feature_extractor(
+            extract_features = w2v2_model.wav2vec2.feature_extractor(
                 input_values.to(w2v2_model.device)
             ).transpose(1, 2)
             hidden_states, extract_features = w2v2_model.wav2vec2.feature_projection(
                 extract_features
             )
-            position_embeddings = w2v2_model.wav2vec2.encoder.pos_conv_embed(hidden_states)
+            position_embeddings = w2v2_model.wav2vec2.encoder.pos_conv_embed(
+                hidden_states
+            )
             hidden_states = position_embeddings + hidden_states
             # hidden_states = w2v2_model.encoder.dropout(hidden_states)
             # Dropout(p=0.0, inplace=False) bypassed
@@ -1029,11 +1036,13 @@ class TestWav2Vec2:
 
         hidden_states = np.ascontiguousarray(hidden_states)
         hidden_states = ctranslate2.StorageView.from_array(hidden_states)
-        to_cpu = ct2_w2v2_model.device == "cuda" and len(ct2_w2v2_model.device_index) > 1
+        to_cpu = (
+            ct2_w2v2_model.device == "cuda" and len(ct2_w2v2_model.device_index) > 1
+        )
         ct2_output = ct2_w2v2_model.encode(
             hidden_states,
             to_cpu=to_cpu,
-        ) # 24 x Wav2Vec2EncoderLayerStableLayerNorm processed
+        )  # 24 x Wav2Vec2EncoderLayerStableLayerNorm processed
         if ct2_w2v2_model.device == "cuda":
             hidden_states = torch.as_tensor(
                 ct2_output,
@@ -1066,5 +1075,7 @@ class TestWav2Vec2:
             logits = w2v2_model.lm_head(hidden_states.to(torch.float32))[0]
 
         predicted_ids = torch.argmax(logits, dim=-1)
-        transcription = w2v2_processor.decode(predicted_ids, output_word_offsets=True)[0]
+        transcription = w2v2_processor.decode(predicted_ids, output_word_offsets=True)[
+            0
+        ]
         assert transcription == expected_transcription
