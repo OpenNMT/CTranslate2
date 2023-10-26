@@ -1003,10 +1003,7 @@ class TestWav2Vec2:
             inter_threads=1,
         )
 
-        SAMPLE_WAV = download_asset(
-            "tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav"
-        )
-        waveform, sampling_rate = torchaudio.load(SAMPLE_WAV)
+        waveform, sampling_rate = torchaudio.load(download_asset(audio_name))
         speech_array = waveform[0].numpy()
         input_values = w2v2_processor(
             speech_array.astype(np.float32),
