@@ -967,7 +967,7 @@ class Wav2Vec2Loader(BartLoader):
         return
 
     def get_vocabulary(self, model, tokenizer):
-        return tokenizer.vocab
+        return tokenizer.get_vocab()
 
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
