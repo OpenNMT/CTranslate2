@@ -957,7 +957,7 @@ class TestWav2Vec2:
         [
             (
                 "facebook/wav2vec2-large-robust-ft-swbd-300h",
-                "tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav",
+                "https://download.pytorch.org/torchaudio/tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav",
                 "I HAD THAT CURIOSITY BESIDE ME AT THIS MOMENT",
             ),
         ],
@@ -1003,7 +1003,9 @@ class TestWav2Vec2:
             inter_threads=1,
         )
 
-        waveform, sampling_rate = torchaudio.load(download_asset(audio_name))
+        #waveform, sampling_rate = torchaudio.load(download_asset(audio_name))
+        with requests.get(audio_name, stream=True) as response:
+            waveform, sampling_rate = torchaudio.load(_hide_seek(response.raw))
         speech_array = waveform[0].numpy()
         input_values = w2v2_processor(
             speech_array.astype(np.float32),
