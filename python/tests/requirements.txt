@@ -7,3 +7,4 @@ pytest
 wurlitzer==3.0.*;platform_system=='Linux'
 torch
 torchaudio
+requests
