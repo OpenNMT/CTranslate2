@@ -957,7 +957,8 @@ class TestWav2Vec2:
         [
             (
                 "facebook/wav2vec2-large-robust-ft-swbd-300h",
-                "https://download.pytorch.org/torchaudio/tutorial-assets/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav",
+                "https://download.pytorch.org/torchaudio/tutorial-assets\
+/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav",
                 "I HAD THAT CURIOSITY BESIDE ME AT THIS MOMENT",
             ),
         ],
@@ -970,9 +971,9 @@ class TestWav2Vec2:
         audio_name,
         expected_transcription,
     ):
+        import requests
         import torch
         import torchaudio
-        import requests
         import transformers
 
         converter = ctranslate2.converters.TransformersConverter(
