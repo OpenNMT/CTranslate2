@@ -972,9 +972,8 @@ class TestWav2Vec2:
     ):
         import torch
         import torchaudio
+        import requests
         import transformers
-
-        from torchaudio.utils import download_asset
 
         converter = ctranslate2.converters.TransformersConverter(
             model_name, load_as_float16="int8"
@@ -1003,9 +1002,9 @@ class TestWav2Vec2:
             inter_threads=1,
         )
 
-        #waveform, sampling_rate = torchaudio.load(download_asset(audio_name))
-        with requests.get(audio_name, stream=True) as response:
-            waveform, sampling_rate = torchaudio.load(_hide_seek(response.raw))
+        r = requests.get(audio_name, allow_redirects=True)
+        open(output_dir + "/test.wav", "wb").write(r.content)
+        waveform, sampling_rate = torchaudio.load(output_dir + "/test.wav")
         speech_array = waveform[0].numpy()
         input_values = w2v2_processor(
             speech_array.astype(np.float32),
