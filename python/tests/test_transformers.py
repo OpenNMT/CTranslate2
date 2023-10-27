@@ -957,7 +957,10 @@ class TestWav2Vec2:
         [
             (
                 "facebook/wav2vec2-large-robust-ft-swbd-300h",
-                "I HAD THAT CURIOSITY BESIDE ME AT THIS MOMENT",
+                [
+                    "MISTER QUILTER IS THE APOSSEL OF THE MIDDLE CLASSES AND"
+                    " WE ARE GLAD TO WELCOME HIS GOSPEL",
+                ],
             ),
         ],
     )
@@ -969,7 +972,6 @@ class TestWav2Vec2:
         expected_transcription,
     ):
         import torch
-        import torchaudio
         import transformers
 
         converter = ctranslate2.converters.TransformersConverter(
@@ -999,12 +1001,11 @@ class TestWav2Vec2:
             inter_threads=1,
         )
 
-        waveform, sampling_rate = torchaudio.load(
-            os.path.join(test_utils.get_data_dir(), "audio", "test.wav")
+        speech_array = np.load(
+            os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
         )
-        speech_array = waveform[0].numpy()
         input_values = w2v2_processor(
-            speech_array.astype(np.float32),
+            speech_array,
             padding=True,
             return_tensors="pt",
             sampling_rate=16000,
@@ -1070,7 +1071,6 @@ class TestWav2Vec2:
             logits = w2v2_model.lm_head(hidden_states.to(torch.float32))[0]
 
         predicted_ids = torch.argmax(logits, dim=-1)
-        transcription = w2v2_processor.decode(predicted_ids, output_word_offsets=True)[
-            0
-        ]
-        assert transcription == expected_transcription
+        transcription = w2v2_processor.decode(predicted_ids, output_word_offsets=True)
+
+        assert transcription[0] == expected_transcription[0]
