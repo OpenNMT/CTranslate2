@@ -968,7 +968,6 @@ class TestWav2Vec2:
         model_name,
         expected_transcription,
     ):
-        import requests
         import torch
         import torchaudio
         import transformers
@@ -1000,10 +999,9 @@ class TestWav2Vec2:
             inter_threads=1,
         )
 
-        data_dir = os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "..", "..", "tests", "data"
+        waveform, sampling_rate = torchaudio.load(
+            os.path.join(test_utils.get_data_dir(), "audio", "test.wav")
         )
-        waveform, sampling_rate = torchaudio.load(data_dir + "/test.wav")
         speech_array = waveform[0].numpy()
         input_values = w2v2_processor(
             speech_array.astype(np.float32),
