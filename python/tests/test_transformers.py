@@ -953,12 +953,10 @@ class TestWav2Vec2:
     @test_utils.only_on_linux
     @test_utils.on_available_devices
     @pytest.mark.parametrize(
-        "model_name,audio_name,expected_transcription",
+        "model_name,expected_transcription",
         [
             (
                 "facebook/wav2vec2-large-robust-ft-swbd-300h",
-                "https://download.pytorch.org/torchaudio/tutorial-assets\
-/Lab41-SRI-VOiCES-src-sp0307-ch127535-sg0042.wav",
                 "I HAD THAT CURIOSITY BESIDE ME AT THIS MOMENT",
             ),
         ],
@@ -968,7 +966,6 @@ class TestWav2Vec2:
         tmp_dir,
         device,
         model_name,
-        audio_name,
         expected_transcription,
     ):
         import requests
@@ -1003,9 +1000,10 @@ class TestWav2Vec2:
             inter_threads=1,
         )
 
-        r = requests.get(audio_name, allow_redirects=True)
-        open(output_dir + "/test.wav", "wb").write(r.content)
-        waveform, sampling_rate = torchaudio.load(output_dir + "/test.wav")
+        data_dir = os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "..", "..", "tests", "data"
+        )
+        waveform, sampling_rate = torchaudio.load(data_dir + "/test.wav")
         speech_array = waveform[0].numpy()
         input_values = w2v2_processor(
             speech_array.astype(np.float32),
