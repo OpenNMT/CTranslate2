@@ -1,13 +1,12 @@
 #include "ctranslate2/layers/attention.h"
 #include "ctranslate2/ops/split.h"
-#include <iostream>
+
 #include <algorithm>
 #include <cmath>
 #include <numeric>
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
-
 
 namespace ctranslate2 {
   namespace layers {
@@ -533,12 +532,11 @@ namespace ctranslate2 {
           } else {
             const ops::Concat concat_op(_cache_time_dim);
             StorageView& tmp = fused_proj;  // Reuse storage.
-            StorageView& tmp2 = fused_proj;
             if (_sliding_window > 0) {
               if (cached_keys->shape()[2] >= _sliding_window) {
                 const ops::Split split_op(2, {1, _sliding_window - 1});
-                split_op(*cached_keys, tmp2, *cached_keys);
-                split_op(*cached_values, tmp2, *cached_values);
+                split_op(*cached_keys, tmp, *cached_keys);
+                split_op(*cached_values, tmp, *cached_values);
               }
             }
             tmp = std::move(*cached_keys);
