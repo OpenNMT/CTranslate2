@@ -25,6 +25,7 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         rotary_scaling_factor=1,
         rotary_base=10000,
         num_heads_kv=None,
+        sliding_window=None,
     ):
         self.queries_scale = model_spec.OPTIONAL
 
