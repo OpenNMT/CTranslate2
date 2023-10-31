@@ -55,3 +55,6 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
 
         if num_heads_kv is not None:
             self.num_heads_kv = np.dtype("int32").type(num_heads_kv)
+
+        if sliding_window is not None:
+            self.sliding_window = np.dtype("int32").type(sliding_window)
