@@ -532,13 +532,6 @@ namespace ctranslate2 {
           } else {
             const ops::Concat concat_op(_cache_time_dim);
             StorageView& tmp = fused_proj;  // Reuse storage.
-            if (_sliding_window > 0) {
-              if (cached_keys->shape()[2] >= _sliding_window) {
-                const ops::Split split_op(2, {1, _sliding_window - 1});
-                split_op(*cached_keys, tmp, *cached_keys);
-                split_op(*cached_values, tmp, *cached_values);
-              }
-            }
             tmp = std::move(*cached_keys);
             concat_op({&tmp, &keys_proj}, *cached_keys);
             tmp = std::move(*cached_values);
@@ -638,7 +631,7 @@ namespace ctranslate2 {
 
       if (!_sin || offset + max_time > _sin.dim(0)) {
         const dim_t cur_num_positions = _sin ? _sin.dim(0) : 0;
-        const dim_t new_num_positions = cur_num_positions + _num_initial_positions;
+        const dim_t new_num_positions = std::max(offset + max_time, cur_num_positions + _num_initial_positions);
         initialize(new_num_positions, dim, device, dtype);
       }
 
