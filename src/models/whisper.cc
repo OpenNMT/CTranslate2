@@ -71,6 +71,7 @@ namespace ctranslate2 {
       if (_no_speech_id == vocabulary.unk_id())
         _no_speech_id = vocabulary.to_id("<|nocaptions|>");
       _is_multilingual = vocabulary.size() == 51865;
+      _n_mels = _encoder->input_size();
     }
 
     StorageView WhisperReplica::encode(StorageView features, const bool to_cpu) {
@@ -638,6 +639,11 @@ namespace ctranslate2 {
     bool Whisper::is_multilingual() const {
       const auto& replica = get_first_replica();
       return replica.is_multilingual();
+    }
+
+    size_t Whisper::n_mels() const {
+      const auto& replica = get_first_replica();
+      return replica.n_mels();
     }
 
     std::future<StorageView> Whisper::encode(const StorageView& features, const bool to_cpu) {

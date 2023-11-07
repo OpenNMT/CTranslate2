@@ -105,6 +105,10 @@ namespace ctranslate2 {
         return _is_multilingual;
       }
 
+      size_t n_mels() const {
+        return _n_mels;
+      }
+
       StorageView encode(StorageView features, const bool to_cpu);
 
       std::vector<WhisperGenerationResult>
@@ -136,6 +140,7 @@ namespace ctranslate2 {
       size_t _eot_id;
       size_t _no_timestamps_id;
       size_t _no_speech_id;
+      size_t _n_mels;
       bool _is_multilingual;
 
       StorageView maybe_encode(StorageView features);
@@ -146,6 +151,7 @@ namespace ctranslate2 {
       using ReplicaPool::ReplicaPool;
 
       bool is_multilingual() const;
+      size_t n_mels() const;
 
       std::future<StorageView> encode(const StorageView& features, const bool to_cpu);
 
