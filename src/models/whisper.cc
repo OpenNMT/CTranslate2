@@ -70,7 +70,7 @@ namespace ctranslate2 {
       _no_speech_id = vocabulary.to_id("<|nospeech|>");
       if (_no_speech_id == vocabulary.unk_id())
         _no_speech_id = vocabulary.to_id("<|nocaptions|>");
-      _is_multilingual = vocabulary.size() == 51865;
+      _is_multilingual = vocabulary.size() >= 51865;
       _n_mels = _encoder->input_size();
     }
 
