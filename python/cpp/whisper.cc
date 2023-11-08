@@ -19,6 +19,10 @@ namespace ctranslate2 {
         return _pool->n_mels();
       }
 
+      size_t num_languages() const {
+        return _pool->num_languages();
+      }
+
       StorageView encode(const StorageView& features, const bool to_cpu) {
         return _pool->encode(features, to_cpu).get();
       }
@@ -155,6 +159,9 @@ namespace ctranslate2 {
 
         .def_property_readonly("n_mels", &WhisperWrapper::n_mels,
                                "Returns dimension of mel input features.")
+
+        .def_property_readonly("num_languages", &WhisperWrapper::num_languages,
+                               "Returns the number of languages supported.")
 
         .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, py::object>(),
              py::arg("model_path"),
