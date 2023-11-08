@@ -1925,7 +1925,7 @@ if __name__ == "__main__":
 
 # Cross-attention heads that are highly correlated to the word-level timing,
 # i.e. the alignment between audio and text tokens.
-# Obtained from https://github.com/openai/whisper/blob/v20230306/whisper/__init__.py#L31-L45
+# Obtained from https://github.com/openai/whisper/blob/v20231106/whisper/__init__.py#L32-L47
 _WHISPER_ALIGNMENT_HEADS = {
     "openai/whisper-tiny.en": [
         (1, 0),
