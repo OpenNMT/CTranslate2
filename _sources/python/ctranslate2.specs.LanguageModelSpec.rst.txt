@@ -12,6 +12,7 @@ LanguageModelSpec
 
     - :class:`ctranslate2.specs.TransformerDecoderModelSpec`
     - :class:`ctranslate2.specs.TransformerEncoderModelSpec`
+    - :class:`ctranslate2.specs.Wav2Vec2Spec`
     - :class:`ctranslate2.specs.WhisperSpec`
 
     **Attributes:**

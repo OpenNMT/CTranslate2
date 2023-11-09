@@ -14,7 +14,9 @@ Whisper
     - :obj:`~ctranslate2.models.Whisper.device`
     - :obj:`~ctranslate2.models.Whisper.device_index`
     - :obj:`~ctranslate2.models.Whisper.is_multilingual`
+    - :obj:`~ctranslate2.models.Whisper.n_mels`
     - :obj:`~ctranslate2.models.Whisper.num_active_batches`
+    - :obj:`~ctranslate2.models.Whisper.num_languages`
     - :obj:`~ctranslate2.models.Whisper.num_queued_batches`
     - :obj:`~ctranslate2.models.Whisper.num_workers`
 

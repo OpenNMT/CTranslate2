@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>WhisperSpec &mdash; CTranslate2 3.20.0 documentation</title>
+  <title>WhisperSpec &mdash; CTranslate2 3.21.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -21,7 +21,7 @@
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
     <link rel="next" title="Hardware support" href="../hardware_support.html" />
-    <link rel="prev" title="TransformerSpec" href="ctranslate2.specs.TransformerSpec.html" /> 
+    <link rel="prev" title="Wav2Vec2Spec" href="ctranslate2.specs.Wav2Vec2Spec.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                3.20
+                3.21
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -92,6 +92,7 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html">TransformerEncoderModelSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html">TransformerEncoderSpec</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html">TransformerSpec</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html">Wav2Vec2Spec</a></li>
 <li class="toctree-l3 current"><a class="current reference internal" href="#">WhisperSpec</a></li>
 </ul>
 </li>
@@ -156,13 +157,15 @@
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.specs.WhisperSpec.__init__">
-<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_layers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_heads</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.WhisperSpec.__init__" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">__init__</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">num_encoder_layers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_encoder_heads</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_decoder_layers</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">num_decoder_heads</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.specs.WhisperSpec.__init__" title="Permalink to this definition"></a></dt>
 <dd><p>Initializes the model specification.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
 <dd class="field-odd"><ul class="simple">
-<li><p><strong>num_layers</strong> – The number of encoder and decoder layers.</p></li>
-<li><p><strong>num_heads</strong> – The number of attention heads.</p></li>
+<li><p><strong>num_encoder_layers</strong> – The number of encoder layers.</p></li>
+<li><p><strong>num_encoder_heads</strong> – The number of encoder attention heads.</p></li>
+<li><p><strong>num_decoder_layers</strong> – The number of decoder layers.</p></li>
+<li><p><strong>num_decoder_heads</strong> – The number of decoder attention heads.</p></li>
 </ul>
 </dd>
 </dl>
@@ -280,7 +283,7 @@ changed (e.g. a weight is renamed).</p>
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="ctranslate2.specs.TransformerSpec.html" class="btn btn-neutral float-left" title="TransformerSpec" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.specs.Wav2Vec2Spec.html" class="btn btn-neutral float-left" title="Wav2Vec2Spec" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
         <a href="../hardware_support.html" class="btn btn-neutral float-right" title="Hardware support" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
