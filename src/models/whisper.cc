@@ -151,40 +151,61 @@ namespace ctranslate2 {
 
     static size_t get_prompt_length(const std::vector<size_t>& prompt,
                                     const size_t sot_id,
-                                    const size_t no_timestamps_id) {
-      size_t index = get_sot_index(prompt, sot_id);
+                                    const size_t no_timestamps_id,
+                                    const size_t* sot_index = nullptr) {
+      size_t index = sot_index ? *sot_index : get_sot_index(prompt, sot_id);
       while (index < prompt.size() && prompt[index] >= sot_id && prompt[index] <= no_timestamps_id)
         index++;
       return index;
     }
 
-    static void check_prompts(const std::vector<std::vector<size_t>>& prompts,
+    // Add left padding to align prompts on the <|startoftranscript|> token.
+    static void align_prompts(std::vector<std::vector<size_t>>& prompts,
                               const size_t sot_id,
+                              const size_t pad_id,
                               const size_t no_timestamps_id,
+                              std::vector<int32_t>& offsets,
                               size_t& sot_index,
                               size_t& prompt_length) {
-      bool first = true;
+      const size_t batch_size = prompts.size();
 
-      for (const auto& prompt : prompts) {
-        const auto batch_sot_index = get_sot_index(prompt, sot_id);
-        const auto batch_prompt_length = get_prompt_length(prompt, sot_id, no_timestamps_id);
+      std::vector<size_t> sot_indices;
+      sot_indices.reserve(batch_size);
+      sot_index = 0;
 
-        if (first) {
-          sot_index = batch_sot_index;
+      for (size_t i = 0; i < batch_size; ++i) {
+        const auto batch_sot_index = get_sot_index(prompts[i], sot_id);
+        sot_indices.push_back(batch_sot_index);
+        sot_index = std::max(sot_index, batch_sot_index);
+      }
+
+      bool no_padding = true;
+      offsets.reserve(batch_size);
+
+      for (size_t i = 0; i < batch_size; ++i) {
+        const auto offset = sot_index - sot_indices[i];
+        offsets.push_back(offset);
+
+        if (offset > 0) {
+          prompts[i].insert(prompts[i].begin(), offset, pad_id);
+          no_padding = false;
+        }
+
+        const auto batch_prompt_length = get_prompt_length(prompts[i],
+                                                           sot_id,
+                                                           no_timestamps_id,
+                                                           &sot_index);
+
+        if (i == 0) {
           prompt_length = batch_prompt_length;
-        } else if (batch_sot_index != sot_index) {
-          throw std::invalid_argument("The generate method currently requires the "
-                                      "<|startoftranscript|> token to be at the same position "
-                                      "in all batches. To work around this limitation, "
-                                      "simply adapt the number of previous text tokens in each "
-                                      "batch.");
         } else if (batch_prompt_length != prompt_length) {
           throw std::invalid_argument("The generate method currently requires each batch to have "
                                       "the same number of task tokens after <|startoftranscript|>.");
         }
-
-        first = false;
       }
+
+      if (no_padding)
+        offsets.clear();
     }
 
     class ApplyTimestampRules;
@@ -229,7 +250,7 @@ namespace ctranslate2 {
 
     std::vector<WhisperGenerationResult>
     WhisperReplica::generate(StorageView features,
-                             const std::vector<std::vector<size_t>>& prompts,
+                             std::vector<std::vector<size_t>> prompts,
                              const WhisperOptions& options) {
       PROFILE("WhisperReplica::generate");
       if (prompts.empty())
@@ -239,15 +260,19 @@ namespace ctranslate2 {
       const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(false);
 #endif
 
+      std::vector<int32_t> offsets;
       size_t sot_index = 0;
       size_t prompt_length = 0;  // Length of the prompt before the text tokens.
-      check_prompts(prompts, _sot_id, _no_timestamps_id, sot_index, prompt_length);
+      align_prompts(prompts, _sot_id, _eot_id, _no_timestamps_id, offsets, sot_index, prompt_length);
 
       const auto& vocabulary = _model->get_vocabulary();
       const auto scoped_device_setter = _model->get_scoped_device_setter();
 
       layers::DecoderState state = _decoder->initial_state();
       state.emplace("memory", maybe_encode(std::move(features)));
+
+      if (!offsets.empty())
+        state.emplace("offsets", StorageView({dim_t(offsets.size())}, offsets, _decoder->device()));
 
       _decoder->update_output_layer(_model->preferred_size_multiple());
 
@@ -510,7 +535,7 @@ namespace ctranslate2 {
                                       std::vector<int32_t>(num_frames.begin(), num_frames.end()),
                                       device);
         const StorageView frame_sizes_mask(
-          layers::MultiHeadAttention::prepare_length_mask(frame_sizes,
+          layers::MultiHeadAttention::prepare_values_mask(frame_sizes,
                                                           attention_weights.dim(1),
                                                           attention_weights.dim(2)));
 
@@ -684,7 +709,7 @@ namespace ctranslate2 {
          prompts = std::move(prompts),
          options = std::move(options)]
         (WhisperReplica& replica) mutable {
-          return replica.generate(std::move(features), prompts, options);
+          return replica.generate(std::move(features), std::move(prompts), options);
         },
         batch_size);
     }

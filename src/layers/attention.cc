@@ -201,6 +201,7 @@ namespace ctranslate2 {
                                       const StorageView& keys,
                                       const StorageView& values,
                                       const StorageView* values_lengths,
+                                      const StorageView* values_offsets,
                                       const StorageView* relative_position_keys,
                                       const StorageView* relative_position_values,
                                       const StorageView* relative_attention_bias,
@@ -263,7 +264,7 @@ namespace ctranslate2 {
         alibi->apply(output, queries_scale);
 
       StorageView attn(values.dtype(), values.device());
-      ops::SoftMax()(output, values_lengths, attn);
+      ops::SoftMax()(output, values_lengths, values_offsets, attn);
 
       if (attention && !return_normalized_attention)
         save_attention(*attention, std::move(output), beam_size);
@@ -423,6 +424,7 @@ namespace ctranslate2 {
     void MultiHeadAttention::operator()(const StorageView& queries,
                                         const StorageView& values,
                                         const StorageView* values_lengths,
+                                        const StorageView* values_offsets,
                                         StorageView& output,
                                         StorageView* cached_keys,
                                         StorageView* cached_values,
@@ -550,6 +552,7 @@ namespace ctranslate2 {
                             keys_proj,
                             values_proj,
                             values_lengths,
+                            values_offsets,
                             _relative_position_keys,
                             _relative_position_values,
                             _relative_attention_bias,
@@ -582,11 +585,14 @@ namespace ctranslate2 {
       }
     }
 
-    StorageView MultiHeadAttention::prepare_length_mask(const StorageView& lengths,
+    StorageView MultiHeadAttention::prepare_values_mask(const StorageView& lengths,
                                                         const dim_t num_heads,
                                                         const dim_t num_queries,
                                                         const bool mask_future,
-                                                        const bool multi_query) {
+                                                        const bool multi_query,
+                                                        const dim_t step,
+                                                        const StorageView* offsets,
+                                                        StorageView* values_offsets) {
       const Device device = lengths.device();
       const dim_t batch_size = lengths.size();
       StorageView mask(lengths.dtype(), device);
@@ -596,13 +602,26 @@ namespace ctranslate2 {
       else
         mask.resize({batch_size, num_heads, num_queries});
 
-      DEVICE_DISPATCH(device, (primitives<D>::prepare_length_mask(lengths.data<int32_t>(),
-                                                                  batch_size,
-                                                                  num_heads,
-                                                                  num_queries,
-                                                                  mask_future,
-                                                                  multi_query,
-                                                                  mask.data<int32_t>())));
+      if (offsets) {
+        if (!values_offsets)
+          throw std::runtime_error("Missing values_offsets output");
+        values_offsets->resize_as(mask);
+      }
+
+      DEVICE_DISPATCH(
+        device,
+        (primitives<D>::prepare_mha_values_mask(
+          lengths.data<int32_t>(),
+          offsets ? offsets->data<int32_t>() : nullptr,
+          batch_size,
+          num_heads,
+          num_queries,
+          mask_future,
+          multi_query,
+          step,
+          mask.data<int32_t>(),
+          values_offsets ? values_offsets->data<int32_t>() : nullptr)));
+
       return mask;
     }
 

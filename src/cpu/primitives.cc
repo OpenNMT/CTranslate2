@@ -405,21 +405,31 @@ namespace ctranslate2 {
   }
 
   template<>
-  void primitives<Device::CPU>::prepare_length_mask(const int32_t* lengths,
-                                                    dim_t batch_size,
-                                                    dim_t num_heads,
-                                                    dim_t num_queries,
-                                                    bool mask_future,
-                                                    bool multi_query,
-                                                    int32_t* mask) {
+  void primitives<Device::CPU>::prepare_mha_values_mask(const int32_t* lengths,
+                                                        const int32_t* offsets,
+                                                        dim_t batch_size,
+                                                        dim_t num_heads,
+                                                        dim_t num_queries,
+                                                        bool mask_future,
+                                                        bool multi_query,
+                                                        dim_t step,
+                                                        int32_t* values_lengths,
+                                                        int32_t* values_offsets) {
     for (dim_t b = 0; b < batch_size; ++b) {
-      const auto length = lengths[b];
-      auto* batch_mask = mask + b * num_heads * num_queries;
-      for (dim_t i = 0; i < num_heads * num_queries; ++i) {
-        batch_mask[i] = (mask_future
-                         ? std::min(length,
-                                    int32_t((multi_query ? i / num_heads : i % num_queries) + 1))
-                         : length);
+      const auto offset = offsets ? offsets[b] : 0;
+      const auto length = lengths[b] + int32_t(step) - offset;
+      const auto batch_offset = b * num_heads * num_queries;
+
+      for (dim_t i = batch_offset; i < batch_offset + num_heads * num_queries; ++i) {
+        if (mask_future) {
+          const int32_t time = step + (multi_query ? i / num_heads : i % num_queries);
+          values_lengths[i] = time < offset ? 0 : std::min(time - offset + 1, length);
+        } else {
+          values_lengths[i] = length;
+        }
+
+        if (values_offsets)
+          values_offsets[i] = offset;
       }
     }
   }

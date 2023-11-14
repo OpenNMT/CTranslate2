@@ -157,6 +157,8 @@ set(SOURCES
   src/ops/mul.cc
   src/ops/multinomial.cc
   src/ops/multinomial_cpu.cc
+  src/ops/position_encodings_add.cc
+  src/ops/position_encodings_add_cpu.cc
   src/ops/quantize.cc
   src/ops/quantize_cpu.cc
   src/ops/relu.cc
@@ -513,6 +515,7 @@ if (WITH_CUDA)
     src/ops/layer_norm_gpu.cu
     src/ops/mean_gpu.cu
     src/ops/multinomial_gpu.cu
+    src/ops/position_encodings_add_gpu.cu
     src/ops/rms_norm_gpu.cu
     src/ops/rotary_gpu.cu
     src/ops/softmax_gpu.cu
