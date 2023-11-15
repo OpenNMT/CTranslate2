@@ -890,11 +890,36 @@ class WhisperLoader(BartLoader):
         return spec
 
     def set_config(self, config, model, tokenizer):
-        config.suppress_ids = model.config.suppress_tokens
-        config.suppress_ids_begin = model.config.begin_suppress_tokens
-        config.lang_ids = tokenizer.additional_special_tokens_ids[2:-6]
+        gen_config = getattr(model, "generation_config", None)
 
-        config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
+        if gen_config is not None:
+            config.suppress_ids = gen_config.suppress_tokens
+            config.suppress_ids_begin = gen_config.begin_suppress_tokens
+            config.alignment_heads = gen_config.alignment_heads
+        else:
+            config.suppress_ids = model.config.suppress_tokens
+            config.suppress_ids_begin = model.config.begin_suppress_tokens
+            config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
+
+        non_lang_special_tokens = [
+            "<|endoftext|>",
+            "<|startoftranscript|>",
+            "<|translate|>",
+            "<|transcribe|>",
+            "<|startoflm|>",
+            "<|startofprev|>",
+            "<|nocaptions|>",
+            "<|notimestamps|>",
+        ]
+        config.lang_ids = [
+            token_id
+            for token_id, token in zip(
+                tokenizer.additional_special_tokens_ids,
+                tokenizer.additional_special_tokens,
+            )
+            if token not in non_lang_special_tokens
+        ]
+
         if config.alignment_heads is None:
             # Use the last half layers for alignment by default.
             num_layers = model.config.decoder_layers
