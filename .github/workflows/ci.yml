@@ -87,6 +87,8 @@ jobs:
           tar xf transliteration-aren-all.tar.gz
 
       - name: Test
+        env:
+          CT2_USE_MKL: 1
         run: |
           tests/ctranslate2_test tests/data
 
