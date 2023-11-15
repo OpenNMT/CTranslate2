@@ -86,9 +86,14 @@ jobs:
           wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
           tar xf transliteration-aren-all.tar.gz
 
-      - name: Test
+      - name: Test MKL
+        if: matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
+        run: |
+          tests/ctranslate2_test tests/data
+      - name: Test DNNL
+        if: matrix.backend == 'dnnl'
         run: |
           tests/ctranslate2_test tests/data
 
