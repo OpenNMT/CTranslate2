@@ -101,7 +101,7 @@ set(SOURCES
   src/cpu/backend.cc
   src/cpu/cpu_info.cc
   src/cpu/cpu_isa.cc
-  src/cpu/kernels.cc
+  #src/cpu/kernels.cc
   src/cpu/parallel.cc
   src/cpu/primitives.cc
   src/decoding.cc
@@ -214,7 +214,10 @@ if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm64)|(aarch64)"
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(amd64)|(AMD64)")
   add_definitions(-DCT2_X86_BUILD)
   set(CT2_BUILD_ARCH "x86_64")
-
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(ppc64le)|(PPC64LE)")
+  add_definitions(-DCT2_PPC64LE_BUILD)
+  set(CT2_BUILD_ARCH "ppc64le")
+  
   if(BUILD_SHARED_LIBS)
     set(CMAKE_POSITION_INDEPENDENT_CODE ON)
   endif()
@@ -241,6 +244,8 @@ if(ENABLE_CPU_DISPATCH)
     endif()
   elseif(CT2_BUILD_ARCH STREQUAL "arm64")
     ct2_compile_kernels_for_isa(neon "-DUSE_NEON")
+   elseif(CT2_BUILD_ARCH STREQUAL "ppc64le")
+    ct2_compile_kernels_for_isa(ppc64le "-mcpu=power10 -O3 -flto")
   endif()
 endif()
 
