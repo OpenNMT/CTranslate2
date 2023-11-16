@@ -548,7 +548,7 @@ namespace ctranslate2 {
 
       while (true) {
         dim_t prompt_size = layer_in.dim(1);
-        if (prompt_size <= _sliding_window) {
+        if (_sliding_window == 0 || prompt_size <= _sliding_window) {
           layer_ins.push_back(std::move(layer_in));
           break;
         }
