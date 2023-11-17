@@ -483,22 +483,19 @@ namespace ctranslate2 {
       std::unique_ptr<const Padder> input_padder;
       std::unique_ptr<const StorageView> input_lengths;
       std::unique_ptr<const StorageView> input_lengths_mask;
-      std::unique_ptr<const StorageView> rest_input_lengths_mask;
 
       if (is_sequence && !lengths) {
         input_lengths = std::make_unique<StorageView>(Shape{ids.dim(0)}, int32_t(max_time), device);
         lengths = input_lengths.get();
       }
 
-      bool multi_query;
+      bool multi_query = _layers.front()->get_self_attention().multi_query();
 
       if (lengths) {
         if (allow_padding_removal) {
           input_padder = std::make_unique<Padder>(*lengths, max_time);
           input_padder->remove_padding(layer_in);
         }
-
-        multi_query = _layers.front()->get_self_attention().multi_query();
 
         StorageView lengths_mask = layers::MultiHeadAttention::prepare_length_mask(
           *lengths,
