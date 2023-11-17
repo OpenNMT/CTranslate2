@@ -1024,7 +1024,7 @@ class T5Loader(ModelLoader):
         config.bos_token = tokenizer.pad_token
         config.eos_token = tokenizer.eos_token
         config.unk_token = tokenizer.unk_token
-        if hasattr(model.config, 'decoder_start_token_id'):
+        if hasattr(model.config, "decoder_start_token_id"):
             config.decoder_start_token = tokenizer.convert_ids_to_tokens(
                 model.config.decoder_start_token_id
             )
