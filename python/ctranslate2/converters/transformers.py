@@ -889,18 +889,7 @@ class WhisperLoader(BartLoader):
 
         return spec
 
-    def set_config(self, config, model, tokenizer):
-        gen_config = getattr(model, "generation_config", None)
-
-        if gen_config is not None:
-            config.suppress_ids = gen_config.suppress_tokens
-            config.suppress_ids_begin = gen_config.begin_suppress_tokens
-            config.alignment_heads = gen_config.alignment_heads
-        else:
-            config.suppress_ids = model.config.suppress_tokens
-            config.suppress_ids_begin = model.config.begin_suppress_tokens
-            config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
-
+    def _get_lang_ids_from_tokenizer(self, tokenizer):
         non_lang_special_tokens = [
             "<|endoftext|>",
             "<|startoftranscript|>",
@@ -911,7 +900,7 @@ class WhisperLoader(BartLoader):
             "<|nocaptions|>",
             "<|notimestamps|>",
         ]
-        config.lang_ids = [
+        return [
             token_id
             for token_id, token in zip(
                 tokenizer.additional_special_tokens_ids,
@@ -919,6 +908,20 @@ class WhisperLoader(BartLoader):
             )
             if token not in non_lang_special_tokens
         ]
+
+    def set_config(self, config, model, tokenizer):
+        gen_config = getattr(model, "generation_config", None)
+
+        if gen_config is not None:
+            config.suppress_ids = gen_config.suppress_tokens
+            config.suppress_ids_begin = gen_config.begin_suppress_tokens
+            config.alignment_heads = gen_config.alignment_heads
+            config.lang_ids = sorted(gen_config.lang_to_id.values())
+        else:
+            config.suppress_ids = model.config.suppress_tokens
+            config.suppress_ids_begin = model.config.begin_suppress_tokens
+            config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
+            config.lang_ids = self._get_lang_ids_from_tokenizer(tokenizer)
 
         if config.alignment_heads is None:
             # Use the last half layers for alignment by default.
