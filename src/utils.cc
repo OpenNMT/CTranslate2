@@ -42,6 +42,10 @@ namespace ctranslate2 {
     spdlog::info("CPU: {} (NEON={})",
                  cpu::cpu_vendor(),
                  cpu::cpu_supports_neon());
+#elif defined(CT2_PPC64LE_BUILD)
+        spdlog::info("CPU: {} (NEON={})",
+                 cpu::cpu_vendor(),
+                 cpu::cpu_supports_power10());
 #endif
     spdlog::info(" - Selected ISA: {}", cpu::isa_to_str(cpu::get_cpu_isa()));
     spdlog::info(" - Use Intel MKL: {}", cpu::mayiuse_mkl());

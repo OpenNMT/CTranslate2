@@ -35,7 +35,7 @@ namespace ctranslate2 {
 #elif defined(CT2_ARM64_BUILD)
       case CpuIsa::NEON:
         return "NEON";
-#elif defined(CT2_PPC64_BUILD)
+#elif defined(CT2_PPC64LE_BUILD)
       case CpuIsa::POWER10:
         return "POWER10";
 #endif
@@ -58,7 +58,7 @@ namespace ctranslate2 {
 #elif defined(CT2_ARM64_BUILD)
         if (env_isa == "NEON")
           return try_isa(env_isa, CpuIsa::NEON, cpu_supports_neon());
-#elif defined(CT2_PPC64_BUILD)
+#elif defined(CT2_PPC64LE_BUILD)
         if (env_isa == "POWER10")
           return try_isa(env_isa, CpuIsa::POWER10, cpu_supports_power10());
 #endif
@@ -78,7 +78,7 @@ namespace ctranslate2 {
 #  elif defined(CT2_ARM64_BUILD)
       if (cpu_supports_neon())
         return CpuIsa::NEON;
-#  elif defined(CT2_PPC64_BUILD)
+#  elif defined(CT2_PPC64LE_BUILD)
       if (cpu_supports_power10())
         return CpuIsa::POWER10;
 #  endif
