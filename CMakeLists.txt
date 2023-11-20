@@ -134,7 +134,7 @@ set(SOURCES
   src/ops/bias_add.cc
   src/ops/bias_add_cpu.cc
   src/ops/concat.cc
-  src/ops/concat_split_cpu.cc
+  src/ops/concat_split_slide_cpu.cc
   src/ops/conv1d.cc
   src/ops/conv1d_cpu.cc
   src/ops/cos.cc
@@ -168,6 +168,7 @@ set(SOURCES
   src/ops/softmax.cc
   src/ops/softmax_cpu.cc
   src/ops/split.cc
+  src/ops/slide.cc
   src/ops/sub.cc
   src/ops/swish.cc
   src/ops/tanh.cc
@@ -263,6 +264,7 @@ if(NOT OPENMP_RUNTIME STREQUAL "NONE")
       ${INTEL_ROOT}/oneAPI/compiler/latest/windows/compiler/lib/intel64_win
       ${INTEL_ROOT}/oneapi/compiler/latest/linux/compiler/lib/intel64_lin
       ${INTEL_ROOT}/oneapi/compiler/latest/mac/compiler/lib
+      ${INTEL_ROOT}/oneapi/compiler/latest/lib
       )
     if(IOMP5_LIBRARY)
       list(APPEND LIBRARIES ${IOMP5_LIBRARY})
@@ -505,7 +507,7 @@ if (WITH_CUDA)
     src/cuda/utils.cc
     src/ops/alibi_add_gpu.cu
     src/ops/bias_add_gpu.cu
-    src/ops/concat_split_gpu.cu
+    src/ops/concat_split_slide_gpu.cu
     src/ops/conv1d_gpu.cu
     src/ops/dequantize_gpu.cu
     src/ops/gather_gpu.cu
