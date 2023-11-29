@@ -1529,6 +1529,7 @@ class MixFormerSequentialLoader(ModelLoader):
             self.set_linear(layer_spec.ffn.linear_0, layer.mlp.fc1)
             self.set_linear(layer_spec.ffn.linear_1, layer.mlp.fc2)
 
+
 @register_loader("PhiConfig")
 class PhiLoader(MixFormerSequentialLoader):
     @property
@@ -1579,6 +1580,7 @@ class PhiLoader(MixFormerSequentialLoader):
             self.set_linear(layer_spec.self_attention.linear[1], layer.mixer.out_proj)
             self.set_linear(layer_spec.ffn.linear_0, layer.mlp.fc1)
             self.set_linear(layer_spec.ffn.linear_1, layer.mlp.fc2)
+
 
 @register_loader("RWConfig")
 class RWLoader(ModelLoader):
