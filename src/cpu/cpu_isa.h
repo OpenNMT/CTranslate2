@@ -59,8 +59,7 @@ namespace ctranslate2 {
 #elif defined(CT2_PPC64LE_BUILD)
 #  define CPU_ISA_DISPATCH(STMTS)                             \
   switch (cpu::get_cpu_isa()) {                               \
-    CPU_ISA_CASE(cpu::CpuIsa::GENERIC, SINGLE_ARG(STMTS))     \
-    CPU_ISA_DEFAULT(cpu::CpuIsa::GENERIC, SINGLE_ARG(STMTS))  \
+    CPU_ISA_DEFAULT(cpu::CpuIsa::POWER10, SINGLE_ARG(STMTS))  \
   }
 #endif
 #elif defined(__AVX512F__)
