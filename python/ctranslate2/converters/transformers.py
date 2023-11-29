@@ -1531,7 +1531,7 @@ class MixFormerSequentialLoader(ModelLoader):
 
 
 @register_loader("PhiConfig")
-class PhiLoader(MixFormerSequentialLoader):
+class PhiLoader(ModelLoader):
     @property
     def architecture_name(self):
         return "AutoModelForCausalLM"
