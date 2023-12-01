@@ -7,10 +7,7 @@
 #include <iostream>
 #include <altivec.h>
 
-#include <sleefinline_vsx.h>
-
-
-#include<xmmintrin.h>
+#include <sleefinline_vsx3.h>
 
 #include "vec.h"
 
@@ -133,31 +130,31 @@ namespace ctranslate2 {
       }
 
       static inline value_type exp(value_type a) {
-	return Sleef_expf4_u10vsx(a);
+	return Sleef_expf4_u10vsx3(a);
 
 	 
       }
 
       static inline value_type log(value_type a) {
-         return Sleef_logf4_u35vsx(a);
+         return Sleef_logf4_u35vsx3(a);
 
       }
       static inline value_type sin(value_type a) {
-        return Sleef_sinf4_u35vsx(a);
+        return Sleef_sinf4_u35vsx3(a);
       }
 
       static inline value_type cos(value_type a) {
-        return Sleef_cosf4_u35vsx(a);
+        return Sleef_cosf4_u35vsx3(a);
 
       }
 
       static inline value_type tanh(value_type a) {
-	return Sleef_tanhf4_u35vsx(a);
+	return Sleef_tanhf4_u35vsx3(a);
 
       }
 
       static inline value_type erf(value_type a) {
-        return Sleef_erff4_u10vsx(a);
+        return Sleef_erff4_u10vsx3(a);
       }
 
       static inline value_type max(value_type a, value_type b) {
@@ -190,24 +187,42 @@ namespace ctranslate2 {
       }
 
       static inline float reduce_add(value_type a) {
-	/*float f=0;
-	for (int i=0;i<width;i+=1) {
-	  f+=a[i];
-	}
-	std::cout << "reduce_add ";
-        return f;*/
-        __m128 t1 = _mm_movehl_ps(a, a);
+
+
+        unsigned long __element_selector_10 = 1 & 0x03;
+        unsigned long __element_selector_32 = (1 >> 2) & 0x03;
+        unsigned long __element_selector_54 = (1 >> 4) & 0x03;
+        unsigned long __element_selector_76 = (1 >> 6) & 0x03;
+        static const unsigned int __permute_selectors[4] =
+          {
+#ifdef __LITTLE_ENDIAN__
+            0x03020100, 0x07060504, 0x0B0A0908, 0x0F0E0D0C
+#else
+            0x00010203, 0x04050607, 0x08090A0B, 0x0C0D0E0F
+#endif
+          };
+        __vector unsigned int __t;
+        __t[0] = __permute_selectors[__element_selector_10];
+        __t[1] = __permute_selectors[__element_selector_32];
+        __t[2] = __permute_selectors[__element_selector_54] + 0x10101010;
+        __t[3] = __permute_selectors[__element_selector_76] + 0x10101010;
+
+        __vector unsigned long long v1 = vec_mergel((__vector unsigned long long)a,(__vector unsigned long long)a);
+	value_type v2 = (value_type)a + (value_type)v1;
+        value_type v3 = vec_perm (v2, v2,(__vector unsigned char) __t);
+	return  v2[0]+v3[0];
+
+        /*__m128 t1 = _mm_movehl_ps(a, a);
+        for (int b=0; b<4;b+=1)
+          std::cout << "t1["<<b<<"]:"<<((__vector float)t1)[b]<<"\n";
+
 	__m128 t2 = _mm_add_ps(a, t1);
 	__m128 t3 = _mm_shuffle_ps(t2, t2, 1);
 	__m128 t4 = _mm_add_ss(t2, t3);
 	return _mm_cvtss_f32(t4);
-	
+	*/
       }
-
-      static inline float reduce_max4(value_type[4] a){
-
-	return 0;
-      }
+      
       static inline float reduce_max(value_type a) {
 	/*float max=0;
 	for (int i=0;i<width;i+=1) {
@@ -221,80 +236,6 @@ namespace ctranslate2 {
         float t1 = a[2] > a[3] ? a[2] : a[3];
 	return t0 > t1 ? t0 : t1;
       }
-      static inline void output_vec(value_type v)
-      {
-	for(int a=0;a<4;a+=1)
-	  std::cout<< " "<<a<<":"<<v[a];
-	std::cout <<"\n";
-	return;
-      }
-      static inline void output_vec_mask(mask_type v)
-      {
-        for(int a=0;a<4;a+=1)
-          std::cout<< " "<<a<<":"<<(bool)v[a];
-        std::cout <<"\n";
-        return;
-      }
-
-    //template <CpuIsa ISA>
-    static inline value_type vec_tanh(value_type a) {
-      using VecType = Vec<float, TARGET_ISA>;
-
-      // Implementation ported from Eigen:
-      // https://gitlab.com/libeigen/eigen/-/blob/3.4.0/Eigen/src/Core/MathFunctionsImpl.h#L18-L76
-      //std::cout << "Starting Power10::vec_tanh\n";
-      const auto plus_clamp = VecType::load(7.90531110763549805f);
-      //std::cout << " plus_clamp:";
-      //VecType::output_vec(plus_clamp);
-      const auto minus_clamp = VecType::load(-7.90531110763549805f);
-      //std::cout << " minus_clamp:";
-      //VecType::output_vec(minus_clamp);
-      const auto tiny = VecType::load(0.0004f);
-      //std::cout << "tiny:";
-      //VecType::output_vec(tiny);
-      const auto x = VecType::max(VecType::min(a, plus_clamp), minus_clamp);
-      //std::cout << "x:";
-      //VecType::output_vec(x);
-      const auto tiny_mask = VecType::lt(VecType::abs(a), tiny);
-      //std::cout << "tiny_mask:";
-      //VecType::output_vec_mask(tiny_mask);
-
-
-      const auto alpha_1 = VecType::load(4.89352455891786e-03f);
-      const auto alpha_3 = VecType::load(6.37261928875436e-04f);
-      const auto alpha_5 = VecType::load(1.48572235717979e-05f);
-      const auto alpha_7 = VecType::load(5.12229709037114e-08f);
-      const auto alpha_9 = VecType::load(-8.60467152213735e-11f);
-      const auto alpha_11 = VecType::load(2.00018790482477e-13f);
-      const auto alpha_13 = VecType::load(-2.76076847742355e-16f);
-
-      const auto beta_0 = VecType::load(4.89352518554385e-03f);
-      const auto beta_2 = VecType::load(2.26843463243900e-03f);
-      const auto beta_4 = VecType::load(1.18534705686654e-04f);
-      const auto beta_6 = VecType::load(1.19825839466702e-06f);
-
-      const auto x2 = VecType::mul(x, x);
-      //std::cout << "x2:";
-      //output_vec(x2);
- 
-
-      auto p = VecType::mul_add(x2, alpha_13, alpha_11);
-      //std::cout << "p:";
-      //output_vec(p);
-
-      p = VecType::mul_add(x2, p, alpha_9);
-      p = VecType::mul_add(x2, p, alpha_7);
-      p = VecType::mul_add(x2, p, alpha_5);
-      p = VecType::mul_add(x2, p, alpha_3);
-      p = VecType::mul_add(x2, p, alpha_1);
-      p = VecType::mul(x, p);
-
-      auto q = VecType::mul_add(x2, beta_6, beta_4);
-      q = VecType::mul_add(x2, q, beta_2);
-      q = VecType::mul_add(x2, q, beta_0);
-
-      return VecType::select(tiny_mask, x, VecType::div(p, q));
-    }
     };
   }
 }
