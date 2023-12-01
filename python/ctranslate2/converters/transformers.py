@@ -889,12 +889,44 @@ class WhisperLoader(BartLoader):
 
         return spec
 
-    def set_config(self, config, model, tokenizer):
-        config.suppress_ids = model.config.suppress_tokens
-        config.suppress_ids_begin = model.config.begin_suppress_tokens
-        config.lang_ids = tokenizer.additional_special_tokens_ids[2:-6]
+    def _get_lang_ids_from_tokenizer(self, tokenizer):
+        non_lang_special_tokens = [
+            "<|endoftext|>",
+            "<|startoftranscript|>",
+            "<|translate|>",
+            "<|transcribe|>",
+            "<|startoflm|>",
+            "<|startofprev|>",
+            "<|nocaptions|>",
+            "<|notimestamps|>",
+        ]
+        return [
+            token_id
+            for token_id, token in zip(
+                tokenizer.additional_special_tokens_ids,
+                tokenizer.additional_special_tokens,
+            )
+            if token not in non_lang_special_tokens
+        ]
 
-        config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
+    def set_config(self, config, model, tokenizer):
+        gen_config = getattr(model, "generation_config", None)
+
+        if gen_config is not None:
+            config.suppress_ids = gen_config.suppress_tokens
+            config.suppress_ids_begin = gen_config.begin_suppress_tokens
+            if hasattr(gen_config, "alignment_heads"):
+                config.alignment_heads = gen_config.alignment_heads
+            if hasattr(gen_config, "lang_to_id"):
+                config.lang_ids = sorted(gen_config.lang_to_id.values())
+        else:
+            config.suppress_ids = model.config.suppress_tokens
+            config.suppress_ids_begin = model.config.begin_suppress_tokens
+            config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
+
+        if getattr(config, "lang_ids", None) is None:
+            config.lang_ids = self._get_lang_ids_from_tokenizer(tokenizer)
+
         if config.alignment_heads is None:
             # Use the last half layers for alignment by default.
             num_layers = model.config.decoder_layers
@@ -1024,7 +1056,12 @@ class T5Loader(ModelLoader):
         config.bos_token = tokenizer.pad_token
         config.eos_token = tokenizer.eos_token
         config.unk_token = tokenizer.unk_token
-        config.decoder_start_token = tokenizer.pad_token
+        if hasattr(model.config, "decoder_start_token_id"):
+            config.decoder_start_token = tokenizer.convert_ids_to_tokens(
+                model.config.decoder_start_token_id
+            )
+        else:
+            config.decoder_start_token = tokenizer.pad_token
 
     def set_stack(self, spec, module, is_decoder=False):
         self.set_layer_norm(spec.layer_norm, module.final_layer_norm)
@@ -1486,6 +1523,58 @@ class MixFormerSequentialLoader(ModelLoader):
         self.set_layer_norm(spec.layer_norm, module[-1].ln)
 
         for layer_spec, layer in zip(spec.layer, module[1:-1]):
+            self.set_layer_norm(layer_spec.shared_layer_norm, layer.ln)
+            self.set_linear(layer_spec.self_attention.linear[0], layer.mixer.Wqkv)
+            self.set_linear(layer_spec.self_attention.linear[1], layer.mixer.out_proj)
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.fc1)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.fc2)
+
+
+@register_loader("PhiConfig")
+class PhiLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "AutoModelForCausalLM"
+
+    def get_model_spec(self, model):
+        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
+            num_layers=model.config.n_layer,
+            num_heads=model.config.n_head,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.activation_function],
+            rotary_dim=model.config.rotary_dim,
+            rotary_interleave=False,
+            parallel_residual=True,
+            shared_layer_norm=True,
+        )
+
+        self.set_decoder(spec.decoder, model.transformer)
+        self.set_linear(spec.decoder.projection, model.lm_head.linear)
+        self.set_layer_norm(spec.decoder.layer_norm, model.lm_head.ln)
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = tokenizer.bos_token
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = tokenizer.unk_token
+
+    def set_decoder(self, spec, module):
+        spec.scale_embeddings = False
+        self.set_embeddings(spec.embeddings, module.embd.wte)
+
+        for layer_spec, layer in zip(spec.layer, module.h):
             self.set_layer_norm(layer_spec.shared_layer_norm, layer.ln)
             self.set_linear(layer_spec.self_attention.linear[0], layer.mixer.Wqkv)
             self.set_linear(layer_spec.self_attention.linear[1], layer.mixer.out_proj)
