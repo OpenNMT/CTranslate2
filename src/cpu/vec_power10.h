@@ -30,17 +30,16 @@ namespace ctranslate2 {
       static constexpr dim_t width = 4;
 
       static inline value_type unaligned_load(const float* ptr){
-        return vec_perm(vec_ld(0, ptr), vec_ld(16, ptr), vec_lvsl(0, ptr));
+	return (value_type){*ptr,*(ptr+1),*(ptr+2),*(ptr+3)};
       }
       
 
       static inline value_type load(float value) {
-	return vec_splats(value);
+	return (value_type){value,value,value,value};
       }
 
       static inline value_type load(const float* ptr) {
-	return vec_perm(vec_ld(0, ptr), vec_ld(16, ptr), vec_lvsl(0, ptr));
-	
+	return (value_type){*ptr,*(ptr+1),*(ptr+2),*(ptr+3)};
       }
 
       static inline value_type load(const float* ptr, dim_t count, float default_value = float(0)) {
@@ -55,8 +54,7 @@ namespace ctranslate2 {
       }
 
       static inline value_type load_and_convert(const int32_t* ptr) {
-	
-        return vec_ctf(vec_perm(vec_ld(0, ptr), vec_ld(16, ptr), vec_lvsl(0, ptr)),0);
+	return vec_ctf((vector signed int){*ptr,*(ptr+1),*(ptr+2),*(ptr+3)},0);
       }
 
       static inline value_type load_and_convert(const int32_t* ptr,
@@ -67,15 +65,7 @@ namespace ctranslate2 {
         } else {
           __ct2_align16__ int32_t tmp_values[width];
           std::fill(tmp_values, tmp_values + width, default_value);
-	  for (int i=0;i<width;i+=1){
-            std::cout << "load_and_convert, before filltmp_values["<<i<<"]:"<<tmp_values[i]<<"\n";
-	    std::cout << "load_and_convert, before ptr["<<i<<"]:"<<*(ptr+i)<<"\n";
-	  }
           std::copy(ptr, ptr + count, tmp_values);
-	  for (int i=0;i<width;i+=1){
-	    std::cout << "load_and_convert,tmp_values["<<i<<"]:"<<tmp_values[i]<<"\n";
-	    std::cout << "load_and_convert,ptr["<<i<<"]:"<<ptr[i]<<"\n";
-	  }
           return load_and_convert(tmp_values);
         }
       }
@@ -130,9 +120,7 @@ namespace ctranslate2 {
       }
 
       static inline value_type exp(value_type a) {
-	return Sleef_expf4_u10vsx3(a);
-
-	 
+	return Sleef_expf4_u10vsx3(a);	 
       }
 
       static inline value_type log(value_type a) {
@@ -211,27 +199,9 @@ namespace ctranslate2 {
 	value_type v2 = (value_type)a + (value_type)v1;
         value_type v3 = vec_perm (v2, v2,(__vector unsigned char) __t);
 	return  v2[0]+v3[0];
-
-        /*__m128 t1 = _mm_movehl_ps(a, a);
-        for (int b=0; b<4;b+=1)
-          std::cout << "t1["<<b<<"]:"<<((__vector float)t1)[b]<<"\n";
-
-	__m128 t2 = _mm_add_ps(a, t1);
-	__m128 t3 = _mm_shuffle_ps(t2, t2, 1);
-	__m128 t4 = _mm_add_ss(t2, t3);
-	return _mm_cvtss_f32(t4);
-	*/
       }
       
       static inline float reduce_max(value_type a) {
-	/*float max=0;
-	for (int i=0;i<width;i+=1) {
-          if (a[i]>max) {
-	    max=a[i];
-	  }
-        }
-	//std::cout << "reduce_max ";
-        return max;*/
 	float t0 = a[0] > a[1] ? a[0] : a[1];
         float t1 = a[2] > a[3] ? a[2] : a[3];
 	return t0 > t1 ? t0 : t1;
