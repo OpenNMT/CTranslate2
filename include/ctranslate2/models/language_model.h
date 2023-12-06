@@ -22,6 +22,7 @@ namespace ctranslate2 {
 
     protected:
       void initialize(ModelReader& model_reader) override;
+      void initialize(std::unordered_map<std::string, std::vector<std::string>>& vocabularies) override;
 
     private:
       std::shared_ptr<const Vocabulary> _vocabulary;

@@ -114,10 +114,10 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 if value.dtype == np.float64:
                     value = value.astype(np.float32)
             elif isinstance(value, float):
-                value = np.dtype("float32").type(value)
+                value = np.array(value, dtype="float32")
             elif isinstance(value, bool):
                 # Convert bool to an integer type.
-                value = np.dtype("int8").type(value)
+                value = np.array(value, dtype="int8")
             elif isinstance(value, str):
                 if value != OPTIONAL:
                     value = np.frombuffer(value.encode("utf-8"), dtype=np.int8)
@@ -311,6 +311,11 @@ class ModelSpec(LayerSpec):
         self._config = self.get_default_config()
         self._files = {}
 
+    @abc.abstractmethod
+    def get_vocabulary(self):
+        """Returns the map vocabulary expected by the model."""
+        raise NotImplementedError()
+
     @property
     def name(self):
         """The name of the model specification."""
@@ -324,6 +329,11 @@ class ModelSpec(LayerSpec):
         changed (e.g. a weight is renamed).
         """
         return 1
+
+    @property
+    def binary_version(self):
+        """The binary version"""
+        return CURRENT_BINARY_VERSION
 
     @property
     def config(self):
@@ -455,6 +465,14 @@ class SequenceToSequenceModelSpec(ModelSpec):
             "target": [],
         }
 
+    def get_vocabulary(self):
+        vocabularies = dict(_flatten_vocabularies(self._vocabularies))
+        all_vocabularies = list(vocabularies.values())
+        if all(vocabulary == all_vocabularies[0] for vocabulary in all_vocabularies):
+            vocabularies = {"shared": all_vocabularies[0]}
+
+        return vocabularies
+
     def get_default_config(self):
         return SequenceToSequenceModelConfig()
 
@@ -565,6 +583,9 @@ class LanguageModelSpec(ModelSpec):
         """Initializes a language model specification."""
         super().__init__()
         self._vocabulary = []
+
+    def get_vocabulary(self):
+        return {"vocabulary": self._vocabulary}
 
     def get_default_config(self):
         return LanguageModelConfig()

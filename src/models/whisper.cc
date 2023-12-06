@@ -33,6 +33,17 @@ namespace ctranslate2 {
         throw std::runtime_error("Cannot load the vocabulary from the model directory");
     }
 
+    void WhisperModel::initialize(std::unordered_map<std::string, std::vector<std::string>>& vocabularies) {
+      VocabularyInfo vocab_info;
+      vocab_info.unk_token = "<|endoftext|>";
+      vocab_info.bos_token = "<|startoftranscript|>";
+      vocab_info.eos_token = "<|endoftext|>";
+
+      _vocabulary = std::make_shared<Vocabulary>(vocabularies.at("vocabulary"));
+      if (!_vocabulary)
+        throw std::runtime_error("Cannot load the vocabulary from the model directory");
+    }
+
     bool WhisperModel::is_quantizable(const std::string& variable_name) const {
       return (Model::is_quantizable(variable_name)
               && variable_name.find("conv") == std::string::npos);

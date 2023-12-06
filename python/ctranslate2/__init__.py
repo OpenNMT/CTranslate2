@@ -50,5 +50,5 @@ except ImportError as e:
     else:
         raise
 
-from ctranslate2 import converters, models, specs
+from ctranslate2 import converters, models, specs, onTheFly
 from ctranslate2.version import __version__

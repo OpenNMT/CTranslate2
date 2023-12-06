@@ -35,6 +35,22 @@ namespace ctranslate2 {
         throw std::runtime_error("Cannot load the vocabulary from the model directory");
     }
 
+    void LanguageModel::initialize(std::unordered_map<std::string, std::vector<std::string>>& vocabularies) {
+      if (binary_version() < 6) {
+        config["unk_token"] = get_attribute_with_default<std::string>("unk_token", "<unk>");
+        config["bos_token"] = get_attribute_with_default<std::string>("bos_token", "<s>");
+        config["eos_token"] = get_attribute_with_default<std::string>("eos_token", "</s>");
+      }
+
+      VocabularyInfo vocab_info;
+      vocab_info.unk_token = config["unk_token"];
+      vocab_info.bos_token = config["bos_token"];
+      vocab_info.eos_token = config["eos_token"];
+
+      _vocabulary = std::make_shared<Vocabulary>(vocabularies.at("vocabulary"));
+      if (!_vocabulary)
+        throw std::runtime_error("Cannot load the vocabulary from the model directory");
+    }
 
     std::vector<ScoringResult>
     SequenceGeneratorReplica::score(const std::vector<std::vector<std::string>>& tokens,

@@ -104,6 +104,41 @@ class Converter(abc.ABC):
         model_spec.save(output_dir)
         return output_dir
 
+    def convert_on_the_fly(
+            self,
+            vmap: Optional[str] = None,
+            quantization: Optional[str] = None,
+    ) -> ModelSpec:
+        """Converts the model to the CTranslate2 format.
+
+        Arguments:
+          vmap: Optional path to a vocabulary mapping file that will be included
+            in the converted model directory.
+          quantization: Weight quantization scheme (possible values are: int8, int8_float32,
+            int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
+
+        Returns:
+          Path to the output directory.
+
+        Raises:
+          RuntimeError: If the output directory already exists and :obj:`force`
+            is not set.
+          NotImplementedError: If the converter cannot convert this model to the
+            CTranslate2 format.
+        """
+        model_spec = self._load()
+        if model_spec is None:
+            raise NotImplementedError(
+                "This model is not supported by CTranslate2 or this converter"
+            )
+        if vmap is not None:
+            model_spec.register_vocabulary_mapping(vmap)
+
+        model_spec.validate()
+        model_spec.optimize(quantization=quantization)
+
+        return model_spec
+
     @abc.abstractmethod
     def _load(self):
         raise NotImplementedError()

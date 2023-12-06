@@ -42,9 +42,9 @@ namespace ctranslate2 {
                             intra_threads,
                             max_queued_batches,
                             files)
-        , _device(_model_loader.device)
-        , _device_index(_model_loader.device_indices)
-        , _num_replicas_per_device(_model_loader.num_replicas_per_device)
+        , _device(_model_loader->device)
+        , _device_index(_model_loader->device_indices)
+        , _num_replicas_per_device(_model_loader->num_replicas_per_device)
         , _model_is_loaded(true) {
       }
 
@@ -324,7 +324,7 @@ namespace ctranslate2 {
           return;
 
         if (_cached_models.empty()) {
-          _cached_models = _model_loader.load();
+          _cached_models = _model_loader->load();
         } else {
           move_cached_models(_device, _device_index, _num_replicas_per_device);
         }

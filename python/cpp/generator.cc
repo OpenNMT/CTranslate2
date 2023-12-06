@@ -1,6 +1,7 @@
 #include "module.h"
 
 #include <ctranslate2/generator.h>
+#include <ctranslate2/storage_view.h>
 
 #include "replica_pool.h"
 
@@ -156,6 +157,44 @@ namespace ctranslate2 {
                    files: Load model files from the memory. This argument is a dictionary mapping
                      file names to file contents as file-like or bytes objects. If this is set,
                      :obj:`model_path` acts as an identifier for this model.
+             )pbdoc")
+
+        .def(py::init<const std::string&, const size_t&, const size_t&, std::unordered_map<std::string, std::string>&,
+             std::unordered_map<std::string, std::vector<std::string>>&, std::unordered_map<std::string, StorageView>&, const std::string&, const std::string&, const std::variant<int, std::vector<int>>, const StringOrMap&, size_t, size_t, long>(),
+             py::arg("spec"),
+             py::arg("spec_revision"),
+             py::arg("binary_version"),
+             py::arg("aliases"),
+             py::arg("vocabularies"),
+             py::arg("variables"),
+             py::arg("config"),
+             py::arg("device")="cpu",
+             py::arg("device_index")=0,
+             py::arg("compute_type")="default",
+             py::arg("inter_threads")=1,
+             py::arg("intra_threads")=0,
+             py::arg("max_queued_batches")=0,
+             R"pbdoc(
+                 Initializes the generator.
+
+                 Arguments:
+                   spec: The name of the model specification.
+                   spec_revision: The model specification revision.
+                   binary_version: The version of binary model
+                   aliases: aliases got in the mode
+                   vocabularies: dictionary of name and list of tokens
+                   variables: dictionary of name of variables and storage view of variable
+                   config: list of config (normally saved in config.json)
+                   device: Device to use (possible values are: cpu, cuda, auto).
+                   device_index: Device IDs where to place this generator on.
+                   compute_type: Model computation type or a dictionary mapping a device name
+                     to the computation type (possible values are: default, auto, int8, int8_float32,
+                     int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
+                   inter_threads: Maximum number of parallel generations.
+                   intra_threads: Number of OpenMP threads per generator (0 to use a default value).
+                   max_queued_batches: Maximum numbers of batches in the queue (-1 for unlimited,
+                     0 for an automatic value). When the queue is full, future requests will block
+                     until a free slot is available.
              )pbdoc")
 
         .def_property_readonly("device", &GeneratorWrapper::device,

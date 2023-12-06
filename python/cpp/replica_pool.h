@@ -1,7 +1,11 @@
 #pragma once
 
 #include <ctranslate2/replica_pool.h>
+#include <ctranslate2/models/model_factory.h>
+#include <ctranslate2/models/model.h>
 
+#include <unordered_map>
+#include <optional>
 #include "utils.h"
 
 namespace ctranslate2 {
@@ -49,15 +53,53 @@ namespace ctranslate2 {
       {
         pybind11::gil_scoped_release nogil;
 
-        _model_loader.device = str_to_device(device);
-        _model_loader.device_indices = std::visit(DeviceIndexResolver(), device_index);
-        _model_loader.compute_type = std::visit(ComputeTypeResolver(device), compute_type);
-        _model_loader.num_replicas_per_device = inter_threads;
+        _model_loader->device = str_to_device(device);
+        _model_loader->device_indices = std::visit(DeviceIndexResolver(), device_index);
+        _model_loader->compute_type = std::visit(ComputeTypeResolver(device), compute_type);
+        _model_loader->num_replicas_per_device = inter_threads;
 
         _pool_config.num_threads_per_replica = intra_threads;
         _pool_config.max_queued_batches = max_queued_batches;
 
-        _pool = std::make_unique<T>(_model_loader, _pool_config);
+        _pool = std::make_unique<T>(_model_loader.value(), _pool_config);
+      }
+
+      ReplicaPoolHelper(const std::string& spec,
+                        const size_t& spec_version,
+                        const size_t& binary_version,
+                        std::unordered_map<std::string, std::string>& aliases,
+                        std::unordered_map<std::string, std::vector<std::string>>& vocabularies,
+                        std::unordered_map<std::string, StorageView>& variables,
+                        const std::string& config,
+                        const std::string& device,
+                        const std::variant<int, std::vector<int>>& device_index,
+                        const StringOrMap& compute_type,
+                        size_t ,//inter_threads
+                        size_t intra_threads,
+                        long max_queued_batches)
+      {
+        pybind11::gil_scoped_release nogil;
+
+        // Load the variables.
+        auto model_device = str_to_device(device);
+        auto model_device_indices = std::visit(DeviceIndexResolver(), device_index)[0];
+        auto model_compute_type = std::visit(ComputeTypeResolver(device), compute_type);
+
+        auto model = models::Model::load(spec,
+                                         spec_version,
+                                         binary_version,
+                                         aliases,
+                                         vocabularies,
+                                         variables,
+                                         config,
+                                         model_device,
+                                         model_device_indices,
+                                         model_compute_type);
+
+        _pool_config.num_threads_per_replica = intra_threads;
+        _pool_config.max_queued_batches = max_queued_batches;
+
+        _pool = std::make_unique<T>(model, _pool_config);
       }
 
       ~ReplicaPoolHelper() {
@@ -66,11 +108,19 @@ namespace ctranslate2 {
       }
 
       std::string device() const {
-        return device_to_str(_model_loader.device);
+        if (_model_loader.has_value())
+          return device_to_str(_model_loader->device);
+        if (_device)
+          return _device.value();
+        return "";
       }
 
       const std::vector<int>& device_index() const {
-        return _model_loader.device_indices;
+        if (_model_loader.has_value())
+          return _model_loader->device_indices;
+        if (!_device_index.has_value() || _device_index->empty())
+          throw pybind11::type_error("No device index found");
+        return _device_index.value();
       }
 
       std::string compute_type() const {
@@ -91,7 +141,9 @@ namespace ctranslate2 {
 
     protected:
       std::unique_ptr<T> _pool;
-      models::ModelLoader _model_loader;
+      std::optional<models::ModelLoader> _model_loader;
+      std::optional<std::string> _device;
+      std::optional<std::vector<int>> _device_index;
       ReplicaPoolConfig _pool_config;
 
       const std::shared_ptr<const models::Model>& model() const {

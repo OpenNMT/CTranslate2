@@ -76,6 +76,59 @@ namespace ctranslate2 {
       load_vocabularies(model_reader);
     }
 
+    void SequenceToSequenceModel::initialize(std::unordered_map<std::string, std::vector<std::string>>& vocabularies) {
+      if (binary_version() < 6) {
+        config["unk_token"] = get_attribute_with_default<std::string>("unk_token", "<unk>");
+        config["bos_token"] = get_attribute_with_default<std::string>("bos_token", "<s>");
+        config["eos_token"] = get_attribute_with_default<std::string>("eos_token", "</s>");
+        config["add_source_bos"] = get_flag_with_default("with_source_bos", false);
+        config["add_source_eos"] = get_flag_with_default("with_source_eos", false);
+
+        if (get_flag_with_default("user_decoder_start_tokens", false))
+          config["decoder_start_token"] = nullptr;
+        else if (get_flag_with_default("with_target_bos", true))
+          config["decoder_start_token"] = config["bos_token"];
+        else
+          config["decoder_start_token"] = config["eos_token"];
+      }
+
+      VocabularyInfo vocab_info;
+      vocab_info.unk_token = config["unk_token"];
+      vocab_info.bos_token = config["bos_token"];
+      vocab_info.eos_token = config["eos_token"];
+
+      auto shared_vocabulary = std::make_shared<Vocabulary>(std::move(vocabularies.at("shared_vocabulary")));
+
+      if (shared_vocabulary) {
+        _target_vocabulary = shared_vocabulary;
+        _source_vocabularies = {shared_vocabulary};
+
+      } else {
+        _target_vocabulary = std::make_shared<Vocabulary>(std::move(vocabularies.at("target_vocabulary")));
+        if (!_target_vocabulary)
+          throw std::runtime_error("Cannot load the target vocabulary from the model directory");
+
+        auto source_vocabulary = std::make_shared<Vocabulary>(std::move(vocabularies.at("source_vocabulary")));
+
+        if (source_vocabulary) {
+          _source_vocabularies = {source_vocabulary};
+        } else {
+          for (size_t i = 1;; i++) {
+            const std::string name = "source_" + std::to_string(i) + "_vocabulary";
+            auto vocabulary = std::make_shared<Vocabulary>(std::move(vocabularies.at(name)));
+
+            if (!vocabulary)
+              break;
+
+            _source_vocabularies.emplace_back(vocabulary);
+          }
+        }
+
+        if (_source_vocabularies.empty())
+          throw std::runtime_error("Cannot load the source vocabulary from the model directory");
+      }
+    }
+
     size_t SequenceToSequenceModel::num_source_vocabularies() const {
       return _source_vocabularies.size();
     }
