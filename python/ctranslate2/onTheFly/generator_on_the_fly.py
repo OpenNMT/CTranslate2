@@ -62,8 +62,7 @@ class GeneratorOnTheFly:
         model_type="OpenNMTPy",
         quantization: Optional[str] = None,
     ):
-        converter = _get_converter(model_path=model_path,
-                                   model_type=model_type)
+        converter = _get_converter(model_path=model_path, model_type=model_type)
         model_spec = converter.convert_on_the_fly(quantization=quantization)
 
         variables = model_spec.variables(ordered=True)
@@ -80,8 +79,7 @@ class GeneratorOnTheFly:
             if isinstance(value, str):
                 aliases[key] = value
             else:
-                variables_cpp[key] = ctranslate2.StorageView.from_array(
-                                                            value.numpy())
+                variables_cpp[key] = ctranslate2.StorageView.from_array(value.numpy())
 
         self.generator = ctranslate2.Generator(
             spec=spec,

@@ -105,9 +105,9 @@ class Converter(abc.ABC):
         return output_dir
 
     def convert_on_the_fly(
-            self,
-            vmap: Optional[str] = None,
-            quantization: Optional[str] = None,
+        self,
+        vmap: Optional[str] = None,
+        quantization: Optional[str] = None,
     ) -> ModelSpec:
         """Converts the model to the CTranslate2 format.
 
@@ -136,6 +136,7 @@ class Converter(abc.ABC):
 
         model_spec.validate()
         model_spec.optimize(quantization=quantization)
+        # model_spec.save(output_dir, False)
 
         return model_spec
 
