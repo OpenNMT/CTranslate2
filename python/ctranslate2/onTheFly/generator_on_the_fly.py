@@ -1,9 +1,11 @@
+import json
 import os
+
 from typing import Optional
 
-from ctranslate2.converters.opennmt_py import OpenNMTPyConverter
 import ctranslate2
-import json
+
+from ctranslate2.converters.opennmt_py import OpenNMTPyConverter
 
 
 def _get_converter(model_path: str, model_type: str):
