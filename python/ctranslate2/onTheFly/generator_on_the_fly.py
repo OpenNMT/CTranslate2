@@ -83,21 +83,6 @@ class GeneratorOnTheFly:
                 variables_cpp[key] = ctranslate2.StorageView.from_array(
                                                             value.numpy())
 
-        self.generator = ctranslate2.Generator(spec=spec,
-                                               spec_revision=spec_revision,
-                                               binary_revision=binary_version,
-                                               aliases=aliases,
-                                               vocabularies=vocabularies,
-                                               variables=variables_cpp,
-                                               config=config,
-                                               device=device,
-                                               device_index=device_index,
-                                               compute_type=compute_type,
-                                               inter_threads=inter_threads,
-                                               intra_threads=intra_threads,
-                                               max_queued_batches=max_queued_batches)
-
-        #self.generator = ctranslate2.Generator(model_path, device=device, files=model_spec.files_memory)
         self.generator = ctranslate2.Generator(
             spec=spec,
             spec_revision=spec_revision,
