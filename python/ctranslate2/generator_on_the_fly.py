@@ -86,7 +86,7 @@ class GeneratorOnTheFly:
         self.generator = ctranslate2.Generator(
             spec=spec,
             spec_revision=spec_revision,
-            binary_revision=binary_version,
+            binary_version=binary_version,
             aliases=aliases,
             vocabularies=vocabularies,
             variables=variables_cpp,
@@ -99,14 +99,8 @@ class GeneratorOnTheFly:
             max_queued_batches=max_queued_batches,
         )
 
-    def generate_iterable(self, start_tokens, *args, **kwargs):
-        return self.generator.generate_tokens(start_tokens, *args, **kwargs)
+    def generate_batch(self, prompt, *args, **kwargs):
+        return self.generator.generate_batch(prompt, *args, **kwargs)
 
-    def generate_tokens(self, start_tokens, *args, **kwargs):
-        return self.generator.generate_tokens(start_tokens, *args, **kwargs)
-
-    def score_iterable(self, tokens, *args, **kwargs):
-        return self.generator.score_iterable(tokens, *args, **kwargs)
-
-    def async_generate_tokens(self, prompt, *args, **kwargs):
-        return self.generator.async_generate_tokens(prompt, *args, **kwargs)
+    def score_batch(self, tokens, *args, **kwargs):
+        return self.generator.score_batch(tokens, *args, **kwargs)

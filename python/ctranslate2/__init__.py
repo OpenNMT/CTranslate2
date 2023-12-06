@@ -39,6 +39,7 @@ try:
         set_random_seed,
     )
     from ctranslate2.extensions import register_extensions
+    from ctranslate2.generator_on_the_fly import GeneratorOnTheFly
     from ctranslate2.logging import get_log_level, set_log_level
 
     register_extensions()
@@ -50,5 +51,5 @@ except ImportError as e:
     else:
         raise
 
-from ctranslate2 import converters, models, onTheFly, specs
+from ctranslate2 import converters, models, specs
 from ctranslate2.version import __version__
