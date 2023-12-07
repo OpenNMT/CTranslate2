@@ -90,8 +90,8 @@ class GeneratorOnTheFly:
             max_queued_batches=max_queued_batches,
         )
 
-    def generate_batch(self, prompt, *args, **kwargs):
-        return self.generator.generate_batch(prompt, *args, **kwargs)
+    def generate_batch(self, *args, **kwargs):
+        return self.generator.generate_batch(*args, **kwargs)
 
-    def score_batch(self, tokens, *args, **kwargs):
-        return self.generator.score_batch(tokens, *args, **kwargs)
+    def score_batch(self, *args, **kwargs):
+        return self.generator.score_batch(*args, **kwargs)
