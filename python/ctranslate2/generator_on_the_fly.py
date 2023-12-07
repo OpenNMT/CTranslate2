@@ -10,19 +10,10 @@ from ctranslate2.converters.opennmt_py import OpenNMTPyConverter
 
 def _get_converter(model_path: str, model_type: str):
     if model_type == "OpenNMTPy":
-
-        def get_model_file(_model_path: str):
-            for filename in os.listdir(model_path):
-                if filename.endswith(".pt"):
-                    _model_file = os.path.join(model_path, filename)
-                    return _model_file
-            return ""
-
-        model_file = get_model_file(model_path)
-        if model_file == "":
+        if not os.path.exists(model_path):
             raise RuntimeError("No model opennmt-py found in %s" % model_path)
 
-        converter = OpenNMTPyConverter(model_path=model_file)
+        converter = OpenNMTPyConverter(model_path=model_path)
         return converter
     else:
         raise NotImplementedError(
