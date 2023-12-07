@@ -59,8 +59,8 @@ class GeneratorOnTheFly:
         model_spec = converter.convert_on_the_fly(quantization=quantization)
 
         variables = model_spec.variables(ordered=True)
-        vocabularies = model_spec.get_vocabulary()
-        config = json.dumps(model_spec.config.to_dict())
+        self.vocabularies = model_spec.get_vocabulary()
+        self.config = json.dumps(model_spec.config.to_dict())
         aliases = {}
 
         spec = model_spec.name
@@ -79,9 +79,9 @@ class GeneratorOnTheFly:
             spec_revision=spec_revision,
             binary_version=binary_version,
             aliases=aliases,
-            vocabularies=vocabularies,
+            vocabularies=self.vocabularies,
             variables=variables_cpp,
-            config=config,
+            config=self.config,
             device=device,
             device_index=device_index,
             compute_type=compute_type,
