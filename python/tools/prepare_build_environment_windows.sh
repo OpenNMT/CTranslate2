@@ -12,7 +12,7 @@ CUDNN_ROOT="C:/Program Files/NVIDIA/CUDNN/v8.8"
 curl -L -nv -o cudnn.exe https://developer.download.nvidia.com/compute/redist/cudnn/v8.8.0/local_installers/12.0/cudnn_8.8.0.121_windows.exe
 ./cudnn.exe -s
 sleep 10
-cp -r "$CUDNN_ROOT/*" "$CUDA_ROOT"
+cp -r "$CUDNN_ROOT"/* "$CUDA_ROOT"
 rm cudnn.exe
 
 # See https://github.com/oneapi-src/oneapi-ci for installer URLs
