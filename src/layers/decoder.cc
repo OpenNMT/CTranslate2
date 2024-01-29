@@ -113,9 +113,7 @@ namespace ctranslate2 {
         extra_bias = std::make_unique<StorageView>(Shape{new_output_size}, output_type(), _device);
         DEVICE_AND_TYPE_DISPATCH(
           _device, output_type(),
-          primitives<D>::fill(extra_bias->data<T>(),
-                              T(0),
-                              new_output_size - padding_size));
+          primitives<D>::zero(extra_bias->data<T>(), new_output_size - padding_size));
         DEVICE_AND_TYPE_DISPATCH(
           _device, output_type(),
           primitives<D>::fill(extra_bias->data<T>() + new_output_size - padding_size,

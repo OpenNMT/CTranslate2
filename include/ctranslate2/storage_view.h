@@ -139,6 +139,8 @@ namespace ctranslate2 {
       return _size;
     }
 
+    dim_t size_in_bytes() const;
+
     dim_t item_size() const;
 
     bool is_scalar() const {
@@ -186,6 +188,8 @@ namespace ctranslate2 {
     T* index(std::initializer_list<dim_t> indices);
     template <typename T>
     const T* index(std::initializer_list<dim_t> indices) const;
+    template <typename T>
+    const T* index(const std::vector<dim_t>& indices) const;
 
     template <typename T>
     T& at(dim_t index) {
@@ -229,7 +233,7 @@ namespace ctranslate2 {
 
     template <typename T>
     StorageView& fill(T value);
-    StorageView& zero();
+    StorageView& zero(bool synchronous = true);
 
     StorageView& copy_from(const StorageView& other, bool synchronous = false);
 

@@ -16,9 +16,11 @@ namespace ctranslate2 {
     template <typename T>
     static void fill(T* x, T a, dim_t size);
     template <typename T>
+    static void zero(T* x, dim_t size, bool synchronous = true);
+    template <typename T>
     static void strided_fill(T* x, T a, dim_t inc_x, dim_t size);
     template <typename T>
-    static void indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices);
+    static void indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices, dim_t size = -1);
 
     template <typename T>
     static void copy(const T* x, T* y, dim_t size);
@@ -58,11 +60,11 @@ namespace ctranslate2 {
     }
 
     template <typename T>
-    static void add_batch_broadcast(const T* a, const T* b, T* c, dim_t a_size, dim_t b_size);
+    static void add_batch_broadcast(const T* a, const T* b, T* c, dim_t a_size, dim_t b_size, bool synchronous = true);
 
     template <typename T>
-    static void add_batch_broadcast(const T* x, T* y, dim_t x_size, dim_t y_size) {
-      add_batch_broadcast(x, y, y, x_size, y_size);
+    static void add_batch_broadcast(const T* x, T* y, dim_t x_size, dim_t y_size, bool synchronous = true) {
+      add_batch_broadcast(x, y, y, x_size, y_size, synchronous);
     }
 
     template <typename T>
@@ -220,6 +222,17 @@ namespace ctranslate2 {
                                    float beta,
                                    Out* c, dim_t ldc, dim_t stridec,
                                    dim_t batch_size);
+
+    template <typename In, typename Out>
+    static void gemm_alpha_beta_in_device(bool a_is_packed, bool b_is_packed,
+                                          bool transpose_a, bool transpose_b,
+                                          dim_t m, dim_t n, dim_t k,
+                                          const float* alpha,
+                                          const In* a, dim_t lda,
+                                          const In* b, dim_t ldb,
+                                          const float* beta,
+                                          Out* c, dim_t ldc,
+                                          const Out* a_shift_compensation = nullptr);
   };
 
   template <Device D1, Device D2>

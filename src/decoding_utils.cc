@@ -29,7 +29,8 @@ namespace ctranslate2 {
                              primitives<D>::indexed_fill(_logits.data<T>(),
                                                          static_cast<T>(_disable_value),
                                                          flat_indices.data<int32_t>(),
-                                                         num_indices));
+                                                         num_indices,
+                                                         _logits.size()));
 
     _flat_indices.clear();
   }

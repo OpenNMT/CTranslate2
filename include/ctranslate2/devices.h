@@ -7,7 +7,8 @@ namespace ctranslate2 {
 
   enum class Device {
     CPU,
-    CUDA
+    CUDA,
+    CANN
   };
 
   Device str_to_device(const std::string& device);
@@ -18,6 +19,9 @@ namespace ctranslate2 {
 
   int get_device_index(Device device);
   void set_device_index(Device device, int index);
+
+  void initialize_device();
+  void finalize_device();
 
   void synchronize_device(Device device, int index);
   void synchronize_stream(Device device);

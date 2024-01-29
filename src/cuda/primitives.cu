@@ -25,6 +25,12 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CUDA>::zero(T* x, dim_t size, bool) {
+    THRUST_CALL(thrust::fill, x, x + size, T(0));
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CUDA>::strided_fill(T* x, T a, dim_t inc_x, dim_t size) {
     auto it = thrust::make_permutation_iterator(
       x, thrust::make_transform_iterator(thrust::counting_iterator<cuda::index_t>(0),
@@ -34,7 +40,7 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
-  void primitives<Device::CUDA>::indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices) {
+  void primitives<Device::CUDA>::indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices, dim_t) {
     auto element_it = thrust::device_pointer_cast(cuda::device_cast(x));
     auto index_it = thrust::device_pointer_cast(indices);
     auto it = thrust::make_permutation_iterator(element_it, index_it);
@@ -125,7 +131,7 @@ namespace ctranslate2 {
   template<>
   template <typename T>
   void primitives<Device::CUDA>::add_batch_broadcast(const T* a, const T* b, T* c,
-                                                     dim_t a_size, dim_t b_size) {
+                                                     dim_t a_size, dim_t b_size, bool) {
     cuda::binary_transform(a, b, c, b_size,
                            cuda::plus<cuda::device_type<T>>(),
                            cuda::repeat_vec<cuda::index_t>(a_size));
@@ -716,9 +722,11 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CUDA>::fill(T* x, T a, dim_t size);                \
   template void                                                         \
+  primitives<Device::CUDA>::zero(T* x, dim_t size, bool);               \
+  template void                                                         \
   primitives<Device::CUDA>::strided_fill(T* x, T a, dim_t inc_x, dim_t size); \
   template void                                                         \
-  primitives<Device::CUDA>::indexed_fill(T*, T, const int32_t*, dim_t); \
+  primitives<Device::CUDA>::indexed_fill(T*, T, const int32_t*, dim_t, dim_t); \
   template void                                                         \
   primitives<Device::CUDA>::copy<T>(const T* x, T* y, dim_t size);      \
   template T                                                            \
@@ -733,7 +741,8 @@ namespace ctranslate2 {
   primitives<Device::CUDA>::add(const T* a, const T* b, T* c, dim_t size); \
   template void                                                         \
   primitives<Device::CUDA>::add_batch_broadcast(const T* a, const T* b, \
-                                                T* c, dim_t a_size, dim_t b_size); \
+                                                T* c, dim_t a_size, dim_t b_size, \
+                                                bool); \
   template void                                                         \
   primitives<Device::CUDA>::add_depth_broadcast(const T* a, const T* b, \
                                                 T* c, dim_t a_size, dim_t b_size); \

@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
      cxxopts::value<size_t>()->default_value("1"))
     ("intra_threads", "Number of computation threads (set to 0 to use the default value).",
      cxxopts::value<size_t>()->default_value("0"))
-    ("device", "Device to use (can be cpu, cuda, auto).",
+    ("device", "Device to use (can be cpu, cuda, cann, auto).",
      cxxopts::value<std::string>()->default_value("cpu"))
     ("device_index", "Comma-separated list of device IDs to use.",
      cxxopts::value<std::vector<int>>()->default_value("0"))
@@ -43,6 +43,8 @@ int main(int argc, char* argv[]) {
     ("compute_type", "The type used for computation: default, auto, float32, float16, bfloat16, int16, int8, int8_float32, int8_float16, or int8_bfloat16",
      cxxopts::value<std::string>()->default_value("default"))
     ("cuda_compute_type", "Computation type on CUDA devices (overrides compute_type)",
+     cxxopts::value<std::string>())
+    ("cann_compute_type", "Computation type on CANN devices (overrides compute_type)",
      cxxopts::value<std::string>())
     ("cpu_compute_type", "Computation type on CPU devices (overrides compute_type)",
      cxxopts::value<std::string>())
@@ -138,6 +140,10 @@ int main(int argc, char* argv[]) {
   case ctranslate2::Device::CUDA:
     if (args.count("cuda_compute_type"))
       compute_type = ctranslate2::str_to_compute_type(args["cuda_compute_type"].as<std::string>());
+    break;
+  case ctranslate2::Device::CANN:
+    if (args.count("cann_compute_type"))
+      compute_type = ctranslate2::str_to_compute_type(args["cann_compute_type"].as<std::string>());
     break;
   };
 

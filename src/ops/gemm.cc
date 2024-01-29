@@ -2,7 +2,11 @@
 
 #include "ctranslate2/ops/bias_add.h"
 
+#ifdef CT2_WITH_CANN
+#include "../cann/utils.h"
+#endif
 #include "dispatch.h"
+#include <spdlog/spdlog.h>
 
 namespace ctranslate2 {
   namespace ops {
@@ -15,7 +19,15 @@ namespace ctranslate2 {
         bias_add_op(x, *bias, x);
       } else if (activation_type) {
         get_activation_op(*activation_type)(x, x);
+#ifdef CT2_WITH_CANN
+      } else if (x.device() == Device::CANN) {
+        // We rely on BiasAdd and activation operators to synchronize the stream in the general case, else we
+        // synchronize the stream manually.
+        ACL_CALL(aclrtSynchronizeStream(cann::get_aclrt_stream()));
       }
+#else
+      }
+#endif
     }
 
 
@@ -82,11 +94,37 @@ namespace ctranslate2 {
       const dim_t ldc = n;
 
       {
+        if (_trans_a) {
+          // In this case, the shape of vector 'c' might be computed incorrectly.
+          // See relevant upstream issue: https://github.com/OpenNMT/CTranslate2/issues/1583
+          spdlog::warn("GEMM: Input vector 'a' is in transpose form. "
+                       "The shape of vector 'c' might be computed incorrectly.");
+        }
         Shape output_shape(a.shape());
         output_shape[output_shape.size() - 1] = n;
         c.resize(std::move(output_shape));
       }
 
+#ifdef CT2_WITH_CANN
+      if constexpr (D == Device::CANN) {
+        if(!_alpha_sv && !_beta_sv) {
+          // Avoid repeated allocation of NPU memory for 'alpha' and 'beta' across GEMM operator calls.
+          // Allocate NPU memory only once per Gemm object.
+          _alpha_sv = std::make_shared<StorageView>(_alpha, Device::CANN);
+          _beta_sv = std::make_shared<StorageView>(_beta, Device::CANN);
+        }
+        primitives<Device::CANN>::gemm_alpha_beta_in_device(_a_is_packed, _b_is_packed,
+                                                            _trans_a, _trans_b,
+                                                            m, n, k,
+                                                            _alpha_sv->data<float>(),
+                                                            a.data<In>(), lda,
+                                                            b.data<In>(), ldb,
+                                                            _beta_sv->data<float>(),
+                                                            c.data<Out>(), ldc,
+                                                            a_shift_compensation ? a_shift_compensation->data<Out>() : nullptr);
+        return;
+      }
+#endif
       primitives<D>::gemm(_a_is_packed, _b_is_packed,
                           _trans_a, _trans_b,
                           m, n, k,
