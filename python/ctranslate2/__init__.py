@@ -22,6 +22,7 @@ try:
         AsyncGenerationResult,
         AsyncScoringResult,
         AsyncTranslationResult,
+        Device,
         DataType,
         Encoder,
         EncoderForwardOutput,
