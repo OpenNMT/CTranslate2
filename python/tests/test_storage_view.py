@@ -48,10 +48,10 @@ def test_storageview_cpu(dtype, name):
 
 
 def test_storageview_to_device():
-    x = np.ones(10, dtype='float32')
+    x = np.ones(10, dtype="float32")
     cx = ctranslate2.StorageView.from_array(x)
 
-    assert cx.device == 'cpu'
+    assert cx.device == "cpu"
     assert cx.dtype == ctranslate2.DataType.float32
 
     cpu_x = cx.to_device(ctranslate2.Device.cpu)
@@ -87,10 +87,10 @@ def test_storageview_cuda():
 
 @test_utils.require_cuda
 def test_storageview_cuda_to_device():
-    x = np.ones(10, dtype='float32')
+    x = np.ones(10, dtype="float32")
     # convert to cuda tensor
     cuda_x = ctranslate2.StorageView.from_array(x).to_device(ctranslate2.Device.cuda)
-    assert cuda_x.device == 'cuda'
+    assert cuda_x.device == "cuda"
 
     # modify original tensor and convert back
     x *= 2
