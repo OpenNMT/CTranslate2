@@ -88,8 +88,6 @@ namespace ctranslate2 {
   }
 
   StorageView StorageView::to(Device device) const {
-    if (_device == device)
-      return *this;
     StorageView device_copy(_shape, _dtype, device);
     return device_copy.copy_from(*this);
   }
