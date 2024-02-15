@@ -19,3 +19,4 @@ StorageView
 
     - :obj:`~ctranslate2.StorageView.from_array`
     - :obj:`~ctranslate2.StorageView.to`
+    - :obj:`~ctranslate2.StorageView.to_device`

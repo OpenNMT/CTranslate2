@@ -1,0 +1,14 @@
+Device
+======
+
+.. autoclass:: ctranslate2.Device
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.Device.name`
+    - :obj:`~ctranslate2.Device.value`

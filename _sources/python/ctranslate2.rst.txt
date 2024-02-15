@@ -9,6 +9,7 @@ ctranslate2
    ctranslate2.AsyncScoringResult
    ctranslate2.AsyncTranslationResult
    ctranslate2.DataType
+   ctranslate2.Device
    ctranslate2.Encoder
    ctranslate2.EncoderForwardOutput
    ctranslate2.ExecutionStats
