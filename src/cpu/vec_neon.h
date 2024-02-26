@@ -160,7 +160,12 @@ namespace ctranslate2 {
       }
 
       static inline value_type round(value_type v) {
+#ifdef __aarch64__
         return vrndiq_f32(v);
+#else
+        float temp[4] = {std::nearbyintf(v[0]), std::nearbyintf(v[1]), std::nearbyintf(v[2]), std::nearbyintf(v[3])};
+        return load(temp);
+#endif
       }
 
       static inline void convert_and_store(value_type v, int8_t *a, dim_t count) {
