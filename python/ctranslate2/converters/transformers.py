@@ -1302,12 +1302,12 @@ class GemmaLoader(ModelLoader):
             rotary_interleave=False,
             rotary_base=getattr(model.config, "rope_theta", 10000),
             num_heads_kv=num_heads_kv,
-            head_dim=model.config.head_dim
+            head_dim=model.config.head_dim,
         )
 
         self.set_decoder(spec.decoder, model.model)
         self.set_linear(spec.decoder.projection, model.lm_head)
-        spec.decoder.embeddings.multiply_by_sqrt_depth = model.config.hidden_size ** 0.5
+        spec.decoder.embeddings.multiply_by_sqrt_depth = model.config.hidden_size**0.5
         return spec
 
     def get_vocabulary(self, model, tokenizer):
