@@ -37,6 +37,7 @@ class LinearSpec(model_spec.LayerSpec):
         self.weight = None
         self.weight_scale = model_spec.OPTIONAL
         self.bias = model_spec.OPTIONAL
+        self.keep_in_float32 = False
 
     def has_bias(self):
         return not isinstance(self.bias, str)
