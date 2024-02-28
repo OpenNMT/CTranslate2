@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <vector>
 
+#include <spdlog/spdlog.h>
+
 #include "ctranslate2/utils.h"
 
 #include "env.h"
@@ -81,7 +83,11 @@ namespace ctranslate2 {
       }
       ~CublasHandle() {
         ScopedDeviceSetter scoped_device_setter(Device::CUDA, _device);
-        cublasDestroy(_handle);
+        cublasStatus_t status = cublasDestroy(_handle);
+
+        if (status != CUBLAS_STATUS_SUCCESS)
+          spdlog::error("cublasDestroy failed with status "
+                        + std::string(cuda::cublasGetStatusName(status)));
       }
       cublasHandle_t get() const {
         return _handle;
@@ -92,16 +98,20 @@ namespace ctranslate2 {
     };
 
     // We create one cuBLAS/cuDNN handle per host thread. The handle is destroyed
-    // when the thread exits.
+    // when the thread exits or when destroy_handles is called.
 
     cudaStream_t get_cuda_stream() {
       static thread_local CudaStream cuda_stream;
       return cuda_stream.get();
     }
 
+    static thread_local std::unique_ptr<CublasHandle> cublas_handle;
+
     cublasHandle_t get_cublas_handle() {
-      static thread_local CublasHandle cublas_handle;
-      return cublas_handle.get();
+      if (!cublas_handle)
+        cublas_handle = std::make_unique<CublasHandle>();
+
+      return cublas_handle->get();
     }
 
 #ifdef CT2_WITH_CUDNN
@@ -114,7 +124,11 @@ namespace ctranslate2 {
       }
       ~CudnnHandle() {
         ScopedDeviceSetter scoped_device_setter(Device::CUDA, _device);
-        cudnnDestroy(_handle);
+        cudnnStatus_t status = cudnnDestroy(_handle);
+
+        if (status != CUDNN_STATUS_SUCCESS)
+          spdlog::error("cudnnDestroy failed with status "
+                        + std::string(cudnnGetErrorString(status)));
       }
       cudnnHandle_t get() const {
         return _handle;
@@ -124,9 +138,13 @@ namespace ctranslate2 {
       cudnnHandle_t _handle;
     };
 
+    static thread_local std::unique_ptr<CudnnHandle> cudnn_handle;
+
     cudnnHandle_t get_cudnn_handle() {
-      static thread_local CudnnHandle cudnn_handle;
-      return cudnn_handle.get();
+      if (!cudnn_handle)
+        cudnn_handle = std::make_unique<CudnnHandle>();
+
+      return cudnn_handle->get();
     }
 
     cudnnDataType_t get_cudnn_data_type(DataType dtype) {
@@ -146,6 +164,14 @@ namespace ctranslate2 {
       }
     }
 #endif
+
+    void destroy_handles() {
+#ifdef CT2_WITH_CUDNN
+      cudnn_handle.reset();
+#endif
+
+      cublas_handle.reset();
+    }
 
     int get_gpu_count() {
       int gpu_count = 0;

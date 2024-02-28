@@ -49,6 +49,9 @@ namespace ctranslate2 {
     cudnnDataType_t get_cudnn_data_type(DataType dtype);
 #endif
 
+    // Destroy cuBLAS and cuDNN handles for the current thread.
+    void destroy_handles();
+
     int get_gpu_count();
     bool has_gpu();
     const cudaDeviceProp& get_device_properties(int device = -1);
