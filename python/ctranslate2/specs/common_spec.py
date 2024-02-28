@@ -29,7 +29,7 @@ class LayerNormSpec(model_spec.LayerSpec):
         if not rms_norm:
             self.beta = None
         else:
-            self.layer_norm_use_residual = None
+            self.layer_norm_use_residual = model_spec.OPTIONAL
 
 
 class LinearSpec(model_spec.LayerSpec):
