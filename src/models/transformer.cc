@@ -108,6 +108,16 @@ namespace ctranslate2 {
       }
     }
 
+    void TransformerDecoderModel::initialize(std::unordered_map<std::string, std::vector<std::string>>& vocabularies) {
+      LanguageModel::initialize(vocabularies);
+
+      if (spec_revision() < 2) {
+        register_variable_alias("decoder/num_heads", "num_heads");
+        register_variable_alias("decoder/pre_norm", "pre_norm");
+        register_variable_alias("decoder/activation", "activation");
+      }
+    }
+
     std::unique_ptr<SequenceGeneratorReplica>
     TransformerDecoderModel::as_sequence_generator() const {
       const auto scoped_device_setter = get_scoped_device_setter();

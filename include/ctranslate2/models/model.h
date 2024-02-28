@@ -31,6 +31,17 @@ namespace ctranslate2 {
                                                Device device = Device::CPU,
                                                int device_index = 0,
                                                ComputeType compute_type = ComputeType::DEFAULT);
+      static std::shared_ptr<const Model> load(const std::string& spec,
+                                               const size_t& spec_version,
+                                               const size_t& binary_version,
+                                               std::unordered_map<std::string, std::string>& alias,
+                                               std::unordered_map<std::string, std::vector<std::string>>& vocabularies,
+                                               std::unordered_map<std::string, StorageView>& variables,
+                                               const std::string& config,
+                                               Device device = Device::CPU,
+                                               int device_index = 0,
+                                               ComputeType compute_type = ComputeType::DEFAULT);
+
 
       virtual std::unique_ptr<SequenceToSequenceReplica> as_sequence_to_sequence() const;
       virtual std::unique_ptr<SequenceGeneratorReplica> as_sequence_generator() const;
@@ -85,6 +96,10 @@ namespace ctranslate2 {
       ScopedDeviceSetter get_scoped_device_setter() const {
         return ScopedDeviceSetter(_device, _device_index);
       }
+
+      void set_config(const std::string& config_str);
+      void set_revision(const size_t revision);
+      void set_binary_version(const size_t binary_version);
 
       // If the model contains variables, they will be moved to the new device.
       void set_device(const Device device, const int index = 0);
@@ -143,6 +158,7 @@ namespace ctranslate2 {
 
       // Runs some initialization after the model is loaded.
       virtual void initialize(ModelReader&) {}
+      virtual void initialize(std::unordered_map<std::string, std::vector<std::string>>&) {}
 
       virtual std::unique_ptr<Model> clone() const = 0;
 

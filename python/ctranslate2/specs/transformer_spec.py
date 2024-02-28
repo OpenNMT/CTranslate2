@@ -45,10 +45,10 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
           rms_norm: Use the root mean square layer normalization.
           multi_query_attention: Use multi-query attention.
         """
-        self.num_heads = np.dtype("int16").type(num_heads)
+        self.num_heads = np.array(num_heads, dtype="int16")
         self.pre_norm = pre_norm
-        self.activation = np.dtype("int8").type(activation)
-        self.embeddings_merge = np.dtype("int8").type(embeddings_merge)
+        self.activation = np.array(activation, dtype="int8")
+        self.embeddings_merge = np.array(embeddings_merge, dtype="int8")
         self.embeddings = [
             common_spec.EmbeddingsSpec() for _ in range(num_source_embeddings)
         ]
@@ -161,11 +161,11 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 % num_heads_kv
             )
 
-        self.num_heads = np.dtype("int16").type(num_heads)
+        self.num_heads = np.array(num_heads, dtype="int16")
         self.pre_norm = pre_norm
-        self.activation = np.dtype("int8").type(activation)
-        self.alignment_layer = np.dtype("int16").type(alignment_layer)
-        self.alignment_heads = np.dtype("int16").type(alignment_heads)
+        self.activation = np.array(activation, dtype="int8")
+        self.alignment_layer = np.array(alignment_layer, dtype="int16")
+        self.alignment_heads = np.array(alignment_heads, dtype="int16")
         self.embeddings = common_spec.EmbeddingsSpec()
         self.scale_embeddings = True
         self.scale_outputs = model_spec.OPTIONAL
@@ -173,7 +173,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         self.alibi_use_positive_positions = alibi_use_positive_positions
         self.scale_alibi = scale_alibi
         if sliding_window is not None:
-            self.sliding_window = np.dtype("int32").type(sliding_window)
+            self.sliding_window = np.array(sliding_window, dtype="int32")
         if (
             not relative_position
             and not relative_attention_bias

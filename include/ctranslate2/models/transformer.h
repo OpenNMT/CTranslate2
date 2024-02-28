@@ -34,6 +34,7 @@ namespace ctranslate2 {
     protected:
       bool is_linear_weight(const std::string& variable_name) const override;
       void initialize(ModelReader& model_reader) override;
+      void initialize(std::unordered_map<std::string, std::vector<std::string>>& vocabularies) override;
       std::unique_ptr<Model> clone() const override;
     };
 

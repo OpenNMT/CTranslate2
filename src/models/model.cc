@@ -185,6 +185,18 @@ namespace ctranslate2 {
       }
     }
 
+    void Model::set_config(const std::string& config_str) {
+      config = nlohmann::json::parse(config_str);
+    }
+
+    void Model::set_revision(const size_t revision) {
+      _spec_revision = revision;
+    }
+
+    void Model::set_binary_version(const size_t binary_version) {
+      _binary_version = binary_version;
+    }
+
     const StorageView* Model::get_variable_if_exists(const std::string& name) const {
       auto it = _variable_index.find(name);
       if (it == _variable_index.end())
@@ -506,6 +518,50 @@ namespace ctranslate2 {
       const ScopedDeviceSetter scoped_device_setter(device, device_index);
       model->process_linear_weights();
       model->initialize(model_reader);
+      return model;
+    }
+
+    std::shared_ptr<const Model> Model::load(const std::string& spec,
+                                             const size_t& spec_version,
+                                             const size_t& binary_version,
+                                             std::unordered_map<std::string, std::string>& aliases,
+                                             std::unordered_map<std::string, std::vector<std::string>>& vocabularies,
+                                             std::unordered_map<std::string, StorageView>& variables,
+                                             const std::string& config,
+                                             Device device,
+                                             int device_index,
+                                             ComputeType compute_type) {
+      auto model = models::create_model(spec);
+
+      // Load the variables.
+      for (auto& variable : variables) {
+        model->register_variable(variable.first, std::move(variable.second));
+      }
+      // Maybe quantize/dequantize/convert the variables to match the requested compute type.
+      model->set_compute_type(compute_type, device, device_index);
+
+      // Move variables to the target device.
+      model->set_device(device, device_index);
+
+      model->set_config(config);
+
+      model->set_revision(spec_version);
+      model->set_binary_version(binary_version);
+      // Register variable aliases.
+      if (binary_version >= 3) {
+        for (auto& alias_pair : aliases) {
+          const auto alias = alias_pair.first;
+          const auto variable_name = alias_pair.second;
+          model->register_variable_alias(alias, variable_name);
+          // Also alias the quantization scale that could be associated to variable_name.
+          model->register_variable_alias(alias + "_scale", variable_name + "_scale");
+        }
+      }
+
+      // Run additional model initialization.
+      const ScopedDeviceSetter scoped_device_setter(device, device_index);
+      model->process_linear_weights();
+      model->initialize(vocabularies);
       return model;
     }
 

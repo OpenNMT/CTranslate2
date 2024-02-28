@@ -44,21 +44,21 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
             self.relative_attention_max_distance = None
 
         if rotary_dim is not None:
-            self.rotary_dim = np.dtype("int32").type(rotary_dim)
+            self.rotary_dim = np.array(rotary_dim, dtype="int32")
             self.rotary_interleave = rotary_interleave
-            self.rotary_base = np.dtype("float32").type(rotary_base)
+            self.rotary_base = np.array(rotary_base, dtype="float32")
 
             if rotary_scaling_type is not None:
-                self.rotary_scaling_type = np.dtype("int8").type(rotary_scaling_type)
-                self.rotary_scaling_factor = np.dtype("float32").type(
-                    rotary_scaling_factor
+                self.rotary_scaling_type = np.array(rotary_scaling_type, dtype="int8")
+                self.rotary_scaling_factor = np.array(
+                    rotary_scaling_factor, dtype="float32"
                 )
 
         if num_heads_kv is not None:
-            self.num_heads_kv = np.dtype("int32").type(num_heads_kv)
+            self.num_heads_kv = np.array(num_heads_kv, dtype="int32")
 
         if head_dim is not None:
             self.head_dim = np.dtype("int32").type(head_dim)
 
         if sliding_window is not None:
-            self.sliding_window = np.dtype("int32").type(sliding_window)
+            self.sliding_window = np.array(sliding_window, dtype="int32")

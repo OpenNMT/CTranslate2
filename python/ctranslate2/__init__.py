@@ -40,6 +40,7 @@ try:
         set_random_seed,
     )
     from ctranslate2.extensions import register_extensions
+    from ctranslate2.generator_on_the_fly import GeneratorOnTheFly
     from ctranslate2.logging import get_log_level, set_log_level
 
     register_extensions()
