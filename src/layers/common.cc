@@ -266,7 +266,7 @@ namespace ctranslate2 {
     Dense::Dense(const models::Model& model,
                  const std::string& scope,
                  const ops::ActivationType* activation_type,
-                 const bool affected_by_tp)
+                 const bool is_layer_out)
       : _packed_weight(false)
       , _weight(get_linear_weight(model, scope, &_packed_weight))
       , _bias(model.get_variable_if_exists(scope + "/bias"))
@@ -295,7 +295,7 @@ namespace ctranslate2 {
                      /*shift_to_uint8=*/bool(_u8_shift_compensation),
                      /*round_before_cast=*/model.round_before_cast_in_quantization())
       , _dequantize_op(activation_type)
-      , _affected_by_tp(affected_by_tp)
+      , _is_layer_out(is_layer_out)
     {
     }
 
@@ -341,6 +341,8 @@ namespace ctranslate2 {
       const StorageView* compensation = (_partial_u8_shift_compensation.empty()
                                          ? _u8_shift_compensation
                                          : &_partial_u8_shift_compensation);
+
+      bool affected_by_tp = ScopedMPISetter::getNRanks() > 1 && _is_layer_out;
       if (_quantized_gemm) {
         const auto device = input.device();
         StorageView qinput(_weight.dtype(), device);
@@ -348,7 +350,7 @@ namespace ctranslate2 {
         StorageView qoutput(DataType::INT32, device);
         const StorageView* pinput = &input;
 
-        if (ScopedMPISetter::getNRanks() > 1 && _affected_by_tp) {
+        if (affected_by_tp) {
           StorageView input_reshaped(input.shape(), input.dtype(), input.device());
           Shape shape = input.shape();
           dim_t batch_size = shape[0];
@@ -381,6 +383,8 @@ namespace ctranslate2 {
         }
 
         _gemm_op(qinput, *weight, qoutput, compensation);
+        if (affected_by_tp && ScopedMPISetter::getCurRank() == 0)
+          bias = nullptr;
         _dequantize_op(qoutput,
                        qinput_scale,
                        *qscale,
@@ -389,6 +393,8 @@ namespace ctranslate2 {
                        output,
                        bias);
       } else {
+        if (affected_by_tp && ScopedMPISetter::getCurRank() == 0)
+          bias = nullptr;
         _gemm_op(input, *weight, output, nullptr, bias);
       }
     }

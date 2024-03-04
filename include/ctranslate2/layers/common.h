@@ -128,7 +128,7 @@ namespace ctranslate2 {
       Dense(const models::Model& model,
             const std::string& scope,
             const ops::ActivationType* activation_type = nullptr,
-            const bool affected_by_tp = false);
+            const bool is_layer_out = false);
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output) const;
@@ -148,7 +148,7 @@ namespace ctranslate2 {
       const ops::Gemm _gemm_op;
       const ops::Quantize _quantize_op;
       const ops::Dequantize _dequantize_op;
-      const bool _affected_by_tp;
+      const bool _is_layer_out;
     };
 
     class LayerNorm : public Layer
