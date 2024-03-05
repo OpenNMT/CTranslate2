@@ -730,7 +730,7 @@ class PyTorchVariable(Variable):
         return self.tensor.numel() * self.tensor.element_size()
 
     def to_bytes(self) -> bytes:
-        max_size = 2 ** 31 - 1
+        max_size = 2**31 - 1
         num_bytes = self.num_bytes()
         output = b""
         offset = 0
