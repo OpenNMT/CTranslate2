@@ -1,4 +1,5 @@
 #include "ctranslate2/layers/transformer.h"
+#include "ctranslate2/sampling.h"
 
 #include <cmath>
 
@@ -54,6 +55,82 @@ namespace ctranslate2 {
       }
     }
 
+    Moe::Moe(const models::Model &model, const std::string &scope, const bool pre_norm,
+             const ops::ActivationType activation_type)
+    : _layer_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
+    , _gate(model, scope + "/gate")
+    , _pre_norm(pre_norm)
+    , _activation_type(activation_type)
+    , _num_experts_per_tok(model.get_attribute_with_default<int32_t>(scope + "/num_experts_per_tok", 2))
+    , _ffn_layers(build_layers_list<const FeedForwardNetwork>(
+                  model,
+                  scope + "/experts",
+                  pre_norm,
+                  activation_type)) {
+    }
+
+    void Moe::operator()(ctranslate2::StorageView &input, ctranslate2::StorageView &output) const {
+      auto orig_shape = input.shape();
+      StorageView* x = &input;
+      if (_layer_norm && _pre_norm) {
+        (*_layer_norm)(input, output);
+        x = &output;
+      }
+
+      const Device device = input.device();
+      const DataType dtype = input.dtype();
+
+      x->reshape({-1, x->dim(-1)});
+      StorageView score(dtype, device);
+      _gate(*x, score);
+
+      StorageView f_used(dtype, device);
+      ops::SoftMax()(score, f_used);
+      score = std::move(f_used);
+
+      StorageView expert_indices(DataType::INT32);
+      StorageView expert_weighs(dtype);
+      const BestSampler sampler;
+      sampler(score, expert_indices, expert_weighs, _num_experts_per_tok);
+
+      expert_indices.reshape({-1});
+      ops::Tile(0, _num_experts_per_tok)(*x);
+      f_used.reshape(x->shape());
+
+      std::unordered_map<dim_t, dim_t> expert_idx_map;
+      for (size_t l = 0; l < _ffn_layers.size(); ++l) {
+        for (int i = 0; i < expert_indices.size(); ++i) {
+          if (expert_indices.at<int32_t>(i) == l) {
+            expert_idx_map[i] = l;
+          }
+        }
+      }
+      for (int i = 0; i < expert_indices.size(); ++i) {
+        ops::Slide slide_ops(0, i, 1, true);
+        StorageView xtmp(dtype, device);
+        StorageView ytmp(dtype, device);
+        slide_ops(*x, xtmp);
+        slide_ops(f_used, ytmp);
+        (*_ffn_layers[expert_idx_map[i]])(xtmp, ytmp);
+      }
+      auto expert_shape = expert_weighs.shape();
+      expert_shape.push_back(-1);
+      ops::Mul()(f_used.reshape(std::move(expert_shape)), expert_weighs.expand_dims(-1), output);
+      f_used = std::move(output);
+      std::vector<dim_t> partitions(_num_experts_per_tok, 1);
+      ops::Split split_ops(0, partitions, true);
+      std::vector<StorageView*> output_list(_num_experts_per_tok, new StorageView(dtype, device));
+      split_ops(f_used, output_list);
+      output.resize(std::move(orig_shape));
+      while (!output_list.empty()) {
+        StorageView* item = output_list.back();
+        item->squeeze(0);
+        ops::Add()(output, *item, output);
+        delete item;
+        output_list.pop_back();
+      }
+    }
+
 
     TransformerEncoderLayer::TransformerEncoderLayer(const models::Model& model,
                                                      const std::string& scope,
@@ -89,6 +166,16 @@ namespace ctranslate2 {
       _ff(context, output);
     }
 
+    static std::unique_ptr<Moe> make_moe(const models::Model& model,
+                                         const std::string& scope,
+                                         const bool pre_norm = true,
+                                         const ops::ActivationType activation_type = ops::ActivationType::ReLU) {
+      const dim_t num_experts_per_tok = model.get_attribute_with_default<int32_t>(scope + "/num_experts_per_tok", -1);
+      if (num_experts_per_tok < 0)
+        return nullptr;
+      return std::make_unique<Moe>(model, scope, pre_norm, activation_type);
+    }
+
 
     TransformerDecoderLayer::TransformerDecoderLayer(const models::Model& model,
                                                      const std::string& scope,
@@ -113,7 +200,8 @@ namespace ctranslate2 {
                                                                     /*self_attention=*/false,
                                                                     pre_norm,
                                                                     /*is_decoder=*/true))
-      , _ff(model, scope + "/ffn", pre_norm, activation_type) {
+      , _moe(make_moe(model, scope + "/moe", pre_norm, activation_type))
+      , _ff(!_moe ? std::make_unique<FeedForwardNetwork>(model, scope + "/ffn", pre_norm, activation_type) : nullptr) {
     }
 
     void TransformerDecoderLayer::operator()(const StorageView& input,
@@ -201,7 +289,10 @@ namespace ctranslate2 {
         context = std::move(output);
       }
 
-      _ff(context, output);
+      if (_moe)
+        (*_moe)(context, output);
+      else
+        (*_ff)(context, output);
     }
 
 
