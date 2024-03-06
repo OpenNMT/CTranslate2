@@ -315,16 +315,24 @@ class FeedForwardSpec(model_spec.LayerSpec):
             self.linear_0_noact = common_spec.LinearSpec()
 
 
+class MoeFeedForwardSpec(model_spec.LayerSpec):
+    def __init__(self, glu=False):
+        self.linear_0 = common_spec.LinearSpec()
+        self.linear_1 = common_spec.LinearSpec()
+        if glu:
+            self.linear_0_noact = common_spec.LinearSpec()
+
+
 class MoeSpec(model_spec.LayerSpec):
     def __init__(self, glu=False,
                  rms_norm=False,
                  num_experts=0,
                  num_experts_per_tok=2):
+        self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
         self.gate = common_spec.LinearSpec()
-        self.num_experts_per_tok = num_experts_per_tok
-        self.experts = [FeedForwardSpec(
-                glu=glu,
-                rms_norm=rms_norm
+        self.num_experts_per_tok = np.dtype("int32").type(num_experts_per_tok)
+        self.experts = [MoeFeedForwardSpec(
+                glu=glu
             )
             for _ in range(num_experts)
         ]
