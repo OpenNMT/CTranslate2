@@ -9,20 +9,20 @@ from ctranslate2.specs import attention_spec, common_spec, model_spec
 
 class TransformerEncoderSpec(model_spec.LayerSpec):
     def __init__(
-        self,
-        num_layers: int,
-        num_heads: int,
-        pre_norm: bool = True,
-        no_final_norm: bool = False,
-        activation: common_spec.Activation = common_spec.Activation.RELU,
-        num_source_embeddings: int = 1,
-        embeddings_merge: common_spec.EmbeddingsMerge = common_spec.EmbeddingsMerge.CONCAT,
-        layernorm_embedding: bool = False,
-        relative_position: bool = False,
-        relative_attention_bias: bool = False,
-        ffn_glu: bool = False,
-        rms_norm: bool = False,
-        multi_query_attention: bool = False,
+            self,
+            num_layers: int,
+            num_heads: int,
+            pre_norm: bool = True,
+            no_final_norm: bool = False,
+            activation: common_spec.Activation = common_spec.Activation.RELU,
+            num_source_embeddings: int = 1,
+            embeddings_merge: common_spec.EmbeddingsMerge = common_spec.EmbeddingsMerge.CONCAT,
+            layernorm_embedding: bool = False,
+            relative_position: bool = False,
+            relative_attention_bias: bool = False,
+            ffn_glu: bool = False,
+            rms_norm: bool = False,
+            multi_query_attention: bool = False,
     ):
         """Initializes a Transformer encoder specification.
 
@@ -74,35 +74,37 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
 
 class TransformerDecoderSpec(model_spec.LayerSpec):
     def __init__(
-        self,
-        num_layers: int,
-        num_heads: int,
-        pre_norm: bool = True,
-        activation: common_spec.Activation = common_spec.Activation.RELU,
-        layernorm_embedding: bool = False,
-        with_encoder_attention: bool = True,
-        no_final_norm: bool = False,
-        project_in_out: bool = False,
-        relative_position: bool = False,
-        relative_attention_bias: bool = False,
-        alignment_layer: int = -1,
-        alignment_heads: int = 1,
-        ffn_glu: bool = False,
-        rms_norm: bool = False,
-        alibi: bool = False,
-        alibi_use_positive_positions: bool = False,
-        scale_alibi: bool = False,
-        rotary_dim: Optional[int] = None,
-        rotary_interleave: bool = True,
-        rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
-        rotary_scaling_factor: float = 1,
-        rotary_base: float = 10000,
-        parallel_residual: bool = False,
-        shared_layer_norm: bool = False,
-        multi_query_attention: bool = False,
-        num_heads_kv: Optional[int] = None,
-        head_dim: Optional[int] = None,
-        sliding_window: Optional[int] = None,
+            self,
+            num_layers: int,
+            num_heads: int,
+            pre_norm: bool = True,
+            activation: common_spec.Activation = common_spec.Activation.RELU,
+            layernorm_embedding: bool = False,
+            with_encoder_attention: bool = True,
+            no_final_norm: bool = False,
+            project_in_out: bool = False,
+            relative_position: bool = False,
+            relative_attention_bias: bool = False,
+            alignment_layer: int = -1,
+            alignment_heads: int = 1,
+            ffn_glu: bool = False,
+            rms_norm: bool = False,
+            alibi: bool = False,
+            alibi_use_positive_positions: bool = False,
+            scale_alibi: bool = False,
+            rotary_dim: Optional[int] = None,
+            rotary_interleave: bool = True,
+            rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
+            rotary_scaling_factor: float = 1,
+            rotary_base: float = 10000,
+            parallel_residual: bool = False,
+            shared_layer_norm: bool = False,
+            multi_query_attention: bool = False,
+            num_heads_kv: Optional[int] = None,
+            head_dim: Optional[int] = None,
+            sliding_window: Optional[int] = None,
+            num_local_experts: Optional[int] = None,
+            num_experts_per_tok: Optional[int] = None,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -142,6 +144,8 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
           sliding_window: Max sequence length to retain in KV Cache.
+          num_local_experts: total experts in moe layer
+          num_experts_per_tok: number of experts used by each token
         """
         if parallel_residual:
             if not pre_norm:
@@ -176,10 +180,10 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         if sliding_window is not None:
             self.sliding_window = np.dtype("int32").type(sliding_window)
         if (
-            not relative_position
-            and not relative_attention_bias
-            and not alibi
-            and rotary_dim is None
+                not relative_position
+                and not relative_attention_bias
+                and not alibi
+                and rotary_dim is None
         ):
             self.position_encodings = PositionEncoderSpec()
         if pre_norm and not no_final_norm:
@@ -204,12 +208,14 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 num_heads_kv=num_heads_kv,
                 head_dim=head_dim,
                 sliding_window=sliding_window,
+                num_local_experts=num_local_experts,
+                num_experts_per_tok=num_experts_per_tok,
             )
             for _ in range(num_layers)
         ]
         self.start_from_zero_embedding = False
         self.multi_query_attention = multi_query_attention or (
-            num_heads_kv != num_heads
+                num_heads_kv != num_heads
         )
 
         if project_in_out:
@@ -219,13 +225,13 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
 
 class TransformerEncoderLayerSpec(model_spec.LayerSpec):
     def __init__(
-        self,
-        relative_position=False,
-        relative_attention_bias=False,
-        ffn_glu=False,
-        rms_norm=False,
-        num_heads_kv=None,
-        sliding_window=None,
+            self,
+            relative_position=False,
+            relative_attention_bias=False,
+            ffn_glu=False,
+            rms_norm=False,
+            num_heads_kv=None,
+            sliding_window=None,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
@@ -240,22 +246,24 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
 
 class TransformerDecoderLayerSpec(model_spec.LayerSpec):
     def __init__(
-        self,
-        with_encoder_attention=True,
-        relative_position=False,
-        relative_attention_bias=False,
-        ffn_glu=False,
-        rms_norm=False,
-        rotary_dim=None,
-        rotary_interleave=True,
-        rotary_scaling_type=None,
-        rotary_scaling_factor=1,
-        rotary_base=10000,
-        parallel_residual=False,
-        shared_layer_norm=False,
-        num_heads_kv=None,
-        head_dim=None,
-        sliding_window=None,
+            self,
+            with_encoder_attention=True,
+            relative_position=False,
+            relative_attention_bias=False,
+            ffn_glu=False,
+            rms_norm=False,
+            rotary_dim=None,
+            rotary_interleave=True,
+            rotary_scaling_type=None,
+            rotary_scaling_factor=1,
+            rotary_base=10000,
+            parallel_residual=False,
+            shared_layer_norm=False,
+            num_heads_kv=None,
+            head_dim=None,
+            sliding_window=None,
+            num_local_experts=None,
+            num_experts_per_tok=None,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
@@ -279,7 +287,13 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
                 sliding_window=sliding_window,
             )
 
-        self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
+        if num_local_experts is not None and num_experts_per_tok is not None:
+            self.moe = MoeSpec(glu=ffn_glu,
+                               rms_norm=rms_norm,
+                               num_experts=num_local_experts,
+                               num_experts_per_tok=num_experts_per_tok)
+        else:
+            self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
 
         if parallel_residual:
             if shared_layer_norm:
@@ -299,6 +313,21 @@ class FeedForwardSpec(model_spec.LayerSpec):
         self.linear_1 = common_spec.LinearSpec()
         if glu:
             self.linear_0_noact = common_spec.LinearSpec()
+
+
+class MoeSpec(model_spec.LayerSpec):
+    def __init__(self, glu=False,
+                 rms_norm=False,
+                 num_experts=0,
+                 num_experts_per_tok=2):
+        self.gate = common_spec.LinearSpec()
+        self.num_experts_per_tok = num_experts_per_tok
+        self.experts = [FeedForwardSpec(
+                glu=glu,
+                rms_norm=rms_norm
+            )
+            for _ in range(num_experts)
+        ]
 
 
 class PositionEncoderSpec(model_spec.LayerSpec):
@@ -327,7 +356,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
     """
 
     def __init__(
-        self, encoder: TransformerEncoderSpec, decoder: TransformerDecoderSpec
+            self, encoder: TransformerEncoderSpec, decoder: TransformerDecoderSpec
     ):
         """Initializes a Transformer model specification.
 
@@ -349,22 +378,22 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
 
     @classmethod
     def from_config(
-        cls,
-        num_layers: Union[int, Tuple[int, int]],
-        num_heads: int,
-        with_relative_position: bool = False,
-        pre_norm: bool = True,
-        no_final_norm: bool = False,
-        activation: common_spec.Activation = common_spec.Activation.RELU,
-        alignment_layer: int = -1,
-        alignment_heads: int = 1,
-        num_source_embeddings: int = 1,
-        embeddings_merge: common_spec.EmbeddingsMerge = common_spec.EmbeddingsMerge.CONCAT,
-        layernorm_embedding: bool = False,
-        relative_attention_bias: bool = False,
-        ffn_glu: bool = False,
-        rms_norm: bool = False,
-        multi_query_attention: bool = False,
+            cls,
+            num_layers: Union[int, Tuple[int, int]],
+            num_heads: int,
+            with_relative_position: bool = False,
+            pre_norm: bool = True,
+            no_final_norm: bool = False,
+            activation: common_spec.Activation = common_spec.Activation.RELU,
+            alignment_layer: int = -1,
+            alignment_heads: int = 1,
+            num_source_embeddings: int = 1,
+            embeddings_merge: common_spec.EmbeddingsMerge = common_spec.EmbeddingsMerge.CONCAT,
+            layernorm_embedding: bool = False,
+            relative_attention_bias: bool = False,
+            ffn_glu: bool = False,
+            rms_norm: bool = False,
+            multi_query_attention: bool = False,
     ):
         """Creates a Transformer model specification.
 
@@ -480,31 +509,33 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
     @classmethod
     def from_config(
-        cls,
-        num_layers: int,
-        num_heads: int,
-        pre_norm: bool = True,
-        activation: common_spec.Activation = common_spec.Activation.RELU,
-        layernorm_embedding: bool = False,
-        no_final_norm: bool = False,
-        project_in_out: bool = False,
-        with_relative_position: bool = False,
-        ffn_glu: bool = False,
-        rms_norm: bool = False,
-        alibi: bool = False,
-        alibi_use_positive_positions: bool = False,
-        scale_alibi: bool = False,
-        rotary_dim: Optional[int] = None,
-        rotary_interleave: bool = True,
-        rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
-        rotary_scaling_factor: float = 1,
-        rotary_base: float = 10000,
-        parallel_residual: bool = False,
-        shared_layer_norm: bool = False,
-        multi_query_attention: bool = False,
-        num_heads_kv: Optional[int] = None,
-        head_dim: Optional[int] = None,
-        sliding_window: Optional[int] = None,
+            cls,
+            num_layers: int,
+            num_heads: int,
+            pre_norm: bool = True,
+            activation: common_spec.Activation = common_spec.Activation.RELU,
+            layernorm_embedding: bool = False,
+            no_final_norm: bool = False,
+            project_in_out: bool = False,
+            with_relative_position: bool = False,
+            ffn_glu: bool = False,
+            rms_norm: bool = False,
+            alibi: bool = False,
+            alibi_use_positive_positions: bool = False,
+            scale_alibi: bool = False,
+            rotary_dim: Optional[int] = None,
+            rotary_interleave: bool = True,
+            rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
+            rotary_scaling_factor: float = 1,
+            rotary_base: float = 10000,
+            parallel_residual: bool = False,
+            shared_layer_norm: bool = False,
+            multi_query_attention: bool = False,
+            num_heads_kv: Optional[int] = None,
+            head_dim: Optional[int] = None,
+            sliding_window: Optional[int] = None,
+            num_local_experts: Optional[int] = None,
+            num_experts_per_tok: Optional[int] = None,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -538,6 +569,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
           sliding_window: max sequence length to retain KV cache
+          num_local_experts: total experts in moe layer
+          num_experts_per_tok: number of experts used by each token
         """
         decoder = TransformerDecoderSpec(
             num_layers,
@@ -565,6 +598,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             num_heads_kv=num_heads_kv,
             head_dim=head_dim,
             sliding_window=sliding_window,
+            num_local_experts=num_local_experts,
+            num_experts_per_tok=num_experts_per_tok
         )
 
         return cls(decoder)
@@ -601,10 +636,10 @@ class TransformerEncoderModelSpec(model_spec.LanguageModelSpec):
     """Describes a Transformer encoder model (e.g. BERT)."""
 
     def __init__(
-        self,
-        encoder: TransformerEncoderSpec,
-        pooling_layer: bool = False,
-        pooling_activation: common_spec.Activation = common_spec.Activation.Tanh,
+            self,
+            encoder: TransformerEncoderSpec,
+            pooling_layer: bool = False,
+            pooling_activation: common_spec.Activation = common_spec.Activation.Tanh,
     ):
         """Initializes a Transformer encoder model specification.
 
