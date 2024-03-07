@@ -84,6 +84,7 @@ namespace ctranslate2 {
       {
         Shape output_shape(a.shape());
         output_shape[output_shape.size() - 1] = n;
+        output_shape[output_shape.size() - 2] = a.dim(_trans_a ? -1 : -2);
         c.resize(std::move(output_shape));
       }
 

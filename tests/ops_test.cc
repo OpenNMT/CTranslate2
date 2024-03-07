@@ -503,6 +503,38 @@ TEST_P(OpDeviceFPTest, Gemm) {
   expect_storage_eq(y.to_float32(), expected, error);
 };
 
+TEST_P(OpDeviceFPTest, GemmATranspose) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  StorageView a(
+    {2, 4}, std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0}, device);
+  StorageView b(a);
+  StorageView y({4, 4}, 2.f, device);
+  StorageView expected(
+    {2, 2}, std::vector<float>{3, 2, 2, 3}, device);
+  ops::Gemm op(1.0, 1.0, false, true);
+  y = y.to(dtype);
+  op(a.to(dtype), b.to(dtype), y);
+  expect_storage_eq(y.to_float32(), expected, error);
+}
+
+TEST_P(OpDeviceFPTest, GemmBTranspose) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  StorageView a(
+    {2, 4}, std::vector<float>{1, 0, 0, 0, 0, 1, 0, 0}, device);
+  StorageView b(a);
+  StorageView y({4, 4}, 2.f, device);
+  StorageView expected(
+    {4, 4}, std::vector<float>{3, 2, 2, 2, 2, 3, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2}, device);
+  ops::Gemm op(1.0, 1.0, true, false);
+  y = y.to(dtype);
+  op(a.to(dtype), b.to(dtype), y);
+  expect_storage_eq(y.to_float32(), expected, error);
+}
+
 TEST_P(OpDeviceTest, GemmInt8) {
   Device device = GetParam();
   if (!mayiuse_int8(device))
