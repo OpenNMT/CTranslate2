@@ -16,6 +16,7 @@ Generator
     - :obj:`~ctranslate2.Generator.num_active_batches`
     - :obj:`~ctranslate2.Generator.num_generators`
     - :obj:`~ctranslate2.Generator.num_queued_batches`
+    - :obj:`~ctranslate2.Generator.tensor_parallel`
 
     **Methods:**
 

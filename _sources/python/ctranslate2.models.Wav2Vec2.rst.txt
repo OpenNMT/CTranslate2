@@ -16,6 +16,7 @@ Wav2Vec2
     - :obj:`~ctranslate2.models.Wav2Vec2.num_active_batches`
     - :obj:`~ctranslate2.models.Wav2Vec2.num_queued_batches`
     - :obj:`~ctranslate2.models.Wav2Vec2.num_workers`
+    - :obj:`~ctranslate2.models.Wav2Vec2.tensor_parallel`
 
     **Methods:**
 

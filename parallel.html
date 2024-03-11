@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Multithreading and parallelism &mdash; CTranslate2 4.0.0 documentation</title>
+  <title>Multithreading and parallelism &mdash; CTranslate2 4.1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.0
+                4.1
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -153,7 +153,53 @@
 </section>
 <section id="model-and-tensor-parallelism">
 <h2>Model and tensor parallelism<a class="headerlink" href="#model-and-tensor-parallelism" title="Permalink to this headline"></a></h2>
-<p>These types of parallelism are not yet implemented in CTranslate2.</p>
+<p>Models used with <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> and <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> can be split into multiple GPUs.
+This is very useful when the model is too big to be loaded in only 1 GPU.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span> <span class="n">tensor_parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Setup environment:</p>
+<ul class="simple">
+<li><p>Install <a class="reference external" href="https://www.open-mpi.org/">open-mpi</a></p></li>
+<li><p>Configure open-mpi by creating the config file like <code class="docutils literal notranslate"><span class="pre">hostfile</span></code>:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="o">[</span>ipaddress<span class="w"> </span>or<span class="w"> </span>dns<span class="o">]</span><span class="w"> </span><span class="nv">slots</span><span class="o">=</span>nbGPU1
+<span class="o">[</span>other<span class="w"> </span>ipaddress<span class="w"> </span>or<span class="w"> </span>dns<span class="o">]</span><span class="w"> </span><span class="nv">slots</span><span class="o">=</span>NbGPU2
+</pre></div>
+</div>
+<p>Run:</p>
+<ul class="simple">
+<li><p>Run the application in multiprocess to use tensor parallel:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-np<span class="w"> </span>nbGPUExpected<span class="w"> </span>-hostfile<span class="w"> </span>hostfile<span class="w"> </span>python3<span class="w"> </span>script
+</pre></div>
+</div>
+<p>If you’re trying to use tensor parallelism in multiple machines, some additional configuration is needed:</p>
+<ul class="simple">
+<li><p>Make sure Master and Slave can connect to each other as a pair with ssh + pubkey</p></li>
+<li><p>Export all necessary environment variables from Master to Slave like the example below:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mpirun<span class="w"> </span>-x<span class="w"> </span>VIRTUAL_ENV_PROMPT<span class="w"> </span>-x<span class="w"> </span>PATH<span class="w"> </span>-x<span class="w"> </span>VIRTUAL_ENV<span class="w"> </span>-x<span class="w"> </span>_<span class="w"> </span>-x<span class="w"> </span>LD_LIBRARY_PATH<span class="w"> </span>-np<span class="w"> </span>nbGPUExpected<span class="w"> </span>-hostfile<span class="w"> </span>hostfile<span class="w"> </span>python3<span class="w"> </span>script
+</pre></div>
+</div>
+<p>Read more <a class="reference external" href="https://www.open-mpi.org/doc/">open-mpi docs</a> for more information.</p>
+<ul class="simple">
+<li><p>In this mode, the application will run in multiprocess. We can filter out the master process by using:</p></li>
+</ul>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="k">if</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">MpiInfo</span><span class="o">.</span><span class="n">getCurRank</span><span class="p">()</span> <span class="o">==</span> <span class="mi">0</span><span class="p">:</span>
+    <span class="nb">print</span><span class="p">(</span><span class="o">...</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Running model in tensor parallel mode in one machine can boost the performance but if the model shared between multiple machines
+could be slower because of the latency in the connectivity.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>In mode tensor parallel, <code class="docutils literal notranslate"><span class="pre">inter_threads</span></code> is always supported to run multiple workers. Otherwise, <code class="docutils literal notranslate"><span class="pre">device_index</span></code> no longer has any effect
+because tensor parallel mode will check only for available gpus on the system and the number of gpus you want to use.</p>
+</div>
 </section>
 <section id="asynchronous-execution">
 <h2>Asynchronous execution<a class="headerlink" href="#asynchronous-execution" title="Permalink to this headline"></a></h2>

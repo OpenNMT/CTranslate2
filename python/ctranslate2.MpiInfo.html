@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ctranslate2 &mdash; CTranslate2 4.1.0 documentation</title>
+  <title>MpiInfo &mdash; CTranslate2 4.1.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -20,8 +20,8 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="AsyncGenerationResult" href="ctranslate2.AsyncGenerationResult.html" />
-    <link rel="prev" title="Python" href="overview.html" /> 
+    <link rel="next" title="ScoringResult" href="ctranslate2.ScoringResult.html" />
+    <link rel="prev" title="Generator" href="ctranslate2.Generator.html" /> 
 </head>
 
 <body class="wy-body-for-nav"> 
@@ -76,7 +76,7 @@
 <p class="caption" role="heading"><span class="caption-text">API</span></p>
 <ul class="current">
 <li class="toctree-l1 current"><a class="reference internal" href="overview.html">Python</a><ul class="current">
-<li class="toctree-l2 current"><a class="current reference internal" href="#">ctranslate2</a><ul>
+<li class="toctree-l2 current"><a class="reference internal" href="ctranslate2.html">ctranslate2</a><ul class="current">
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
@@ -88,7 +88,7 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationStepResult.html">GenerationStepResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a></li>
-<li class="toctree-l3"><a class="reference internal" href="ctranslate2.MpiInfo.html">MpiInfo</a></li>
+<li class="toctree-l3 current"><a class="current reference internal" href="#">MpiInfo</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a></li>
@@ -129,7 +129,8 @@
   <ul class="wy-breadcrumbs">
       <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
           <li><a href="overview.html">Python</a> &raquo;</li>
-      <li>ctranslate2</li>
+          <li><a href="ctranslate2.html">ctranslate2</a> &raquo;</li>
+      <li>MpiInfo</li>
       <li class="wy-breadcrumbs-aside">
       </li>
   </ul>
@@ -138,42 +139,48 @@
           <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
            <div itemprop="articleBody">
              
-  <section id="module-ctranslate2">
-<span id="ctranslate2"></span><h1>ctranslate2<a class="headerlink" href="#module-ctranslate2" title="Permalink to this headline"></a></h1>
-<div class="toctree-wrapper compound">
-<ul>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.DataType.html">DataType</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.Device.html">Device</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.Encoder.html">Encoder</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html">EncoderForwardOutput</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.GenerationStepResult.html">GenerationStepResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.MpiInfo.html">MpiInfo</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.Translator.html">Translator</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.contains_model.html">contains_model</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html">get_cuda_device_count</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.get_log_level.html">get_log_level</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.get_supported_compute_types.html">get_supported_compute_types</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.set_log_level.html">set_log_level</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.set_random_seed.html">set_random_seed</a></li>
+  <section id="mpiinfo">
+<h1>MpiInfo<a class="headerlink" href="#mpiinfo" title="Permalink to this headline"></a></h1>
+<dl class="py class">
+<dt class="sig sig-object py" id="ctranslate2.MpiInfo">
+<em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">MpiInfo</span></span><a class="headerlink" href="#ctranslate2.MpiInfo" title="Permalink to this definition"></a></dt>
+<dd><p>An object to manage the MPI communication between processes.
+It provides information about MPI connexion.</p>
+<p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
+<p><strong>Methods:</strong></p>
+<ul class="simple">
+<li><p><a class="reference internal" href="#ctranslate2.MpiInfo.getCurRank" title="ctranslate2.MpiInfo.getCurRank"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getCurRank</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.MpiInfo.getLocalRank" title="ctranslate2.MpiInfo.getLocalRank"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getLocalRank</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.MpiInfo.getNRanks" title="ctranslate2.MpiInfo.getNRanks"><code class="xref py py-obj docutils literal notranslate"><span class="pre">getNRanks</span></code></a></p></li>
 </ul>
-</div>
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.MpiInfo.getCurRank">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">getCurRank</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#ctranslate2.MpiInfo.getCurRank" title="Permalink to this definition"></a></dt>
+<dd><p>Get the current rank of process.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.MpiInfo.getLocalRank">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">getLocalRank</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#ctranslate2.MpiInfo.getLocalRank" title="Permalink to this definition"></a></dt>
+<dd><p>Get the current GPU id used by process.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.MpiInfo.getNRanks">
+<em class="property"><span class="pre">static</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">getNRanks</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">int</span></span></span><a class="headerlink" href="#ctranslate2.MpiInfo.getNRanks" title="Permalink to this definition"></a></dt>
+<dd><p>Get the number of gpus running for the current model.</p>
+</dd></dl>
+
+</dd></dl>
+
 </section>
 
 
            </div>
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
-        <a href="overview.html" class="btn btn-neutral float-left" title="Python" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.AsyncGenerationResult.html" class="btn btn-neutral float-right" title="AsyncGenerationResult" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.Generator.html" class="btn btn-neutral float-left" title="Generator" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="ctranslate2.ScoringResult.html" class="btn btn-neutral float-right" title="ScoringResult" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

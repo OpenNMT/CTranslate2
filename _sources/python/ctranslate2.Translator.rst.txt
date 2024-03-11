@@ -17,6 +17,7 @@ Translator
     - :obj:`~ctranslate2.Translator.num_active_batches`
     - :obj:`~ctranslate2.Translator.num_queued_batches`
     - :obj:`~ctranslate2.Translator.num_translators`
+    - :obj:`~ctranslate2.Translator.tensor_parallel`
 
     **Methods:**
 

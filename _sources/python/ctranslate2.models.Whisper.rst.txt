@@ -19,6 +19,7 @@ Whisper
     - :obj:`~ctranslate2.models.Whisper.num_languages`
     - :obj:`~ctranslate2.models.Whisper.num_queued_batches`
     - :obj:`~ctranslate2.models.Whisper.num_workers`
+    - :obj:`~ctranslate2.models.Whisper.tensor_parallel`
 
     **Methods:**
 

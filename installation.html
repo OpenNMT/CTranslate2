@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 4.0.0 documentation</title>
+  <title>Installation &mdash; CTranslate2 4.1.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.0
+                4.1
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -134,8 +134,8 @@
 </ul>
 <div class="admonition-gpu-support admonition">
 <p class="admonition-title">GPU support</p>
-<p>The Linux and Windows Python wheels support GPU execution. Install <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> 11.x to use the GPU.</p>
-<p>If you plan to run models with convolutional layers (e.g. for speech recognition), you should also install <a class="reference external" href="https://developer.nvidia.com/cudnn">cuDNN 8</a> for CUDA 11.x.</p>
+<p>The Linux and Windows Python wheels support GPU execution. Install <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> 12.x to use the GPU.</p>
+<p>If you plan to run models with convolutional layers (e.g. for speech recognition), you should also install <a class="reference external" href="https://developer.nvidia.com/cudnn">cuDNN 8</a> for CUDA 12.x.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -158,6 +158,7 @@
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2<span class="w"> </span>--help
 </pre></div>
 </div>
+<p>To update to the new version that supports CUDA 12.</p>
 <div class="admonition-gpu-support admonition">
 <p class="admonition-title">GPU support</p>
 <p>The Docker image supports GPU execution. Install the <a class="reference external" href="https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/overview.html">NVIDIA Container Toolkit</a> to use GPUs from Docker.</p>

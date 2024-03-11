@@ -1,0 +1,15 @@
+MpiInfo
+=======
+
+.. autoclass:: ctranslate2.MpiInfo
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.MpiInfo.getCurRank`
+    - :obj:`~ctranslate2.MpiInfo.getLocalRank`
+    - :obj:`~ctranslate2.MpiInfo.getNRanks`

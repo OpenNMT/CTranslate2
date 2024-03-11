@@ -16,6 +16,7 @@ Encoder
     - :obj:`~ctranslate2.Encoder.num_active_batches`
     - :obj:`~ctranslate2.Encoder.num_encoders`
     - :obj:`~ctranslate2.Encoder.num_queued_batches`
+    - :obj:`~ctranslate2.Encoder.tensor_parallel`
 
     **Methods:**
 
