@@ -1220,7 +1220,7 @@ class BloomLoader(ModelLoader):
         spec.weight = weight
         spec.bias = bias
 
-@register_loader("T5Config")
+@register_loader("T5EncoderConfig")
 class T5EncoderLoader(ModelLoader):
     @property
     def architecture_name(self):
