@@ -45,6 +45,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
           rms_norm: Use the root mean square layer normalization.
           multi_query_attention: Use multi-query attention.
         """
+        self.multi_query_attention = multi_query_attention
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
         self.activation = np.dtype("int8").type(activation)
@@ -100,6 +101,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
         num_heads_kv: Optional[int] = None,
+        head_dim: Optional[int] = None,
         sliding_window: Optional[int] = None,
     ):
         """Initializes a Transformer decoder specification.
@@ -200,11 +202,15 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 parallel_residual=parallel_residual,
                 shared_layer_norm=shared_layer_norm,
                 num_heads_kv=num_heads_kv,
+                head_dim=head_dim,
                 sliding_window=sliding_window,
             )
             for _ in range(num_layers)
         ]
         self.start_from_zero_embedding = False
+        self.multi_query_attention = multi_query_attention or (
+            num_heads_kv != num_heads
+        )
 
         if project_in_out:
             self.project_in = common_spec.LinearSpec()
@@ -248,6 +254,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         parallel_residual=False,
         shared_layer_norm=False,
         num_heads_kv=None,
+        head_dim=None,
         sliding_window=None,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
@@ -261,6 +268,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             rotary_scaling_factor=rotary_scaling_factor,
             rotary_base=rotary_base,
             num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
             sliding_window=sliding_window,
         )
 
@@ -335,6 +343,9 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self._config.add_attribute(
+            "multi_query_attention", self.encoder.multi_query_attention
+        )
 
     @classmethod
     def from_config(
@@ -463,6 +474,9 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
         super().__init__()
         self.decoder = decoder
+        self._config.add_attribute(
+            "multi_query_attention", self.decoder.multi_query_attention
+        )
 
     @classmethod
     def from_config(
@@ -489,6 +503,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
         num_heads_kv: Optional[int] = None,
+        head_dim: Optional[int] = None,
         sliding_window: Optional[int] = None,
     ):
         """Creates a Transformer decoder model specification.
@@ -548,6 +563,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             shared_layer_norm=shared_layer_norm,
             multi_query_attention=multi_query_attention,
             num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
             sliding_window=sliding_window,
         )
 
@@ -602,6 +618,9 @@ class TransformerEncoderModelSpec(model_spec.LanguageModelSpec):
 
         super().__init__()
         self.encoder = encoder
+        self._config.add_attribute(
+            "multi_query_attention", self.encoder.multi_query_attention
+        )
 
         if pooling_layer:
             self.pooler_dense = common_spec.LinearSpec()

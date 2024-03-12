@@ -291,6 +291,9 @@ class ModelConfig(FrozenAttr, metaclass=FrozenMeta):
             if not key.startswith("_")
         }
 
+    def add_attribute(self, key, value):
+        self.__dict__[key] = value
+
     def save_as_json(self, path):
         """Saves the configuration as a JSON file."""
         with open(path, "w", encoding="utf-8") as config_file:
@@ -727,7 +730,17 @@ class PyTorchVariable(Variable):
         return self.tensor.numel() * self.tensor.element_size()
 
     def to_bytes(self) -> bytes:
-        return ctypes.string_at(self.tensor.data_ptr(), self.num_bytes())
+        max_size = 2**31 - 1
+        num_bytes = self.num_bytes()
+        output = b""
+        offset = 0
+        while num_bytes > 0:
+            chunk_size = max_size if num_bytes > max_size else num_bytes
+            chunk = ctypes.string_at(self.tensor.data_ptr() + offset, chunk_size)
+            output += chunk
+            offset += chunk_size
+            num_bytes -= chunk_size
+        return output
 
     def _to(self, dtype: str) -> Variable:
         dtype = getattr(torch, dtype)
