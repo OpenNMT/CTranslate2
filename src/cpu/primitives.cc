@@ -692,6 +692,21 @@ namespace ctranslate2 {
     }
 #endif
 
+#ifdef CT2_WITH_OPENBLAS
+    case cpu::GemmBackend::OPENBLAS: {
+      cblas_sgemm(CblasRowMajor,
+                  transpose_a ? CblasTrans : CblasNoTrans,
+                  transpose_b ? CblasTrans : CblasNoTrans,
+                  m, n, k,
+                  alpha,
+                  a, lda,
+                  b, ldb,
+                  beta,
+                  c, ldc);
+      break;
+    }
+#endif
+
 #ifdef CT2_WITH_RUY
     case cpu::GemmBackend::RUY: {
       if (lda != (transpose_a ? m : k)
@@ -742,21 +757,6 @@ namespace ctranslate2 {
       if (tmp_c) {
         allocator.free(tmp_c);
       }
-      break;
-    }
-#endif
-
-#ifdef CT2_WITH_OPENBLAS
-    case cpu::GemmBackend::OPENBLAS: {
-      cblas_sgemm(CblasRowMajor,
-                  transpose_a ? CblasTrans : CblasNoTrans,
-                  transpose_b ? CblasTrans : CblasNoTrans,
-                  m, n, k,
-                  alpha,
-                  a, lda,
-                  b, ldb,
-                  beta,
-                  c, ldc);
       break;
     }
 #endif
