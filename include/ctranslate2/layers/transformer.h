@@ -122,11 +122,17 @@ namespace ctranslate2 {
                       dim_t offset = 0) const;
 
       DataType output_type() const override {
-        return _ff.output_type();
+        if (_ff)
+          return _ff->output_type();
+        else
+          return _moe->output_type();
       }
 
       dim_t output_size() const override {
-        return _ff.output_size();
+        if (_ff)
+          return _ff->output_size();
+        else
+          return _moe->output_size();
       }
 
       bool has_cross_attention() const {

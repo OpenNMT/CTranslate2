@@ -1613,6 +1613,8 @@ class MistralLoader(ModelLoader):
             rotary_base=getattr(model.config, "rope_theta", 10000),
             num_heads_kv=num_heads_kv,
             sliding_window=sliding_window,
+            num_local_experts=getattr(model.config, "num_local_experts", 8),
+            num_experts_per_tok=getattr(model.config, "num_experts_per_tok", 2)
         )
 
         self.set_decoder(spec.decoder, model.model)
@@ -1650,7 +1652,7 @@ class MistralLoader(ModelLoader):
                 layer_spec.self_attention.layer_norm, layer.input_layernorm
             )
             self.set_layer_norm(
-                layer_spec.ffn.layer_norm, layer.post_attention_layernorm
+                layer_spec.moe.layer_norm, layer.post_attention_layernorm
             )
 
             wq = layer.self_attn.q_proj.weight

@@ -82,52 +82,68 @@ namespace ctranslate2 {
 
       x->reshape({-1, x->dim(-1)});
       StorageView score(dtype, device);
+      // gate
       _gate(*x, score);
 
-      StorageView f_used(dtype, device);
-      ops::SoftMax()(score, f_used);
-      score = std::move(f_used);
-
       StorageView expert_indices(DataType::INT32);
-      StorageView expert_weighs(dtype);
+      StorageView expert_weights(dtype);
+      // topk
       const BestSampler sampler;
-      sampler(score, expert_indices, expert_weighs, _num_experts_per_tok);
+      sampler(score, expert_indices, expert_weights, _num_experts_per_tok);
+      if (device != Device::CPU)
+        expert_weights = expert_weights.to(device);
+
+      StorageView f_used(dtype, device);
+      ops::SoftMax()(expert_weights, f_used);
+      expert_weights = std::move(f_used);
 
       expert_indices.reshape({-1});
       ops::Tile(0, _num_experts_per_tok)(*x);
-      f_used.reshape(x->shape());
+      f_used.resize(x->shape());
 
-      std::unordered_map<dim_t, dim_t> expert_idx_map;
-      for (size_t l = 0; l < _ffn_layers.size(); ++l) {
-        for (int i = 0; i < expert_indices.size(); ++i) {
-          if (expert_indices.at<int32_t>(i) == l) {
-            expert_idx_map[i] = l;
-          }
-        }
-      }
+      auto expert_indices_vector = expert_indices.to_vector<int32_t>();
+      auto expert_weight_shape = expert_weights.shape();
+      expert_weight_shape.push_back(-1);
+      expert_weights.reshape({-1});
+
       for (int i = 0; i < expert_indices.size(); ++i) {
         ops::Slide slide_ops(0, i, 1, true);
         StorageView xtmp(dtype, device);
         StorageView ytmp(dtype, device);
+        StorageView tmp_weight(dtype, device);
         slide_ops(*x, xtmp);
         slide_ops(f_used, ytmp);
-        (*_ffn_layers[expert_idx_map[i]])(xtmp, ytmp);
+        slide_ops(expert_weights, tmp_weight);
+        (*_ffn_layers[expert_indices_vector[i]])(xtmp, ytmp);
+        ops::Mul()(ytmp, tmp_weight.to(Device::CPU).reshape({}), ytmp);
       }
-      auto expert_shape = expert_weighs.shape();
-      expert_shape.push_back(-1);
-      ops::Mul()(f_used.reshape(std::move(expert_shape)), expert_weighs.expand_dims(-1), output);
-      f_used = std::move(output);
+      f_used.reshape(expert_weight_shape);
+
       std::vector<dim_t> partitions(_num_experts_per_tok, 1);
-      ops::Split split_ops(0, partitions, true);
-      std::vector<StorageView*> output_list(_num_experts_per_tok, new StorageView(dtype, device));
-      split_ops(f_used, output_list);
-      output.resize(std::move(orig_shape));
-      while (!output_list.empty()) {
-        StorageView* item = output_list.back();
-        item->squeeze(0);
-        ops::Add()(output, *item, output);
-        delete item;
+      std::vector<StorageView> output_list(_num_experts_per_tok, StorageView(dtype, device));
+      std::vector<StorageView*> p_output_list;
+      p_output_list.reserve(output_list.size()); // Reserve space for efficiency
+
+      // Convert objects to pointers
+      std::transform(output_list.begin(), output_list.end(), std::back_inserter(p_output_list),
+                     [](StorageView& obj) { return &obj; });
+      ops::Split split_ops(1, partitions);
+      split_ops(f_used, p_output_list);
+      auto shape_output = f_used.shape();
+      shape_output[1] = 1;
+      ops::Slide(1, 0, 1)(f_used, output);
+      while (output_list.size() > 1) {
+        StorageView item = output_list.back();
+        ops::Add()(output, item, output);
         output_list.pop_back();
+      }
+      output.reshape(std::move(orig_shape));
+
+      if (_layer_norm) {
+        ops::Add()(input, output, output);
+
+        if (!_pre_norm)
+          (*_layer_norm)(output, output);
       }
     }
 
@@ -252,7 +268,10 @@ namespace ctranslate2 {
         if (_post_attention_layer_norm)
           (*_post_attention_layer_norm)(input, hidden);
 
-        _ff(hidden, output);
+        if (_moe)
+          (*_moe)(hidden, output);
+        else
+          (*_ff)(hidden, output);
 
         ops::Add()(output, input, output);
         ops::Add()(output, attn, output);
