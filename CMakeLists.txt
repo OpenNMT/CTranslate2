@@ -469,6 +469,11 @@ if (WITH_CUDA)
   list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
   set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 
+  # flags for flash attention
+  list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
+  list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
+  list(APPEND CUDA_NVCC_FLAGS "--use_fast_math")
+
   message(STATUS "NVCC host compiler: ${CUDA_HOST_COMPILER}")
   message(STATUS "NVCC compilation flags: ${CUDA_NVCC_FLAGS}")
 
@@ -481,6 +486,17 @@ if (WITH_CUDA)
     )
   cuda_include_directories(${THRUST_INCLUDE_DIRS})
   list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${THRUST_INCLUDE_DIRS})
+
+  #if(NOT DEFINED ${CMAKE_CUDA_ARCHITECTURES})
+  #  set(CMAKE_CUDA_ARCHITECTURES 70)
+  #endif()
+  #set(CMAKE_CUDA_COMPILER ${CUDA_HOST_COMPILER})
+  #add_subdirectory(third_party/cutlass)
+  set(CUTLASS_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cutlass/include
+  )
+  cuda_include_directories(${CUTLASS_INCLUDE_DIRS})
+  list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${CUTLASS_INCLUDE_DIRS})
 
   if(WITH_CUDNN)
     # Find cuDNN includes.
@@ -544,6 +560,39 @@ if (WITH_CUDA)
     src/ops/topp_mask_gpu.cu
     src/ops/quantize_gpu.cu
     src/ops/nccl_ops_gpu.cu
+    src/layers/flash_attention.cc
+    src/layers/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
+    src/layers/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
   )
 elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
