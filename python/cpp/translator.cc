@@ -34,7 +34,6 @@ namespace ctranslate2 {
                         size_t intra_threads,
                         long max_queued_batches,
                         bool tensor_parallel,
-                        bool persist_cpu_cache,
                         py::object files)
         : ReplicaPoolHelper(model_path,
                             device,
@@ -48,11 +47,7 @@ namespace ctranslate2 {
         , _device(_model_loader.device)
         , _device_index(_model_loader.device_indices)
         , _num_replicas_per_device(_model_loader.num_replicas_per_device)
-        , _model_is_loaded(true)
-        , _persist_cpu_cache(persist_cpu_cache) 
-      {
-        if (_persist_cpu_cache && _device != Device::CPU)
-          init_cached_models();
+        , _model_is_loaded(true) {
       }
 
       bool model_is_loaded() {
@@ -302,7 +297,7 @@ namespace ctranslate2 {
       }
 
       void unload_model(const bool to_cpu) {
-        if (to_cpu && _device == Device::CPU) 
+        if (to_cpu && _device == Device::CPU)
           return;
 
         // Do not unload the model if some batches are still being processed.
@@ -312,20 +307,19 @@ namespace ctranslate2 {
         // If the lock is not acquired immediately it means the model is being used
         // in another thread and we can't unload it at this time.
         std::unique_lock lock(_mutex, std::try_to_lock);
-        if (!lock || are_models_completely_unloaded())
+        if (!lock)
           return;
-
+        
         std::vector<std::shared_ptr<const models::Model>> loaded_models;
         if (_model_is_loaded)
           loaded_models = _pool->detach_models();
-        
-        if (to_cpu && !_persist_cpu_cache) {
-          _cached_models = loaded_models;
-          move_cached_models(Device::CPU, std::vector<int>(_cached_models.size(), 0), _cached_models);
-        } else if (!to_cpu)
-          _cached_models.clear();
 
+        if (to_cpu && _cached_models.empty())
+          _cached_models = clone_models(Device::CPU, std::vector<int>(loaded_models.size(), 0), loaded_models);
+        else if (!to_cpu)
+          _cached_models.clear();
         loaded_models.clear();
+
         // We clear the CUDA allocator cache to further reduce the memory after unloading the model.
         if (_device == Device::CUDA)
           _pool->clear_cache();
@@ -333,19 +327,20 @@ namespace ctranslate2 {
         _model_is_loaded = false;
       }
 
-      void load_model() {
+      void load_model(const bool keep_cache) {
         std::unique_lock lock(_mutex);
         if (_model_is_loaded)
           return;
         
         std::vector<std::shared_ptr<const models::Model>> loaded_models;
         if (_cached_models.empty())
-          loaded_models = reload_models();
-        else
-          loaded_models = reload_models_from_cache();
-        
+          loaded_models = _model_loader.load();
+        else 
+          loaded_models = clone_models(_device, _device_index, _cached_models, _num_replicas_per_device);
+
         _pool->set_models(loaded_models);
-        loaded_models.clear();
+        if (!keep_cache)
+          _cached_models.clear();
         _model_is_loaded = true;
       }
 
@@ -356,7 +351,6 @@ namespace ctranslate2 {
 
       std::vector<std::shared_ptr<const models::Model>> _cached_models;
       bool _model_is_loaded;
-      bool _persist_cpu_cache;
 
       // Use a shared mutex to protect the model state (loaded/unloaded).
       // Multiple threads can read the model at the same time, but a single thread can change
@@ -368,53 +362,18 @@ namespace ctranslate2 {
           throw std::runtime_error("The model for this translator was unloaded");
       }
 
-      void move_cached_models(Device device,
-                              const std::vector<int>& device_index,
-                              std::vector<std::shared_ptr<const models::Model>> cached_models,
-                              size_t num_models_per_device = 1) {
+
+      std::vector<std::shared_ptr<const models::Model>> clone_models(Device device,
+                                                                     const std::vector<int>& device_index,
+                                                                     std::vector<std::shared_ptr<const models::Model>> cached_models,
+                                                                     size_t num_models_per_device = 1) {
+        std::vector<std::shared_ptr<const models::Model>> copied_models;
         for (size_t i = 0; i < cached_models.size(); ++i) {
           auto& model = const_cast<models::Model&>(*cached_models[i]);
-          model.set_device(device, device_index[i / num_models_per_device]);
-        }
-      }
-
-      std::vector<std::shared_ptr<const models::Model>> clone_cached_models(Device device,
-                                                                            const std::vector<int>& device_index,
-                                                                            std::vector<std::shared_ptr<const models::Model>> _cached_models,
-                                                                            size_t num_models_per_device = 1) {
-        std::vector<std::shared_ptr<const models::Model>> copied_models;
-        for (size_t i = 0; i < _cached_models.size(); ++i) {
-          auto& model = const_cast<models::Model&>(*_cached_models[i]);
           auto copied_model = model.copy_to(device, device_index[i / num_models_per_device]);
           copied_models.push_back(copied_model);
         }
         return copied_models;
-      }
-
-      void init_cached_models() {
-          std::vector<std::shared_ptr<const models::Model>> _orig_models = _pool->detach_models();
-          _cached_models = clone_cached_models(Device::CPU, std::vector<int>(_orig_models.size(), 0), _orig_models);
-          _pool->set_models(_orig_models);
-      }
-
-      bool are_models_completely_unloaded() {
-        return _cached_models.empty() && !_model_is_loaded;
-      }
-
-      std::vector<std::shared_ptr<const models::Model>> reload_models() {
-        std::vector<std::shared_ptr<const models::Model>> loaded_models = _model_loader.load();
-        if (_persist_cpu_cache)
-          _cached_models = clone_cached_models(Device::CPU, std::vector<int>(loaded_models.size(), 0), loaded_models);
-        else
-          move_cached_models(_device, _device_index, loaded_models, _num_replicas_per_device);
-        return loaded_models;
-      }
-
-      std::vector<std::shared_ptr<const models::Model>> reload_models_from_cache() {
-        std::vector<std::shared_ptr<const models::Model>> loaded_models = clone_cached_models(_device, _device_index, _cached_models, _num_replicas_per_device);
-        if (!_persist_cpu_cache)
-          _cached_models.clear();
-        return loaded_models;
       }
     };
 
@@ -431,7 +390,7 @@ namespace ctranslate2 {
                 >>> translator.translate_batch([["▁Hello", "▁world", "!"]])
         )pbdoc")
 
-        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, bool, bool, py::object>(),
+        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, bool, py::object>(),
              py::arg("model_path"),
              py::arg("device")="cpu",
              py::kw_only(),
@@ -441,7 +400,6 @@ namespace ctranslate2 {
              py::arg("intra_threads")=0,
              py::arg("max_queued_batches")=0,
              py::arg("tensor_parallel")=false,
-             py::arg("persist_cpu_cache")=false,
              py::arg("files")=py::none(),
              R"pbdoc(
                  Initializes the translator.
@@ -459,9 +417,6 @@ namespace ctranslate2 {
                      0 for an automatic value). When the queue is full, future requests will block
                      until a free slot is available.
                    tensor_parallel: run model with tensor parallel mode
-                   persist_cpu_cache: cpu_cache is not cleared after loading the model,
-                     allowing unloading the model from gpu to cpu faster,
-                     but keeps using cpu memory after loading the model back to gpu
                    files: Load model files from the memory. This argument is a dictionary mapping
                      file names to file contents as file-like or bytes objects. If this is set,
                      :obj:`model_path` acts as an identifier for this model.
@@ -739,8 +694,14 @@ namespace ctranslate2 {
              )pbdoc")
 
         .def("load_model", &TranslatorWrapper::load_model,
+             py::arg("keep_cache")=false,
              py::call_guard<py::gil_scoped_release>(),
-             "Loads the model back to the initial device.")
+             R"pbdoc(
+                 Loads the model back to the initial device.
+
+                 Arguments:
+                   keep_cache: If ``True``, the model cache in the CPU memory is not deleted if it exists.
+             )pbdoc")
 
         .def_property_readonly("model_is_loaded", &TranslatorWrapper::model_is_loaded,
                                "Whether the model is loaded on the initial device and ready to be used.")
