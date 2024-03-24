@@ -23,7 +23,7 @@ def check_opt(opt, num_source_embeddings):
     with_alibi = getattr(opt, "max_relative_positions", 0) == -2
     activation_fn = getattr(opt, "pos_ffn_activation_fn", "relu")
     feat_merge = getattr(opt, "feat_merge", "concat")
-    self_attn_type = getattr(opt, "self_attn_type", "scaled-dot")
+    self_attn_type = "scaled-dot"
 
     check = utils.ConfigurationChecker()
     check(
