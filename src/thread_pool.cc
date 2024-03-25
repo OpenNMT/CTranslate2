@@ -1,6 +1,6 @@
 #include "ctranslate2/thread_pool.h"
-
 #include "ctranslate2/utils.h"
+#include "ctranslate2/devices.h"
 
 namespace ctranslate2 {
 
@@ -121,6 +121,7 @@ namespace ctranslate2 {
 
     finalize();
     local_worker = nullptr;
+    finalize_device(); 
   }
 
 

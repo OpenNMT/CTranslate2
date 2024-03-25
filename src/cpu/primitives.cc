@@ -49,6 +49,12 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CPU>::zero(T* x, dim_t size, bool) {
+    std::fill(x, x + size, 0);
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CPU>::strided_fill(T* x, T a, dim_t inc_x, dim_t size) {
     for (dim_t i = 0; i < size; i++, x += inc_x) {
       *x = a;
@@ -57,7 +63,7 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
-  void primitives<Device::CPU>::indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices) {
+  void primitives<Device::CPU>::indexed_fill(T* x, T a, const int32_t* indices, dim_t num_indices, dim_t) {
     for (dim_t i = 0; i < num_indices; ++i)
       x[indices[i]] = a;
   }
@@ -148,7 +154,7 @@ namespace ctranslate2 {
   template<>
   template <typename T>
   void primitives<Device::CPU>::add_batch_broadcast(const T* a, const T* b, T* c,
-                                                    dim_t a_size, dim_t b_size) {
+                                                    dim_t a_size, dim_t b_size, bool) {
     const dim_t iter_size = b_size / a_size;
     cpu::parallel_for(0, iter_size, 1, [&](dim_t begin, dim_t end) {
       for (dim_t i = begin; i < end; ++i) {
@@ -1133,16 +1139,17 @@ namespace ctranslate2 {
     }
   }
 
-
 #define DECLARE_IMPL(T)                                                 \
   template T                                                            \
   primitives<Device::CPU>::at(const T* x, dim_t index);                 \
   template void                                                         \
   primitives<Device::CPU>::fill(T* x, T a, dim_t size);                 \
   template void                                                         \
+  primitives<Device::CPU>::zero(T* x, dim_t size, bool);    \
+  template void                                                         \
   primitives<Device::CPU>::strided_fill(T* x, T a, dim_t inc_x, dim_t size); \
   template void                                                         \
-  primitives<Device::CPU>::indexed_fill(T*, T, const int32_t*, dim_t);  \
+  primitives<Device::CPU>::indexed_fill(T*, T, const int32_t*, dim_t, dim_t);  \
   template void                                                         \
   primitives<Device::CPU>::copy(const T* x, T* y, dim_t size);          \
   template T                                                            \
@@ -1155,7 +1162,7 @@ namespace ctranslate2 {
   primitives<Device::CPU>::add(T a, const T* x, T* y, dim_t size);      \
   template void                                                         \
   primitives<Device::CPU>::add_batch_broadcast(const T* a, const T* b, T* c, \
-                                               dim_t a_size, dim_t b_size); \
+                                               dim_t a_size, dim_t b_size, bool); \
   template void                                                         \
   primitives<Device::CPU>::add_depth_broadcast(const T* a, const T* b, T* c, \
                                                dim_t a_size, dim_t b_size); \

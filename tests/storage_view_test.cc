@@ -64,6 +64,66 @@ TEST(StorageViewTest, ExpandDimsAndSqueeze) {
 class StorageViewDeviceTest : public ::testing::TestWithParam<Device> {
 };
 
+TEST_P(StorageViewDeviceTest, StorageViewConstruction) {
+  StorageView x({2, 2}, std::vector<float>{1, 2, 3, 4}, GetParam());
+}
+
+TEST_P(StorageViewDeviceTest, StorageViewEquality) {
+  const Device device = GetParam();
+  StorageView x({2, 2}, std::vector<float>{1, 2, 3, 4}, device);
+  StorageView expected({2, 2}, std::vector<float>{1, 2, 3, 4}, device);
+  expect_storage_eq(x, expected);
+}
+
+TEST_P(StorageViewDeviceTest, Shape) {
+  StorageView a({2, 2}, std::vector<float>{1, 2, 3, 4}, GetParam());
+  EXPECT_EQ(a.size(), 4);
+  EXPECT_EQ(a.dim(0), 2);
+  EXPECT_EQ(a.dim(1), 2);
+}
+
+TEST_P(StorageViewDeviceTest, ToVector) {
+  StorageView a({2, 2}, std::vector<float>{1, 2, 3, 4}, GetParam());
+  auto vec = a.to_vector<float>();
+  EXPECT_EQ(vec[0], 1.);
+  EXPECT_EQ(vec[1], 2.);
+  EXPECT_EQ(vec[2], 3.);
+  EXPECT_EQ(vec[3], 4.);
+}
+
+TEST_P(StorageViewDeviceTest, ScalarAt) {
+  const Device device = GetParam();
+  const dim_t index = 1;
+  {
+    StorageView values({2}, std::vector<int>{22, 33}, device);
+    EXPECT_EQ(values.scalar_at<int>({index}), 33);
+  }
+  {
+    StorageView values({2}, std::vector<signed char>{'c', 'd'}, device);
+    EXPECT_EQ(values.scalar_at<signed char>({index}), 'd');
+  }
+  {
+    StorageView values({2}, std::vector<float>{0.2f, -1.f}, device);
+    EXPECT_EQ(values.scalar_at<float>({index}), -1.f);
+  }
+}
+
+TEST_P(StorageViewDeviceTest, ScalarFill) {
+  const Device device = GetParam();
+  StorageView a({2, 2}, 42.f, device);
+  StorageView expected({2, 2}, std::vector<float>{42.f, 42.f,
+                                                  42.f, 42.f}, device);
+  expect_storage_eq(a, expected);
+  StorageView b({3, 4}, 17, device);
+  StorageView expected2({3, 4}, std::vector<int>{17, 17, 17, 17,
+                                                 17, 17, 17, 17,
+                                                 17, 17, 17, 17,}, device);
+  expect_storage_eq(b, expected2);
+  StorageView c({200, 201}, (float16_t) 42, device);
+  StorageView expected3({200, 201}, (float16_t) 42, device);
+  expect_storage_eq(c, expected3);
+}
+
 TEST_P(StorageViewDeviceTest, HalfConversion) {
   const Device device = GetParam();
   const StorageView a({4}, std::vector<float>{1, 2, 3, 4}, device);
@@ -77,4 +137,6 @@ TEST_P(StorageViewDeviceTest, HalfConversion) {
 INSTANTIATE_TEST_SUITE_P(CPU, StorageViewDeviceTest, ::testing::Values(Device::CPU));
 #ifdef CT2_WITH_CUDA
 INSTANTIATE_TEST_SUITE_P(CUDA, StorageViewDeviceTest, ::testing::Values(Device::CUDA));
+#elif CT2_WITH_CANN
+INSTANTIATE_TEST_SUITE_P(CANN, StorageViewDeviceTest, ::testing::Values(Device::CANN));
 #endif

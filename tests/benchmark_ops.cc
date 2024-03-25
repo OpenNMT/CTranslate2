@@ -123,7 +123,7 @@ int main(int argc, char* argv[]) {
   }
 
   std::string op = argv[1];
-  Device device = std::string(argv[2]) == "cuda" ? Device::CUDA : Device::CPU;
+  Device device = ctranslate2::str_to_device(std::string(argv[2]));
   std::string dtype_str = argc > 3 ? argv[3] : "float32";
   DataType dtype = DataType::FLOAT32;
   if (dtype_str == "int16")

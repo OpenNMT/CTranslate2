@@ -7,6 +7,10 @@
 #ifdef CT2_WITH_CUDA
 #  include <cuda_runtime.h>
 #  define SYNCHRONIZE cudaDeviceSynchronize()
+#elif CT2_WITH_CANN
+#include <acl/acl.h>
+// can also check failure ACL_CALL(..)
+#  define SYNCHRONIZE aclrtSynchronizeDevice()
 #else
 #  define SYNCHRONIZE do {} while (false)
 #endif

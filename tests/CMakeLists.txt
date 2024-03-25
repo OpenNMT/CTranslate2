@@ -32,4 +32,9 @@ target_link_libraries(benchmark_ops
 
 if(WITH_CUDA)
   target_link_libraries(benchmark_ops ${CUDA_LIBRARIES})
+elseif(WITH_CANN)
+  set(ASCEND_DIR /usr/local/Ascend)
+  set(ASCEND_CL_DIR ${ASCEND_DIR}/ascend-toolkit/latest/fwkacllib/lib64)
+  set(ascendcl_lib ${ASCEND_CL_DIR}/libascendcl.so)
+  target_link_libraries(benchmark_ops ${ascendcl_lib})
 endif()

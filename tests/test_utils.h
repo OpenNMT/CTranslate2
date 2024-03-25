@@ -1,10 +1,14 @@
 #pragma once
 
 #include <gtest/gtest.h>
+#include <mutex>
 
 #include "ctranslate2/storage_view.h"
 
 #include "type_dispatch.h"
+#ifdef CT2_WITH_CANN
+#include "cann/utils.h"
+#endif
 
 using namespace ctranslate2;
 
@@ -79,3 +83,32 @@ struct FloatType {
 inline std::string fp_test_name(::testing::TestParamInfo<FloatType> param_info) {
   return dtype_name(param_info.param.dtype);
 }
+#ifdef CT2_WITH_CANN
+#  define GUARD_BFLOAT16_NPU_TEST GTEST_SKIP() << "BFLOAT16 not supported"
+#  define GUARD_OPERATOR_NPU_TEST GTEST_SKIP() << "Operator not implemented in CANN"
+
+inline void cann_test_setup() {
+  ctranslate2::initialize_device();
+  // set_device_index has to always be called at least once before get_device_index
+  const auto device_index = 0;
+  ctranslate2::set_device_index(Device::CANN, device_index);
+}
+
+inline void cann_test_allow_acl_finalize() {
+  ctranslate2::cann::AclDeviceEnabler::set_allow_acl_finalize(true);
+}
+
+inline void cann_test_disallow_acl_finalize() {
+  ctranslate2::cann::AclDeviceEnabler::set_allow_acl_finalize(false);
+}
+
+inline void cann_test_tear_down() {
+  cann_test_allow_acl_finalize(); // Make sure that acl_finalize can be invoked
+  ctranslate2::cann::AclDeviceEnabler::acl_finalize();
+}
+
+#else
+#  define GUARD_BFLOAT16_NPU_TEST do {} while (0)
+#  define GUARD_OPERATOR_NPU_TEST do {} while (0)
+#endif
+

@@ -347,7 +347,7 @@ namespace ctranslate2 {
     }
 
     void idle() override {
-      // When no new jobs are immediately available, we synchronize the CUDA stream
+      // When no new jobs are immediately available, we synchronize the CUDA/CANN stream
       // so that the CudaAsyncAllocator can release some memory.
       synchronize_stream(_device);
     }

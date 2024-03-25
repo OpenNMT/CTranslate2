@@ -2,6 +2,9 @@
 
 #include "activation.h"
 #include "op.h"
+#ifdef CT2_WITH_CANN
+#include <memory>
+#endif
 
 namespace ctranslate2 {
   namespace ops {
@@ -48,6 +51,10 @@ namespace ctranslate2 {
       bool _a_is_packed;
       bool _b_is_packed;
       const ActivationType* _activation_type;
+#ifdef CT2_WITH_CANN
+      mutable std::shared_ptr<StorageView> _alpha_sv;
+      mutable std::shared_ptr<StorageView> _beta_sv;
+#endif
 
       template <Device D, typename In, typename Out>
       void compute(const StorageView& a,

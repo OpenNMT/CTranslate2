@@ -23,6 +23,8 @@ TEST(LayerTest, MakeRelativePositions2D) {
 
 TEST_P(LayerDeviceFPTest, Alibi) {
   const Device device = GetParam().device;
+  if(device == Device::CANN)
+    GUARD_OPERATOR_NPU_TEST;
   const DataType dtype = GetParam().dtype;
   const float error = std::max(GetParam().error, float(1e-4));
 
@@ -56,6 +58,10 @@ TEST_P(LayerDeviceFPTest, Alibi) {
         -0.015625, -0.01171875, -0.0078125, -0.00390625, 0.0});
 
     layers::Alibi alibi;
+    if(device == Device::CANN && dtype == DataType::BFLOAT16) {
+        ASSERT_RAISES(zero.to(dtype), std::runtime_error);
+        return;
+    }
     StorageView x = zero.to(dtype);
     alibi.apply(x);
     expect_storage_eq(x.to_float32(), expected, error);
@@ -97,6 +103,8 @@ TEST_P(LayerDeviceFPTest, Alibi) {
 
 TEST_P(LayerDeviceFPTest, RotaryEmbedding) {
   const Device device = GetParam().device;
+  if(device == Device::CANN)
+    GUARD_OPERATOR_NPU_TEST;
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
 
@@ -167,6 +175,10 @@ TEST_P(LayerDeviceFPTest, RotaryEmbedding) {
 
   {
     layers::RotaryEmbeddings rotary_embeddings;
+    if(device == Device::CANN && dtype == DataType::BFLOAT16) {
+        ASSERT_RAISES(input.to(dtype), std::runtime_error);
+        return;
+    }
     StorageView x = input.to(dtype);
     rotary_embeddings.apply(x, 2);
     expect_storage_eq(x.to_float32(), expected, error);
@@ -178,6 +190,22 @@ TEST_P(LayerDeviceFPTest, RotaryEmbedding) {
     rotary_embeddings.apply(x, 2);
     expect_storage_eq(x.to_float32(), permute(expected), error);
   }
+}
+
+TEST_P(LayerDeviceFPTest, PositionEncoder) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  if(device == Device::CANN && dtype == DataType::BFLOAT16)
+    GUARD_BFLOAT16_NPU_TEST;
+  // PositionEcoder is an abstract class, so we cannot instantiate a PositionEncoder object.
+  // Instead, we create a SinusoidalPositionEncoder which inherits from PositionEncoder.
+  layers::SinusoidalPositionEncoder position_encoder(6, dtype, device);
+  StorageView input({1, 1, 6}, std::vector<float>{-0.2, -1.3, 0.1, -0.6, 2.0, 1.1}, device);
+  StorageView expected({1, 1, 6}, std::vector<float>{0.641471, -1.29, 0.1001, -0.0596977, 2.99995, 2.1}, device);
+  input = input.to(dtype);
+  position_encoder(input);
+  expect_storage_eq(input.to_float32(), expected, error);
 }
 
 TEST(LayerTest, Padder) {
@@ -256,5 +284,11 @@ INSTANTIATE_TEST_SUITE_P(CUDA, LayerDeviceFPTest,
                          ::testing::Values(FloatType{Device::CUDA, DataType::FLOAT32, 1e-5},
                                            FloatType{Device::CUDA, DataType::FLOAT16, 1e-2},
                                            FloatType{Device::CUDA, DataType::BFLOAT16, 1e-2}),
+                         fp_test_name);
+#elif CT2_WITH_CANN
+INSTANTIATE_TEST_SUITE_P(CANN, LayerDeviceFPTest,
+                         ::testing::Values(FloatType{Device::CANN, DataType::FLOAT32, 1e-5},
+                                           FloatType{Device::CANN, DataType::FLOAT16, 1e-2},
+                                           FloatType{Device::CANN, DataType::BFLOAT16, 1e-2}),
                          fp_test_name);
 #endif

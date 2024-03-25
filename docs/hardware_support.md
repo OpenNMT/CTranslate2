@@ -20,3 +20,10 @@ See the [environment variables](environment_variables.md) `CT2_USE_MKL` and `CT2
 * NVIDIA GPUs with a Compute Capability greater or equal to 3.5
 
 The driver requirement depends on the CUDA version. See the [CUDA Compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) for more information.
+
+## NPU
+
+* AArch64/ARM64 processors
+* Ascend NPU AI Processor greater or equal to 910A
+
+`CANN` version greater or equal to `7.0.RC1.alpha001` (depends on NPU model). See [CANN documentation](https://support.huawei.com/enterprise/en/ascend-computing/cann-pid-251168373) for more information.

@@ -6,6 +6,8 @@
 
 #ifdef CT2_WITH_CUDA
 #  include "./cuda/utils.h"
+#elif CT2_WITH_CANN
+#  include "./cann/utils.h"
 #endif
 
 #include <spdlog/spdlog.h>
@@ -67,11 +69,21 @@ namespace ctranslate2 {
                    cuda::gpu_has_fp16_tensor_cores(i));
       spdlog::info(" - Allow BF16: {}", mayiuse_bfloat16(Device::CUDA, i));
     }
+#elif CT2_WITH_CANN
+      spdlog::info("NPU:");
+      spdlog::info(" - Number of NPU cores: {}", cann::get_npu_count());
+      aclrtRunMode runMode;
+      ACL_CALL(aclrtGetRunMode(&runMode));
+      spdlog::info(" - aclrtRunMode: {}", runMode == ACL_DEVICE ? "ACL_DEVICE" : "ACL_HOST");
 #endif
   }
 
   int get_gpu_count() {
     return get_device_count(Device::CUDA);
+  }
+
+  int get_npu_count() {
+    return get_device_count(Device::CANN);
   }
 
   static inline size_t get_default_num_threads() {

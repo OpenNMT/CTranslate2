@@ -102,6 +102,15 @@ namespace ctranslate2 {
       return false;
 #endif
     }
+    case Device::CANN: {
+#ifdef CT2_WITH_CANN
+      (void)device_index;
+      return false; // may change later when operators support bfloat16  
+#else
+      (void)device_index;
+      return false;
+#endif
+    }
     default:
       return false;
     }
@@ -118,6 +127,14 @@ namespace ctranslate2 {
       return false;
 #endif
     }
+    case Device::CANN: {
+#ifdef CT2_WITH_CANN
+      return true;
+#else
+      (void)device_index;
+      return false;
+#endif
+        }
     default:
       return false;
     }
@@ -137,6 +154,13 @@ namespace ctranslate2 {
     case Device::CUDA:
 #ifdef CT2_WITH_CUDA
       return cuda::gpu_supports_int8(device_index);
+#else
+      (void)device_index;
+      return false;
+#endif
+    case Device::CANN:
+#ifdef CT2_WITH_CANN
+      return true;
 #else
       (void)device_index;
       return false;
@@ -349,6 +373,11 @@ namespace ctranslate2 {
     if (device == Device::CUDA) {
       if ((compute_type == ComputeType::FLOAT16 || compute_type == ComputeType::BFLOAT16)
           && cuda::gpu_has_fp16_tensor_cores(device_index))
+        return 8;
+    }
+#elif CT2_WITH_CANN
+    if (device == Device::CANN) {
+      if (compute_type == ComputeType::FLOAT16 || compute_type == ComputeType::BFLOAT16)
         return 8;
     }
 #else

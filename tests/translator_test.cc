@@ -100,6 +100,11 @@ class SearchVariantTest : public ::testing::TestWithParam<size_t> {
 };
 
 static Translator default_translator(Device device = Device::CPU) {
+#ifdef CT2_WITH_CANN
+  // Do not allow acl_finalize on Translator destruction to avoid premature acl_finalize call.
+  // Gtest TearDown takes care of that.
+  cann_test_disallow_acl_finalize();
+#endif
   return Translator(default_model_dir(), device);
 }
 
@@ -513,6 +518,8 @@ class BiasedDecodingDeviceFPTest : public ::testing::TestWithParam<FloatType> {
 
 TEST_P(BiasedDecodingDeviceFPTest, OneBatchOneBeam) {
     const Device device = GetParam().device;
+    if(device == Device::CANN)
+      GUARD_OPERATOR_NPU_TEST;
     const DataType dtype = GetParam().dtype;
     const dim_t vocab_size = 2;
     const dim_t batch_size = 1;
@@ -547,6 +554,8 @@ TEST_P(BiasedDecodingDeviceFPTest, OneBatchOneBeam) {
 
 TEST_P(BiasedDecodingDeviceFPTest, TwoBatchesTwoBeams) {
     const Device device = GetParam().device;
+    if(device == Device::CANN)
+      GUARD_OPERATOR_NPU_TEST;
     const DataType dtype = GetParam().dtype;
     const dim_t vocab_size = 2;
     const dim_t batch_size = 2;
@@ -597,6 +606,8 @@ TEST_P(BiasedDecodingDeviceFPTest, TwoBatchesTwoBeams) {
 
 TEST_P(BiasedDecodingDeviceFPTest, BeamDiverged) {
     const Device device = GetParam().device;
+    if(device == Device::CANN)
+      GUARD_OPERATOR_NPU_TEST;
     const DataType dtype = GetParam().dtype;
     const dim_t vocab_size = 2;
     const dim_t batch_size = 1;
@@ -625,6 +636,8 @@ TEST_P(BiasedDecodingDeviceFPTest, BeamDiverged) {
 
 TEST_P(BiasedDecodingDeviceFPTest, TimeStepPastPrefix) {
     const Device device = GetParam().device;
+    if(device == Device::CANN)
+      GUARD_OPERATOR_NPU_TEST;
     const DataType dtype = GetParam().dtype;
     const dim_t vocab_size = 2;
     const dim_t batch_size = 1;
@@ -653,6 +666,8 @@ TEST_P(BiasedDecodingDeviceFPTest, TimeStepPastPrefix) {
 
 TEST_P(BiasedDecodingDeviceFPTest, NonZeroTimestepBias) {
     const Device device = GetParam().device;
+    if(device == Device::CANN)
+      GUARD_OPERATOR_NPU_TEST;
     const DataType dtype = GetParam().dtype;
     const dim_t vocab_size = 2;
     const dim_t batch_size = 1;
@@ -686,6 +701,8 @@ TEST_P(BiasedDecodingDeviceFPTest, NonZeroTimestepBias) {
 
 TEST_P(BiasedDecodingDeviceFPTest, NonZeroTimestepDiverge) {
     const Device device = GetParam().device;
+    if(device == Device::CANN)
+      GUARD_OPERATOR_NPU_TEST;
     const DataType dtype = GetParam().dtype;
     const dim_t vocab_size = 2;
     const dim_t batch_size = 1;
@@ -719,6 +736,11 @@ INSTANTIATE_TEST_SUITE_P(CPU, BiasedDecodingDeviceFPTest,
 INSTANTIATE_TEST_SUITE_P(CUDA, BiasedDecodingDeviceFPTest,
                          ::testing::Values(FloatType{Device::CUDA, DataType::FLOAT32},
                                            FloatType{Device::CUDA, DataType::FLOAT16}),
+                         fp_test_name);
+#elif CT2_WITH_CANN
+INSTANTIATE_TEST_SUITE_P(CANN, BiasedDecodingDeviceFPTest,
+                         ::testing::Values(FloatType{Device::CANN, DataType::FLOAT32},
+                                           FloatType{Device::CANN, DataType::FLOAT16}),
                          fp_test_name);
 #endif
 

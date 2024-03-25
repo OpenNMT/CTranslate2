@@ -18,16 +18,26 @@
   }
 
 #define SINGLE_ARG(...) __VA_ARGS__
-#ifndef CT2_WITH_CUDA
+
+#ifdef CT2_WITH_CUDA
+#  define DEVICE_DISPATCH(DEVICE, STMTS)                \
+  switch (DEVICE) {                                     \
+    UNSUPPORTED_DEVICE_CASE(Device::CANN)               \
+    DEVICE_CASE(Device::CUDA, SINGLE_ARG(STMTS))        \
+    DEVICE_CASE(Device::CPU, SINGLE_ARG(STMTS))         \
+  }
+#elif CT2_WITH_CANN
 #  define DEVICE_DISPATCH(DEVICE, STMTS)                \
   switch (DEVICE) {                                     \
     UNSUPPORTED_DEVICE_CASE(Device::CUDA)               \
+    DEVICE_CASE(Device::CANN, SINGLE_ARG(STMTS))        \
     DEVICE_CASE(Device::CPU, SINGLE_ARG(STMTS))         \
   }
 #else
 #  define DEVICE_DISPATCH(DEVICE, STMTS)                \
   switch (DEVICE) {                                     \
-    DEVICE_CASE(Device::CUDA, SINGLE_ARG(STMTS))        \
+    UNSUPPORTED_DEVICE_CASE(Device::CUDA)               \
+    UNSUPPORTED_DEVICE_CASE(Device::CANN)               \
     DEVICE_CASE(Device::CPU, SINGLE_ARG(STMTS))         \
   }
 #endif
