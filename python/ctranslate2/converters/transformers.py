@@ -1220,6 +1220,50 @@ class BloomLoader(ModelLoader):
         spec.weight = weight
         spec.bias = bias
 
+@register_loader("T5EncoderConfig")
+class T5EncoderLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "T5EncoderModel"
+
+    def get_model_spec(self, model):
+        spec = transformer_spec.TransformerSpec.from_config(
+            model.config.num_layers,  # Only configure the encoder layers
+            model.config.num_heads,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.dense_act_fn],
+            ffn_glu=model.config.is_gated_act,
+            relative_attention_bias=True,
+            rms_norm=True,
+        )
+
+        self.set_stack(spec.encoder, model.encoder)
+        # No decoder configuration
+
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        # Vocabulary handling remains the same
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        # For an encoder-only model, it might only need a source vocabulary
+        spec.register_source_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        # Configuration adjustments for the encoder model
+        config.bos_token = tokenizer.pad_token
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = tokenizer.unk_token
+
+    # set_stack, set_ffn, set_self_attention, set_attention, and set_layer_norm methods remain unchanged
+
 
 @register_loader("MPTConfig")
 class MPTLoader(ModelLoader):
