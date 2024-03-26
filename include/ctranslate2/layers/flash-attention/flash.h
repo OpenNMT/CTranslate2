@@ -5,7 +5,8 @@
 #pragma once
 
 #include <vector>
-#include "cuda/utils.h"
+#include <cstdint>
+#include <cuda_runtime.h>
 
 constexpr int TOTAL_DIM = 0;
 constexpr int H_DIM = 1;

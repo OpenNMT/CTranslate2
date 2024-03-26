@@ -7,6 +7,7 @@
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
+#include <iostream>
 
 namespace ctranslate2 {
   namespace layers {
@@ -560,6 +561,9 @@ namespace ctranslate2 {
       }
 
       StorageView& context = fused_proj;  // Reuse storage.
+      //std::cout << "queries_proj: " << queries_proj << std::endl;
+      //std::cout << "keys_proj: " << keys_proj << std::endl;
+      //std::cout << "values_proj: " << values_proj << std::endl;
       dot_product_attention(queries_proj,
                             keys_proj,
                             values_proj,
@@ -577,8 +581,9 @@ namespace ctranslate2 {
                             beam_size,
                             _alibi,
                             position_bias);
+        //std::cout << "context: " << context << std::endl;
 
-      if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
+        if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
         // set only last sliding_window tokens to cached_keys and cached_values after computing attention
         const ops::Slide slide_op(2, cached_keys->shape()[2] - _sliding_window, _sliding_window);
         StorageView tmp(dtype, device);

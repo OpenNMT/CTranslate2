@@ -307,8 +307,6 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
 
         // Convert acc_s from fp32 to fp16/bf16
         Tensor rP = flash::convert_type<Element>(acc_s);
-        int block_row_idx = m_block * (kBlockM / 16) + tidx / 32;
-        int block_col_idx = n_block * (kBlockN / 32);
         if (Return_softmax) {
             cute::copy(rP, tSgS);
             tSgS.data() = tSgS.data() + (-kBlockN);
@@ -362,8 +360,6 @@ inline __device__ void compute_attn_1rowblock(const Params &params, const int bi
         softmax.template softmax_rescale_o</*Is_first=*/false, /*Check_inf=*/Is_local>(acc_s, acc_o, params.scale_softmax_log2);
 
         Tensor rP = flash::convert_type<Element>(acc_s);
-        int block_row_idx = m_block * (kBlockM / 16) + tidx / 32;
-        int block_col_idx = n_block * (kBlockN / 32);
         if (Return_softmax) {
             cute::copy(rP, tSgS);
             tSgS.data() = tSgS.data() + (-kBlockN);

@@ -407,16 +407,19 @@ namespace ctranslate2 {
       , _project_in(build_optional_layer<Dense>(model, scope + "/project_in"))
       , _project_out(build_optional_layer<Dense>(model, scope + "/project_out"))
       , _alibi(make_alibi(model, scope))
+      , _use_flash_attention(true)
       , _layers(build_layers_list<const TransformerDecoderLayer>(
                   model,
                   scope + "/layer",
                   _num_heads,
                   model.get_flag_with_default(scope + "/pre_norm", true),
                   model.get_enum_value<ops::ActivationType>(scope + "/activation"),
+                  _use_flash_attention,
                   _alibi.get()))
-      , _position_encoder(_layers.front()->get_self_attention().has_positional_embeddings()
-                          ? nullptr
-                          : build_position_encoder(model, scope + "/position_encodings", _embeddings))
+      //, _position_encoder(_layers.front()->get_self_attention().has_positional_embeddings()
+      //                    ? nullptr
+      //                    : build_position_encoder(model, scope + "/position_encodings", _embeddings))
+      , _position_encoder(nullptr)
       , _with_encoder_attention(_layers.front()->has_cross_attention())
       , _proj(model, scope + "/projection")
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
@@ -575,7 +578,8 @@ namespace ctranslate2 {
         lengths = input_lengths.get();
       }
 
-      bool multi_query = _layers.front()->get_self_attention().multi_query();
+      bool multi_query = _use_flash_attention ? _layers.front()->get_flash_self_attention().multi_query() :
+                         _layers.front()->get_self_attention().multi_query();
 
       if (lengths) {
         if (allow_padding_removal) {

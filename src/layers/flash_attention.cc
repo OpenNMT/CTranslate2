@@ -5,7 +5,7 @@
 
 #define TENSOR_CHECK(ans, message)                      \
     {                                                   \
-      if (ans)                                          \
+      if (!ans)                                          \
         THROW_RUNTIME_ERROR("tensor error: "            \
                             + message);                 \
     }
@@ -123,19 +123,8 @@ namespace ctranslate2 {
       TORCH_CHECK(d == d_rounded, "This flash attention build does not support headdim not being a multiple of 32.");
 #endif
     }
-    void run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split_kernel=false) {
-      FP16_SWITCH(!params.is_bf16, [&] {
-        HEADDIM_SWITCH(params.d, [&] {
-          if (params.num_splits <= 1 && !force_split_kernel) {  // If we don't set it num_splits == 0
-            run_mha_fwd_<elem_type, kHeadDim>(params, stream);
-          } else {
-            run_mha_fwd_splitkv_dispatch<elem_type, kHeadDim>(params, stream);
-          }
-        });
-      });
-    }
 
-// Find the number of splits that maximizes the occupancy. For example, if we have
+    // Find the number of splits that maximizes the occupancy. For example, if we have
 // batch * n_heads = 48 and we have 108 SMs, having 2 splits (efficiency = 0.89) is
 // better than having 3 splits (efficiency = 0.67). However, we also don't want too many
 // splits as that would incur more HBM reads/writes.
@@ -175,6 +164,42 @@ namespace ctranslate2 {
         }
       }
       return 1;
+    }
+
+    void set_params_splitkv(Flash_fwd_params &params, const int batch_size,
+                            const int num_heads, const int head_size, const int max_seqlen_k, const int max_seqlen_q,
+                            const int head_size_rounded,
+                            const int num_splits, cudaDeviceProp *dprops) {
+
+      // This needs to match with run_mha_fwd_splitkv_dispatch
+      const int block_n = head_size <= 64 ? 256 : (head_size <= 128 ? 128 : 64);
+      const int num_n_blocks = (max_seqlen_k + block_n - 1) / block_n;
+      // Technically kBlockM = 64 only for the splitKV kernels, not the standard kernel.
+      // In any case we don't expect seqlen_q to be larger than 64 for inference.
+      const int num_m_blocks = (max_seqlen_q + 64 - 1) / 64;
+      params.num_splits = num_splits;
+      if (num_splits < 1) {
+        params.num_splits = num_splits_heuristic(batch_size * num_heads * num_m_blocks, dprops->multiProcessorCount, num_n_blocks, 128);
+      }
+      /*if (params.num_splits > 1) {
+        at::Tensor softmax_lse_accum = torch::empty({params.num_splits, batch_size, num_heads, max_seqlen_q}, opts.dtype(at::kFloat));
+        at::Tensor out_accum = torch::empty({params.num_splits, batch_size, num_heads, max_seqlen_q, head_size_rounded}, opts.dtype(at::kFloat));
+        params.softmax_lseaccum_ptr = softmax_lse_accum.data_ptr();
+        params.oaccum_ptr = out_accum.data_ptr();
+      }*/
+      //TENSOR_CHECK(params.num_splits <= 128, "num_splits > 128 not supported");
+    }
+
+    void run_mha_fwd(Flash_fwd_params &params, cudaStream_t stream, bool force_split_kernel=false) {
+      FP16_SWITCH(!params.is_bf16, [&] {
+        HEADDIM_SWITCH(params.d, [&] {
+          if (params.num_splits <= 1 && !force_split_kernel) {  // If we don't set it num_splits == 0
+            run_mha_fwd_<elem_type, kHeadDim>(params, stream);
+          } else {
+            run_mha_fwd_splitkv_dispatch<elem_type, kHeadDim>(params, stream);
+          }
+        });
+      });
     }
 
     static std::vector<Dense> make_linear_layers(const models::Model& model,
@@ -437,6 +462,17 @@ namespace ctranslate2 {
         }
       }
 
+      if (cached_keys) {
+        keys_proj.shallow_copy(*cached_keys);
+        values_proj.shallow_copy(*cached_values);
+      }
+      StorageView keys_proj_t(dtype, device);
+      StorageView values_proj_t(dtype, device);
+      transpose_op(queries_proj, fused_proj);
+      queries_proj = std::move(fused_proj);
+      transpose_op(keys_proj, keys_proj_t);
+      transpose_op(values_proj, values_proj_t);
+
       dim_t window_size_right = -1;
       dim_t window_size_left = -1;
       int device_id = ctranslate2::get_device_index(ctranslate2::Device::CUDA);
@@ -464,18 +500,18 @@ namespace ctranslate2 {
       //TORCH_CHECK(kcache.stride(-1) == 1, "Input tensor must have contiguous last dimension");
       //TORCH_CHECK(vcache.stride(-1) == 1, "Input tensor must have contiguous last dimension");
 
-      const auto shape = queries.shape();
+      const auto shape = queries_proj.shape();
       const dim_t batch_size = shape[0];
       dim_t seqlen_q = shape[1];
       dim_t num_heads = shape[2];
       const dim_t head_size_og = shape[3];
-      const dim_t seqlen_k = keys_proj.dim(1);
-      const dim_t num_heads_k = keys_proj.dim(2);
-      TENSOR_CHECK(head_size_og <= 256, "FlashAttention forward only supports head dimension at most 256")
-      TENSOR_CHECK(num_heads % num_heads_k == 0, "Number of heads in key/value must divide number of heads in query");
+      const dim_t seqlen_k = keys_proj_t.dim(1);
+      const dim_t num_heads_k = keys_proj_t.dim(2);
+      //TENSOR_CHECK(head_size_og <= 256, "FlashAttention forward only supports head dimension at most 256")
+      //TENSOR_CHECK(num_heads % num_heads_k == 0, "Number of heads in key/value must divide number of heads in query");
 
       // causal=true is the same as causal=false in this case
-      bool is_causal = false;
+      bool is_causal = true;
       if (seqlen_q == 1 && !_alibi) { is_causal = false; }
       if (is_causal) { window_size_right = 0; }
 
@@ -494,8 +530,7 @@ namespace ctranslate2 {
       if (window_size_right >= seqlen_k) { window_size_right = -1; }
 
       // init output
-      StorageView context(dtype, device);  // Reuse storage.
-      context.resize(queries_proj.shape());
+      StorageView context(dtype, device);
 
       auto round_multiple = [](int x, int m) { return (x + m - 1) / m * m; };
       const int head_size = round_multiple(head_size_og, 8);
@@ -507,8 +542,9 @@ namespace ctranslate2 {
       // Cast to char to avoid compiler warning about narrowing
       //at::cuda::CUDAGuard device_guard{(char)q.get_device()};
 
-      StorageView softmax_lse({batch_size, num_heads, seqlen_q}, dtype, device);
-      if (return_normalized_attention) {
+      StorageView softmax_lse({batch_size, num_heads, seqlen_q}, DataType::FLOAT32, device);
+      context.resize(queries_proj.shape());
+      if (attention && return_normalized_attention) {
         attention->resize({batch_size, num_heads, seqlen_q_rounded, seqlen_k_rounded});
       }
 
@@ -519,22 +555,29 @@ namespace ctranslate2 {
                        seqlen_q_rounded, seqlen_k_rounded,
                        num_heads, num_heads_k,
                        head_size, head_size_rounded,
-                       &queries_proj, &keys_proj, &values_proj, &context,
+                       &queries_proj, &keys_proj_t, &values_proj_t, &context,
                        /*cu_seqlens_q_d=*/nullptr,
                        /*cu_seqlens_k_d=*/nullptr,
                        /*seqused_k=*/nullptr,
-                       return_normalized_attention ? attention->buffer() : /*p_ptr=*/nullptr,
+                       (return_normalized_attention && attention) ? attention->buffer() : /*p_ptr=*/nullptr,
                        softmax_lse.buffer(),
                        _queries_scale,
                        window_size_left,
                        window_size_right);
 
       // set params splitkv
-      params.num_splits = 0;
+      set_params_splitkv(params, batch_size, num_heads,
+                         head_size, seqlen_k, seqlen_q,
+                         head_size_rounded, /*num_splits*/0, &dprops);
       params.alibi_slopes_ptr = nullptr;
 
-      auto stream = ctranslate2::cuda::get_cuda_stream();
+      std::cout << "queries_proj: " << queries_proj << std::endl;
+      //std::cout << "keys_proj: " << keys_proj_t << std::endl;
+      //std::cout << "values_proj: " << values_proj_t << std::endl;
+      cudaStream_t stream = ctranslate2::cuda::get_cuda_stream();
       run_mha_fwd(params, stream);
+      std::cout << "softmax_lse: " << softmax_lse << std::endl;
+      softmax_lse.release();
 
       if (seqlenq_ngroups_swapped) {
         transpose_op(context, fused_proj);
@@ -542,6 +585,10 @@ namespace ctranslate2 {
         context.reshape({batch_size, 1, num_heads_k * seqlen_q, head_size_og});
         //softmax_lse = softmax_lse.reshape({batch_size, num_heads_k * seqlen_q, 1});
       }
+
+      transpose_op(context, fused_proj);
+      context = std::move(fused_proj);
+      //std::cout << "context: " << context << std::endl;
 
       if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
         // set only last sliding_window tokens to cached_keys and cached_values after computing attention
