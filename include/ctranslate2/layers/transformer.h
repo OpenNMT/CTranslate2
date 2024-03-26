@@ -37,6 +37,32 @@ namespace ctranslate2 {
       const bool _tensor_parallel;
     };
 
+    class Moe : public Layer
+    {
+    public:
+      Moe(const models::Model& model,
+          const std::string& scope,
+          const bool pre_norm = true,
+          const ops::ActivationType activation_type = ops::ActivationType::ReLU);
+
+      void operator()(StorageView& input, StorageView& output) const;
+      DataType output_type() const override {
+        return _ffn_layers.back()->output_type();
+      }
+
+      dim_t output_size() const override {
+        return _ffn_layers.back()->output_size();
+      }
+
+    private:
+      const std::unique_ptr<const LayerNorm> _layer_norm;
+      const Dense _gate;
+      const bool _pre_norm;
+      const ops::ActivationType _activation_type;
+      const dim_t _num_experts_per_tok;
+      const std::vector<std::unique_ptr<const FeedForwardNetwork>> _ffn_layers;
+    };
+
     class TransformerEncoderLayer : public Layer
     {
     public:
@@ -96,11 +122,17 @@ namespace ctranslate2 {
                       dim_t offset = 0) const;
 
       DataType output_type() const override {
-        return _ff.output_type();
+        if (_ff)
+          return _ff->output_type();
+        else
+          return _moe->output_type();
       }
 
       dim_t output_size() const override {
-        return _ff.output_size();
+        if (_ff)
+          return _ff->output_size();
+        else
+          return _moe->output_size();
       }
 
       bool has_cross_attention() const {
@@ -117,7 +149,8 @@ namespace ctranslate2 {
       const std::unique_ptr<const LayerNorm> _input_layer_norm;
       const std::unique_ptr<const LayerNorm> _post_attention_layer_norm;
       const std::unique_ptr<const MultiHeadAttention> _encoder_attention;
-      const FeedForwardNetwork _ff;
+      const std::unique_ptr<Moe> _moe;
+      const std::unique_ptr<FeedForwardNetwork> _ff;
     };
 
     class TransformerEncoder : public Encoder
