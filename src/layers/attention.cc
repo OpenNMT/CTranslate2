@@ -648,7 +648,8 @@ namespace ctranslate2 {
                                        const RotaryScalingType scaling_type,
                                        const float scaling_factor,
                                        const float base,
-                                       const dim_t num_initial_positions)
+                                       const dim_t num_initial_positions,
+                                       const bool transpose)
       : _dim(dim)
       , _interleave(interleave)
       , _scaling_type(scaling_type)
@@ -656,13 +657,14 @@ namespace ctranslate2 {
       , _base(base)
       , _num_initial_positions(num_initial_positions)
       , _rotary_op(dim, interleave)
+      , _transpose(transpose)
     {
     }
 
     void RotaryEmbeddings::apply(StorageView& x, const dim_t offset) {
       const Device device = x.device();
       const DataType dtype = x.dtype();
-      const dim_t max_time = x.dim(-2);
+      const dim_t max_time = _transpose ? x.dim(-2) : x.dim(-3);
       const dim_t dim = _dim == 0 ? x.dim(-1) : _dim;
 
       if (!_sin || offset + max_time > _sin.dim(0)) {
@@ -680,7 +682,7 @@ namespace ctranslate2 {
                     });
 
       StorageView y(dtype, device);
-      _rotary_op(x, sin, cos, y);
+      _rotary_op(x, sin, cos, y, _transpose);
       x = std::move(y);
     }
 

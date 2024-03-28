@@ -88,7 +88,8 @@ namespace ctranslate2 {
                        const RotaryScalingType scaling_type = RotaryScalingType::None,
                        const float scaling_factor = 1,
                        const float base = 10000,
-                       const dim_t num_initial_positions = 2048);
+                       const dim_t num_initial_positions = 2048,
+                       const bool transpose = true);
 
       void apply(StorageView& x, const dim_t offset = 0);
 
@@ -105,6 +106,7 @@ namespace ctranslate2 {
       const float _base;
       const dim_t _num_initial_positions;
       const ops::Rotary _rotary_op;
+      const bool _transpose;
 
       StorageView _sin;
       StorageView _cos;
