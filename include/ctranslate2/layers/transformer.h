@@ -1,6 +1,7 @@
 #pragma once
 
-#include "ctranslate2/layers/attention.h"
+//#include "ctranslate2/layers/attention.h"
+#include "ctranslate2/layers/flash_attention.h"
 #include "ctranslate2/layers/common.h"
 #include "ctranslate2/layers/decoder.h"
 #include "ctranslate2/layers/encoder.h"
@@ -44,7 +45,8 @@ namespace ctranslate2 {
                               const std::string& scope,
                               const dim_t num_heads,
                               const bool pre_norm = true,
-                              const ops::ActivationType activation_type = ops::ActivationType::ReLU);
+                              const ops::ActivationType activation_type = ops::ActivationType::ReLU,
+                              bool use_flash_attention = false);
 
       void operator()(const StorageView& input,
                       const StorageView* lengths,
@@ -61,11 +63,12 @@ namespace ctranslate2 {
       }
 
       const MultiHeadAttention& get_self_attention() const {
-        return _self_attention;
+        return *_self_attention;
       }
 
     private:
-      const MultiHeadAttention _self_attention;
+      const std::unique_ptr<MultiHeadAttention> _self_attention;
+      const std::unique_ptr<FlashMultiHeadAttention> _flash_self_attention;
       const FeedForwardNetwork _ff;
     };
 
@@ -77,6 +80,7 @@ namespace ctranslate2 {
                               const dim_t num_heads,
                               const bool pre_norm = true,
                               const ops::ActivationType activation_type = ops::ActivationType::ReLU,
+                              const bool use_flash_attention = true,
                               Alibi* alibi = nullptr);
 
       void operator()(const StorageView& input,
@@ -108,15 +112,21 @@ namespace ctranslate2 {
       }
 
       const MultiHeadAttention& get_self_attention() const {
-        return _self_attention;
+        return *_self_attention;
       }
 
+     const FlashMultiHeadAttention& get_flash_self_attention() const {
+       return *_flash_self_attention;
+     }
+
     private:
-      const MultiHeadAttention _self_attention;
+      const std::unique_ptr<MultiHeadAttention> _self_attention;
+      const std::unique_ptr<FlashMultiHeadAttention> _flash_self_attention;
       const std::unique_ptr<const LayerNorm> _shared_layer_norm;
       const std::unique_ptr<const LayerNorm> _input_layer_norm;
       const std::unique_ptr<const LayerNorm> _post_attention_layer_norm;
       const std::unique_ptr<const MultiHeadAttention> _encoder_attention;
+      const std::unique_ptr<const FlashMultiHeadAttention> _flash_encoder_attention;
       const FeedForwardNetwork _ff;
     };
 
@@ -206,6 +216,7 @@ namespace ctranslate2 {
       const std::unique_ptr<const Dense> _project_in;
       const std::unique_ptr<const Dense> _project_out;
       const std::unique_ptr<Alibi> _alibi;
+      const bool _use_flash_attention;
       const std::vector<std::unique_ptr<const TransformerDecoderLayer>> _layers;
       const std::unique_ptr<PositionEncoder> _position_encoder;
       const bool _with_encoder_attention;

@@ -1,22 +1,20 @@
 #pragma once
 
 #include "ctranslate2/layers/common.h"
+#include "ctranslate2/layers/attention.h"
 #include "ctranslate2/padder.h"
+#include "ctranslate2/layers/flash-attention/flash.h"
 
 namespace ctranslate2 {
   namespace layers {
 
-    StorageView make_relative_positions(dim_t queries_length,
-                                        dim_t keys_length,
-                                        dim_t max_position);
-
     class RotaryEmbeddings;
     class Alibi;
 
-    class MultiHeadAttention : public Layer
+    class FlashMultiHeadAttention : public Layer
     {
     public:
-      MultiHeadAttention(const models::Model& model,
+      FlashMultiHeadAttention(const models::Model& model,
                          const std::string& scope,
                          dim_t num_heads,
                          bool self_attention,
@@ -39,7 +37,7 @@ namespace ctranslate2 {
                       dim_t offset = 0) const;
 
       bool has_positional_embeddings() const {
-        return _relative_position_keys || _relative_attention_bias || _rotary_embeddings || _alibi;
+        return _relative_position_keys || _relative_attention_bias;
       }
 
       bool multi_query() const {
@@ -75,58 +73,5 @@ namespace ctranslate2 {
       const dim_t _cache_time_dim;
       const dim_t _sliding_window;
     };
-
-    enum class RotaryScalingType {
-      None = -1,
-      Linear,
-    };
-
-    class RotaryEmbeddings {
-    public:
-      RotaryEmbeddings(const dim_t dim = 0,
-                       const bool interleave = true,
-                       const RotaryScalingType scaling_type = RotaryScalingType::None,
-                       const float scaling_factor = 1,
-                       const float base = 10000,
-                       const dim_t num_initial_positions = 2048,
-                       const bool transpose = true);
-
-      void apply(StorageView& x, const dim_t offset = 0);
-
-    private:
-      void initialize(const dim_t num_positions,
-                      const dim_t dim,
-                      const Device device,
-                      const DataType dtype);
-
-      const dim_t _dim;
-      const bool _interleave;
-      const RotaryScalingType _scaling_type;
-      const float _scaling_factor;
-      const float _base;
-      const dim_t _num_initial_positions;
-      const ops::Rotary _rotary_op;
-      const bool _transpose;
-
-      StorageView _sin;
-      StorageView _cos;
-    };
-
-
-    class Alibi {
-    public:
-      Alibi(const bool use_positive_positions = false, const bool scale_alibi = false, const dim_t num_initial_positions = 2048);
-
-      void apply(StorageView& x, const float scale = 1);
-
-    private:
-      const bool _use_positive_positions;
-      const dim_t _num_initial_positions;
-      const bool _scale_alibi;
-      const ops::AlibiAdd _alibi_op;
-
-      StorageView _alibi;
-    };
-
   }
 }

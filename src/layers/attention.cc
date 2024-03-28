@@ -7,6 +7,7 @@
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
+#include <iostream>
 
 namespace ctranslate2 {
   namespace layers {
@@ -560,6 +561,9 @@ namespace ctranslate2 {
       }
 
       StorageView& context = fused_proj;  // Reuse storage.
+      //std::cout << "queries_proj: " << queries_proj << std::endl;
+      //std::cout << "keys_proj: " << keys_proj << std::endl;
+      //std::cout << "values_proj: " << values_proj << std::endl;
       dot_product_attention(queries_proj,
                             keys_proj,
                             values_proj,
@@ -577,8 +581,9 @@ namespace ctranslate2 {
                             beam_size,
                             _alibi,
                             position_bias);
+        //std::cout << "context: " << context << std::endl;
 
-      if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
+        if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
         // set only last sliding_window tokens to cached_keys and cached_values after computing attention
         const ops::Slide slide_op(2, cached_keys->shape()[2] - _sliding_window, _sliding_window);
         StorageView tmp(dtype, device);
@@ -643,7 +648,8 @@ namespace ctranslate2 {
                                        const RotaryScalingType scaling_type,
                                        const float scaling_factor,
                                        const float base,
-                                       const dim_t num_initial_positions)
+                                       const dim_t num_initial_positions,
+                                       const bool transpose)
       : _dim(dim)
       , _interleave(interleave)
       , _scaling_type(scaling_type)
@@ -651,13 +657,14 @@ namespace ctranslate2 {
       , _base(base)
       , _num_initial_positions(num_initial_positions)
       , _rotary_op(dim, interleave)
+      , _transpose(transpose)
     {
     }
 
     void RotaryEmbeddings::apply(StorageView& x, const dim_t offset) {
       const Device device = x.device();
       const DataType dtype = x.dtype();
-      const dim_t max_time = x.dim(-2);
+      const dim_t max_time = _transpose ? x.dim(-2) : x.dim(-3);
       const dim_t dim = _dim == 0 ? x.dim(-1) : _dim;
 
       if (!_sin || offset + max_time > _sin.dim(0)) {
@@ -675,7 +682,7 @@ namespace ctranslate2 {
                     });
 
       StorageView y(dtype, device);
-      _rotary_op(x, sin, cos, y);
+      _rotary_op(x, sin, cos, y, _transpose);
       x = std::move(y);
     }
 
