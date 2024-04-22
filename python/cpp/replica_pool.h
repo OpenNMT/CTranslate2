@@ -51,12 +51,11 @@ namespace ctranslate2 {
         : _model_loader(create_model_reader(model_path, files))
         , _device(str_to_device(device))
         , _num_replicas_per_device(inter_threads)
-        , _device_index(std::visit(DeviceIndexResolver(), device_index))
       {
         pybind11::gil_scoped_release nogil;
 
         _model_loader.device = str_to_device(device);
-        _model_loader.device_indices = _device_index;
+        _model_loader.device_indices = std::visit(DeviceIndexResolver(), device_index);
         _model_loader.compute_type = std::visit(ComputeTypeResolver(device), compute_type);
         _model_loader.num_replicas_per_device = inter_threads;
         _model_loader.use_flash_attention = flash_attention;
@@ -66,6 +65,7 @@ namespace ctranslate2 {
         _pool_config.max_queued_batches = max_queued_batches;
 
         _pool = std::make_unique<T>(_model_loader, _pool_config);
+        _device_index = _model_loader.device_indices;
         _model_is_loaded = true;
       }
 
@@ -161,7 +161,7 @@ namespace ctranslate2 {
       ReplicaPoolConfig _pool_config;
       const Device _device;
       const size_t _num_replicas_per_device;
-      const std::vector<int>& _device_index;
+      std::vector<int> _device_index;
       std::vector<std::shared_ptr<const models::Model>> _cached_models;
       bool _model_is_loaded;
 
