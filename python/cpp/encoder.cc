@@ -148,8 +148,7 @@ namespace ctranslate2 {
              py::call_guard<py::gil_scoped_release>(),
              R"pbdoc(
                  Unloads the model attached to this encoder but keep enough runtime context
-                 to quickly resume encoder on the initial device. The model is not guaranteed
-                 to be unloaded if translations are running concurrently.
+                 to quickly resume encoder on the initial device.
 
                  Arguments:
                    to_cpu: If ``True``, the model is moved to the CPU memory and not fully unloaded.

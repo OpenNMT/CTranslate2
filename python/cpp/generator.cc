@@ -332,7 +332,7 @@ namespace ctranslate2 {
              R"pbdoc(
                  Unloads the model attached to this generator but keep enough runtime context
                  to quickly resume generator on the initial device. The model is not guaranteed
-                 to be unloaded if translations are running concurrently.
+                 to be unloaded if generations are running concurrently.
 
                  Arguments:
                    to_cpu: If ``True``, the model is moved to the CPU memory and not fully unloaded.
