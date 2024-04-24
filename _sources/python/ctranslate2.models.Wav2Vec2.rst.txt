@@ -13,6 +13,7 @@ Wav2Vec2
     - :obj:`~ctranslate2.models.Wav2Vec2.compute_type`
     - :obj:`~ctranslate2.models.Wav2Vec2.device`
     - :obj:`~ctranslate2.models.Wav2Vec2.device_index`
+    - :obj:`~ctranslate2.models.Wav2Vec2.model_is_loaded`
     - :obj:`~ctranslate2.models.Wav2Vec2.num_active_batches`
     - :obj:`~ctranslate2.models.Wav2Vec2.num_queued_batches`
     - :obj:`~ctranslate2.models.Wav2Vec2.num_workers`
@@ -21,3 +22,5 @@ Wav2Vec2
     **Methods:**
 
     - :obj:`~ctranslate2.models.Wav2Vec2.encode`
+    - :obj:`~ctranslate2.models.Wav2Vec2.load_model`
+    - :obj:`~ctranslate2.models.Wav2Vec2.unload_model`

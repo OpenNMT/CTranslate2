@@ -13,6 +13,7 @@ Generator
     - :obj:`~ctranslate2.Generator.compute_type`
     - :obj:`~ctranslate2.Generator.device`
     - :obj:`~ctranslate2.Generator.device_index`
+    - :obj:`~ctranslate2.Generator.model_is_loaded`
     - :obj:`~ctranslate2.Generator.num_active_batches`
     - :obj:`~ctranslate2.Generator.num_generators`
     - :obj:`~ctranslate2.Generator.num_queued_batches`
@@ -25,5 +26,7 @@ Generator
     - :obj:`~ctranslate2.Generator.generate_batch`
     - :obj:`~ctranslate2.Generator.generate_iterable`
     - :obj:`~ctranslate2.Generator.generate_tokens`
+    - :obj:`~ctranslate2.Generator.load_model`
     - :obj:`~ctranslate2.Generator.score_batch`
     - :obj:`~ctranslate2.Generator.score_iterable`
+    - :obj:`~ctranslate2.Generator.unload_model`

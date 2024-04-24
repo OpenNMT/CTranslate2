@@ -14,6 +14,7 @@ Whisper
     - :obj:`~ctranslate2.models.Whisper.device`
     - :obj:`~ctranslate2.models.Whisper.device_index`
     - :obj:`~ctranslate2.models.Whisper.is_multilingual`
+    - :obj:`~ctranslate2.models.Whisper.model_is_loaded`
     - :obj:`~ctranslate2.models.Whisper.n_mels`
     - :obj:`~ctranslate2.models.Whisper.num_active_batches`
     - :obj:`~ctranslate2.models.Whisper.num_languages`
@@ -27,3 +28,5 @@ Whisper
     - :obj:`~ctranslate2.models.Whisper.detect_language`
     - :obj:`~ctranslate2.models.Whisper.encode`
     - :obj:`~ctranslate2.models.Whisper.generate`
+    - :obj:`~ctranslate2.models.Whisper.load_model`
+    - :obj:`~ctranslate2.models.Whisper.unload_model`

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Wav2Vec2 &mdash; CTranslate2 4.2.0 documentation</title>
+  <title>Wav2Vec2 &mdash; CTranslate2 4.2.1 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -137,6 +137,7 @@
 <li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.compute_type" title="ctranslate2.models.Wav2Vec2.compute_type"><code class="xref py py-obj docutils literal notranslate"><span class="pre">compute_type</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.device" title="ctranslate2.models.Wav2Vec2.device"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.device_index" title="ctranslate2.models.Wav2Vec2.device_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device_index</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.model_is_loaded" title="ctranslate2.models.Wav2Vec2.model_is_loaded"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model_is_loaded</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.num_active_batches" title="ctranslate2.models.Wav2Vec2.num_active_batches"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_active_batches</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.num_queued_batches" title="ctranslate2.models.Wav2Vec2.num_queued_batches"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_queued_batches</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.num_workers" title="ctranslate2.models.Wav2Vec2.num_workers"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_workers</span></code></a></p></li>
@@ -145,6 +146,8 @@
 <p><strong>Methods:</strong></p>
 <ul class="simple">
 <li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.encode" title="ctranslate2.models.Wav2Vec2.encode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">encode</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.load_model" title="ctranslate2.models.Wav2Vec2.load_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_model</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.models.Wav2Vec2.unload_model" title="ctranslate2.models.Wav2Vec2.unload_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unload_model</span></code></a></p></li>
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.models.Wav2Vec2.__init__">
@@ -192,6 +195,29 @@ file names to file contents as file-like or bytes objects. If this is set,
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.models.Wav2Vec2.load_model">
+<span class="sig-name descname"><span class="pre">load_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keep_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.models.Wav2Vec2.load_model" title="Permalink to this definition"></a></dt>
+<dd><p>Loads the model back to the initial device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>keep_cache</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the model cache in the CPU memory is not deleted if it exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.models.Wav2Vec2.unload_model">
+<span class="sig-name descname"><span class="pre">unload_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">to_cpu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.models.Wav2Vec2.unload_model" title="Permalink to this definition"></a></dt>
+<dd><p>Unloads the model attached to this wav2vec2 but keep enough runtime context
+to quickly resume wav2vec2 on the initial device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>to_cpu</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the model is moved to the CPU memory and not fully unloaded.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="ctranslate2.models.Wav2Vec2.compute_type">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_type</span></span><a class="headerlink" href="#ctranslate2.models.Wav2Vec2.compute_type" title="Permalink to this definition"></a></dt>
@@ -208,6 +234,12 @@ file names to file contents as file-like or bytes objects. If this is set,
 <dt class="sig sig-object py" id="ctranslate2.models.Wav2Vec2.device_index">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">device_index</span></span><a class="headerlink" href="#ctranslate2.models.Wav2Vec2.device_index" title="Permalink to this definition"></a></dt>
 <dd><p>List of device IDs where this model is running on.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.models.Wav2Vec2.model_is_loaded">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">model_is_loaded</span></span><a class="headerlink" href="#ctranslate2.models.Wav2Vec2.model_is_loaded" title="Permalink to this definition"></a></dt>
+<dd><p>Whether the model is loaded on the initial device and ready to be used.</p>
 </dd></dl>
 
 <dl class="py property">

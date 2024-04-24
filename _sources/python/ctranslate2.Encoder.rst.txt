@@ -13,6 +13,7 @@ Encoder
     - :obj:`~ctranslate2.Encoder.compute_type`
     - :obj:`~ctranslate2.Encoder.device`
     - :obj:`~ctranslate2.Encoder.device_index`
+    - :obj:`~ctranslate2.Encoder.model_is_loaded`
     - :obj:`~ctranslate2.Encoder.num_active_batches`
     - :obj:`~ctranslate2.Encoder.num_encoders`
     - :obj:`~ctranslate2.Encoder.num_queued_batches`
@@ -21,3 +22,5 @@ Encoder
     **Methods:**
 
     - :obj:`~ctranslate2.Encoder.forward_batch`
+    - :obj:`~ctranslate2.Encoder.load_model`
+    - :obj:`~ctranslate2.Encoder.unload_model`

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Whisper &mdash; CTranslate2 4.2.0 documentation</title>
+  <title>Whisper &mdash; CTranslate2 4.2.1 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -138,6 +138,7 @@
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.device" title="ctranslate2.models.Whisper.device"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.device_index" title="ctranslate2.models.Whisper.device_index"><code class="xref py py-obj docutils literal notranslate"><span class="pre">device_index</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.is_multilingual" title="ctranslate2.models.Whisper.is_multilingual"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_multilingual</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.models.Whisper.model_is_loaded" title="ctranslate2.models.Whisper.model_is_loaded"><code class="xref py py-obj docutils literal notranslate"><span class="pre">model_is_loaded</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.n_mels" title="ctranslate2.models.Whisper.n_mels"><code class="xref py py-obj docutils literal notranslate"><span class="pre">n_mels</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.num_active_batches" title="ctranslate2.models.Whisper.num_active_batches"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_active_batches</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.num_languages" title="ctranslate2.models.Whisper.num_languages"><code class="xref py py-obj docutils literal notranslate"><span class="pre">num_languages</span></code></a></p></li>
@@ -151,6 +152,8 @@
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.detect_language" title="ctranslate2.models.Whisper.detect_language"><code class="xref py py-obj docutils literal notranslate"><span class="pre">detect_language</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.encode" title="ctranslate2.models.Whisper.encode"><code class="xref py py-obj docutils literal notranslate"><span class="pre">encode</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.models.Whisper.generate" title="ctranslate2.models.Whisper.generate"><code class="xref py py-obj docutils literal notranslate"><span class="pre">generate</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.models.Whisper.load_model" title="ctranslate2.models.Whisper.load_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_model</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.models.Whisper.unload_model" title="ctranslate2.models.Whisper.unload_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">unload_model</span></code></a></p></li>
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.models.Whisper.__init__">
@@ -283,6 +286,29 @@ of symbols as defined in the model <code class="docutils literal notranslate"><s
 </dl>
 </dd></dl>
 
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.models.Whisper.load_model">
+<span class="sig-name descname"><span class="pre">load_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">keep_cache</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.models.Whisper.load_model" title="Permalink to this definition"></a></dt>
+<dd><p>Loads the model back to the initial device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>keep_cache</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the model cache in the CPU memory is not deleted if it exists.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.models.Whisper.unload_model">
+<span class="sig-name descname"><span class="pre">unload_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">to_cpu</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">None</span></span></span><a class="headerlink" href="#ctranslate2.models.Whisper.unload_model" title="Permalink to this definition"></a></dt>
+<dd><p>Unloads the model attached to this whisper but keep enough runtime context
+to quickly resume whisper on the initial device.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters</dt>
+<dd class="field-odd"><p><strong>to_cpu</strong> – If <code class="docutils literal notranslate"><span class="pre">True</span></code>, the model is moved to the CPU memory and not fully unloaded.</p>
+</dd>
+</dl>
+</dd></dl>
+
 <dl class="py property">
 <dt class="sig sig-object py" id="ctranslate2.models.Whisper.compute_type">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">compute_type</span></span><a class="headerlink" href="#ctranslate2.models.Whisper.compute_type" title="Permalink to this definition"></a></dt>
@@ -305,6 +331,12 @@ of symbols as defined in the model <code class="docutils literal notranslate"><s
 <dt class="sig sig-object py" id="ctranslate2.models.Whisper.is_multilingual">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">is_multilingual</span></span><a class="headerlink" href="#ctranslate2.models.Whisper.is_multilingual" title="Permalink to this definition"></a></dt>
 <dd><p>Returns <code class="docutils literal notranslate"><span class="pre">True</span></code> if this model is multilingual.</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.models.Whisper.model_is_loaded">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">model_is_loaded</span></span><a class="headerlink" href="#ctranslate2.models.Whisper.model_is_loaded" title="Permalink to this definition"></a></dt>
+<dd><p>Whether the model is loaded on the initial device and ready to be used.</p>
 </dd></dl>
 
 <dl class="py property">
