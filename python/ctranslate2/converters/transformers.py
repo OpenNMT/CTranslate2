@@ -1759,7 +1759,9 @@ class Phi3Loader(ModelLoader):
                 layer_spec.ffn.layer_norm, layer.post_attention_layernorm
             )
 
-            self.set_linear(layer_spec.self_attention.linear[0], layer.self_attn.qkv_proj)
+            self.set_linear(
+                layer_spec.self_attention.linear[0], layer.self_attn.qkv_proj
+            )
             self.set_linear(layer_spec.self_attention.linear[1], layer.self_attn.o_proj)
 
             gate_proj, up_proj = layer.mlp.gate_up_proj.weight.chunk(2, dim=0)
