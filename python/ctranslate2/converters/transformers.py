@@ -1679,7 +1679,7 @@ class PhiLoader(ModelLoader):
 
 
 @register_loader("Phi3Config")
-class PhiLoader(ModelLoader):
+class Phi3Loader(ModelLoader):
     @property
     def architecture_name(self):
         return "AutoModelForCausalLM"
