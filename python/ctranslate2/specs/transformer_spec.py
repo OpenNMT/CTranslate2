@@ -127,6 +127,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
             num_heads_kv != num_heads
         )
 
+
 class TransformerDecoderSpec(model_spec.LayerSpec):
     def __init__(
         self,
