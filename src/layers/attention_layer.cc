@@ -267,14 +267,6 @@ namespace ctranslate2 {
       if (_interleave) {
         emb.reshape({num_positions, dim});
       }
-      StorageView scaling_factor;
-      if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0) {
-        float scale = _max_position_embeddings / _original_max_position_embeddings;
-        if (scale <= 1)
-          scaling_factor = StorageView(1.0f, device);
-        else
-          scaling_factor = StorageView(static_cast<float>(sqrt(1 + std::log(scale) / std::log(_original_max_position_embeddings))));
-      }
 
       StorageView sin(device);
       ops::Sin()(emb, sin);
@@ -283,15 +275,24 @@ namespace ctranslate2 {
       else
         _sin = sin.to(dtype);
 
-      ops::Mul()(_sin, scaling_factor, _sin);
-
       StorageView cos(device);
       ops::Cos()(emb, cos);
       if (cos.dtype() == dtype)
         _cos = std::move(cos);
       else
         _cos = cos.to(dtype);
-      ops::Mul()(_cos, scaling_factor, _cos);
+
+      if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0) {
+        StorageView scaling_factor;
+        float scale = _max_position_embeddings / _original_max_position_embeddings;
+        if (scale <= 1)
+          scaling_factor = StorageView(1.0f, device);
+        else
+          scaling_factor = StorageView(static_cast<float>(sqrt(1 + std::log(scale) / std::log(_original_max_position_embeddings))));
+
+        ops::Mul()(_sin, scaling_factor, _sin);
+        ops::Mul()(_cos, scaling_factor, _cos);
+      }
     }
 
 
