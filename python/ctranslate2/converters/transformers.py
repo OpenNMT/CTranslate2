@@ -40,6 +40,7 @@ _SUPPORTED_ACTIVATIONS = {
 
 _SUPPORTED_ROPE_SCALING = {
     "linear": attention_spec.RotaryScalingType.Linear,
+    "su": attention_spec.RotaryScalingType.Su,
 }
 
 _MODEL_LOADERS = {}
@@ -1694,10 +1695,12 @@ class Phi3Loader(ModelLoader):
         if num_heads_kv == num_heads:
             num_heads_kv = None
 
+        original_max_position_embeddings = getattr(model.config, "original_max_position_embeddings", 0)
+        max_position_embeddings = getattr(model.config, "max_position_embeddings", 0)
         rope_scaling = getattr(model.config, "rope_scaling", None)
         if rope_scaling:
             rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_scaling["type"])
-            rotary_scaling_factor = rope_scaling["factor"]
+            rotary_scaling_factor = 1
 
             if rotary_scaling_type is None:
                 raise NotImplementedError(
@@ -1721,6 +1724,8 @@ class Phi3Loader(ModelLoader):
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
             rotary_base=getattr(model.config, "rope_theta", 10000),
+            original_max_position_embeddings=original_max_position_embeddings,
+            max_position_embeddings=max_position_embeddings,
             num_heads_kv=num_heads_kv,
         )
 
@@ -1748,6 +1753,10 @@ class Phi3Loader(ModelLoader):
     def set_layer_norm(self, spec, layer_norm):
         spec.gamma = layer_norm.weight
 
+    def set_rotary_embeddings(self, spec, rotary_scaling_long_factor, rotary_scaling_short_factor):
+        spec.rotary_scaling_long_factor = torch.tensor(rotary_scaling_long_factor, dtype=torch.float32)
+        spec.rotary_scaling_short_factor = torch.tensor(rotary_scaling_short_factor, dtype=torch.float32)
+
     def set_decoder(self, spec, module):
         spec.scale_embeddings = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)
@@ -1765,6 +1774,10 @@ class Phi3Loader(ModelLoader):
                 layer_spec.self_attention.linear[0], layer.self_attn.qkv_proj
             )
             self.set_linear(layer_spec.self_attention.linear[1], layer.self_attn.o_proj)
+            if layer.self_attn.rotary_emb.long_factor is not None and layer.self_attn.rotary_emb.short_factor is not None:
+                self.set_rotary_embeddings(layer_spec.self_attention,
+                                           layer.self_attn.rotary_emb.long_factor,
+                                           layer.self_attn.rotary_emb.short_factor)
 
             gate_proj, up_proj = layer.mlp.gate_up_proj.weight.chunk(2, dim=0)
             layer_spec.ffn.linear_0.weight = gate_proj
