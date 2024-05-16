@@ -84,11 +84,11 @@ namespace ctranslate2 {
                                                                         "/rotary_scaling_long_factor");
       const auto rotary_short_factor = model.get_variable_if_exists(scope +
                                                                    "/rotary_scaling_short_factor");
-      const auto original_max_position_embeddings   = model.get_attribute_with_default<float>(
-        scope + "/original_max_position_embeddings", 0.f);
+      const auto original_max_position_embeddings   = model.get_attribute_with_default<int32_t>(
+        scope + "/original_max_position_embeddings", 0);
 
-      const auto max_position_embeddings   = model.get_attribute_with_default<float>(
-        scope + "/max_position_embeddings", 0.f);
+      const auto max_position_embeddings   = model.get_attribute_with_default<int32_t>(
+        scope + "/max_position_embeddings", 0);
 
       return std::make_unique<RotaryEmbeddings>(rotary_dim,
                                                 interleave,
