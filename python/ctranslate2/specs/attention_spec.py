@@ -47,9 +47,13 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
             self.relative_attention_max_distance = None
 
         if original_max_position_embeddings != 0:
-            self.original_max_position_embeddings = np.dtype("int32").type(original_max_position_embeddings)
+            self.original_max_position_embeddings = np.dtype("int32").type(
+                original_max_position_embeddings
+            )
         if max_position_embeddings != 0:
-            self.max_position_embeddings = np.dtype("int32").type(max_position_embeddings)
+            self.max_position_embeddings = np.dtype("int32").type(
+                max_position_embeddings
+            )
 
         if rotary_dim is not None:
             self.rotary_dim = np.dtype("int32").type(rotary_dim)
