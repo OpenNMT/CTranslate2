@@ -137,7 +137,8 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           rotary_scaling_type: Type of RoPE scaling.
           rotary_scaling_factor: Factor used in the RoPE scaling.
           rotary_base: The base period of the rotary embeddings.
-          original_max_position_embeddings: The original max position embeddings for Su rope embeddings
+          original_max_position_embeddings: The original max position embeddings
+            for Su rope embeddings
           max_position_embeddings: The max position embeddings for Su rope embeddings
           parallel_residual: Use parallel residual connections in each layer block, as used
             by the GPT-J and GPT-NeoX models.
@@ -543,7 +544,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
           rotary_scaling_type: Type of RoPE scaling.
           rotary_scaling_factor: Factor used in the RoPE scaling.
           rotary_base: The base period of the rotary embeddings.
-          original_max_position_embeddings: The original max position embeddings for Su rope embeddings
+          original_max_position_embeddings: The original max position embeddings
+            for Su rope embeddings
           max_position_embeddings: The max position embeddings for Su rope embeddings
           parallel_residual: Use parallel residual connections in each layer block, as used
             by the GPT-J and GPT-NeoX models.
