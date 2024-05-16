@@ -186,8 +186,10 @@ namespace ctranslate2 {
       , _scaling_factor(scaling_factor)
       , _base(base)
       , _num_initial_positions(num_initial_positions)
-      , _rotary_scaling_long_factor(std::make_unique<StorageView>(*long_scaling_factor))
-      , _rotary_scaling_short_factor(std::make_unique<StorageView>(*short_scaling_factor))
+      , _rotary_scaling_long_factor(long_scaling_factor ?
+                                    std::make_unique<StorageView>(*long_scaling_factor) : nullptr)
+      , _rotary_scaling_short_factor(short_scaling_factor ?
+                                    std::make_unique<StorageView>(*short_scaling_factor) : nullptr)
       , _original_max_position_embeddings(original_max_position_embeddings)
       , _max_position_embeddings(max_position_embeddings)
       , _rotary_op(dim, interleave)
