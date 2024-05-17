@@ -1708,7 +1708,7 @@ class Phi3Loader(ModelLoader):
         rope_scaling = getattr(model.config, "rope_scaling", None)
         if rope_scaling:
             rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_scaling["type"])
-            rotary_scaling_factor = 1
+            rotary_scaling_factor = rope_scaling.get("factor", 1)
 
             if rotary_scaling_type is None:
                 raise NotImplementedError(
