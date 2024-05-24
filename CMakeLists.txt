@@ -475,7 +475,7 @@ if (WITH_CUDA)
 
   cuda_select_nvcc_arch_flags(ARCH_FLAGS ${CUDA_ARCH_LIST})
   list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
-  set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
+  set(CUDA_HOST_COMPILER ${CMAKE_CUDA_COMPILER})
 
   # flags for flash attention
   list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
