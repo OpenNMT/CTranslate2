@@ -15,6 +15,8 @@ namespace ctranslate2 {
     switch (type) {
     case DataType::FLOAT32:
       return "float32";
+    case DataType::UINT8:
+        return "uint8";
     case DataType::INT8:
       return "int8";
     case DataType::INT16:

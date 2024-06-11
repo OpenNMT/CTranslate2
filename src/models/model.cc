@@ -6,6 +6,7 @@
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/utils.h"
 #include <regex>
+#include <iostream>
 
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
@@ -173,7 +174,7 @@ namespace ctranslate2 {
       _device_index = index;
     }
 
-    void Model::set_compute_type(ComputeType type, Device device, int device_index, bool update_weight) {
+    void Model::set_compute_type(ComputeType type, Device device, int device_index) {
       if (_device != Device::CPU)
         throw std::runtime_error("set_compute_type expects the variables to be on CPU");
 

@@ -62,4 +62,5 @@ class EmbeddingsSpec(model_spec.LayerSpec):
     def __init__(self):
         self.weight = None
         self.weight_scale = model_spec.OPTIONAL
+        self.weight_zero = model_spec.OPTIONAL
         self.multiply_by_sqrt_depth = model_spec.OPTIONAL

@@ -20,6 +20,7 @@ namespace ctranslate2 {
     INT32,
     FLOAT16,
     BFLOAT16,
+    UINT8,
   };
 
   std::string dtype_name(DataType type);

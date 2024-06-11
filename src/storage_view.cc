@@ -440,6 +440,12 @@ namespace ctranslate2 {
     return os;
   }
 
+  template<>
+  std::ostream& print_value(std::ostream& os, const uint8_t& val) {
+    os << static_cast<int32_t>(val);
+    return os;
+  }
+
   std::ostream& operator<<(std::ostream& os, const StorageView& storage) {
     StorageView printable(storage.dtype());
     printable.copy_from(storage);

@@ -25,6 +25,10 @@ OPTIONAL = "__optional"
 CURRENT_BINARY_VERSION = 6
 
 ACCEPTED_MODEL_TYPES = (
+    "int4",
+    "int4_float32",
+    "int4_float16",
+    "int4_bfloat16",
     "int8",
     "int8_float32",
     "int8_float16",
@@ -188,6 +192,11 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     setattr(spec, attr_name, other_name)
                     break
 
+    def _pack_4bit_u8(self, w_q):
+        w_q = w_q.astype(np.uint8)
+        _step = int(w_q.shape[1] / 2)
+        return (w_q[:, :_step] << 4) | w_q[:, _step:]
+
     def _quantize(self, quantization):
         """Possibly quantizes the variable of the layer."""
         if quantization is not None and quantization not in ACCEPTED_MODEL_TYPES:
@@ -202,6 +211,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
 
             key = _split_scope(name)[-1]
             scale = None
+            zero = None
             is_quantizable = hasattr(spec, "%s_scale" % key)
             is_convertible = value.dtype in ("float32", "float16", "bfloat16")
 
@@ -244,6 +254,48 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     value = NumpyVariable(value)
                 elif quantization in ("float16", "bfloat16", "float32"):
                     value = value.to(quantization)
+                elif quantization in (
+                        "int4",
+                        "int4_float32",
+                        "int4_float16",
+                        "int4_bfloat16",
+                ) and value.shape != 3:
+                    value = value.to("float32").numpy()
+                    print("AAAAAAAAAAAAA")
+                    print(value)
+                    group_size = 32
+                    old_shape = value.shape
+                    new_shape = old_shape[:-1] + (old_shape[-1] // 2,)
+                    value = value.reshape(-1, group_size)
+                    gmax = np.amax(value, axis=1)
+                    gmin = np.amin(value, axis=1)
+
+                    max_v = 15
+                    min_v = 0
+                    scale = np.clip(max_v / (gmax - gmin), 0, 2e4)
+                    zero = -gmin * scale
+
+                    print(name)
+                    print("XXXXXXXXXXXXXXXX")
+                    print(value)
+                    value = np.clip(np.round(value * np.expand_dims(scale, 1) + np.expand_dims(zero, 1)), min_v, max_v)
+                    print("YYYYYYYYYYYYYYYY")
+                    print(value)
+                    value = self._pack_4bit_u8(value)
+                    print(value.shape)
+                    value = value.reshape(new_shape)
+                    zero = zero.reshape(new_shape[0], -1)
+                    scale = scale.reshape(new_shape[0], -1)
+                    print("ZZZZZZZZZZZZZZZZ")
+                    print(value)
+                    print("scale")
+                    print(scale)
+                    print("zero")
+                    print(zero)
+
+                    zero = NumpyVariable(zero)
+                    scale = NumpyVariable(scale)
+                    value = NumpyVariable(value)
 
             elif is_convertible:
                 if quantization in ("float16", "int8_float16"):
@@ -256,6 +308,8 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
             setattr(spec, key, value)
             if scale is not None:
                 setattr(spec, "%s_scale" % key, scale)
+            if zero is not None:
+                setattr(spec, "%s_zero" % key, zero)
 
         self._visit(_quantize)
 
@@ -279,7 +333,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
 
 def _dtype_to_type_id(object_dtype):
     # Order should match the DataType enum in include/ctranslate2/types.h
-    dtypes = ("float32", "int8", "int16", "int32", "float16", "bfloat16")
+    dtypes = ("float32", "int8", "int16", "int32", "float16", "bfloat16", "uint8")
     try:
         return dtypes.index(object_dtype)
     except ValueError:

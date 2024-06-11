@@ -41,6 +41,7 @@ namespace ctranslate2 {
   }
 
   MATCH_TYPE_AND_ENUM(float, DataType::FLOAT32);
+  MATCH_TYPE_AND_ENUM(uint8_t, DataType::UINT8);
   MATCH_TYPE_AND_ENUM(int8_t, DataType::INT8);
   MATCH_TYPE_AND_ENUM(int16_t, DataType::INT16);
   MATCH_TYPE_AND_ENUM(int32_t, DataType::INT32);
@@ -60,6 +61,7 @@ namespace ctranslate2 {
 #define TYPE_DISPATCH(TYPE_ENUM, STMTS)             \
   switch (TYPE_ENUM) {                              \
     TYPE_CASE(float, SINGLE_ARG(STMTS))             \
+    TYPE_CASE(uint8_t, SINGLE_ARG(STMTS))           \
     TYPE_CASE(int8_t, SINGLE_ARG(STMTS))            \
     TYPE_CASE(int16_t, SINGLE_ARG(STMTS))           \
     TYPE_CASE(int32_t, SINGLE_ARG(STMTS))           \
@@ -69,6 +71,7 @@ namespace ctranslate2 {
 
 #define DECLARE_ALL_TYPES(FUNC)                 \
   FUNC(float)                                   \
+  FUNC(uint8_t)                                 \
   FUNC(int8_t)                                  \
   FUNC(int16_t)                                 \
   FUNC(int32_t)                                 \

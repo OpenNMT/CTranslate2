@@ -1207,6 +1207,7 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CPU>::mul(T a, const T* x, T* y, dim_t size);
 
+  DECLARE_IMPL_NO_FLOAT(uint8_t)
   DECLARE_IMPL_NO_FLOAT(int8_t)
   DECLARE_IMPL_NO_FLOAT(int16_t)
   DECLARE_IMPL_NO_FLOAT(int32_t)
