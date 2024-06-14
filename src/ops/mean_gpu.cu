@@ -15,6 +15,7 @@ namespace ctranslate2 {
                                 const cuda::index_t outer_size,
                                 const cuda::index_t axis_size,
                                 const cuda::index_t inner_size,
+                                const bool get_sum,
                                 T* output) {
       typedef cub::BlockReduce<AccumT, num_threads> BlockReduce;
       __shared__ typename BlockReduce::TempStorage temp_storage;
@@ -30,7 +31,9 @@ namespace ctranslate2 {
       AccumT sum = BlockReduce(temp_storage).Sum(thread_sum);
 
       if (threadIdx.x == 0) {
-        output[blockIdx.x] = sum / AccumT(axis_size);
+        output[blockIdx.x] = sum;
+        if (!get_sum)
+          output[blockIdx.x] /= AccumT(axis_size);
       }
     }
 
@@ -39,6 +42,7 @@ namespace ctranslate2 {
                        const dim_t outer_size,
                        const dim_t axis_size,
                        const dim_t inner_size,
+                       const bool get_sum,
                        StorageView& output) const {
       const dim_t blocks = std::min(outer_size * inner_size, cuda::max_blocks);
       mean_kernel<cuda::device_type<T>, float><<<blocks, num_threads, 0, cuda::get_cuda_stream()>>>(
@@ -46,6 +50,7 @@ namespace ctranslate2 {
         outer_size,
         axis_size,
         inner_size,
+        get_sum,
         cuda::device_cast(output.data<T>()));
     }
 
@@ -55,6 +60,7 @@ namespace ctranslate2 {
                                    const dim_t outer_size,      \
                                    const dim_t axis_size,       \
                                    const dim_t inner_size,      \
+                                   const bool get_sum,          \
                                    StorageView& output) const;
 
     DECLARE_IMPL(float)

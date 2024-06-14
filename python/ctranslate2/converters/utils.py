@@ -32,6 +32,20 @@ def fuse_linear(spec, layers):
             ]
         )
 
+def fuse_linear_prequant(spec, layers, axis):
+    if not layers:
+        raise ValueError("Cannot fuse linear layers: at least one layer is required")
+    params = ["weight", "weight_scale", "weight_zero"]
+    if isinstance(layers[0].weight, np.ndarray):
+        concatenate = np.concatenate
+    else:
+        import torch
+
+        concatenate = torch.cat
+
+    for param in params:
+        setattr(spec, param, concatenate([getattr(layer, param) for layer in layers], axis=axis))
+
 
 def permute_for_sliced_rotary(weight, num_heads, rotary_dim=None):
     """Permutes the weight to use the sliced rotary implementation."""
