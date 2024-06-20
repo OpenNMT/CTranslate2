@@ -23,14 +23,14 @@ namespace ctranslate2 {
         throw std::invalid_argument("Awq gemm is only supported on GPU");
 
       if (a.dim(0) > 8) {
-        compute_gemv2<Device::CUDA, float16_t, int>(a, b, scale, zero, c);
+        DEVICE_DISPATCH(a.device(), (compute_gemv2<D, float16_t, int>(a, b, scale, zero, c)));
         StorageView tmp(c.dtype(), c.device());
         ops::Sum(0)(c, tmp);
         tmp.squeeze(0);
         c = std::move(tmp);
       }
       else
-        compute_gemv<Device::CUDA, float16_t, int>(a, b, scale, zero, c);
+        DEVICE_DISPATCH(a.device(), (compute_gemv<D, float16_t, int>(a, b, scale, zero, c)));
 
       apply_bias_and_activation(c, bias, _activation_type);
 #endif

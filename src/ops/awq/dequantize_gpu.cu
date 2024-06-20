@@ -2,8 +2,6 @@
 #include "dequantize.cuh"
 #include "cuda/helpers.h"
 
-#pragma once
-
 namespace ctranslate2 {
    namespace ops {
 
