@@ -45,7 +45,11 @@ def fuse_linear_prequant(spec, layers, axis):
         concatenate = torch.cat
 
     for param in params:
-        setattr(spec, param, concatenate([getattr(layer, param) for layer in layers], axis=axis))
+        setattr(
+            spec,
+            param,
+            concatenate([getattr(layer, param) for layer in layers], axis=axis),
+        )
 
 
 def permute_for_sliced_rotary(weight, num_heads, rotary_dim=None):
