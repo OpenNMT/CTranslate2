@@ -5,11 +5,6 @@
 
 namespace ctranslate2 {
   namespace ops {
-
-    __device__ __forceinline__ int make_divisible(int c, int divisor){
-      return (c + divisor - 1) / divisor;
-    }
-
     __global__ void __launch_bounds__(64) gemm_forward_4bit_cuda_m16n128k32(int G, int split_k_iters, const half* __restrict__ A, const int* __restrict__ B, const half* __restrict__ scaling_factors, const int* __restrict__ zeros, int M, int IC, int OC, half* __restrict__ C)
     {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
@@ -478,6 +473,9 @@ namespace ctranslate2 {
                           const StorageView& scale,
                           const StorageView& zero,
                           StorageView& c) const {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
       dim_t num_in_channels = a.dim(-1);
       dim_t num_in_feats = a.size() / num_in_channels;
       dim_t split_k_iters = 8;
@@ -527,6 +525,7 @@ namespace ctranslate2 {
         gemm_forward_4bit_cuda_m16n64k32<<<num_blocks, threads_per_block, 0, cuda::get_cuda_stream()>>>(
           group_size, split_k_iters, a_data, b_data, scale_data, zero_data, num_in_feats, num_in_channels, num_out_channels, output_data);
       }
+#endif
     }
 
 

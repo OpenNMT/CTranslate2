@@ -45,7 +45,7 @@ _SUPPORTED_ROPE_SCALING = {
 
 _SUPPORTED_QUANTIZATION = {
     "gemm": common_spec.Quantization.AWQ_GEMM,
-    "gemv": common_spec.Quantization.AWQ_GEMV
+    "gemv": common_spec.Quantization.AWQ_GEMV,
 }
 
 _MODEL_LOADERS = {}
@@ -1423,18 +1423,21 @@ class LlamaLoader(ModelLoader):
 
         quantization_config = getattr(model.config, "quantization_config", None)
         if quantization_config:
-            if quantization_config.quant_method == 'awq':
+            if quantization_config.quant_method == "awq":
                 quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
             if quant_type is None:
                 raise NotImplementedError(
                     "Quantization type '%s' is not yet implemented. "
                     "The following Quantization types are currently supported: %s"
-                    % (quantization_config.quant_method, ", ".join(_SUPPORTED_QUANTIZATION.keys()))
+                    % (
+                        quantization_config.quant_method,
+                        ", ".join(_SUPPORTED_QUANTIZATION.keys()),
+                    )
                 )
             quant_group_size = quantization_config.group_size
             quant_bits = quantization_config.bits
         else:
-            quant_type=common_spec.Quantization.CT2
+            quant_type = common_spec.Quantization.CT2
             quant_group_size = None
             quant_bits = None
 
@@ -1499,20 +1502,38 @@ class LlamaLoader(ModelLoader):
             )
 
             split_layers = [common_spec.LinearSpec() for _ in range(3)]
-            self.set_linear(split_layers[0], layer.self_attn.q_proj, quant_type=quant_type)
-            self.set_linear(split_layers[1], layer.self_attn.k_proj, quant_type=quant_type)
-            self.set_linear(split_layers[2], layer.self_attn.v_proj, quant_type=quant_type)
+            self.set_linear(
+                split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
 
             if quant_type == common_spec.Quantization.CT2:
                 utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
             else:
                 cc_dim = 1 if quant_type == common_spec.Quantization.AWQ_GEMM else 0
-                utils.fuse_linear_prequant(layer_spec.self_attention.linear[0], split_layers, cc_dim)
-            self.set_linear(layer_spec.self_attention.linear[1], layer.self_attn.o_proj, quant_type=quant_type)
+                utils.fuse_linear_prequant(
+                    layer_spec.self_attention.linear[0], split_layers, cc_dim
+                )
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
 
-            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type)
-            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type)
-            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type)
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
 
             delattr(layer, "self_attn")
             delattr(layer, "mlp")
@@ -1552,18 +1573,21 @@ class MistralLoader(ModelLoader):
 
         quantization_config = getattr(model.config, "quantization_config", None)
         if quantization_config:
-            if quantization_config.quant_method == 'awq':
+            if quantization_config.quant_method == "awq":
                 quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
             if quant_type is None:
                 raise NotImplementedError(
                     "Quantization type '%s' is not yet implemented. "
                     "The following Quantization types are currently supported: %s"
-                    % (quantization_config.quant_method, ", ".join(_SUPPORTED_QUANTIZATION.keys()))
+                    % (
+                        quantization_config.quant_method,
+                        ", ".join(_SUPPORTED_QUANTIZATION.keys()),
+                    )
                 )
             quant_group_size = quantization_config.group_size
             quant_bits = quantization_config.bits
         else:
-            quant_type=common_spec.Quantization.CT2
+            quant_type = common_spec.Quantization.CT2
             quant_group_size = None
             quant_bits = None
 
@@ -1624,21 +1648,39 @@ class MistralLoader(ModelLoader):
                 layer_spec.ffn.layer_norm, layer.post_attention_layernorm
             )
             split_layers = [common_spec.LinearSpec() for _ in range(3)]
-            self.set_linear(split_layers[0], layer.self_attn.q_proj, quant_type=quant_type)
-            self.set_linear(split_layers[1], layer.self_attn.k_proj, quant_type=quant_type)
-            self.set_linear(split_layers[2], layer.self_attn.v_proj, quant_type=quant_type)
+            self.set_linear(
+                split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
 
             if quant_type == common_spec.Quantization.CT2:
                 utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
             else:
                 cc_dim = 1 if quant_type == common_spec.Quantization.AWQ_GEMM else 0
-                utils.fuse_linear_prequant(layer_spec.self_attention.linear[0], split_layers, cc_dim)
-            self.set_linear(layer_spec.self_attention.linear[1], layer.self_attn.o_proj, quant_type=quant_type)
+                utils.fuse_linear_prequant(
+                    layer_spec.self_attention.linear[0], split_layers, cc_dim
+                )
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
 
-            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type)
-            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type)
-            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type)
-            
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
+
             delattr(layer, "self_attn")
             delattr(layer, "mlp")
             gc.collect()

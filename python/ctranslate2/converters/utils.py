@@ -32,6 +32,7 @@ def fuse_linear(spec, layers):
             ]
         )
 
+
 def fuse_linear_prequant(spec, layers, axis):
     if not layers:
         raise ValueError("Cannot fuse linear layers: at least one layer is required")

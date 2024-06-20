@@ -7,14 +7,12 @@
 
 namespace ctranslate2 {
   namespace ops {
-
-    __device__ __forceinline__ int make_divisible(int c, int divisor){
-      return (c + divisor - 1) / divisor;
-    }
-
     template <int G>
     __global__ void __launch_bounds__(128) gemmv2_forward_4bit_cuda_m128n64k32(int split_k_iters, const half* __restrict__ A, const int* __restrict__ B, const half* __restrict__ scaling_factors, const int* zeros, int M, int IC, int OC, half* __restrict__ C)
     {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
       static constexpr uint32_t ZERO = 0x0;
       float C_warp[64];
       __shared__ half A_shared[128 * (32 + 8)];
@@ -46,7 +44,6 @@ namespace ctranslate2 {
       const int zeros_w = make_divisible(make_divisible(IC / G, 8), make_divisible_multipler) * make_divisible_multipler;
       const int sf_w = zeros_w * 8;
 
-      bool ld_zero_flag = (threadIdx.y * 32 + threadIdx.x) * 8 < 64;
       int ld_A_row = (blockIdx_y / j_factors1 * 128 + threadIdx.y * row_stride_warp + threadIdx.x * 8 / 32);     // threadIdx.y is warp_id
       // bool wb_C_flag = (threadIdx.x / 4) < M;
 
@@ -185,7 +182,7 @@ namespace ctranslate2 {
           for (int i_0_3 = 0; i_0_3 < 4; ++i_0_3) {
             for (int j_0_4 = 0; j_0_4 < 2; ++j_0_4) {
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 800
-              {
+          {
             asm volatile(
               "mma.sync.aligned.m16n8k8.row.col.f32.f16.f16.f32"
               "{%0, %1, %2, %3}, {%4, %5}, {%6}, {%7, %8, %9, %10};\n"
@@ -251,10 +248,14 @@ namespace ctranslate2 {
           }
         }
       }
+#endif
     }
 
     // Reduce sum within the warp using the tree reduction algorithm.
     __device__ __forceinline__ float warp_reduce_sum(float sum) {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
 #pragma unroll
       for(int i = 4; i >= 0; i--){
         sum += __shfl_down_sync(0xffffffff, sum, 1<<i);
@@ -267,6 +268,7 @@ namespace ctranslate2 {
       sum += __shfl_down_sync(0xffffffff, sum, 2);
       sum += __shfl_down_sync(0xffffffff, sum, 1);
       */
+#endif
       return sum;
     }
 
@@ -287,6 +289,9 @@ Notes:
     __global__ void gemv_kernel_g64(
       const float4* _inputs, const uint32_t* weight, const uint32_t* zeros, const half* scaling_factors, half* _outputs,
       const int IC, const int OC){
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
       const int group_size = 64;
       float psum = 0;
       const int batch_idx = blockIdx.z;
@@ -339,6 +344,7 @@ Notes:
       if (threadIdx.x == 0) {
         outputs[oc_idx] = __float2half(psum);
       }
+#endif
     }
 
 
@@ -359,6 +365,9 @@ Notes:
     __global__ void gemv_kernel_g128(
       const float4* _inputs, const uint32_t* weight, const uint32_t* zeros, const half* scaling_factors, half* _outputs,
       const int IC, const int OC){
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
       const int group_size = 128;
       float psum = 0;
       const int batch_idx = blockIdx.z;
@@ -410,6 +419,7 @@ Notes:
       if (threadIdx.x == 0) {
         outputs[oc_idx] = __float2half(psum);
       }
+#endif
     }
 
     template <Device D, typename In, typename Out>
@@ -418,6 +428,9 @@ Notes:
                                 const StorageView& scale,
                                 const StorageView& zero,
                                 StorageView& c) const {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
       dim_t num_in_channels = a.dim(-1);
       dim_t num_in_feats = a.size() / num_in_channels;
       if (a.rank() == 2)
@@ -434,7 +447,6 @@ Notes:
 
       dim_t num_out_feats = num_in_feats;
       dim_t num_out_channels = c.dim(-1);
-      dim_t blockDim_z = num_out_feats;
       dim3 num_blocks(1, num_out_channels / 4, num_out_feats);
       dim3 num_threads(32, 4);
       if (group_size == 64)
@@ -455,6 +467,7 @@ Notes:
           num_in_channels, num_out_channels
         );
       }
+#endif
     }
 
     template <Device D, typename In, typename Out>
@@ -463,6 +476,9 @@ Notes:
                           const StorageView& scale,
                           const StorageView& zero,
                           StorageView& c) const {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
       dim_t num_in_channels = a.dim(-1);
       dim_t num_in_feats = a.size() / num_in_channels;
       dim_t split_k_iters = 8;
@@ -507,6 +523,7 @@ Notes:
       {
         throw std::invalid_argument("Group size temporarily not supported.");
       }
+#endif
     }
 
 

@@ -3,6 +3,14 @@
 
 namespace ctranslate2 {
   namespace ops {
+    __device__ __forceinline__ int make_divisible(int c, int divisor){
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
+      assert(false);
+#else
+      return (c + divisor - 1) / divisor;
+#endif
+    }
+
     __inline__ __device__ uint4 dequantize_s4_to_fp16x2(uint32_t const& source)
     {
       uint4 result;
