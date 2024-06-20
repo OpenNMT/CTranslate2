@@ -23,7 +23,7 @@ namespace ctranslate2 {
 
       int j_factors1 = ((OC + 64 - 1) / 64);
 
-      int blockIdx_x = 0;
+      //int blockIdx_x = 0;
       int blockIdx_y = blockIdx.x % ((M + 128 - 1) / 128 * j_factors1);
       int blockIdx_z = blockIdx.x / ((M + 128 - 1) / 128 * j_factors1);
 

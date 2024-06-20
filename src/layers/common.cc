@@ -402,7 +402,14 @@ namespace ctranslate2 {
               StorageView weight_dequant(input.dtype(), input.device());
               ops::DequantizeAwq dequantize_awq_op;
               dequantize_awq_op(*weight, *qscale, *_qzero, weight_dequant);
-              _gemm_op(input, weight_dequant, output, nullptr, bias);
+              ops::Gemm gemm_op(/*alpha=*/1,
+                                /*beta=*/0,
+                                /*trans_a=*/false,
+                                /*trans_b=*/false,
+                                /*a_is_packed=*/false,
+                                /*b_is_packed*/false,
+                                _activation_type);
+              gemm_op(input, weight_dequant, output, nullptr, bias);
             } else {
               ops::GemmAwq gemm_awq_op(/*alpha=*/1, /*beta=*/0, /*trans_a=*/false, /*trans_b=*/false,
                 /*a_is_packed=*/false, /*b_is_packed=*/false, _activation_type);

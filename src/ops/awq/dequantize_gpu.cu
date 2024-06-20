@@ -19,16 +19,10 @@ namespace ctranslate2 {
          zeros = zeros + blockIdx.z * in_c * out_c / G / 8;
          C = C + blockIdx.z * in_c * out_c;
        }
-       int j_factors1 = 4;
-       int row_stride2 = 4;
-       int split_k_iters = 1;
        static constexpr uint32_t ZERO = 0x0;
        half B_shared[32 * (128 + 8)];
 
        half* B_shared_ptr2 = B_shared;
-
-       half B_shared_warp[32];
-       int OC = 512;
 
        int N = blockDim.x * gridDim.x;  // 2
        int col = (blockIdx.x * blockDim.x + threadIdx.x);
@@ -73,35 +67,24 @@ namespace ctranslate2 {
                                  const StorageView& scale,
                                  const StorageView& zero,
                                  StorageView& output) const {
-       dim_t in_c = input.size() == 2 ? input.dim(0) : input.dim(1);
-       dim_t qout_c = input.size() == 2 ? input.dim(1) : input.dim(2);
-       int num_experts = input.size() == 2 ? 1 : input.dim(0);
+       dim_t in_c = input.rank() == 2 ? input.dim(0) : input.dim(1);
+       dim_t qout_c = input.rank() == 2 ? input.dim(1) : input.dim(2);
+       int num_experts = input.rank() == 2 ? 1 : input.dim(0);
        int out_c = qout_c * 8;
-       int G = in_c / (input.size() == 2 ? scale.dim(0) : scale.dim(1));
+       int G = in_c / (input.rank() == 2 ? scale.dim(0) : scale.dim(1));
 
        int x_thread = 0 /*thx*/;
        int y_thread = 0 /*thy*/;
 
        int x_blocks = 1;
        int y_blocks = 1;
-       //if (thx==0) {
        x_thread = qout_c;
-       //}
-       //if (thy==0) {
        y_thread = in_c;
-       //}
 
-       //int dbg_ = true;
-       //if (thx==0 && thy==0) {
-       int dbg = false;
        x_thread = 8;
        y_thread = 8;
        x_blocks = (int)(qout_c / 8);
        y_blocks = (int)(in_c / 8);
-       //}
-       //dbg = dbg && dbg_;
-
-       //auto options = torch::TensorOptions().dtype(_scaling_factors.dtype()).device(_scaling_factors.device());
        if (num_experts == 1) {
          output.resize({in_c, out_c});
        } else {
