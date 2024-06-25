@@ -201,7 +201,7 @@ namespace ctranslate2 {
         _rotary_scaling_short_factor = std::make_unique<StorageView>(_rotary_scaling_short_factor->to(Device::CPU));
     }
 
-    void RotaryEmbeddings::apply(StorageView& x, const dim_t offset, bool apply) {
+    void RotaryEmbeddings::apply(StorageView& x, const dim_t offset, bool fa2) {
       const Device device = x.device();
       const DataType dtype = x.dtype();
       const dim_t max_time = _transpose ? x.dim(-2) : x.dim(-3);
@@ -211,8 +211,20 @@ namespace ctranslate2 {
         const dim_t cur_num_positions = _sin ? _sin.dim(0) : 0;
         const dim_t new_num_positions = std::max(offset + max_time, cur_num_positions + _num_initial_positions);
         initialize(new_num_positions, dim, device, dtype);
+        if (fa2) {
+          if (!_sin_half)
+          {
+            _sin_half = std::make_unique<StorageView>(dtype, device);
+            _cos_half = std::make_unique<StorageView>(dtype, device);
+          }
+          const ops::Slide slide_op(1, 0, dim / 2);
+          slide_op(_cos, *_cos_half);
+          slide_op(_sin, *_sin_half);
+          if (offset != 0)
+            return;
+        }
       }
-      if (!apply)
+      if (offset != 0 && fa2)
         return;
 
       StorageView sin(dtype, device);

@@ -205,8 +205,6 @@ namespace ctranslate2 {
                                                dim_t offset) const {
       const Device device = queries.device();
       const DataType dtype = queries.dtype();
-      StorageView rotary_cos_half(dtype, device);
-      StorageView rotary_sin_half(dtype, device);
 
       dim_t window_size_left = _sliding_window > 0 ? _sliding_window : -1;
       dim_t window_size_right = _sliding_window > 0 ? 0 : -1;
@@ -324,12 +322,9 @@ namespace ctranslate2 {
         params.is_seqlens_k_cumulative = false;
 
         if (rotary_cos && rotary_sin) {
-          params.rotary_dim = rotary_cos->dim(1);
-          const ops::Slide slide_op(1, 0, params.rotary_dim / 2);
-          slide_op(*rotary_cos, rotary_cos_half);
-          slide_op(*rotary_sin, rotary_sin_half);
-          params.rotary_cos_ptr = rotary_cos_half.buffer();
-          params.rotary_sin_ptr = rotary_sin_half.buffer();
+          params.rotary_dim = rotary_cos->dim(1) * 2;
+          params.rotary_cos_ptr = rotary_cos->buffer();
+          params.rotary_sin_ptr = rotary_sin->buffer();
           params.is_rotary_interleaved = rotary_interleave;
         }
         else

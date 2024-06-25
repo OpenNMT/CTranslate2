@@ -596,6 +596,41 @@ if (WITH_CUDA)
     src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
     src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
   )
+
+  set_source_files_properties(
+    src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+    PROPERTIES COMPILE_FLAGS "--use_fast_math")
 elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
 else()
