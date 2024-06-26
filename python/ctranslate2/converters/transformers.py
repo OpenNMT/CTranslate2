@@ -235,9 +235,6 @@ class ModelLoader(abc.ABC):
         if module.bias is not None:
             spec.bias = module.bias
 
-        if module.bias is not None:
-            spec.bias = module.bias
-
     def set_embeddings(self, spec, module):
         spec.weight = module.weight
 
