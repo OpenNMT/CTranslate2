@@ -10,7 +10,6 @@
 
 #include <cutlass/numeric_types.h>
 
-#include "philox.cuh"
 #include "utils.h"
 
 #ifndef M_LOG2E

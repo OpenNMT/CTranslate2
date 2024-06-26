@@ -47,7 +47,7 @@ namespace ctranslate2 {
                                 dim_t beam_size = 1);
 
       const dim_t _cache_time_dim;
-      static constexpr dim_t _offset_free_space{100};
+      static constexpr dim_t _offset_free_space{512};
     };
   }
 }

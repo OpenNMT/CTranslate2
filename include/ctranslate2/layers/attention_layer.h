@@ -89,14 +89,14 @@ namespace ctranslate2 {
                        const dim_t max_position_embeddings = 0,
                        const bool transpose = true);
 
-      void apply(StorageView& x, const dim_t offset = 0, bool apply = true);
+      void apply(StorageView& x, const dim_t offset = 0, bool fa2 = false);
 
-      StorageView& get_cos() {
-        return _cos;
+      StorageView& get_cos_half() {
+        return *_cos_half;
       }
 
-      StorageView& get_sin() {
-        return _sin;
+      StorageView& get_sin_half() {
+        return *_sin_half;
       }
 
       bool get_interleave() const {
@@ -124,6 +124,8 @@ namespace ctranslate2 {
 
       StorageView _sin;
       StorageView _cos;
+      std::unique_ptr<StorageView> _sin_half;
+      std::unique_ptr<StorageView> _cos_half;
     };
 
 

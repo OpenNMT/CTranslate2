@@ -16,17 +16,18 @@ namespace ctranslate2 {
     }
 
     void FlashMultiHeadAttention::operator()(const StorageView& queries,
-                                             const StorageView& values,
+                                             const StorageView&,
                                              const StorageView* values_lengths,
                                              StorageView& output,
                                              StorageView* cached_keys,
                                              StorageView* cached_values,
                                              StorageView* attention,
                                              const Padder* queries_padder,
-                                             const Padder* values_padder,
+                                             const Padder*,
                                              bool return_normalized_attention,
-                                             StorageView* position_bias,
+                                             StorageView*,
                                              dim_t offset) const {
+      PROFILE("MultiHeadAttention");
       const Device device = queries.device();
       const DataType dtype = queries.dtype();
 
@@ -63,8 +64,8 @@ namespace ctranslate2 {
       }
 
       if (_rotary_embeddings) {
-        _rotary_embeddings->apply(queries_proj, offset, offset == 0);
-        _rotary_embeddings->apply(keys_proj, offset, offset == 0);
+        _rotary_embeddings->apply(queries_proj, offset, true);
+        _rotary_embeddings->apply(keys_proj, offset, true);
       }
 
       if (cached_keys != nullptr) {
@@ -102,8 +103,8 @@ namespace ctranslate2 {
       StorageView* rotary_sin = nullptr;
       bool rotary_interleaved = false;
       if (_rotary_embeddings && offset > 0) {
-        rotary_cos = &(_rotary_embeddings->get_cos());
-        rotary_sin = &(_rotary_embeddings->get_sin());
+        rotary_cos = &(_rotary_embeddings->get_cos_half());
+        rotary_sin = &(_rotary_embeddings->get_sin_half());
         rotary_interleaved = _rotary_embeddings->get_interleave();
       }
 
