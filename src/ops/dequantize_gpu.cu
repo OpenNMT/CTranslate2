@@ -41,14 +41,14 @@ namespace ctranslate2 {
       const cuda::index_t i = blockIdx.x;
       for (cuda::index_t j = threadIdx.x; j < depth; j += blockDim.x) {
         const cuda::index_t index = i * depth + j;
-        const float scale = a[index / (block_size / 2)];
-        const float zero = z[index / (block_size / 2)];
-        uint8_t b1 = b[index] >> 4;
-        uint8_t b2 = b[index] & 0xF;
-        T v1 = rescale_func(scale, b1, zero);
-        T v2 = rescale_func(scale, b2, zero);
-        c[index] = v1;
-        c[index % (block_size / 2) + (index / (block_size / 2)) * block_size + block_size / 2] = v2;
+        const cuda::index_t m = index / (block_size / 2);
+        const cuda::index_t n = index % (block_size / 2);
+        const float scale = a[m];
+        const float zero = z[m];
+        uint8_t b1 = (b[index] & 0xF0) >> 4;
+        uint8_t b2 = (b[index] & 0x0F);
+        c[n + m * block_size] = rescale_func(scale, b1, zero);
+        c[n + m * block_size + block_size / 2]  = rescale_func(scale, b2, zero);
       }
     }
 

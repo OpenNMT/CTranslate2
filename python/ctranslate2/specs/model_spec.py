@@ -261,8 +261,6 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                         "int4_bfloat16",
                 ) and value.shape != 3:
                     value = value.to("float32").numpy()
-                    print("AAAAAAAAAAAAA")
-                    print(value)
                     group_size = 32
                     old_shape = value.shape
                     new_shape = old_shape[:-1] + (old_shape[-1] // 2,)
@@ -275,23 +273,12 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     scale = np.clip(max_v / (gmax - gmin), 0, 2e4)
                     zero = -gmin * scale
 
-                    print(name)
-                    print("XXXXXXXXXXXXXXXX")
-                    print(value)
                     value = np.clip(np.round(value * np.expand_dims(scale, 1) + np.expand_dims(zero, 1)), min_v, max_v)
-                    print("YYYYYYYYYYYYYYYY")
-                    print(value)
                     value = self._pack_4bit_u8(value)
                     print(value.shape)
                     value = value.reshape(new_shape)
                     zero = zero.reshape(new_shape[0], -1)
                     scale = scale.reshape(new_shape[0], -1)
-                    print("ZZZZZZZZZZZZZZZZ")
-                    print(value)
-                    print("scale")
-                    print(scale)
-                    print("zero")
-                    print(zero)
 
                     zero = NumpyVariable(zero)
                     scale = NumpyVariable(scale)
