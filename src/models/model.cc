@@ -173,7 +173,7 @@ namespace ctranslate2 {
       _device_index = index;
     }
 
-    void Model::set_compute_type(ComputeType type, Device device, int device_index) {
+    void Model::set_compute_type(ComputeType type, Device device, int device_index, bool update_weight) {
       if (_device != Device::CPU)
         throw std::runtime_error("set_compute_type expects the variables to be on CPU");
 
@@ -187,46 +187,47 @@ namespace ctranslate2 {
                                                              device,
                                                              device_index);
 
-      DataType weight_dtype = DataType::FLOAT32;
-      DataType float_dtype = DataType::FLOAT32;
-      std::tie(weight_dtype, float_dtype) = compute_type_to_data_type(_effective_compute_type);
-      if (_use_flash_attention && (float_dtype != DataType::FLOAT16 && float_dtype != DataType::BFLOAT16))
-        throw std::runtime_error("FlashAttention only support fp16 and bf16 data type");
+      if (update_weight) {
+        DataType weight_dtype = DataType::FLOAT32;
+        DataType float_dtype = DataType::FLOAT32;
+        std::tie(weight_dtype, float_dtype) = compute_type_to_data_type(_effective_compute_type);
+        if (_use_flash_attention && (float_dtype != DataType::FLOAT16 && float_dtype != DataType::BFLOAT16))
+          throw std::runtime_error("FlashAttention only support fp16 and bf16 data type");
 
-      const auto variable_index = _variable_index;
-      for (auto& variable_pair : variable_index) {
-        const auto& name = variable_pair.first;
-        auto& variable = *variable_pair.second;
+        const auto variable_index = _variable_index;
+        for (auto& variable_pair : variable_index) {
+          const auto &name = variable_pair.first;
+          auto &variable = *variable_pair.second;
 
-        // Convert "weight" variables to the expected compute type.
-        // Other float variables (e.g. biases) may be converted to another float type.
-        if (is_quantizable(name)) {
-          auto variable_weight_dtype = weight_dtype;
-          // For conv layer, we need to reshape to ensure dtype as its weights are 3D.
-          auto is_conv = name.find("conv") != std::string::npos;
-          auto kernel_size = -1;
-          if (is_conv) {
-            kernel_size = variable.dim(2);
-            variable.reshape({variable.dim(0), variable.dim(1) * variable.dim(2)});
-            // For CUDA and DNNL backend, quantized convolution is not supported. Hence, convert to float_dtype.
-            if (device == Device::CUDA
-                #ifdef CT2_WITH_DNNL
-                  || true
-                #endif
-            ) {
-                  variable_weight_dtype = float_dtype;
+          // Convert "weight" variables to the expected compute type.
+          // Other float variables (e.g. biases) may be converted to another float type.
+          if (is_quantizable(name)) {
+            auto variable_weight_dtype = weight_dtype;
+            // For conv layer, we need to reshape to ensure dtype as its weights are 3D.
+            auto is_conv = name.find("conv") != std::string::npos;
+            auto kernel_size = -1;
+            if (is_conv) {
+              kernel_size = variable.dim(2);
+              variable.reshape({variable.dim(0), variable.dim(1) * variable.dim(2)});
+              // For CUDA and DNNL backend, quantized convolution is not supported. Hence, convert to float_dtype.
+              if (device == Device::CUDA
+#ifdef CT2_WITH_DNNL
+                || true
+#endif
+                ) {
+                variable_weight_dtype = float_dtype;
+              }
             }
-          }
-          ensure_dtype(name, variable, variable_weight_dtype);
-          // Undo reshape for conv weights
-          if (is_conv) {
-            variable.reshape({variable.dim(0), variable.dim(1) / kernel_size, kernel_size});
-          }
+            ensure_dtype(name, variable, variable_weight_dtype);
+            // Undo reshape for conv weights
+            if (is_conv) {
+              variable.reshape({variable.dim(0), variable.dim(1) / kernel_size, kernel_size});
+            }
+          } else if (is_convertible(variable, name)
+                     && is_float_type(variable.dtype())
+                     && variable.dtype() != float_dtype)
+            variable = variable.to(float_dtype);
         }
-        else if (is_convertible(variable, name)
-                 && is_float_type(variable.dtype())
-                 && variable.dtype() != float_dtype)
-          variable = variable.to(float_dtype);
       }
     }
 
@@ -637,6 +638,10 @@ namespace ctranslate2 {
                        " the config.json could lead to error! Try using the latest version of converters");
       }
 
+      QUANTIZATION_TYPE quantization_type = QUANTIZATION_TYPE::CT2;
+      if (model->config.contains("quantization_type"))
+        model->set_quant_method(model->config["quantization_type"]);
+
       for (uint32_t i = 0; i < num_variables; ++i) {
         auto name = consume<std::string>(model_file);
         const size_t rank = consume<uint8_t>(model_file);
@@ -740,12 +745,24 @@ namespace ctranslate2 {
               variable = std::move(outputs[current_index]);
           }
         }
-
         model->register_variable(std::move(name), std::move(variable));
       }
 
       // Maybe quantize/dequantize/convert the variables to match the requested compute type.
-      model->set_compute_type(compute_type, device, device_index);
+      // if model is quantized with a specific type different with CT2, it use the specific kernel
+      // So have to keep the compute type for it.
+      switch (model->quant_method()) {
+        case QUANTIZATION_TYPE::CT2:
+          model->set_compute_type(compute_type, device, device_index);
+          break;
+        case QUANTIZATION_TYPE::AWQ_GEMM:
+        case QUANTIZATION_TYPE::AWQ_GEMV:
+          model->set_compute_type(ComputeType::FLOAT16, device, device_index, false);
+          break;
+        default:
+          throw std::invalid_argument("Quantization type is not supported");
+          break;
+      }
 
       // Move variables to the target device.
       model->set_device(device, device_index);
@@ -759,6 +776,7 @@ namespace ctranslate2 {
           model->register_variable_alias(alias, variable_name);
           // Also alias the quantization scale that could be associated to variable_name.
           model->register_variable_alias(alias + "_scale", variable_name + "_scale");
+          model->register_variable_alias(alias + "_zero", variable_name + "_zero");
         }
       }
 
