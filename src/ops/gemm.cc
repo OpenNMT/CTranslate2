@@ -25,7 +25,8 @@ namespace ctranslate2 {
                bool trans_b,
                bool a_is_packed,
                bool b_is_packed,
-               const ActivationType* activation_type)
+               const ActivationType* activation_type,
+               int group_size)
       : _alpha(alpha)
       , _beta(beta)
       , _trans_a(trans_a)
@@ -33,6 +34,7 @@ namespace ctranslate2 {
       , _a_is_packed(a_is_packed)
       , _b_is_packed(b_is_packed)
       , _activation_type(activation_type)
+      , _group_size(group_size)
     {
     }
 
@@ -65,6 +67,18 @@ namespace ctranslate2 {
       default:
         throw std::invalid_argument("Gemm: unsupported input type " + dtype_name(a.dtype()));
       }
+
+      apply_bias_and_activation(c, bias, _activation_type);
+    }
+
+    void Gemm::operator()(const StorageView& a,
+                          const StorageView& b,
+                          const StorageView& scaleAndZero,
+                          StorageView& c,
+                          const StorageView* bias) const {
+      PROFILE("Gemm");
+
+      DEVICE_DISPATCH(a.device(), (compute<D, int32_t, bfloat16_t>(a, b, scaleAndZero, c)));
 
       apply_bias_and_activation(c, bias, _activation_type);
     }

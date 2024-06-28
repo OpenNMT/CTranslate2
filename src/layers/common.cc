@@ -426,10 +426,11 @@ namespace ctranslate2 {
         }
       } else if (input.dim(-1) != weight->dim(-1)) {
         //std::cout << "weighttttttttttttt: " << *weight << std::endl;
-        StorageView weight_dequant(input.dtype(), input.device());
-        _dequantize_op(*weight, *qscale, *_qzero, weight_dequant);
+        //StorageView weight_dequant(input.dtype(), input.device());
+        //_dequantize_op(*weight, *qscale, *_qzero, weight_dequant);
         //std::cout << "weighttttttttttttt dequant: " << weight_dequant << std::endl;
-        _gemm_op(input, weight_dequant, output, nullptr, bias);
+        //_gemm_op(input, weight_dequant, output, nullptr, bias);
+        _gemm_op(input, *weight, *qscale, output, bias);
       } else {
         _gemm_op(input, *weight, output, nullptr, bias);
       }

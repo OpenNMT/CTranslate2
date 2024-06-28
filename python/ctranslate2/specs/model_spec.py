@@ -197,6 +197,45 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
         _step = int(w_q.shape[1] / 2)
         return (w_q[:, :_step] << 4) | w_q[:, _step:]
 
+    def _hqq_quants_to_torch_quants(
+                self, w_q, scales, zeros, shape, nbits=4
+    ):
+        w_q = w_q.astype(np.float32)
+        scales = scales.astype(np.float32)
+        zeros = zeros.astype(np.float32)
+
+        max_int = 2**nbits - 1
+        min_int = 0
+        dump = 2 ** (nbits - 1)
+
+        # HQQ -> torch logic
+        new_zeros = (scales * dump) - zeros * scales
+
+        min_val = new_zeros - scales * dump
+
+        # group_quantize_tensor_from_qparams
+        w_r = (w_q - zeros) * scales
+
+        w_q = w_r - min_val
+        w_q = w_q / scales
+        w_q = np.round(w_q)
+        w_q = np.clip(w_q, min_int, max_int)
+        w_q = w_q.astype(np.int32)
+        w_q = w_q.reshape(shape)
+        n = w_q.shape[0]
+        k = w_q.shape[1]
+        inner_k_tiles = 8
+        w_q = w_q.reshape([n // 8, k // (inner_k_tiles * 16), 32, inner_k_tiles // 2,])
+
+        scales = scales.reshape(shape[0], -1)
+        new_zeros = new_zeros.reshape(shape[0], -1)
+        scales = scales.reshape(scales.shape[0], scales.shape[1], 1)
+        new_zeros = new_zeros.reshape(new_zeros.shape[0], new_zeros.shape[1], 1)
+        scale_and_zero = np.concatenate([scales, new_zeros], axis=2)
+        scale_and_zero = scale_and_zero.transpose(1, 0, 2)
+
+        return w_q, scale_and_zero
+
     def _quantize(self, quantization):
         """Possibly quantizes the variable of the layer."""
         if quantization is not None and quantization not in ACCEPTED_MODEL_TYPES:
@@ -275,12 +314,11 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
 
                     value = np.clip(np.round(value * np.expand_dims(scale, 1) + np.expand_dims(zero, 1)), min_v, max_v)
                     value = self._pack_4bit_u8(value)
-                    print(value.shape)
                     value = value.reshape(new_shape)
                     zero = zero.reshape(new_shape[0], -1)
                     scale = scale.reshape(new_shape[0], -1)
+                    value, scale = self._hqq_quants_to_torch_quants(value, scale, zero, old_shape)
 
-                    zero = NumpyVariable(zero)
                     scale = NumpyVariable(scale)
                     value = NumpyVariable(value)
 
