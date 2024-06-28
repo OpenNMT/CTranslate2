@@ -2,6 +2,8 @@
 
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
+#elif CT2_WITH_CANN
+#  include "cann/utils.h"
 #endif
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <unistd.h>
@@ -12,6 +14,12 @@
 namespace ctranslate2 {
 
   Device str_to_device(const std::string& device) {
+    if (device == "cann" || device == "CANN")
+#ifdef CT2_WITH_CANN
+      return Device::CANN;
+#else
+      throw std::invalid_argument("This CTranslate2 package was not compiled with CANN support");
+#endif
     if (device == "cuda" || device == "CUDA")
 #ifdef CT2_WITH_CUDA
       return Device::CUDA;
@@ -23,6 +31,8 @@ namespace ctranslate2 {
     if (device == "auto" || device == "AUTO")
 #ifdef CT2_WITH_CUDA
       return cuda::has_gpu() ? Device::CUDA : Device::CPU;
+#elif CT2_WITH_CANN
+      return cann::has_npu() ? Device::CANN : Device::CPU;
 #else
       return Device::CPU;
 #endif
@@ -35,6 +45,8 @@ namespace ctranslate2 {
       return "cuda";
     case Device::CPU:
       return "cpu";
+    case Device::CANN:
+      return "cann";
     }
     return "";
   }
@@ -53,6 +65,12 @@ namespace ctranslate2 {
 #endif
     case Device::CPU:
       return 1;
+    case Device::CANN:
+#ifdef CT2_WITH_CANN
+      return cann::get_npu_count();
+#else
+      return 0;
+#endif
     }
     return 0;
   }
@@ -69,11 +87,23 @@ namespace ctranslate2 {
 
   template<>
   void set_device_index<Device::CPU>(int index) {
-    if (index != 0)
-      throw std::invalid_argument("Invalid CPU device index: " + std::to_string(index));
+    if (index != 0) {
+        throw std::invalid_argument("Invalid CPU device index: " + std::to_string(index));
+    }
+  }
+#ifdef CT2_WITH_CANN
+    template<>
+  int get_device_index<Device::CANN>() {
+    int index = 0;
+    ACL_CALL(aclrtGetDevice(&index));
+    return index;
   }
 
-#ifdef CT2_WITH_CUDA
+  template<>
+  void set_device_index<Device::CANN>(int index) {
+      ACL_CALL(aclrtSetDevice(index));
+  }
+#elif CT2_WITH_CUDA
   template<>
   int get_device_index<Device::CUDA>() {
     int index = 0;
@@ -103,9 +133,30 @@ namespace ctranslate2 {
       const ScopedDeviceSetter scoped_device_setter(device, index);
       cudaDeviceSynchronize();
     }
+#elif CT2_WITH_CANN
+    if (device == Device::CANN) {
+      const ScopedDeviceSetter scoped_device_setter(device, index);
+      ACL_CALL(aclrtSynchronizeDevice());
+    }
 #else
     (void)device;
     (void)index;
+#endif
+  }
+
+  void initialize_device() {
+#ifdef CT2_WITH_CANN
+    // Initializes AscendCL. It can be called only once per execution.
+    // aclInit must be called before the use of AscendCL APIs.
+    cann::AclDeviceEnabler::acl_initialize();
+#endif
+  }
+
+  void finalize_device() {
+#ifdef CT2_WITH_CANN
+    // This API needs to be called explicitly to deinitialize AscendCL
+    // after all NPU tasks have completed and before the app process exits.
+    cann::AclDeviceEnabler::acl_finalize();
 #endif
   }
 
@@ -113,6 +164,10 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_CUDA
     if (device == Device::CUDA) {
       cudaStreamSynchronize(cuda::get_cuda_stream());
+    }
+#elif CT2_WITH_CANN
+    if (device == Device::CANN) {
+      ACL_CALL(aclrtSynchronizeStream(cann::get_aclrt_stream()));
     }
 #else
     (void)device;

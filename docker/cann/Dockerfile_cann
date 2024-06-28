@@ -1,0 +1,78 @@
+# Extened/build an image for CANN support
+# Ascend-cann-toolkit_<VERSION>.run is expected to exist in <project_root>/ascend_install_files
+
+# preferably arm64
+FROM ubuntu:20.04
+
+RUN DEBIAN_FRONTEND="noninteractive" apt update && \
+    apt install --no-install-recommends net-tools -y && \
+    apt install --no-install-recommends libsqlite3-dev -y && \
+    apt install --no-install-recommends zlib1g -y && \
+    apt install --no-install-recommends openssl -y  
+
+RUN DEBIAN_FRONTEND="noninteractive" apt update && \
+    apt install --no-install-recommends ca-certificates -y && \
+    apt install --no-install-recommends bc wget -y && \
+    apt install --no-install-recommends curl gdb cmake gcc make g++ pkg-config unzip -y && \
+    apt install --no-install-recommends libblas3 liblapack3 gfortran vim -y && \
+    apt install --no-install-recommends liblapack-dev libblas-dev libhdf5-dev libffi-dev -y && \
+    apt install --no-install-recommends libssl-dev zlib1g-dev xz-utils cython3 python3-h5py -y && \
+    apt install --no-install-recommends libopenblas-dev libgmpxx4ldbl liblzma-dev -y && \
+    apt install --no-install-recommends pciutils  -y
+
+
+RUN DEBIAN_FRONTEND="noninteractive" apt update && \
+    apt-get install -y --no-install-recommends \
+        python3-dev \
+        python3-pip \
+        wget
+
+RUN python3 -m pip --no-cache-dir install numpy && \
+    python3 -m pip --no-cache-dir install decorator && \
+    python3 -m pip --no-cache-dir install sympy && \
+    python3 -m pip --no-cache-dir install cffi  && \
+    python3 -m pip --no-cache-dir install pyyaml && \
+    python3 -m pip --no-cache-dir install pathlib2 && \
+    python3 -m pip --no-cache-dir install protobuf && \
+    python3 -m pip --no-cache-dir install scipy
+
+RUN python3 -m pip --no-cache-dir install psutil && \
+    python3 -m pip --no-cache-dir install requests absl-py
+
+RUN python3 -m pip --no-cache-dir install attrs
+
+# cleanup actions 
+RUN rm -rf /root/.cache/pip
+RUN DEBIAN_FRONTEND="noninteractive" apt clean && rm -rf /var/lib/apt/lists/*
+RUN DEBIAN_FRONTEND="noninteractive" apt autoremove && apt autoclean
+
+# Install Ascend toolkit
+COPY ascend_install_files  ascend_install_files
+RUN chmod +x ascend_install_files/Ascend-cann-toolkit_7.0.RC1.alpha001_linux-aarch64.run && \
+  ascend_install_files/Ascend-cann-toolkit_7.0.RC1.alpha001_linux-aarch64.run --install && \
+  rm -f ascend_install_files/Ascend-cann-toolkit_7.0.RC1.alpha001_linux-aarch64.run   
+
+# Add usergroup & user
+RUN groupadd HwHiAiUser &&     useradd -g HwHiAiUser -m -d /home/HwHiAiUser HwHiAiUser  
+
+# This is copied from /usr/local/Ascend/ascend-toolkit/set_env.sh of the respective ascend-toolkit version
+ENV LD_LIBRARY_PATH=/usr/local/Ascend/driver/lib64:/usr/local/Ascend/driver/lib64/common:/usr/local/Ascend/driver/lib64/driver:$LD_LIBRARY_PATH
+ENV ASCEND_TOOLKIT_HOME=/usr/local/Ascend/ascend-toolkit/latest
+ENV LD_LIBRARY_PATH=${ASCEND_TOOLKIT_HOME}/lib64:${ASCEND_TOOLKIT_HOME}/lib64/plugin/opskernel:${ASCEND_TOOLKIT_HOME}/lib64/plugin/nnengine:$LD_LIBRARY_PATH
+ENV PYTHONPATH=${ASCEND_TOOLKIT_HOME}/python/site-packages:${ASCEND_TOOLKIT_HOME}/opp/built-in/op_impl/ai_core/tbe:$PYTHONPATH
+ENV PATH=${ASCEND_TOOLKIT_HOME}/bin:${ASCEND_TOOLKIT_HOME}/compiler/ccec_compiler/bin:$PATH
+ENV ASCEND_AICPU_PATH=${ASCEND_TOOLKIT_HOME}
+ENV ASCEND_OPP_PATH=${ASCEND_TOOLKIT_HOME}/opp
+ENV TOOLCHAIN_HOME=${ASCEND_TOOLKIT_HOME}/toolkit
+ENV ASCEND_HOME_PATH=${ASCEND_TOOLKIT_HOME}
+
+# ENV LD_LIBRARY_PATH=/usr/lib/aarch64-linux-gnu/hdf5/serial:$LD_LIBRARY_PATH
+# ENV HCCL_CONNECT_TIMEOUT=7200
+# ENV HCCL_WHITELIST_DISABLE=1
+# ENV HCCL_SECURITY_MODE=1 
+
+ENV ASCEND_GLOBAL_LOG_LEVEL=3
+
+# Set env vars again in case of interactive ssh connection (ascend-toolkit assumed to be already installed)
+RUN cp /usr/local/Ascend/ascend-toolkit/set_env.sh /etc/profile.d/
+RUN chmod 644 /etc/profile.d/set_env.sh

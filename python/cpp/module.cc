@@ -56,6 +56,9 @@ PYBIND11_MODULE(_ext, m)
   m.def("get_cuda_device_count", &ctranslate2::get_gpu_count,
         "Returns the number of visible GPU devices.");
 
+  m.def("get_cann_device_count", &ctranslate2::get_npu_count,
+        "Returns the number of visible NPU devices.");
+
   m.def("get_supported_compute_types", &get_supported_compute_types,
         py::arg("device"),
         py::arg("device_index")=0,
@@ -63,7 +66,7 @@ PYBIND11_MODULE(_ext, m)
              Returns the set of supported compute types on a device.
 
              Arguments:
-               device: Device name (cpu or cuda).
+               device: Device name (cpu or cuda or cann).
                device_index: Device index.
 
              Example:
@@ -71,6 +74,8 @@ PYBIND11_MODULE(_ext, m)
                  {'int16', 'float32', 'int8', 'int8_float32'}
                  >>> ctranslate2.get_supported_compute_types("cuda")
                  {'float32', 'int8_float16', 'float16', 'int8', 'int8_float32'}
+                 >>> ctranslate2.get_supported_compute_types("cann")
+                 {'int8', 'float32', 'float16', 'int8_float16', 'int8_float32'}
          )pbdoc");
 
   m.def("set_random_seed", &ctranslate2::set_random_seed, py::arg("seed"),

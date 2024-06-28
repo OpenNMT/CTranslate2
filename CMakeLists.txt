@@ -12,6 +12,7 @@ option(WITH_DNNL "Compile with DNNL backend" OFF)
 option(WITH_ACCELERATE "Compile with Accelerate backend" OFF)
 option(WITH_OPENBLAS "Compile with OpenBLAS backend" OFF)
 option(WITH_RUY "Compile with Ruy backend" OFF)
+option(WITH_CANN "Compile with CANN backend" OFF)
 option(WITH_CUDA "Compile with CUDA backend" OFF)
 option(WITH_CUDNN "Compile with cuDNN backend" OFF)
 option(CUDA_DYNAMIC_LOADING "Dynamically load CUDA libraries at runtime" OFF)
@@ -21,6 +22,12 @@ option(BUILD_CLI "Compile the clients" ON)
 option(BUILD_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
+
+if(WITH_CUDA OR WITH_CUDNN)
+  if(WITH_CANN)
+    message( FATAL_ERROR "CANN backend cannot be combined with CUDA or CUDNN!" )
+  endif ()
+endif ()
 
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
@@ -633,6 +640,105 @@ if (WITH_CUDA)
     PROPERTIES COMPILE_FLAGS "--use_fast_math")
 elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
+elseif(WITH_CANN)
+  add_definitions(-DCT2_WITH_CANN)
+
+  message(STATUS "ASCEND_TOOLKIT_HOME: $ENV{ASCEND_TOOLKIT_HOME}")
+  message(STATUS "LD_LIBRARY_PATH: $ENV{LD_LIBRARY_PATH}")
+  message(STATUS "PYTHONPATH: $ENV{PYTHONPATH}")
+  message(STATUS "ASCEND_AICPU_PATH: $ENV{ASCEND_AICPU_PATH}")
+  message(STATUS "ASCEND_OPP_PATH: $ENV{ASCEND_OPP_PATH}")
+  message(STATUS "TOOLCHAIN_HOME: $ENV{TOOLCHAIN_HOME}")
+  message(STATUS "ASCEND_HOME_PATH: $ENV{ASCEND_HOME_PATH}")
+  message(STATUS "PATH: $ENV{PATH}")
+
+  if(DEFINED ENV{ASCEND_CUSTOM_PATH})
+    set(ASCEND_DIR $ENV{ASCEND_CUSTOM_PATH})
+  else()
+    set(ASCEND_DIR /usr/local/Ascend)
+  endif()
+
+  message(STATUS "ASCEND_DIR: ${ASCEND_DIR}")
+
+  set(ASCEND_DRIVER_DIR ${ASCEND_DIR}/driver/lib64)
+  set(ASCEND_DRIVER_COMMON_DIR ${ASCEND_DIR}/driver/lib64/common)
+  set(ASCEND_DRIVER_SHARE_DIR ${ASCEND_DIR}/driver/lib64/share)
+  set(ASCEND_RUNTIME_DIR ${ASCEND_DIR}/fwkacllib/lib64)
+  set(ASCEND_ATC_DIR ${ASCEND_DIR}/atc/lib64)
+  set(ASCEND_ACL_DIR ${ASCEND_DIR}/acllib/lib64)
+  set(STATIC_ACL_LIB ${ASCEND_ACL_DIR})
+
+  set(ASCEND_MS_RUNTIME_PATH ${ASCEND_RUNTIME_DIR} ${ASCEND_ACL_DIR} ${ASCEND_ATC_DIR})
+  set(ASCEND_MS_DRIVER_PATH ${ASCEND_DRIVER_DIR} ${ASCEND_DRIVER_COMMON_DIR})
+  set(ATLAS_RUNTIME_DIR ${ASCEND_DIR}/ascend-toolkit/latest/fwkacllib/lib64)
+  set(ATLAS_RUNTIME_INC_DIR ${ASCEND_DIR}/ascend-toolkit/latest/fwkacllib/include)
+  set(ATLAS_ACL_DIR ${ASCEND_DIR}/ascend-toolkit/latest/acllib/lib64)
+  set(ATLAS_ATC_DIR ${ASCEND_DIR}/ascend-toolkit/latest/atc/lib64)
+  set(ATLAS_MS_RUNTIME_PATH ${ATLAS_RUNTIME_DIR} ${ATLAS_ACL_DIR} ${ATLAS_ATC_DIR})
+
+  set(atlas_graph_lib ${ATLAS_RUNTIME_DIR}/libgraph.so)
+  set(atlas_ge_runner_lib ${ATLAS_RUNTIME_DIR}/libge_runner.so)
+  set(atlas_acl_lib ${ATLAS_RUNTIME_DIR}/libascendcl.so)
+  INCLUDE_DIRECTORIES(${ATLAS_RUNTIME_INC_DIR})
+
+  ADD_LIBRARY(ascend_ge SHARED IMPORTED GLOBAL)
+  SET_PROPERTY(TARGET ascend_ge PROPERTY IMPORTED_LOCATION ${atlas_ge_runner_lib})
+
+  ADD_LIBRARY(ascend_graph SHARED IMPORTED GLOBAL)
+  SET_PROPERTY(TARGET ascend_graph PROPERTY IMPORTED_LOCATION ${atlas_graph_lib})
+
+  ADD_LIBRARY(atlas_acl SHARED IMPORTED GLOBAL)
+  SET_PROPERTY(TARGET atlas_acl PROPERTY IMPORTED_LOCATION ${atlas_acl_lib})
+
+  set(extern_ascend ascend_ge ascend_graph atlas_acl CACHE INTERNAL "acllib runtime libs")
+
+  set(ASCEND_CL_DIR ${ASCEND_DIR}/ascend-toolkit/latest/fwkacllib/lib64)
+
+  set(ascend_hccl_lib ${ASCEND_CL_DIR}/libhccl.so)
+  set(ascendcl_lib ${ASCEND_CL_DIR}/libascendcl.so)
+  set(acl_op_compiler_lib ${ASCEND_CL_DIR}/libacl_op_compiler.so)
+  set(FWKACLLIB_INC_DIR ${ASCEND_DIR}/ascend-toolkit/latest/fwkacllib/include)
+  set(ACLLIB_INC_DIR ${ASCEND_DIR}/ascend-toolkit/latest/acllib/include)
+
+  message(STATUS "FWKACLLIB_INC_DIR ${FWKACLLIB_INC_DIR}")
+  message(STATUS "ASCEND_CL_DIR ${ASCEND_CL_DIR}")
+  INCLUDE_DIRECTORIES(${FWKACLLIB_INC_DIR})
+  INCLUDE_DIRECTORIES(${ACLLIB_INC_DIR})
+
+  ADD_LIBRARY(ascendcl SHARED IMPORTED GLOBAL)
+  SET_PROPERTY(TARGET ascendcl PROPERTY IMPORTED_LOCATION ${ascendcl_lib})
+
+  ADD_LIBRARY(ascend_hccl SHARED IMPORTED GLOBAL)
+  SET_PROPERTY(TARGET ascend_hccl PROPERTY IMPORTED_LOCATION ${ascend_hccl_lib})
+
+  ADD_LIBRARY(acl_op_compiler SHARED IMPORTED GLOBAL)
+  SET_PROPERTY(TARGET acl_op_compiler PROPERTY IMPORTED_LOCATION ${acl_op_compiler_lib})
+
+  set(extern_ascend_cl ascendcl acl_op_compiler CACHE INTERNAL "acltoolkit libs")
+
+  list(APPEND SOURCES
+          src/cann/allocator.cc
+          src/cann/primitives.cc
+          src/cann/utils.cc
+          src/ops/topk_npu.cc
+          src/ops/dequantize_npu.cc
+          src/ops/gumbel_max_npu.cc
+          src/ops/topp_mask_npu.cc
+          src/ops/multinomial_npu.cc
+          src/ops/gather_npu.cc
+          src/ops/conv1d_npu.cc
+          src/ops/concat_split_slide_npu.cc
+          src/ops/alibi_add_npu.cc
+          src/ops/softmax_npu.cc
+          src/ops/tile_npu.cc
+          src/ops/rms_norm_npu.cc
+          src/ops/layer_norm_npu.cc
+          src/ops/rotary_npu.cc
+          src/ops/bias_add_npu.cc
+          src/ops/mean_npu.cc
+          src/ops/quantize_npu.cc)
+  add_library(${PROJECT_NAME} ${SOURCES})
+  list(APPEND LIBRARIES ${extern_ascend} ${extern_ascend_cl})
 else()
   add_library(${PROJECT_NAME} ${SOURCES})
 endif()
@@ -648,6 +754,7 @@ set_property(TARGET ${PROJECT_NAME} APPEND PROPERTY
 )
 
 list(APPEND LIBRARIES ${CMAKE_DL_LIBS})
+
 target_link_libraries(${PROJECT_NAME} PRIVATE ${LIBRARIES})
 target_include_directories(${PROJECT_NAME} BEFORE
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>

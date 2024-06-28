@@ -36,6 +36,7 @@ try:
         TranslationResult,
         Translator,
         contains_model,
+        get_cann_device_count,
         get_cuda_device_count,
         get_supported_compute_types,
         set_random_seed,

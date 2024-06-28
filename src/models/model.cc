@@ -584,6 +584,10 @@ namespace ctranslate2 {
       }
 
       {
+#if CT2_WITH_CANN
+        // set_device_index has to always be called at least once before get_device_index
+        set_device_index(device, device_index);
+#endif
         // Check that the device and device index are valid.
         set_device_index(device, device_index);
       }

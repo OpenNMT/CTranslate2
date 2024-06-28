@@ -159,6 +159,7 @@ namespace ctranslate2 {
   }
 
   StorageView& StorageView::reserve(dim_t size) {
+    // if new size is smaller than the allocated size, do not shrink and leave _allocated_size as is
     if (size <= _allocated_size)
       return *this;
     release();
@@ -173,6 +174,10 @@ namespace ctranslate2 {
   bool StorageView::owns_data() const {
     return _allocator;
   }
+
+dim_t StorageView::size_in_bytes() const {
+    return size() * item_size();
+}
 
   dim_t StorageView::item_size() const {
     dim_t size = 0;
@@ -366,6 +371,33 @@ namespace ctranslate2 {
     return data<T>() + offset;
   }
 
+    template <typename T>
+    const T* StorageView::index(const std::vector<dim_t>& indices) const {
+      const dim_t num_indices = indices.size();
+      if (num_indices != rank())
+        THROW_INVALID_ARGUMENT("number of indexed dimensions ("
+                               + std::to_string(indices.size())
+                               + ") does not match the storage rank ("
+                               + std::to_string(rank()) + ")");
+
+      dim_t offset = 0;
+      if (num_indices > 0) {
+        dim_t stride = 1;
+        auto index_it = std::crbegin(indices);
+        auto dim_it = std::crbegin(_shape);
+        for (; index_it != std::crend(indices); ++index_it, ++dim_it) {
+          offset += *index_it * stride;
+          stride *= *dim_it;
+        }
+      }
+
+      if (offset >= _size)
+        THROW_INVALID_ARGUMENT("computed index is out of bounds ("
+                               + std::to_string(offset) + " >= "
+                               + std::to_string(_size) + ")");
+      return data<T>() + offset;
+    }
+
   StorageView& StorageView::copy_from(const StorageView& other, bool synchronous) {
     resize_as(other);
     TYPE_DISPATCH(other._dtype, copy_from(other.data<T>(), other._size, other._device, synchronous));
@@ -400,8 +432,8 @@ namespace ctranslate2 {
     return *this;
   }
 
-  StorageView& StorageView::zero() {
-    DEVICE_AND_TYPE_DISPATCH(_device, _dtype, primitives<D>::fill(data<T>(), T(0), _size));
+  StorageView& StorageView::zero(bool synchronous) {
+    DEVICE_AND_TYPE_DISPATCH(_device, _dtype, primitives<D>::zero(data<T>(), _size, synchronous));
     return *this;
   }
 
@@ -416,6 +448,13 @@ namespace ctranslate2 {
         cross_device_primitives<Device::CUDA, Device::CPU>::copy(data, this->data<T>(), size);
       else
         cross_device_primitives<Device::CPU, Device::CUDA>::copy(data, this->data<T>(), size);
+    } else
+#elif CT2_WITH_CANN
+    if (device != _device) {
+      if (device == Device::CANN)
+        cross_device_primitives<Device::CANN, Device::CPU>::copy(data, this->data<T>(), size);
+      else
+        cross_device_primitives<Device::CPU, Device::CANN>::copy(data, this->data<T>(), size);
     } else
 #endif
     {
@@ -495,6 +534,8 @@ namespace ctranslate2 {
   template T* StorageView::index(std::initializer_list<dim_t> indices); \
   template const T*                                                     \
   StorageView::index(std::initializer_list<dim_t> indices) const;       \
+  template const T*                                                     \
+  StorageView::index(const std::vector<dim_t>& indices) const;                 \
   template T                                                            \
   StorageView::scalar_at(std::initializer_list<dim_t> indices) const;   \
   template StorageView& StorageView::view(T* data, Shape shape);        \
