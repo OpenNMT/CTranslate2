@@ -205,7 +205,11 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
             is_quantizable = hasattr(spec, "%s_scale" % key)
             is_convertible = value.dtype in ("float32", "float16", "bfloat16")
 
-            if is_quantizable:
+            if hasattr(spec, "keep_in_float32") and spec.keep_in_float32.numpy():
+                if is_convertible:
+                    value = value.to("float32")
+
+            elif is_quantizable:
                 if quantization == "int16":
                     value = value.to("float32").numpy()
                     # Represent the value with 10 bits so the multiplication is 20 bits

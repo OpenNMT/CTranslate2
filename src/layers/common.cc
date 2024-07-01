@@ -392,6 +392,10 @@ namespace ctranslate2 {
                        /*trans_b=*/true,
                        output,
                        bias);
+      } else if (input.dtype() != weight->dtype()) {
+        StorageView tmp_output(weight->dtype(), weight->device());
+        _gemm_op(input.to(weight->dtype()), *weight, tmp_output, nullptr, bias);
+        output = tmp_output.to(output.dtype());
       } else {
         _gemm_op(input, *weight, output, nullptr, bias);
       }
