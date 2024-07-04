@@ -42,6 +42,7 @@ try:
     )
     from ctranslate2.extensions import register_extensions
     from ctranslate2.logging import get_log_level, set_log_level
+    from ctranslate2.profiling import init_profiler, dump_profiler
 
     register_extensions()
     del register_extensions
