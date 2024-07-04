@@ -191,6 +191,13 @@ set(SOURCES
   src/ops/transpose.cc
   src/ops/nccl_ops.cc
   src/ops/nccl_ops_cpu.cc
+  src/ops/awq/dequantize.cc
+  src/ops/awq/dequantize_cpu.cc
+  src/ops/awq/gemm.cc
+  src/ops/awq/gemm_cpu.cc
+  src/ops/awq/gemv.cc
+  src/ops/awq/gemv_cpu.cc
+  src/ops/sum.cc
   src/padder.cc
   src/profiler.cc
   src/random.cc
@@ -595,6 +602,9 @@ if (WITH_CUDA)
     src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
     src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
     src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+    src/ops/awq/gemm_gpu.cu
+    src/ops/awq/gemv_gpu.cu
+    src/ops/awq/dequantize_gpu.cu
   )
 
   set_source_files_properties(

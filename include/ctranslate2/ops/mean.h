@@ -11,12 +11,13 @@ namespace ctranslate2 {
 
       void operator()(const StorageView& input, StorageView& output) const override;
 
-    private:
+    protected:
       template <Device D, typename T>
       void compute(const StorageView& input,
                    const dim_t outer_size,
                    const dim_t axis_size,
                    const dim_t inner_size,
+                   const bool get_sum,
                    StorageView& output) const;
 
       const dim_t _axis;
