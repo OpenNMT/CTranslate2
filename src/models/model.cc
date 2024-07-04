@@ -174,7 +174,7 @@ namespace ctranslate2 {
       _device_index = index;
     }
 
-    void Model::set_compute_type(ComputeType type, Device device, int device_index) {
+    void Model::set_compute_type(ComputeType type, Device device, int device_index, bool update_weight) {
       if (_device != Device::CPU)
         throw std::runtime_error("set_compute_type expects the variables to be on CPU");
 
