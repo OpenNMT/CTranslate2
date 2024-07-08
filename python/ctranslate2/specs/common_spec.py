@@ -29,6 +29,7 @@ class Quantization(enum.IntEnum):
     CT2 = 0
     AWQ_GEMM = 1
     AWQ_GEMV = 2
+    HQQ_INT4 = 3
 
 
 class LayerNormSpec(model_spec.LayerSpec):

@@ -117,7 +117,7 @@ namespace ctranslate2 {
 
     constexpr int32_t kWarpSize = 32;
 
-#if (defined(CUDA_VERSION) && CUDA_VERSION >= 12000) && (!defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 800))
+//#if (defined(CUDA_VERSION) && CUDA_VERSION >= 12000) && (!defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 800))
     // f16 vector types
 struct __align__(2) f16x1 {
   __half vals[1];
@@ -733,6 +733,69 @@ __launch_bounds__(Warps* kWarpSize) void tinygemm_m16n8k16_chunk_kernel(
   }
 }
 
+// FIXME: parallelize better, smem staging etc?
+    template <int InnerKTiles>
+    __global__ void
+    matrix_to_m16n8k16_Bint4_layout(
+      // size [n][k]
+      const int32_t* in,
+      int32_t n,
+      int32_t depth,
+      int32_t depth_output1,
+      int32_t depth_output2,
+      int32_t depth_output3,
+      // size [ceil(n / 8)][ceil(k / (InnerKTiles * 16))][32][InnerKTiles / 2]
+      int32_t* out) {
+      // int4 values are packed into int32 values, which require at least 8. Given
+      // m16n8k16 B layout requires 4 scalar values/lane, the minimum number of
+      // innermost k-tiles that we can use is 2.
+      static_assert(InnerKTiles >= 2 && isPowerOf2(InnerKTiles), "");
+
+      constexpr int32_t kNTileSize = 8;
+      constexpr int32_t kKTileSize = 16;
+
+      // gridDim.x corresponds to the number of k-tiles divided by InnerKTiles
+      auto kOuterTile = blockIdx.x;
+      auto nTile = blockIdx.y;
+      auto t = threadIdx.x;
+
+      // Two k-tiles are packed into an int32 at a time
+#pragma unroll
+      for (int innerKTile = 0; innerKTile < InnerKTiles; innerKTile += 2) {
+        // n dimension that this lane loads from
+        auto n0 = nTile * kNTileSize + (t / 4);
+
+        bool n0Valid = n0 < n;
+
+        int32_t ks[8];
+
+        auto kBase0 = (kOuterTile * InnerKTiles + innerKTile) * kKTileSize;
+        ks[0] = kBase0 + (t % 4) * 2;
+        ks[1] = ks[0] + 1;
+        ks[2] = ks[0] + 8;
+        ks[3] = ks[0] + 8 + 1;
+
+        auto kBase1 = kBase0 + kKTileSize;
+        ks[4] = kBase1 + (t % 4) * 2;
+        ks[5] = ks[4] + 1;
+        ks[6] = ks[4] + 8;
+        ks[7] = ks[4] + 8 + 1;
+
+        auto pIn = in + (n0 * depth);
+
+        uint32_t v[8];
+#pragma unroll
+        for (int i = 0; i < 8; ++i) {
+          v[i] = (n0Valid && (ks[i] < depth)) ? pIn[ks[i]]  : uint32_t(0);
+        }
+
+        int32_t pack = (v[7] << 28) | (v[5] << 24) | (v[3] << 20) | (v[1] << 16) |
+                       (v[6] << 12) | (v[4] << 8) | (v[2] << 4) | v[0];
+
+        // inner k-tiles pack two at a time
+        out[nTile * depth_output3 + kOuterTile * depth_output2 + t * depth_output1 + innerKTile / 2] = pack;
+      }
+    }
 
 template <
     typename ALayout,
@@ -775,7 +838,7 @@ void launch_tinygemm_kernel(
       nTiles,
       kTiles);
 }
-#endif
+//#endif
 
     template <Device D, typename In, typename Out>
     void Gemm::compute(const StorageView& a,
@@ -787,7 +850,7 @@ void launch_tinygemm_kernel(
       constexpr int32_t kKTileSize = 16;
 
       // row major layout
-      auto m = a.dim(0);
+      auto m = a.rank() == 3 ? a.dim(0) * a.dim(1) : a.dim(0);
       auto mTiles = divUp(m, kMTileSize);
 
       // tensor core layout
@@ -795,20 +858,19 @@ void launch_tinygemm_kernel(
       auto n = nTiles * kNTileSize;
 
       // row major layout
-      auto k = a.dim(1);
+      auto k = a.rank() == 3 ? a.dim(2) : a.dim(1);
       auto kTiles = divUp(k, kKTileSize);
 
       // The number of inner k tiles is the innermost dimension of  times 2
       // 2 k-tiles (4 values per lane per tile, 8 values total) quantized to int4
       // packed into 1 int32 for int4 B
-      auto B_innerKTiles = b.dim(3) * 2;
+      const int32_t B_innerKTiles = b.dim(3) * 2;
 
       //TORCH_CHECK(qScaleAndZeros.dim() == 3);
       auto numQGroups = scaleAndZero.dim(0);
       // Output is a standard row-major matrix
       c.resize({m, n});
-
-#if (defined(CUDA_VERSION) && CUDA_VERSION >= 12000) && (!defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 800))
+//#if (defined(CUDA_VERSION) && CUDA_VERSION >= 12000) && (!defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 800))
       auto stream = cuda::get_cuda_stream();
 #define RUN_GEMM(WARPS, K_TILES_PER_WARP, Q_GROUP_SIZE, REDUCE_TYPE) \
   do {                                                               \
@@ -860,7 +922,7 @@ void launch_tinygemm_kernel(
         }                                                            \
         break;                                                       \
       case 8:                                                        \
-        if constexpr (K_TILES_PER_WARP >= 8) {                       \
+          if constexpr (K_TILES_PER_WARP >= 8) {                       \
           using BLayout = BLayout_TC_int4<8, Q_GROUP_SIZE>;          \
           launch_tinygemm_kernel<                                    \
               ACLayout,                                              \
@@ -908,7 +970,61 @@ void launch_tinygemm_kernel(
 
 #undef HANDLE_Q_GROUP
 #undef RUN_GEMM
-#endif
+//#endif
+    }
+
+    template <>
+    void Gemm::convert_weight_to_int4pack<Device::CUDA>(
+      const StorageView& a,
+      StorageView& b,
+      int32_t innerKTiles) {
+      constexpr int32_t kNTileSize = 8;
+      constexpr int32_t kKTileSize = 16;
+
+      auto nTiles = divUp(a.dim(0), kNTileSize);
+
+      // k-tiles are packed back to back in the innermost dimension in order to
+      // allow for 4/8/16 byte loads
+      // kSuperTiles is the number of k-tiles assuming k is innerKTiles * kKTileSize
+      auto kSuperTiles = divUp(a.dim(1), innerKTiles * kKTileSize);
+
+      // each block handles `innerKTiles` k-tiles.
+      // 2 k-tiles are a single int32
+      b.resize({nTiles, kSuperTiles, 32, innerKTiles / 2});
+
+//#if (defined(CUDA_VERSION) && CUDA_VERSION >= 12000) && (!defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 800))
+      auto stream = ctranslate2::cuda::get_cuda_stream();
+      dim3 grid(kSuperTiles, nTiles);
+
+      if (innerKTiles == 2) {
+        matrix_to_m16n8k16_Bint4_layout<2><<<grid, kWarpSize, 0, stream>>>(
+          a.data<int32_t>(),
+          a.dim(0),
+          a.dim(-1),
+          b.dim(-1),
+          b.stride(1),
+          b.stride(0),
+          b.data<int32_t>());
+      } else if (innerKTiles == 4) {
+        matrix_to_m16n8k16_Bint4_layout<4><<<grid, kWarpSize, 0, stream>>>(
+          a.data<int32_t>(),
+          a.dim(0),
+          a.dim(-1),
+          b.dim( 1),
+          b.stride(1),
+          b.stride(0),
+          b.data<int32_t>());
+      } else if (innerKTiles == 8) {
+        matrix_to_m16n8k16_Bint4_layout<8><<<grid, kWarpSize, 0, stream>>>(
+          a.data<int32_t>(),
+          a.dim(0),
+          a.dim(-1),
+          b.dim(-1),
+          b.stride(1),
+          b.stride(0),
+          b.data<int32_t>());
+      }
+//#endif
     }
 
 #define DECLARE_IMPL(T)                                                 \

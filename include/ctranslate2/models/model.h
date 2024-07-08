@@ -14,7 +14,8 @@ namespace ctranslate2 {
     enum class QUANTIZATION_TYPE {
       CT2,
       AWQ_GEMM,
-      AWQ_GEMV
+      AWQ_GEMV,
+      HQQ_4BIT,
     };
 
     static const size_t current_binary_version = 6;
@@ -113,7 +114,7 @@ namespace ctranslate2 {
       }
 
       // If the model contains variables, they will be moved to the new device.
-      void set_device(const Device device, const int index = 0);
+      void set_device(const Device device, const int index = 0, const bool format_lower_bit = false);
 
       // Copy the model to another device.
       std::shared_ptr<const Model> copy_to(Device device, int device_index = 0) const;

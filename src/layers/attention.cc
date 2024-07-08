@@ -9,7 +9,6 @@
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
-#include <iostream>
 
 namespace ctranslate2 {
   namespace layers {
@@ -320,9 +319,7 @@ namespace ctranslate2 {
         q = &queries_proj;
       }
 
-      //std::cout << "qqqqqqqqqqqqqqqqqqq: " << *q << std::endl;
       _linear[0](*q, fused_proj);
-      //std::cout << "fused_projjjjjjjjjjjjj: " << fused_proj << std::endl;
 
       dim_t beam_size = 1;
 

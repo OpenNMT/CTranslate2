@@ -9,6 +9,12 @@ namespace ctranslate2 {
                        StorageView& c) const {
     }
 
+    template <>
+    void Gemm::convert_weight_to_int4pack<Device::CPU>(const StorageView& a,
+                                          StorageView& b,
+                                          int32_t innerKTiles) {
+    }
+
 #define DECLARE_IMPL(T)                                                 \
     template void                                                       \
     Gemm::compute<Device::CPU, int32_t, T>(const StorageView& a,       \

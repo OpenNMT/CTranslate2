@@ -78,7 +78,10 @@ namespace ctranslate2 {
                           const StorageView* bias) const {
       PROFILE("Gemm");
 
+      dim_t batch_size = a.dim(0);
+      dim_t time = a.dim(1);
       DEVICE_DISPATCH(a.device(), (compute<D, int32_t, bfloat16_t>(a, b, scaleAndZero, c)));
+      c.reshape({batch_size, time, -1});
 
       apply_bias_and_activation(c, bias, _activation_type);
     }
@@ -191,5 +194,11 @@ namespace ctranslate2 {
       return compensation;
     }
 
+    StorageView Gemm::convert_to_int4pack(const StorageView& input,
+                                          int32_t innerKTiles) {
+      StorageView output(input.device(), input.dtype());
+      DEVICE_DISPATCH(input.device(), (convert_weight_to_int4pack<D>(input, output, innerKTiles)));
+      return output;
+    }
   }
 }

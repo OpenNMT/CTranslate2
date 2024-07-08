@@ -89,6 +89,8 @@ namespace ctranslate2 {
       return "float16";
     case ComputeType::BFLOAT16:
       return "bfloat16";
+    case ComputeType::INT32_BFLOAT16:
+      return "int32_bfloat16";
     };
     throw std::invalid_argument("Invalid compute type value");
   }

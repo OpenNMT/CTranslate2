@@ -51,6 +51,15 @@ namespace ctranslate2 {
                                + std::to_string(position));
     }
 
+    static void format_weight(const std::string name, StorageView& weight, int device_index) {
+      if (!ends_with(name, "embeddings/weight") && ends_with(name, "weight")) {
+        ops::Gemm gemm_ops;
+        StorageView tmp = gemm_ops.convert_to_int4pack(weight, 8);
+        weight = std::move(tmp);
+      }
+      synchronize_device(weight.device(), device_index);
+    }
+
     template <typename T>
     T consume(std::istream& in) {
       const std::streampos position = in.tellg();
@@ -88,19 +97,23 @@ namespace ctranslate2 {
     }
 
     template <typename VariablesCollection>
-    static void move_variables_to_device(VariablesCollection& variables, const Device device) {
+    static void move_variables_to_device(VariablesCollection& variables, const Device device,
+                                         bool format_lower_bit, const int device_index) {
       for (auto& pair : variables) {
         StorageView& variable = *pair.second;
         if (variable.is_scalar() || variable.device() == device)
           continue;
         variable = variable.to(device);
+        if (format_lower_bit)
+          format_weight(pair.first, variable, device_index);
       }
     }
 
     template <typename VariablesCollection>
     static void move_variables(VariablesCollection& variables,
                                const Device src_device, const int src_device_index,
-                               const Device dst_device, const int dst_device_index) {
+                               const Device dst_device, const int dst_device_index,
+                               const bool format_lower_bit) {
       if (variables.empty())
         return;
       if (src_device == dst_device && src_device_index == dst_device_index)
@@ -109,13 +122,13 @@ namespace ctranslate2 {
       // Move variables back to the CPU device.
       if (src_device != Device::CPU && dst_device == Device::CPU) {
         ScopedDeviceSetter scoped_device_setter(src_device, src_device_index);
-        move_variables_to_device(variables, Device::CPU);
+        move_variables_to_device(variables, Device::CPU, format_lower_bit, 0);
       }
 
       // Move variables to the destination device.
       if (src_device == Device::CPU && dst_device != Device::CPU) {
         ScopedDeviceSetter scoped_device_setter(dst_device, dst_device_index);
-        move_variables_to_device(variables, dst_device);
+        move_variables_to_device(variables, dst_device, format_lower_bit, dst_device_index);
       }
 
       synchronize_device(src_device, src_device_index);  // Wait for asynchronous deallocations.
@@ -168,8 +181,8 @@ namespace ctranslate2 {
       return 1;
     }
 
-    void Model::set_device(const Device device, const int index) {
-      move_variables(_variable_index, _device, _device_index, device, index);
+    void Model::set_device(const Device device, const int index, const bool format_lower_bit) {
+      move_variables(_variable_index, _device, _device_index, device, index, format_lower_bit);
       _device = device;
       _device_index = index;
     }
@@ -641,8 +654,9 @@ namespace ctranslate2 {
 
       QUANTIZATION_TYPE quantization_type = QUANTIZATION_TYPE::CT2;
       if (model->config.contains("quantization_type"))
-        model->set_quant_method(model->config["quantization_type"]);
+        quantization_type =model->config["quantization_type"];
 
+      model->set_quant_method(quantization_type);
       for (uint32_t i = 0; i < num_variables; ++i) {
         auto name = consume<std::string>(model_file);
         const size_t rank = consume<uint8_t>(model_file);
@@ -760,13 +774,16 @@ namespace ctranslate2 {
         case QUANTIZATION_TYPE::AWQ_GEMV:
           model->set_compute_type(ComputeType::FLOAT16, device, device_index, false);
           break;
+        case QUANTIZATION_TYPE::HQQ_4BIT:
+          model->set_compute_type(compute_type, device, device_index, false);
+          break;
         default:
           throw std::invalid_argument("Quantization type is not supported");
           break;
       }
 
       // Move variables to the target device.
-      model->set_device(device, device_index);
+      model->set_device(device, device_index, quantization_type == QUANTIZATION_TYPE::HQQ_4BIT);
 
       // Register variable aliases.
       if (binary_version >= 3) {

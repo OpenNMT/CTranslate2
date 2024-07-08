@@ -21,14 +21,15 @@ try:
 except ImportError:
     torch_is_available = False
 
+from ctranslate2.specs import (
+    common_spec,
+)
+
 OPTIONAL = "__optional"
 CURRENT_BINARY_VERSION = 6
 
 ACCEPTED_MODEL_TYPES = (
-    "int4",
-    "int4_float32",
-    "int4_float16",
-    "int4_bfloat16",
+    "hqq_int4",
     "int8",
     "int8_float32",
     "int8_float16",
@@ -197,35 +198,24 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
         _step = int(w_q.shape[1] / 2)
         return (w_q[:, :_step] << 4) | w_q[:, _step:]
 
-    def _hqq_quants_to_torch_quants(
-                self, w_q, scales, zeros, shape, nbits=4
-    ):
-        w_q = w_q.astype(np.float32)
-        scales = scales.astype(np.float32)
-        zeros = zeros.astype(np.float32)
+    def _hqq_quants_to_torch_quants(self, w_q, scales, zeros, shape, nbits=4):
+        scales = scales.reshape([w_q.shape[0], -1])
+        zeros = zeros.reshape([w_q.shape[0], -1])
 
         max_int = 2**nbits - 1
         min_int = 0
         dump = 2 ** (nbits - 1)
 
         # HQQ -> torch logic
-        new_zeros = (scales * dump) - zeros * scales
+        new_zeros = scales * dump - zeros * scales
 
         min_val = new_zeros - scales * dump
-
-        # group_quantize_tensor_from_qparams
-        w_r = (w_q - zeros) * scales
-
-        w_q = w_r - min_val
+        w_q = w_q - min_val
         w_q = w_q / scales
         w_q = np.round(w_q)
         w_q = np.clip(w_q, min_int, max_int)
         w_q = w_q.astype(np.int32)
         w_q = w_q.reshape(shape)
-        n = w_q.shape[0]
-        k = w_q.shape[1]
-        inner_k_tiles = 8
-        w_q = w_q.reshape([n // 8, k // (inner_k_tiles * 16), 32, inner_k_tiles // 2,])
 
         scales = scales.reshape(shape[0], -1)
         new_zeros = new_zeros.reshape(shape[0], -1)
@@ -251,7 +241,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
             key = _split_scope(name)[-1]
             scale = None
             zero = None
-            is_quantizable = hasattr(spec, "%s_scale" % key)
+            is_quantizable = hasattr(spec, "%s_scale" % key) and 'embeddings' not in name
             is_convertible = value.dtype in ("float32", "float16", "bfloat16")
 
             if is_quantizable:
@@ -294,10 +284,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 elif quantization in ("float16", "bfloat16", "float32"):
                     value = value.to(quantization)
                 elif quantization in (
-                        "int4",
-                        "int4_float32",
-                        "int4_float16",
-                        "int4_bfloat16",
+                        "hqq_int4",
                 ) and value.shape != 3:
                     value = value.to("float32").numpy()
                     group_size = 32
@@ -312,20 +299,19 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     scale = np.clip(max_v / (gmax - gmin), 0, 2e4)
                     zero = -gmin * scale
 
-                    value = np.clip(np.round(value * np.expand_dims(scale, 1) + np.expand_dims(zero, 1)), min_v, max_v)
-                    value = self._pack_4bit_u8(value)
-                    value = value.reshape(new_shape)
                     zero = zero.reshape(new_shape[0], -1)
                     scale = scale.reshape(new_shape[0], -1)
+                    scale = 1 / scale
                     value, scale = self._hqq_quants_to_torch_quants(value, scale, zero, old_shape)
 
                     scale = NumpyVariable(scale)
+                    scale = scale.to("bfloat16")
                     value = NumpyVariable(value)
 
             elif is_convertible:
                 if quantization in ("float16", "int8_float16"):
                     value = value.to("float16")
-                elif quantization in ("bfloat16", "int8_bfloat16"):
+                elif quantization in ("bfloat16", "int8_bfloat16", "hqq_int4"):
                     value = value.to("bfloat16")
                 elif quantization in ("float32", "int16", "int8_float32"):
                     value = value.to("float32")
@@ -333,8 +319,6 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
             setattr(spec, key, value)
             if scale is not None:
                 setattr(spec, "%s_scale" % key, scale)
-            if zero is not None:
-                setattr(spec, "%s_zero" % key, zero)
 
         self._visit(_quantize)
 
@@ -491,6 +475,28 @@ class ModelSpec(LayerSpec):
             for alias, variable_name in aliases:
                 _write_string(alias)
                 _write_string(variable_name)
+
+
+    def _save_quantization_type(self, quantization):
+        if quantization == 'hqq_int4':
+            self._config.add_attribute("quantization_type", common_spec.Quantization.HQQ_INT4)
+        elif quantization is not None:
+            self._config.add_attribute("quantization_type", common_spec.Quantization.CT2)
+
+
+    def optimize(self, quantization: Optional[str] = None) -> None:
+        """Recursively applies some optimizations to its layer:
+
+        * Alias variables with the same shape and value.
+        * Quantize weights.
+
+        Arguments:
+          quantization: Weight quantization scheme (possible values are: int8, int8_float32,
+            int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
+        """
+        self._save_quantization_type(quantization)
+        self._alias_variables()
+        self._quantize(quantization)
 
 
 def _flatten_vocabularies(vocabularies):

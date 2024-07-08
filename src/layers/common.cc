@@ -271,6 +271,7 @@ namespace ctranslate2 {
       , _weight(get_linear_weight(model, scope, &_packed_weight))
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
+      , _qzero(model.get_variable_if_exists(scope + "/weight_zero"))
       , _u8_shift_compensation((_weight.device() == Device::CPU
                                 && _weight.dtype() == DataType::INT8
                                 && cpu::prefer_u8s8s32_gemm())
@@ -281,6 +282,7 @@ namespace ctranslate2 {
       , _partial_qscale(_weight.device(), DataType::FLOAT32)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
       , _output_type(get_default_float_type(model.effective_compute_type()))
+      , _quant_method(model.quant_method())
       , _quantized_gemm(_weight.dtype() == DataType::INT16 || _weight.dtype() == DataType::INT8)
       , _gemm_op(/*alpha=*/1,
                  /*beta=*/0,
@@ -295,6 +297,7 @@ namespace ctranslate2 {
                      /*shift_to_uint8=*/bool(_u8_shift_compensation),
                      /*round_before_cast=*/model.round_before_cast_in_quantization())
       , _dequantize_op(activation_type)
+      , _activation_type(activation_type)
       , _is_layer_out(is_layer_out)
     {
     }

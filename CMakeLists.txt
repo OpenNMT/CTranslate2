@@ -606,6 +606,7 @@ if (WITH_CUDA)
     src/ops/awq/gemm_gpu.cu
     src/ops/awq/gemv_gpu.cu
     src/ops/awq/dequantize_gpu.cu
+    src/ops/int4gemm_gpu.cu
   )
 
   set_source_files_properties(

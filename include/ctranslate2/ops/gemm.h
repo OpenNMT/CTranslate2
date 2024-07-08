@@ -19,7 +19,7 @@ namespace ctranslate2 {
            bool a_is_packed = false,
            bool b_is_packed = false,
            const ActivationType* activation_type = nullptr,
-           int _group_size = 0);
+           int _group_size = 32);
 
       void operator()(const StorageView& a,
                       const StorageView& b,
@@ -32,6 +32,9 @@ namespace ctranslate2 {
                       const StorageView& scaleAndZero,
                       StorageView& c,
                       const StorageView* bias = nullptr) const;
+
+      StorageView convert_to_int4pack(const StorageView& input,
+                                             int32_t innerKTiles);
 
       // Return the packed representation of b, if implemented by the GEMM backend.
       static StorageView pack_b_input(const StorageView& b,
@@ -56,7 +59,6 @@ namespace ctranslate2 {
       bool _trans_b;
       bool _a_is_packed;
       bool _b_is_packed;
-      const ActivationType* _activation_type;
       const int _group_size;
 
       template <Device D, typename In, typename Out>
@@ -70,6 +72,11 @@ namespace ctranslate2 {
                    const StorageView& b,
                    const StorageView& scaleAndZero,
                    StorageView& c) const;
+
+      template <Device D>
+      void convert_weight_to_int4pack(const StorageView& a,
+                                            StorageView& b,
+                                            int32_t innerKTiles);
     };
 
   }
