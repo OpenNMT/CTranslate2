@@ -37,6 +37,7 @@ namespace ctranslate2 {
     INT16,
     FLOAT16,
     BFLOAT16,
+    INT32_BFLOAT16,
   };
 
   ComputeType str_to_compute_type(const std::string& compute_type);

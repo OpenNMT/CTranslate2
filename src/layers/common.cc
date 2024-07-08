@@ -5,7 +5,7 @@
 #include "ctranslate2/ops/activation.h"
 #include "cpu/backend.h"
 #include "dispatch.h"
-
+#include <iostream>
 namespace ctranslate2 {
   namespace layers {
 
@@ -428,11 +428,6 @@ namespace ctranslate2 {
                                         "support only ct2 and awq quantization");
         }
       } else if (input.dim(-1) != weight->dim(-1)) {
-        //std::cout << "weighttttttttttttt: " << *weight << std::endl;
-        //StorageView weight_dequant(input.dtype(), input.device());
-        //_dequantize_op(*weight, *qscale, *_qzero, weight_dequant);
-        //std::cout << "weighttttttttttttt dequant: " << weight_dequant << std::endl;
-        //_gemm_op(input, weight_dequant, output, nullptr, bias);
         _gemm_op(input, *weight, *qscale, output, bias);
       } else {
         _gemm_op(input, *weight, output, nullptr, bias);

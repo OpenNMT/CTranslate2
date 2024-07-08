@@ -166,8 +166,13 @@ namespace ctranslate2 {
     const bool support_float16 = mayiuse_float16(device, device_index);
     const bool support_int16 = mayiuse_int16(device, device_index);
     const bool support_int8 = mayiuse_int8(device, device_index);
-
-    switch (requested_compute_type) {
+    const bool lower_bit_model = model_compute_type == ComputeType::INT32_BFLOAT16;
+    ComputeType accepted_request_compute_type = requested_compute_type;
+    if (lower_bit_model) {
+      // model quantized to lower bit could run in its mode only
+      accepted_request_compute_type = model_compute_type;
+    }
+    switch (accepted_request_compute_type) {
 
     case ComputeType::FLOAT32: {
       return ComputeType::FLOAT32;
@@ -187,6 +192,12 @@ namespace ctranslate2 {
       if (!enable_fallback)
         unsupported_compute_type("bfloat16");
       return ComputeType::FLOAT32;
+    }
+
+    case ComputeType::INT32_BFLOAT16: {
+      if (!support_bfloat16)
+        unsupported_compute_type("bfloat16");
+      return ComputeType::INT32_BFLOAT16;
     }
 
     case ComputeType::INT16: {
@@ -314,6 +325,8 @@ namespace ctranslate2 {
       return std::make_pair(DataType::FLOAT16, DataType::FLOAT16);
     case ComputeType::BFLOAT16:
       return std::make_pair(DataType::BFLOAT16, DataType::BFLOAT16);
+    case ComputeType::INT32_BFLOAT16:
+      return std::make_pair(DataType::INT32, DataType::BFLOAT16);
     default:
       throw std::invalid_argument("resolve_compute_type should be called first");
     }
@@ -333,6 +346,8 @@ namespace ctranslate2 {
     }
     case DataType::INT16:
       return ComputeType::INT16;
+    case DataType::INT32:
+      return ComputeType::INT32_BFLOAT16;
     case DataType::FLOAT16:
       return ComputeType::FLOAT16;
     case DataType::BFLOAT16:
