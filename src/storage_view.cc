@@ -3,7 +3,7 @@
 #include "ctranslate2/primitives.h"
 
 #include "dispatch.h"
-
+#include <iostream>
 #define PRINT_MAX_VALUES 6
 
 namespace ctranslate2 {

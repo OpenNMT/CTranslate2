@@ -11,6 +11,11 @@ import shutil
 import struct
 
 from typing import Dict, List, Optional
+try:
+    from hqq.core.quantize import HQQLinear, BaseQuantizeConfig, Quantizer
+    hqq_is_available = True
+except ImportError:
+    hqq_is_available = False
 
 import numpy as np
 
@@ -42,6 +47,10 @@ ACCEPTED_MODEL_TYPES = (
 
 SKIP_CREATING_ALIAS = ("rotary_scaling_long_factor", "rotary_scaling_short_factor")
 
+DEVICE = (
+    "cuda",
+    "cpu",
+)
 
 def _join_scope(scope, name):
     if not scope:
@@ -199,34 +208,49 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
         return (w_q[:, :_step] << 4) | w_q[:, _step:]
 
     def _hqq_quants_to_torch_quants(self, w_q, scales, zeros, shape, nbits=4):
-        scales = scales.reshape([w_q.shape[0], -1])
-        zeros = zeros.reshape([w_q.shape[0], -1])
-
         max_int = 2**nbits - 1
         min_int = 0
         dump = 2 ** (nbits - 1)
 
         # HQQ -> torch logic
-        new_zeros = scales * dump - zeros * scales
+        new_zeros = (scales * dump) - zeros * scales
 
         min_val = new_zeros - scales * dump
-        w_q = w_q - min_val
-        w_q = w_q / scales
-        w_q = np.round(w_q)
-        w_q = np.clip(w_q, min_int, max_int)
-        w_q = w_q.astype(np.int32)
-        w_q = w_q.reshape(shape)
 
-        scales = scales.reshape(shape[0], -1)
-        new_zeros = new_zeros.reshape(shape[0], -1)
-        scales = scales.reshape(scales.shape[0], scales.shape[1], 1)
-        new_zeros = new_zeros.reshape(new_zeros.shape[0], new_zeros.shape[1], 1)
-        scale_and_zero = np.concatenate([scales, new_zeros], axis=2)
-        scale_and_zero = scale_and_zero.transpose(1, 0, 2)
+        # group_quantize_tensor_from_qparams
+        w_r = (w_q - zeros) * scales
+
+        w_q = (
+            w_r.sub(min_val)
+            .div(scales)
+            .round()
+            .clamp_(min_int, max_int)
+            .to(torch.int32)
+            .reshape(shape)
+            .contiguous()
+        )
+
+        # group_dequantize_tensor_from_qparams
+        # W_r = W_q*scales + min_val
+
+        scales = scales.contiguous().reshape(shape[0], -1)
+        new_zeros = new_zeros.contiguous().reshape(shape[0], -1)
+        scale_and_zero = (
+            torch.cat(
+                [
+                    scales.reshape(scales.size(0), scales.size(1), 1),
+                    new_zeros.reshape(new_zeros.size(0), new_zeros.size(1), 1),
+                ],
+                2,
+            )
+            .transpose(0, 1)
+            .contiguous()
+        )
+
 
         return w_q, scale_and_zero
 
-    def _quantize(self, quantization):
+    def _quantize(self, quantization, group_size, device):
         """Possibly quantizes the variable of the layer."""
         if quantization is not None and quantization not in ACCEPTED_MODEL_TYPES:
             raise ValueError(
@@ -241,7 +265,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
             key = _split_scope(name)[-1]
             scale = None
             zero = None
-            is_quantizable = hasattr(spec, "%s_scale" % key) and 'embeddings' not in name
+            is_quantizable = hasattr(spec, "%s_scale" % key)
             is_convertible = value.dtype in ("float32", "float16", "bfloat16")
 
             if is_quantizable:
@@ -285,28 +309,31 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     value = value.to(quantization)
                 elif quantization in (
                         "hqq_int4",
-                ) and value.shape != 3:
-                    value = value.to("float32").numpy()
-                    group_size = 32
-                    old_shape = value.shape
-                    new_shape = old_shape[:-1] + (old_shape[-1] // 2,)
-                    value = value.reshape(-1, group_size)
-                    gmax = np.amax(value, axis=1)
-                    gmin = np.amin(value, axis=1)
+                ) and value.shape != 3 and hqq_is_available:
+                    if 'embeddings' in name:
+                        value = value.to("bfloat16")
+                    else:
+                        quant_config = BaseQuantizeConfig(nbits=4, group_size=group_size,
+                                        quant_zero=False, quant_scale=False, axis=1)
+                        hqq_linear = HQQLinear(None, quant_config=quant_config,
+                                        compute_dtype=torch.bfloat16, device=device)
+                        hqq_linear.quantize(value.to("bfloat16").tensor, **hqq_linear.quant_config)
 
-                    max_v = 15
-                    min_v = 0
-                    scale = np.clip(max_v / (gmax - gmin), 0, 2e4)
-                    zero = -gmin * scale
+                        value = hqq_linear.W_q.cpu()
+                        scale = hqq_linear.meta['scale'].cpu()
+                        zero = hqq_linear.meta['zero'].cpu()
+                        old_shape = hqq_linear.meta['shape']
+                        new_shape = old_shape[:-1] + (old_shape[-1] // 2,)
+                        value = Quantizer.unpack[hqq_linear.meta["packing"]](value)
+                        value, scale = self._hqq_quants_to_torch_quants(value, scale, zero, old_shape)
 
-                    zero = zero.reshape(new_shape[0], -1)
-                    scale = scale.reshape(new_shape[0], -1)
-                    scale = 1 / scale
-                    value, scale = self._hqq_quants_to_torch_quants(value, scale, zero, old_shape)
-
-                    scale = NumpyVariable(scale)
-                    scale = scale.to("bfloat16")
-                    value = NumpyVariable(value)
+                        scale = scale.cpu()
+                        value = value.cpu()
+                        scale = PyTorchVariable(scale)
+                        value = PyTorchVariable(value)
+                        del hqq_linear.W_q
+                        del hqq_linear.meta['scale']
+                        del hqq_linear.meta['zero']
 
             elif is_convertible:
                 if quantization in ("float16", "int8_float16"):
@@ -322,7 +349,9 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
 
         self._visit(_quantize)
 
-    def optimize(self, quantization: Optional[str] = None) -> None:
+    def optimize(self, quantization: Optional[str] = None,
+                 group_size: Optional[int] = None,
+                 device: Optional[str] = None) -> None:
         """Recursively applies some optimizations to this layer:
 
         * Alias variables with the same shape and value.
@@ -331,9 +360,11 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
         Arguments:
           quantization: Weight quantization scheme (possible values are: int8, int8_float32,
             int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
+          group_size: Group size of quantization lower bits
+          device: device where the quantization runs on (support hqq only)
         """
         self._alias_variables()
-        self._quantize(quantization)
+        self._quantize(quantization, group_size, device)
 
     def _visit(self, fn):
         """Recursively visits this layer and its children."""
@@ -477,14 +508,18 @@ class ModelSpec(LayerSpec):
                 _write_string(variable_name)
 
 
-    def _save_quantization_type(self, quantization):
+    def _save_quantization_type(self, quantization, group_size):
         if quantization == 'hqq_int4':
             self._config.add_attribute("quantization_type", common_spec.Quantization.HQQ_INT4)
         elif quantization is not None:
             self._config.add_attribute("quantization_type", common_spec.Quantization.CT2)
 
+        if group_size is not None:
+            self._config.add_attribute("quantization_group_size", group_size)
 
-    def optimize(self, quantization: Optional[str] = None) -> None:
+    def optimize(self, quantization: Optional[str] = None,
+                 group_size: Optional[int] = None,
+                 device: Optional[str] = None) -> None:
         """Recursively applies some optimizations to its layer:
 
         * Alias variables with the same shape and value.
@@ -493,10 +528,12 @@ class ModelSpec(LayerSpec):
         Arguments:
           quantization: Weight quantization scheme (possible values are: int8, int8_float32,
             int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
+            group_size: Group size of quantization lower bits
+                      device: device where the quantization runs on (support hqq only)
         """
-        self._save_quantization_type(quantization)
+        self._save_quantization_type(quantization, group_size)
         self._alias_variables()
-        self._quantize(quantization)
+        self._quantize(quantization, group_size, device)
 
 
 def _flatten_vocabularies(vocabularies):
