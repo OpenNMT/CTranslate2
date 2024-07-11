@@ -3,6 +3,7 @@
 
 namespace ctranslate2 {
   namespace ops {
+#if (!defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 800))
     template <typename U, typename V>
     constexpr __host__ __device__ auto divDown(U a, V b) -> decltype(a + b) {
       static_assert(std::is_integral<U>::value && std::is_integral<V>::value, "");
@@ -968,5 +969,6 @@ namespace ctranslate2 {
                        StorageView& c) const;
 
     DECLARE_IMPL(bfloat16_t)
+#endif
   }
 }
