@@ -1,4 +1,4 @@
-#include "ctranslate2/ops/dequantize.h"
+ #include "ctranslate2/ops/dequantize.h"
 
 #include "dispatch.h"
 
@@ -41,36 +41,6 @@ namespace ctranslate2 {
         throw std::invalid_argument("Dequantize: invalid quantized type " + dtype_name(input.dtype())
                                     + ", expected int8 or int16");
       }
-    }
-
-    void Dequantize::operator()(const StorageView& input,
-                                const StorageView& scale,
-                                const StorageView& zero,
-                                StorageView& output) const {
-      PROFILE("Dequantize lower bit");
-      output.resize_as(input);
-
-      //switch (input.dtype()) {
-        //case DataType::INT4: {
-          const dim_t block_size = 32;
-          const dim_t batch_size = input.size() / input.dim(-1);
-          const dim_t nb_group = input.dim(-1) / (block_size / 2);
-          if (scale.size() != batch_size * nb_group)
-            throw std::invalid_argument("INT4 dequantization expects per-block scales in each batch");
-          auto shape = input.shape();
-          shape[shape.size() - 1] *= 2;
-          output.resize(std::move(shape));
-
-          DEVICE_AND_FLOAT_DISPATCH("Dequantize", output.device(), output.dtype(),
-                                    (dequantize_i4<D, T>(input, scale, zero, output)));
-
-      //    break;
-      //  }
-
-      //  default:
-      //    throw std::invalid_argument("Dequantize: invalid quantized type " + dtype_name(input.dtype())
-      //                                + ", expected int8 or int16");
-      //}
     }
 
     void Dequantize::operator()(const StorageView& c,

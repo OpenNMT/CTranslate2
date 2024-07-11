@@ -30,42 +30,6 @@ namespace ctranslate2 {
                              cuda::repeat_vec_depth<dim_t>(depth));
     }
 
-    template <typename T>
-    __global__ void dequantize_i4_kernel(const float* a,
-                                         const float* z,
-                                         const uint8_t* b,
-                                         T* c,
-                                         cuda::index_t depth) {
-      const int32_t block_size = 32;
-      const auto rescale_func = dequantize_func<uint8_t, T>();
-      const cuda::index_t i = blockIdx.x;
-      for (cuda::index_t j = threadIdx.x; j < depth; j += blockDim.x) {
-        const cuda::index_t index = i * depth + j;
-        const cuda::index_t m = index / (block_size / 2);
-        const cuda::index_t n = index % (block_size / 2);
-        const float scale = a[m];
-        const float zero = z[m];
-        uint8_t b1 = (b[index] & 0xF0) >> 4;
-        uint8_t b2 = (b[index] & 0x0F);
-        c[n + m * block_size] = rescale_func(scale, b1, zero);
-        c[n + m * block_size + block_size / 2]  = rescale_func(scale, b2, zero);
-      }
-    }
-
-    template <Device D, typename OutT>
-    void Dequantize::dequantize_i4(const StorageView& input,
-                                const StorageView& scale,
-                                const StorageView& zero,
-                                StorageView& output) const {
-      const dim_t depth = input.dim(-1);
-      const dim_t batch_size = input.size() / depth;
-      const dim_t blocks = std::min(batch_size, cuda::max_blocks);
-      const dim_t threads = std::min(depth, cuda::max_threads);
-      dequantize_i4_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
-        scale.data<float>(), zero.data<float>(), input.data<uint8_t>(), output.data<float>(), depth);
-    }
-
-
     template <typename Epilogue, typename T>
     __global__ void dequantize_gemm_output_kernel(const int32_t* c,
                                                   const float* a_scales,
@@ -179,12 +143,6 @@ namespace ctranslate2 {
 #define DECLARE_IMPL(T)                                                 \
     template void                                                       \
     Dequantize::dequantize<Device::CUDA, int8_t, T>(                    \
-      const StorageView&,                                               \
-      const StorageView&,                                               \
-      StorageView&) const;                                              \
-    template void                                                       \
-    Dequantize::dequantize_i4<Device::CUDA, T>(                    \
-      const StorageView&,                                               \
       const StorageView&,                                               \
       const StorageView&,                                               \
       StorageView&) const;                                              \

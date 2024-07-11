@@ -3,7 +3,6 @@
 #include "ctranslate2/primitives.h"
 
 #include "dispatch.h"
-#include <iostream>
 #define PRINT_MAX_VALUES 6
 
 namespace ctranslate2 {
@@ -436,12 +435,6 @@ namespace ctranslate2 {
 
   template<>
   std::ostream& print_value(std::ostream& os, const int8_t& val) {
-    os << static_cast<int32_t>(val);
-    return os;
-  }
-
-  template<>
-  std::ostream& print_value(std::ostream& os, const uint8_t& val) {
     os << static_cast<int32_t>(val);
     return os;
   }

@@ -6,7 +6,6 @@
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/utils.h"
 #include <regex>
-#include <iostream>
 
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"

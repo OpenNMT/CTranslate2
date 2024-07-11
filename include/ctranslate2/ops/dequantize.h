@@ -14,11 +14,6 @@ namespace ctranslate2 {
                       const StorageView& scale,
                       StorageView& output) const;
 
-      void operator()(const StorageView& input,
-                      const StorageView& scale,
-                      const StorageView& zero,
-                      StorageView& output) const;
-
       // Rescales the int32 GEMM output to float32, given the input scales.
       void operator()(const StorageView& c,
                       const StorageView& a_scale,
@@ -33,12 +28,6 @@ namespace ctranslate2 {
       void dequantize(const StorageView& input,
                       const StorageView& scale,
                       StorageView& output) const;
-
-      template <Device D, typename OutT>
-      void dequantize_i4(const StorageView& input,
-                                     const StorageView& scale,
-                                     const StorageView& zero,
-                                     StorageView& output) const;
 
       template <Device D, typename T>
       void dequantize_gemm_output(const StorageView& c,

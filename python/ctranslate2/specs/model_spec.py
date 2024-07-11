@@ -202,11 +202,6 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     setattr(spec, attr_name, other_name)
                     break
 
-    def _pack_4bit_u8(self, w_q):
-        w_q = w_q.astype(np.uint8)
-        _step = int(w_q.shape[1] / 2)
-        return (w_q[:, :_step] << 4) | w_q[:, _step:]
-
     def _hqq_quants_to_torch_quants(self, w_q, scales, zeros, shape, nbits=4):
         max_int = 2**nbits - 1
         min_int = 0
@@ -373,7 +368,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
 
 def _dtype_to_type_id(object_dtype):
     # Order should match the DataType enum in include/ctranslate2/types.h
-    dtypes = ("float32", "int8", "int16", "int32", "float16", "bfloat16", "uint8")
+    dtypes = ("float32", "int8", "int16", "int32", "float16", "bfloat16")
     try:
         return dtypes.index(object_dtype)
     except ValueError:

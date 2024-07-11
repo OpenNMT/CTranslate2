@@ -1,7 +1,6 @@
 #include "ctranslate2/layers/transformer.h"
 
 #include <cmath>
-#include <iostream>
 
 namespace ctranslate2 {
   namespace layers {
@@ -487,9 +486,7 @@ namespace ctranslate2 {
       StorageView layer_in(dtype, device);
       StorageView layer_out(dtype, device);
 
-      //std::cout << "idssssssss: " << ids << std::endl;
       _embeddings(ids, layer_in);
-      //std::cout << "layer innnnnnnnnnn: " << layer_in << std::endl;
       if (_start_from_zero_embedding)
         zero_first_timestep(layer_in, step);
       if (_embeddings_scale && (!_start_from_zero_embedding || step != 0))

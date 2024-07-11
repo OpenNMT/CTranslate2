@@ -67,6 +67,7 @@ namespace ctranslate2 {
                    StorageView& c,
                    const StorageView* a_shift_compensation) const;
 
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 800
       template <Device D, typename In, typename Out>
       void compute(const StorageView& a,
                    const StorageView& b,
@@ -77,7 +78,7 @@ namespace ctranslate2 {
       void convert_weight_to_int4pack(const StorageView& a,
                                             StorageView& b,
                                             int32_t innerKTiles);
+#endif
     };
-
   }
 }

@@ -20,22 +20,6 @@ namespace ctranslate2 {
                                     });
     }
 
-    static inline void dequantize_i4_kernel(const uint8_t* x,
-                                         const float scale,
-                                         const float zero,
-                                         const dim_t size,
-                                         float* y,
-                                         bool rp) {
-      const float r_scale = 1.f / scale;
-      cpu::parallel_unary_transform(x, y, size, /*work_size=*/4,
-                                    [r_scale, rp, zero](uint8_t v) {
-                                      if (rp)
-                                        return (static_cast<float>(v & 0xF) - zero)  * r_scale;
-                                      else
-                                        return (static_cast<float>(v >> 4) - zero) * r_scale;
-                                    });
-    }
-
     template<>
     void Dequantize::dequantize<Device::CPU, int16_t, float>(const StorageView& input,
                                                              const StorageView& scale,
@@ -61,31 +45,6 @@ namespace ctranslate2 {
         for (dim_t i = begin; i < end; ++i) {
           const dim_t offset = i * depth;
           dequantize_kernel(input_data + offset, scale_data[i], depth, output_data + offset);
-        }
-      });
-    }
-
-
-    template<>
-    void Dequantize::dequantize_i4<Device::CPU, float>(const StorageView& input,
-                                                            const StorageView& scale,
-                                                            const StorageView& zero,
-                                                            StorageView& output) const {
-      const dim_t block_size = 32;
-      //const dim_t depth = input.dim(-1);
-      //const dim_t batch_size = input.size() / input.dim(-1);
-      const dim_t scale_size = scale.size();
-
-      const auto* input_data = input.data<uint8_t>();
-      const auto* scale_data = scale.data<float>();
-      const auto* zero_data = zero.data<float>();
-      auto* output_data = output.data<float>();
-
-      cpu::parallel_for(0, scale_size, 1, [&](dim_t begin, dim_t end) {
-        for (dim_t i = begin; i < end; ++i) {
-          const dim_t offset = i * (block_size / 2);
-          dequantize_i4_kernel(input_data + offset, scale_data[i], zero_data[i], block_size / 2, output_data + offset * 2, false);
-          dequantize_i4_kernel(input_data + offset, scale_data[i], zero_data[i], block_size / 2, output_data + offset * 2 + block_size / 2, true);
         }
       });
     }

@@ -5,7 +5,7 @@
 #include "ctranslate2/ops/activation.h"
 #include "cpu/backend.h"
 #include "dispatch.h"
-#include <iostream>
+
 namespace ctranslate2 {
   namespace layers {
 
@@ -290,7 +290,9 @@ namespace ctranslate2 {
                  /*trans_b=*/true,
                  /*a_is_packed=*/false,
                  _packed_weight,
-                 _quantized_gemm ? nullptr : activation_type)
+                 _quantized_gemm ? nullptr : activation_type,
+                 (model.config.contains("quantization_group_size") ?
+                 model.config["quantization_group_size"] : nullptr))
       , _quantize_op(model.use_global_int16_scale()
                      ? ops::Quantize::ScaleType::GLOBAL
                      : ops::Quantize::ScaleType::PER_LAYER,
@@ -427,7 +429,7 @@ namespace ctranslate2 {
             throw std::invalid_argument("Dense forward: invalid quantized type,"
                                         "support only ct2 and awq quantization");
         }
-      } else if (input.dim(-1) != weight->dim(-1)) {
+      } else if (_quant_method == models::QUANTIZATION_TYPE::HQQ_4BIT) {
         _gemm_op(input, *weight, *qscale, output, bias);
       } else {
         _gemm_op(input, *weight, output, nullptr, bias);
