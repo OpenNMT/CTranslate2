@@ -318,7 +318,6 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                         scale = hqq_linear.meta['scale'].cpu()
                         zero = hqq_linear.meta['zero'].cpu()
                         old_shape = hqq_linear.meta['shape']
-                        new_shape = old_shape[:-1] + (old_shape[-1] // 2,)
                         value = Quantizer.unpack[hqq_linear.meta["packing"]](value)
                         value, scale = self._hqq_quants_to_torch_quants(value, scale, zero, old_shape)
 

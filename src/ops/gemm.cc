@@ -26,7 +26,7 @@ namespace ctranslate2 {
                bool a_is_packed,
                bool b_is_packed,
                const ActivationType* activation_type,
-               int group_size)
+               const int group_size)
       : _alpha(alpha)
       , _beta(beta)
       , _trans_a(trans_a)

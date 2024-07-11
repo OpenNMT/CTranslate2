@@ -291,8 +291,7 @@ namespace ctranslate2 {
                  /*a_is_packed=*/false,
                  _packed_weight,
                  _quantized_gemm ? nullptr : activation_type,
-                 (model.config.contains("quantization_group_size") ?
-                 model.config["quantization_group_size"] : nullptr))
+                 (model.get_config_if_exists<int>("quantization_group_size")))
       , _quantize_op(model.use_global_int16_scale()
                      ? ops::Quantize::ScaleType::GLOBAL
                      : ops::Quantize::ScaleType::PER_LAYER,

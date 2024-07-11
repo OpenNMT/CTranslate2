@@ -19,7 +19,7 @@ namespace ctranslate2 {
            bool a_is_packed = false,
            bool b_is_packed = false,
            const ActivationType* activation_type = nullptr,
-           int _group_size = 32);
+           const int _group_size = 0);
 
       void operator()(const StorageView& a,
                       const StorageView& b,

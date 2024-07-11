@@ -119,6 +119,8 @@ namespace ctranslate2 {
       // Copy the model to another device.
       std::shared_ptr<const Model> copy_to(Device device, int device_index = 0) const;
 
+      template<typename T>
+      T get_config_if_exists(const std::string& name) const;
       const StorageView* get_variable_if_exists(const std::string& name) const;
       const StorageView& get_variable(const std::string& name) const;
       std::unordered_map<std::string, StorageView> get_variables() const;

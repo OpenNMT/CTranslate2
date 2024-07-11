@@ -244,6 +244,15 @@ namespace ctranslate2 {
       }
     }
 
+    template<typename T>
+    T Model::get_config_if_exists(const std::string &name) const {
+      T value = 0;
+      if (config.contains(name)) {
+        value = config[name];
+      }
+      return value;
+    }
+
     const StorageView* Model::get_variable_if_exists(const std::string& name) const {
       auto it = _variable_index.find(name);
       if (it == _variable_index.end())
@@ -912,6 +921,10 @@ namespace ctranslate2 {
 
       return models;
     }
+#define DECLARE_IMPL(T)                                                 \
+    template T                                                          \
+    Model::get_config_if_exists(const std::string& name) const;
 
+    DECLARE_IMPL(int)
   }
 }
