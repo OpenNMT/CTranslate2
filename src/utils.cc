@@ -193,5 +193,4 @@ namespace ctranslate2 {
 
     return features;
   }
-
 }

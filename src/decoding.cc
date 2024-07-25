@@ -70,9 +70,14 @@ namespace ctranslate2 {
                                                   StorageView& ids) {
     if (!decoder.output_layer_is_updated())
       return;
+    ctranslate2::Device device = ids.device();
+    if (device != Device::CPU)
+      ids = ids.to(Device::CPU);
     auto* ids_data = ids.data<int32_t>();
     for (dim_t i = 0; i < ids.size(); ++i)
       ids_data[i] = decoder.to_original_word_id(ids_data[i]);
+    if (ids.device() != device)
+      ids = ids.to(device);
   }
 
   template <typename T>
@@ -1007,7 +1012,7 @@ namespace ctranslate2 {
 
   static std::unique_ptr<const Sampler>
   make_sampler(const DecodingOptions& options) {
-    if (options.sampling_topk == 1)
+    if (options.sampling_topk == 1 || options.sampling_temperature == 0.0)
       return std::make_unique<BestSampler>();
     else
       return std::make_unique<RandomSampler>(options.sampling_topk,

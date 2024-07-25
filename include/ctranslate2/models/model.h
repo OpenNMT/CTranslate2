@@ -11,6 +11,12 @@
 namespace ctranslate2 {
   namespace models {
 
+    enum class QUANTIZATION_TYPE {
+      CT2,
+      AWQ_GEMM,
+      AWQ_GEMV
+    };
+
     static const size_t current_binary_version = 6;
 
     // Checks whether the provided path could contain a CTranslate2 model.
@@ -26,11 +32,15 @@ namespace ctranslate2 {
       static std::shared_ptr<const Model> load(const std::string& path,
                                                Device device = Device::CPU,
                                                int device_index = 0,
-                                               ComputeType compute_type = ComputeType::DEFAULT);
+                                               ComputeType compute_type = ComputeType::DEFAULT,
+                                               bool use_flash_attention = false,
+                                               bool tensor_parallel = false);
       static std::shared_ptr<const Model> load(ModelReader& model_reader,
                                                Device device = Device::CPU,
                                                int device_index = 0,
-                                               ComputeType compute_type = ComputeType::DEFAULT);
+                                               ComputeType compute_type = ComputeType::DEFAULT,
+                                               bool use_flash_attention = false,
+                                               bool tensor_parallel = false);
 
       virtual std::unique_ptr<SequenceToSequenceReplica> as_sequence_to_sequence() const;
       virtual std::unique_ptr<SequenceGeneratorReplica> as_sequence_generator() const;
@@ -76,6 +86,22 @@ namespace ctranslate2 {
 
       bool round_before_cast_in_quantization() const {
         return _binary_version >= 5;
+      }
+
+      bool tensor_parallel() const {
+        return _tensor_parallel;
+      }
+
+      bool use_flash_attention() const {
+        return _use_flash_attention;
+      }
+
+      QUANTIZATION_TYPE quant_method() const {
+        return _quant_method;
+      }
+
+      void set_quant_method(QUANTIZATION_TYPE type) {
+        _quant_method = type;
       }
 
       virtual bool use_global_int16_scale() const {
@@ -148,7 +174,7 @@ namespace ctranslate2 {
 
     private:
       void process_linear_weights();
-      void set_compute_type(ComputeType type, Device device, int device_index);
+      void set_compute_type(ComputeType type, Device device, int device_index, bool update_weight=true);
       void ensure_dtype(const std::string& name,
                         StorageView& variable,
                         const DataType target_dtype);
@@ -163,6 +189,9 @@ namespace ctranslate2 {
       ComputeType _effective_compute_type = ComputeType::DEFAULT;
       dim_t _preferred_size_multiple = 1;
       std::unordered_map<std::string, std::shared_ptr<StorageView>> _variable_index;
+      bool _use_flash_attention = false;
+      bool _tensor_parallel = false;
+      QUANTIZATION_TYPE _quant_method = QUANTIZATION_TYPE::CT2;
     };
 
     template<>
@@ -191,6 +220,8 @@ namespace ctranslate2 {
       std::vector<int> device_indices = {0};
       size_t num_replicas_per_device = 1;
       ComputeType compute_type = ComputeType::DEFAULT;
+      bool use_flash_attention = false;
+      bool tensor_parallel = false;
     };
 
     // Base class for replicas.

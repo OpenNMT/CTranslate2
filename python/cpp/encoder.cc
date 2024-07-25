@@ -16,6 +16,8 @@ namespace ctranslate2 {
                     const std::optional<StorageView>& lengths,
                     const std::optional<BatchIds>& token_type_ids) {
         std::future<EncoderForwardOutput> future;
+        std::shared_lock lock(_mutex);
+        assert_model_is_ready();
 
         switch (inputs.index()) {
         case 0:
@@ -71,7 +73,7 @@ namespace ctranslate2 {
                 >>> encoder.forward_batch([["▁Hello", "▁world", "!"]])
         )pbdoc")
 
-        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, py::object>(),
+        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, bool, bool, py::object>(),
              py::arg("model_path"),
              py::arg("device")="cpu",
              py::kw_only(),
@@ -80,6 +82,8 @@ namespace ctranslate2 {
              py::arg("inter_threads")=1,
              py::arg("intra_threads")=0,
              py::arg("max_queued_batches")=0,
+             py::arg("flash_attention")=false,
+             py::arg("tensor_parallel")=false,
              py::arg("files")=py::none(),
              R"pbdoc(
                  Initializes the encoder.
@@ -96,6 +100,8 @@ namespace ctranslate2 {
                    max_queued_batches: Maximum numbers of batches in the queue (-1 for unlimited,
                      0 for an automatic value). When the queue is full, future requests will block
                      until a free slot is available.
+                   flash_attention: run model with flash attention 2 for self-attention layer
+                   tensor_parallel: run model with tensor parallel mode
                    files: Load model files from the memory. This argument is a dictionary mapping
                      file names to file contents as file-like or bytes objects. If this is set,
                      :obj:`model_path` acts as an identifier for this model.
@@ -111,6 +117,8 @@ namespace ctranslate2 {
                                "Number of encoders backing this instance.")
         .def_property_readonly("num_queued_batches", &EncoderWrapper::num_queued_batches,
                                "Number of batches waiting to be processed.")
+        .def_property_readonly("tensor_parallel", &EncoderWrapper::tensor_parallel,
+                               "Run model with tensor parallel mode.")
         .def_property_readonly("num_active_batches", &EncoderWrapper::num_active_batches,
                                "Number of batches waiting to be processed or currently processed.")
 
@@ -134,6 +142,30 @@ namespace ctranslate2 {
                  Returns:
                    The encoder model output.
              )pbdoc")
+
+        .def("unload_model", &EncoderWrapper::unload_model,
+             py::arg("to_cpu")=false,
+             py::call_guard<py::gil_scoped_release>(),
+             R"pbdoc(
+                 Unloads the model attached to this encoder but keep enough runtime context
+                 to quickly resume encoder on the initial device.
+
+                 Arguments:
+                   to_cpu: If ``True``, the model is moved to the CPU memory and not fully unloaded.
+             )pbdoc")
+
+        .def("load_model", &EncoderWrapper::load_model,
+             py::arg("keep_cache")=false,
+             py::call_guard<py::gil_scoped_release>(),
+             R"pbdoc(
+                 Loads the model back to the initial device.
+
+                 Arguments:
+                   keep_cache: If ``True``, the model cache in the CPU memory is not deleted if it exists.
+             )pbdoc")
+
+        .def_property_readonly("model_is_loaded", &EncoderWrapper::model_is_loaded,
+                               "Whether the model is loaded on the initial device and ready to be used.")
         ;
     }
 

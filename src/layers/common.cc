@@ -265,11 +265,13 @@ namespace ctranslate2 {
 
     Dense::Dense(const models::Model& model,
                  const std::string& scope,
-                 const ops::ActivationType* activation_type)
+                 const ops::ActivationType* activation_type,
+                 const bool is_layer_out)
       : _packed_weight(false)
       , _weight(get_linear_weight(model, scope, &_packed_weight))
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
+      , _qzero(model.get_variable_if_exists(scope + "/weight_zero"))
       , _u8_shift_compensation((_weight.device() == Device::CPU
                                 && _weight.dtype() == DataType::INT8
                                 && cpu::prefer_u8s8s32_gemm())
@@ -280,6 +282,7 @@ namespace ctranslate2 {
       , _partial_qscale(_weight.device(), DataType::FLOAT32)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
       , _output_type(get_default_float_type(model.effective_compute_type()))
+      , _quant_method(model.quant_method())
       , _quantized_gemm(_weight.dtype() == DataType::INT16 || _weight.dtype() == DataType::INT8)
       , _gemm_op(/*alpha=*/1,
                  /*beta=*/0,
@@ -294,6 +297,8 @@ namespace ctranslate2 {
                      /*shift_to_uint8=*/bool(_u8_shift_compensation),
                      /*round_before_cast=*/model.round_before_cast_in_quantization())
       , _dequantize_op(activation_type)
+      , _activation_type(activation_type)
+      , _is_layer_out(is_layer_out)
     {
     }
 
@@ -339,12 +344,49 @@ namespace ctranslate2 {
       const StorageView* compensation = (_partial_u8_shift_compensation.empty()
                                          ? _u8_shift_compensation
                                          : &_partial_u8_shift_compensation);
+
+      bool affected_by_tp = ScopedMPISetter::getNRanks() > 1 && _is_layer_out;
+      if (affected_by_tp && ScopedMPISetter::getCurRank() != 0)
+        bias = nullptr;
       if (_quantized_gemm) {
         const auto device = input.device();
         StorageView qinput(_weight.dtype(), device);
         StorageView qinput_scale(_qscale->dtype(), device);
         StorageView qoutput(DataType::INT32, device);
-        _quantize_op(input, qinput, qinput_scale);
+        const StorageView* pinput = &input;
+
+        if (affected_by_tp) {
+          StorageView input_reshaped(input.shape(), input.dtype(), input.device());
+          Shape shape = input.shape();
+          dim_t batch_size = shape[0];
+          dim_t depth = shape[shape.size() - 1];
+          dim_t length = shape[shape.size() - 2];
+          StorageView input_gather_all({1, depth * ScopedMPISetter::getNRanks(), batch_size * length}, input.dtype(), input.device());
+          ops::Transpose transpose_op({0, 2, 1});
+          // Transpose input B x L x D -> B x D x L
+          if (batch_size > 1) {
+            input_reshaped.shallow_copy(const_cast<StorageView&>(input));
+            input_reshaped.reshape({1, batch_size * length, depth});
+            pinput = &input_reshaped;
+          }
+          StorageView input_t(input.dtype(), input.device());
+          transpose_op(*pinput, input_t);
+          ops::GatherAll gather_ops;
+          gather_ops(input_t, input_gather_all);
+          input_t.resize({1, batch_size * length, depth * ScopedMPISetter::getNRanks()});
+          transpose_op(input_gather_all, input_t);
+          StorageView qinput_tmp(_weight.dtype(), device);
+          _quantize_op(input_t, qinput_tmp, qinput_scale);
+          dim_t index = _weight.dim(-1) * ScopedMPISetter::getCurRank();
+          dim_t size = _weight.dim(-1);
+          ops::Slide(-1, index, size)(qinput_tmp, qinput);
+          if (batch_size > 1)
+            qinput.reshape({batch_size, length, depth});
+        }
+        else {
+          _quantize_op(input, qinput, qinput_scale);
+        }
+
         _gemm_op(qinput, *weight, qoutput, compensation);
         _dequantize_op(qoutput,
                        qinput_scale,
@@ -353,6 +395,38 @@ namespace ctranslate2 {
                        /*trans_b=*/true,
                        output,
                        bias);
+      } else if (_qzero && _qscale) {
+        switch (_quant_method) {
+          case models::QUANTIZATION_TYPE::AWQ_GEMM:
+            if (input.dim(0) * input.dim(1) >= 1024) {
+              StorageView weight_dequant(input.dtype(), input.device());
+              ops::DequantizeAwq dequantize_awq_op;
+              dequantize_awq_op(*weight, *qscale, *_qzero, weight_dequant);
+              ops::Gemm gemm_op(/*alpha=*/1,
+                                /*beta=*/0,
+                                /*trans_a=*/false,
+                                /*trans_b=*/false,
+                                /*a_is_packed=*/false,
+                                /*b_is_packed*/false,
+                                _activation_type);
+              gemm_op(input, weight_dequant, output, nullptr, bias);
+            } else {
+              ops::GemmAwq gemm_awq_op(/*alpha=*/1, /*beta=*/0, /*trans_a=*/false, /*trans_b=*/false,
+                /*a_is_packed=*/false, /*b_is_packed=*/false, _activation_type);
+              gemm_awq_op(input, *weight, *qscale, *_qzero, output, bias);
+            }
+            break;
+          case models::QUANTIZATION_TYPE::AWQ_GEMV:
+          {
+            ops::GemvAwq gemv_awq_op(/*alpha=*/1, /*beta=*/0, /*trans_a=*/false, /*trans_b=*/false,
+              /*a_is_packed=*/false, /*b_is_packed=*/false, _activation_type);
+            gemv_awq_op(input, *weight, *qscale, *_qzero, output, bias);
+            break;
+          }
+          default:
+            throw std::invalid_argument("Dense forward: invalid quantized type,"
+                                        "support only ct2 and awq quantization");
+        }
       } else {
         _gemm_op(input, *weight, output, nullptr, bias);
       }
@@ -361,7 +435,8 @@ namespace ctranslate2 {
 
     LayerNorm::LayerNorm(const models::Model& model, const std::string& scope)
       : _beta(model.get_variable_if_exists(scope + "/beta"))
-      , _gamma(model.get_variable(scope + "/gamma")) {
+      , _gamma(model.get_variable(scope + "/gamma"))
+      , _use_residual(model.get_flag_with_default((scope + "/layer_norm_use_residual"), false)) {
       auto epsilon_it = model.config.find("layer_norm_epsilon");
       if (epsilon_it == model.config.end() || epsilon_it->is_null())
         _epsilon = _beta ? 1e-5 : 1e-6;
@@ -382,7 +457,7 @@ namespace ctranslate2 {
         const ops::LayerNorm norm_op(-1, _epsilon);
         norm_op(*_beta, _gamma, input, output);
       } else {
-        const ops::RMSNorm norm_op(_epsilon);
+        const ops::RMSNorm norm_op(_epsilon, _use_residual);
         norm_op(_gamma, input, output);
       }
     }
@@ -395,7 +470,8 @@ namespace ctranslate2 {
                    dim_t dilation)
       : _conv_op(stride, padding, dilation)
       , _weight(model.get_variable(scope + "/weight"))
-      , _bias(model.get_variable_if_exists(scope + "/bias")) {
+      , _bias(model.get_variable_if_exists(scope + "/bias"))
+      , _qscale(model.get_variable_if_exists(scope + "/weight_scale")) {
     }
 
     DataType Conv1D::output_type() const {
@@ -412,9 +488,9 @@ namespace ctranslate2 {
 
     void Conv1D::operator()(const StorageView& input, StorageView& output) const {
       if (_bias)
-        _conv_op(input, _weight, *_bias, output);
+        _conv_op(input, _weight, *_bias, output, _qscale);
       else
-        _conv_op(input, _weight, output);
+        _conv_op(input, _weight, output, _qscale);
     }
 
   }

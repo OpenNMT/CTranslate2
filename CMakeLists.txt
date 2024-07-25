@@ -20,6 +20,7 @@ option(ENABLE_PROFILING "Compile with profiling support" OFF)
 option(BUILD_CLI "Compile the clients" ON)
 option(BUILD_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
+option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
@@ -31,7 +32,12 @@ if(DEFINED ENV{INTELROOT})
 elseif(DEFINED ENV{ONEAPI_ROOT})
   set(INTEL_ROOT_DEFAULT $ENV{ONEAPI_ROOT}/..)
 elseif(DEFINED ENV{MKLROOT})
-  set(INTEL_ROOT_DEFAULT $ENV{MKLROOT}/..)
+  if(WIN32)
+    set(INTEL_ROOT_DEFAULT $ENV{MKLROOT}/..)
+  else()
+    # Other system like arch set env MKLROOT by default
+    set(INTEL_ROOT_DEFAULT $ENV{MKLROOT}/../../..)
+  endif()
 elseif(WIN32)
   set(ProgramFilesx86 "ProgramFiles(x86)")
   set(INTEL_ROOT_DEFAULT PATHS
@@ -112,7 +118,9 @@ set(SOURCES
   src/env.cc
   src/filesystem.cc
   src/generator.cc
+  src/layers/attention_layer.cc
   src/layers/attention.cc
+  src/layers/flash_attention.cc
   src/layers/common.cc
   src/layers/decoder.cc
   src/layers/transformer.cc
@@ -140,6 +148,8 @@ set(SOURCES
   src/ops/cos.cc
   src/ops/dequantize.cc
   src/ops/dequantize_cpu.cc
+  src/ops/flash_attention.cc
+  src/ops/flash_attention_cpu.cc
   src/ops/gather.cc
   src/ops/gather_cpu.cc
   src/ops/gelu.cc
@@ -179,6 +189,15 @@ set(SOURCES
   src/ops/topp_mask.cc
   src/ops/topp_mask_cpu.cc
   src/ops/transpose.cc
+  src/ops/nccl_ops.cc
+  src/ops/nccl_ops_cpu.cc
+  src/ops/awq/dequantize.cc
+  src/ops/awq/dequantize_cpu.cc
+  src/ops/awq/gemm.cc
+  src/ops/awq/gemm_cpu.cc
+  src/ops/awq/gemv.cc
+  src/ops/awq/gemv_cpu.cc
+  src/ops/sum.cc
   src/padder.cc
   src/profiler.cc
   src/random.cc
@@ -191,7 +210,7 @@ set(SOURCES
   src/utils.cc
   src/vocabulary.cc
   src/vocabulary_map.cc
-  )
+)
 set(LIBRARIES
   ${CMAKE_THREAD_LIBS_INIT}
   spdlog::spdlog_header_only
@@ -310,7 +329,7 @@ if(WITH_MKL)
   endif()
 
   # Find MKL libraries.
-  find_library(MKL_CORE_LIBRARY NAMES mkl_core PATHS ${MKL_ROOT}/lib ${MKL_ROOT}/lib/intel64)
+  find_library(MKL_CORE_LIBRARY NAMES mkl_core HINTS ${MKL_ROOT}/lib ${MKL_ROOT}/lib/intel64)
   if(MKL_CORE_LIBRARY)
     get_filename_component(MKL_LIBRARY_DIR ${MKL_CORE_LIBRARY} DIRECTORY)
     message(STATUS "Found MKL library directory: ${MKL_LIBRARY_DIR}")
@@ -424,6 +443,24 @@ endif()
 
 if (WITH_CUDA)
   find_package(CUDA 11.0 REQUIRED)
+  list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
+  if (WITH_TENSOR_PARALLEL)
+    find_package(MPI REQUIRED)
+    find_package(NCCL REQUIRED)
+    include_directories(${NCCL_INCLUDE_DIR})
+    include_directories(${MPI_INCLUDE_PATH})
+    if(CUDA_DYNAMIC_LOADING)
+      list(APPEND SOURCES src/cuda/mpi_stub.cc)
+      list(APPEND SOURCES src/cuda/nccl_stub.cc)
+      add_definitions(-DCT2_WITH_CUDA_DYNAMIC_LOADING)
+    else ()
+      list(APPEND LIBRARIES ${NCCL_LIBRARY})
+      list(APPEND LIBRARIES ${MPI_LIBRARIES})
+    endif ()
+    add_definitions(-DCT2_WITH_TENSOR_PARALLEL)
+  endif ()
+  include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
+
   add_definitions(-DCT2_WITH_CUDA)
   if(MSVC)
     if(BUILD_SHARED_LIBS)
@@ -431,9 +468,8 @@ if (WITH_CUDA)
     else()
       list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=/MT$<$<CONFIG:Debug>:d>")
     endif()
-  else()
-    list(APPEND CUDA_NVCC_FLAGS "-std=c++17")
   endif()
+  list(APPEND CUDA_NVCC_FLAGS "-std=c++17")
   if(OpenMP_CXX_FOUND)
     list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=${OpenMP_CXX_FLAGS}")
   endif()
@@ -453,6 +489,10 @@ if (WITH_CUDA)
   list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
   set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 
+  # flags for flash attention
+  list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
+  list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
+
   message(STATUS "NVCC host compiler: ${CUDA_HOST_COMPILER}")
   message(STATUS "NVCC compilation flags: ${CUDA_NVCC_FLAGS}")
 
@@ -465,6 +505,12 @@ if (WITH_CUDA)
     )
   cuda_include_directories(${THRUST_INCLUDE_DIRS})
   list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${THRUST_INCLUDE_DIRS})
+
+  set(CUTLASS_INCLUDE_DIRS
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cutlass/include
+  )
+  cuda_include_directories(${CUTLASS_INCLUDE_DIRS})
+  list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${CUTLASS_INCLUDE_DIRS})
 
   if(WITH_CUDNN)
     # Find cuDNN includes.
@@ -515,6 +561,7 @@ if (WITH_CUDA)
     src/ops/concat_split_slide_gpu.cu
     src/ops/conv1d_gpu.cu
     src/ops/dequantize_gpu.cu
+    src/ops/flash_attention_gpu.cu
     src/ops/gather_gpu.cu
     src/ops/gumbel_max_gpu.cu
     src/ops/layer_norm_gpu.cu
@@ -527,7 +574,78 @@ if (WITH_CUDA)
     src/ops/topk_gpu.cu
     src/ops/topp_mask_gpu.cu
     src/ops/quantize_gpu.cu
-    )
+    src/ops/nccl_ops_gpu.cu
+    src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+    src/ops/awq/gemm_gpu.cu
+    src/ops/awq/gemv_gpu.cu
+    src/ops/awq/dequantize_gpu.cu
+  )
+
+  set_source_files_properties(
+    src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
+    src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+    PROPERTIES COMPILE_FLAGS "--use_fast_math")
 elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
 else()
@@ -550,6 +668,10 @@ target_include_directories(${PROJECT_NAME} BEFORE
   PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:include>
   PRIVATE ${PRIVATE_INCLUDE_DIRECTORIES}
 )
+
+if (WITH_TENSOR_PARALLEL AND CUDA_DYNAMIC_LOADING)
+  target_compile_options(${PROJECT_NAME} PRIVATE -DOMPI_SKIP_MPICXX)
+endif()
 
 if(BUILD_TESTS)
   add_subdirectory(tests)
@@ -592,6 +714,11 @@ configure_file(cmake/${PROJECT_NAME}Config.cmake
   COPYONLY
 )
 
+configure_file(cmake/FindNCCL.cmake
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}/FindNCCL.cmake"
+  COPYONLY
+)
+
 set(ConfigPackageLocation ${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME})
 
 if(BUILD_SHARED_LIBS)
@@ -608,6 +735,7 @@ endif()
 install(
   FILES
     cmake/${PROJECT_NAME}Config.cmake
+    cmake/FindNCCL.cmake
     "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}/${PROJECT_NAME}ConfigVersion.cmake"
   DESTINATION
     ${ConfigPackageLocation}

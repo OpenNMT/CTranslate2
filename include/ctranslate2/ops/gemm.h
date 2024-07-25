@@ -39,6 +39,8 @@ namespace ctranslate2 {
                                              const dim_t k,
                                              const dim_t n,
                                              const float alpha);
+    protected:
+      const ActivationType* _activation_type;
 
     private:
       float _alpha;
@@ -47,7 +49,6 @@ namespace ctranslate2 {
       bool _trans_b;
       bool _a_is_packed;
       bool _b_is_packed;
-      const ActivationType* _activation_type;
 
       template <Device D, typename In, typename Out>
       void compute(const StorageView& a,

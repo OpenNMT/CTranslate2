@@ -23,17 +23,28 @@ class EmbeddingsMerge(enum.IntEnum):
     ADD = 1
 
 
+class Quantization(enum.IntEnum):
+    """Activation type."""
+
+    CT2 = 0
+    AWQ_GEMM = 1
+    AWQ_GEMV = 2
+
+
 class LayerNormSpec(model_spec.LayerSpec):
     def __init__(self, rms_norm=False):
         self.gamma = None
         if not rms_norm:
             self.beta = None
+        else:
+            self.layer_norm_use_residual = model_spec.OPTIONAL
 
 
 class LinearSpec(model_spec.LayerSpec):
     def __init__(self):
         self.weight = None
         self.weight_scale = model_spec.OPTIONAL
+        self.weight_zero = model_spec.OPTIONAL
         self.bias = model_spec.OPTIONAL
 
     def has_bias(self):
@@ -43,6 +54,7 @@ class LinearSpec(model_spec.LayerSpec):
 class Conv1DSpec(model_spec.LayerSpec):
     def __init__(self):
         self.weight = None
+        self.weight_scale = model_spec.OPTIONAL
         self.bias = model_spec.OPTIONAL
 
 
@@ -50,3 +62,4 @@ class EmbeddingsSpec(model_spec.LayerSpec):
     def __init__(self):
         self.weight = None
         self.weight_scale = model_spec.OPTIONAL
+        self.multiply_by_sqrt_depth = model_spec.OPTIONAL

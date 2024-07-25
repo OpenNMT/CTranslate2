@@ -12,6 +12,8 @@ namespace ctranslate2 {
       using ReplicaPoolHelper::ReplicaPoolHelper;
 
       StorageView encode(const StorageView& features, const bool to_cpu) {
+        std::shared_lock lock(_mutex);
+        assert_model_is_ready();
         return _pool->encode(features, to_cpu).get();
       }
     };
@@ -27,7 +29,7 @@ namespace ctranslate2 {
                https://github.com/facebookresearch/fairseq/tree/main/examples/wav2vec
         )pbdoc")
 
-        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, py::object>(),
+        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, bool, bool, py::object>(),
              py::arg("model_path"),
              py::arg("device")="cpu",
              py::kw_only(),
@@ -36,6 +38,8 @@ namespace ctranslate2 {
              py::arg("inter_threads")=1,
              py::arg("intra_threads")=0,
              py::arg("max_queued_batches")=0,
+             py::arg("flash_attention")=false,
+             py::arg("tensor_parallel")=false,
              py::arg("files")=py::none(),
              R"pbdoc(
                  Initializes a Wav2Vec2 model from a converted model.
@@ -52,6 +56,8 @@ namespace ctranslate2 {
                    max_queued_batches: Maximum numbers of batches in the worker queue (-1 for unlimited,
                      0 for an automatic value). When the queue is full, future requests will block
                      until a free slot is available.
+                   flash_attention: run model with flash attention 2 for self-attention layer
+                   tensor_parallel: run model with tensor parallel mode
                    files: Load model files from the memory. This argument is a dictionary mapping
                      file names to file contents as file-like or bytes objects. If this is set,
                      :obj:`model_path` acts as an identifier for this model.
@@ -67,6 +73,8 @@ namespace ctranslate2 {
                                "Number of model workers backing this instance.")
         .def_property_readonly("num_queued_batches", &Wav2Vec2Wrapper::num_queued_batches,
                                "Number of batches waiting to be processed.")
+        .def_property_readonly("tensor_parallel", &Wav2Vec2Wrapper::tensor_parallel,
+                               "Run model with tensor parallel mode.")
         .def_property_readonly("num_active_batches", &Wav2Vec2Wrapper::num_active_batches,
                                "Number of batches waiting to be processed or currently processed.")
 
@@ -86,6 +94,29 @@ namespace ctranslate2 {
                    The encoder output.
              )pbdoc")
 
+        .def("unload_model", &Wav2Vec2Wrapper::unload_model,
+             py::arg("to_cpu")=false,
+             py::call_guard<py::gil_scoped_release>(),
+             R"pbdoc(
+                 Unloads the model attached to this wav2vec2 but keep enough runtime context
+                 to quickly resume wav2vec2 on the initial device.
+
+                 Arguments:
+                   to_cpu: If ``True``, the model is moved to the CPU memory and not fully unloaded.
+             )pbdoc")
+
+        .def("load_model", &Wav2Vec2Wrapper::load_model,
+             py::arg("keep_cache")=false,
+             py::call_guard<py::gil_scoped_release>(),
+             R"pbdoc(
+                 Loads the model back to the initial device.
+
+                 Arguments:
+                   keep_cache: If ``True``, the model cache in the CPU memory is not deleted if it exists.
+             )pbdoc")
+
+        .def_property_readonly("model_is_loaded", &Wav2Vec2Wrapper::model_is_loaded,
+                               "Whether the model is loaded on the initial device and ready to be used.")
         ;
     }
 

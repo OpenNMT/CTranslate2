@@ -1,7 +1,5 @@
 #include "module.h"
 
-#include <shared_mutex>
-
 #include <ctranslate2/translator.h>
 
 #include "replica_pool.h"
@@ -26,32 +24,7 @@ namespace ctranslate2 {
     class TranslatorWrapper : public ReplicaPoolHelper<Translator>
     {
     public:
-      TranslatorWrapper(const std::string& model_path,
-                        const std::string& device,
-                        const std::variant<int, std::vector<int>>& device_index,
-                        const StringOrMap& compute_type,
-                        size_t inter_threads,
-                        size_t intra_threads,
-                        long max_queued_batches,
-                        py::object files)
-        : ReplicaPoolHelper(model_path,
-                            device,
-                            device_index,
-                            compute_type,
-                            inter_threads,
-                            intra_threads,
-                            max_queued_batches,
-                            files)
-        , _device(_model_loader.device)
-        , _device_index(_model_loader.device_indices)
-        , _num_replicas_per_device(_model_loader.num_replicas_per_device)
-        , _model_is_loaded(true) {
-      }
-
-      bool model_is_loaded() {
-        std::shared_lock lock(_mutex);
-        return _model_is_loaded;
-      }
+      using ReplicaPoolHelper::ReplicaPoolHelper;
 
       using TokenizeFn = std::function<std::vector<std::string>(const std::string&)>;
       using DetokenizeFn = std::function<std::string(const std::vector<std::string>&)>;
@@ -228,10 +201,12 @@ namespace ctranslate2 {
                   size_t max_batch_size,
                   const std::string& batch_type_str,
                   size_t max_input_length,
+                  dim_t offset,
                   bool asynchronous) {
         const auto batch_type = str_to_batch_type(batch_type_str);
         ScoringOptions options;
         options.max_input_length = max_input_length;
+        options.offset = offset;
 
         std::shared_lock lock(_mutex);
         assert_model_is_ready();
@@ -252,6 +227,7 @@ namespace ctranslate2 {
                                 size_t read_batch_size,
                                 const std::string& batch_type_str,
                                 size_t max_input_length,
+                                dim_t offset,
                                 bool with_tokens_score,
                                 const TokenizeFn& source_tokenize_fn,
                                 const TokenizeFn& target_tokenize_fn,
@@ -263,7 +239,7 @@ namespace ctranslate2 {
         const auto batch_type = str_to_batch_type(batch_type_str);
         ScoringOptions options;
         options.max_input_length = max_input_length;
-
+        options.offset = offset;
         std::shared_lock lock(_mutex);
         assert_model_is_ready();
 
@@ -290,76 +266,6 @@ namespace ctranslate2 {
                                         with_tokens_score);
         }
       }
-
-      void unload_model(const bool to_cpu) {
-        if (to_cpu && _device == Device::CPU)
-          return;
-
-        // Do not unload the model if some batches are still being processed.
-        if (_pool->num_active_batches() > 0)
-          return;
-
-        // If the lock is not acquired immediately it means the model is being used
-        // in another thread and we can't unload it at this time.
-        std::unique_lock lock(_mutex, std::try_to_lock);
-        if (!lock || !_model_is_loaded)
-          return;
-
-        _cached_models = _pool->detach_models();
-        if (to_cpu)
-          move_cached_models(Device::CPU, std::vector<int>(_cached_models.size(), 0));
-        else
-          _cached_models.clear();
-
-        // We clear the CUDA allocator cache to further reduce the memory after unloading the model.
-        if (_device == Device::CUDA)
-          _pool->clear_cache();
-
-        _model_is_loaded = false;
-      }
-
-      void load_model() {
-        std::unique_lock lock(_mutex);
-        if (_model_is_loaded)
-          return;
-
-        if (_cached_models.empty()) {
-          _cached_models = _model_loader.load();
-        } else {
-          move_cached_models(_device, _device_index, _num_replicas_per_device);
-        }
-
-        _pool->set_models(_cached_models);
-        _cached_models.clear();
-        _model_is_loaded = true;
-      }
-
-    private:
-      const Device _device;
-      const std::vector<int>& _device_index;
-      const size_t _num_replicas_per_device;
-
-      std::vector<std::shared_ptr<const models::Model>> _cached_models;
-      bool _model_is_loaded;
-
-      // Use a shared mutex to protect the model state (loaded/unloaded).
-      // Multiple threads can read the model at the same time, but a single thread can change
-      // the model state (e.g. load or unload the model).
-      std::shared_mutex _mutex;
-
-      void assert_model_is_ready() const {
-        if (!_model_is_loaded)
-          throw std::runtime_error("The model for this translator was unloaded");
-      }
-
-      void move_cached_models(Device device,
-                              const std::vector<int>& device_index,
-                              size_t num_models_per_device = 1) {
-        for (size_t i = 0; i < _cached_models.size(); ++i) {
-          auto& model = const_cast<models::Model&>(*_cached_models[i]);
-          model.set_device(device, device_index[i / num_models_per_device]);
-        }
-      }
     };
 
 
@@ -375,7 +281,7 @@ namespace ctranslate2 {
                 >>> translator.translate_batch([["▁Hello", "▁world", "!"]])
         )pbdoc")
 
-        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, py::object>(),
+        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, bool, bool, py::object>(),
              py::arg("model_path"),
              py::arg("device")="cpu",
              py::kw_only(),
@@ -384,6 +290,8 @@ namespace ctranslate2 {
              py::arg("inter_threads")=1,
              py::arg("intra_threads")=0,
              py::arg("max_queued_batches")=0,
+             py::arg("flash_attention")=false,
+             py::arg("tensor_parallel")=false,
              py::arg("files")=py::none(),
              R"pbdoc(
                  Initializes the translator.
@@ -400,6 +308,8 @@ namespace ctranslate2 {
                    max_queued_batches: Maximum numbers of batches in the queue (-1 for unlimited,
                      0 for an automatic value). When the queue is full, future requests will block
                      until a free slot is available.
+                   flash_attention: run model with flash attention 2 for self-attention layer
+                   tensor_parallel: run model with tensor parallel mode
                    files: Load model files from the memory. This argument is a dictionary mapping
                      file names to file contents as file-like or bytes objects. If this is set,
                      :obj:`model_path` acts as an identifier for this model.
@@ -415,6 +325,8 @@ namespace ctranslate2 {
                                "Number of translators backing this instance.")
         .def_property_readonly("num_queued_batches", &TranslatorWrapper::num_queued_batches,
                                "Number of batches waiting to be processed.")
+        .def_property_readonly("tensor_parallel", &TranslatorWrapper::tensor_parallel,
+                               "Run model with tensor parallel mode.")
         .def_property_readonly("num_active_batches", &TranslatorWrapper::num_active_batches,
                                "Number of batches waiting to be processed or currently processed.")
 
@@ -592,6 +504,7 @@ namespace ctranslate2 {
              py::arg("max_batch_size")=0,
              py::arg("batch_type")="examples",
              py::arg("max_input_length")=1024,
+             py::arg("offset") = 0,
              py::arg("asynchronous")=false,
              py::call_guard<py::gil_scoped_release>(),
              R"pbdoc(
@@ -606,6 +519,7 @@ namespace ctranslate2 {
                      minimized.
                    batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
                    max_input_length: Truncate inputs after this many tokens (0 to disable).
+                   offset: Ignore the first n tokens in target in score calculation.
                    asynchronous: Run the scoring asynchronously.
 
                  Returns:
@@ -621,6 +535,7 @@ namespace ctranslate2 {
              py::arg("read_batch_size")=0,
              py::arg("batch_type")="examples",
              py::arg("max_input_length")=1024,
+             py::arg("offset")=0,
              py::arg("with_tokens_score")=false,
              py::arg("source_tokenize_fn")=nullptr,
              py::arg("target_tokenize_fn")=nullptr,
@@ -649,6 +564,7 @@ namespace ctranslate2 {
                    batch_type: Whether :obj:`max_batch_size` and :obj:`read_batch_size` are the
                      number of "examples" or "tokens".
                    max_input_length: Truncate inputs after this many tokens (0 to disable).
+                   offset: Ignore the first n tokens in target in score calculation.
                    with_tokens_score: Include the token-level scores in the output file.
                    source_tokenize_fn: Function to tokenize source lines.
                    target_tokenize_fn: Function to tokenize target lines.
@@ -671,8 +587,14 @@ namespace ctranslate2 {
              )pbdoc")
 
         .def("load_model", &TranslatorWrapper::load_model,
+             py::arg("keep_cache")=false,
              py::call_guard<py::gil_scoped_release>(),
-             "Loads the model back to the initial device.")
+             R"pbdoc(
+                 Loads the model back to the initial device.
+
+                 Arguments:
+                   keep_cache: If ``True``, the model cache in the CPU memory is not deleted if it exists.
+             )pbdoc")
 
         .def_property_readonly("model_is_loaded", &TranslatorWrapper::model_is_loaded,
                                "Whether the model is loaded on the initial device and ready to be used.")

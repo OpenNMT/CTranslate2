@@ -35,6 +35,8 @@ ACCEPTED_MODEL_TYPES = (
     "float32",
 )
 
+SKIP_CREATING_ALIAS = ("rotary_scaling_long_factor", "rotary_scaling_short_factor")
+
 
 def _join_scope(scope, name):
     if not scope:
@@ -175,9 +177,13 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     break
                 # Because variables can be transformed on load (e.g. transposed),
                 # we use an element-wise equality check.
-                if not value.is_scalar() and value.equal(other_value):
+                scope, attr_name = _parent_scope(name)
+                if (
+                    not value.is_scalar()
+                    and value.equal(other_value)
+                    and attr_name not in SKIP_CREATING_ALIAS
+                ):
                     # Replace variable value by the alias name.
-                    scope, attr_name = _parent_scope(name)
                     spec = index_spec(self, scope)
                     setattr(spec, attr_name, other_name)
                     break
@@ -220,12 +226,20 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     "int8_bfloat16",
                 ):
                     value = value.to("float32").numpy()
+                    # For conv1d layer we need to reshape to 2D before calculating scale
+                    old_shape = None
+                    if len(value.shape) == 3:
+                        old_shape = value.shape
+                        value = value.reshape(value.shape[0], -1)
                     amax = np.amax(np.absolute(value), axis=1)
                     amax[amax == 0] = 127.0
                     scale = 127.0 / amax
                     value *= np.expand_dims(scale, 1)
                     value = np.rint(value)
                     value = value.astype(np.int8)
+                    # reshape back to old shape
+                    if old_shape:
+                        value = value.reshape(old_shape)
                     scale = NumpyVariable(scale)
                     value = NumpyVariable(value)
                 elif quantization in ("float16", "bfloat16", "float32"):
@@ -290,6 +304,9 @@ class ModelConfig(FrozenAttr, metaclass=FrozenMeta):
             for key, value in self.__dict__.items()
             if not key.startswith("_")
         }
+
+    def add_attribute(self, key, value):
+        self.__dict__[key] = value
 
     def save_as_json(self, path):
         """Saves the configuration as a JSON file."""
@@ -727,7 +744,17 @@ class PyTorchVariable(Variable):
         return self.tensor.numel() * self.tensor.element_size()
 
     def to_bytes(self) -> bytes:
-        return ctypes.string_at(self.tensor.data_ptr(), self.num_bytes())
+        max_size = 2**31 - 1
+        num_bytes = self.num_bytes()
+        output = b""
+        offset = 0
+        while num_bytes > 0:
+            chunk_size = max_size if num_bytes > max_size else num_bytes
+            chunk = ctypes.string_at(self.tensor.data_ptr() + offset, chunk_size)
+            output += chunk
+            offset += chunk_size
+            num_bytes -= chunk_size
+        return output
 
     def _to(self, dtype: str) -> Variable:
         dtype = getattr(torch, dtype)

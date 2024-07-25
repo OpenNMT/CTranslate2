@@ -39,7 +39,7 @@ namespace ctranslate2 {
         inner_size *= input.dim(i);
 
       DEVICE_AND_FLOAT_DISPATCH("Mean", input.device(), input.dtype(),
-                                (compute<D, T>(input, outer_size, axis_size, inner_size, output)));
+                                (compute<D, T>(input, outer_size, axis_size, inner_size, false, output)));
     }
 
   }

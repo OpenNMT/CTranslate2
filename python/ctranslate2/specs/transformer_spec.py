@@ -45,6 +45,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
           rms_norm: Use the root mean square layer normalization.
           multi_query_attention: Use multi-query attention.
         """
+        self.multi_query_attention = multi_query_attention
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
         self.activation = np.dtype("int8").type(activation)
@@ -96,11 +97,17 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
         rotary_scaling_factor: float = 1,
         rotary_base: float = 10000,
+        original_max_position_embeddings: int = 0,
+        max_position_embeddings: int = 0,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
         num_heads_kv: Optional[int] = None,
+        head_dim: Optional[int] = None,
         sliding_window: Optional[int] = None,
+        quant_type: Optional[common_spec.Quantization] = None,
+        quant_group_size: Optional[int] = None,
+        quant_bits: Optional[int] = None,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -133,6 +140,9 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           rotary_scaling_type: Type of RoPE scaling.
           rotary_scaling_factor: Factor used in the RoPE scaling.
           rotary_base: The base period of the rotary embeddings.
+          original_max_position_embeddings: The original max position embeddings
+            for Su rope embeddings
+          max_position_embeddings: The max position embeddings for Su rope embeddings
           parallel_residual: Use parallel residual connections in each layer block, as used
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
@@ -140,7 +150,12 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
           sliding_window: Max sequence length to retain in KV Cache.
+          quant_type: quantization type used (like awq... for lower bit quantization)
+          quant_group_size: group size of the lower bit quantization
+          quant_bits: number of bit of the quantization (ex: 4bit)
         """
+
+        self._config = dict()
         if parallel_residual:
             if not pre_norm:
                 raise ValueError("The GPT-J block expects a pre-norm architecture")
@@ -197,18 +212,33 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 rotary_scaling_type=rotary_scaling_type,
                 rotary_scaling_factor=rotary_scaling_factor,
                 rotary_base=rotary_base,
+                original_max_position_embeddings=original_max_position_embeddings,
+                max_position_embeddings=max_position_embeddings,
                 parallel_residual=parallel_residual,
                 shared_layer_norm=shared_layer_norm,
                 num_heads_kv=num_heads_kv,
+                head_dim=head_dim,
                 sliding_window=sliding_window,
             )
             for _ in range(num_layers)
         ]
         self.start_from_zero_embedding = False
+        self._config["multi_query_attention"] = multi_query_attention or (
+            num_heads_kv != num_heads
+        )
 
         if project_in_out:
             self.project_in = common_spec.LinearSpec()
             self.project_out = common_spec.LinearSpec()
+
+        if quant_type is not None:
+            self._config["quantization_type"] = quant_type
+            self._config["quantization_bits"] = quant_bits
+            self._config["quantization_group_size"] = quant_group_size
+
+    @property
+    def config(self):
+        return self._config
 
 
 class TransformerEncoderLayerSpec(model_spec.LayerSpec):
@@ -245,9 +275,12 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         rotary_scaling_type=None,
         rotary_scaling_factor=1,
         rotary_base=10000,
+        original_max_position_embeddings=0,
+        max_position_embeddings=0,
         parallel_residual=False,
         shared_layer_norm=False,
         num_heads_kv=None,
+        head_dim=None,
         sliding_window=None,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
@@ -260,7 +293,10 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
             rotary_base=rotary_base,
+            original_max_position_embeddings=original_max_position_embeddings,
+            max_position_embeddings=max_position_embeddings,
             num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
             sliding_window=sliding_window,
         )
 
@@ -335,6 +371,9 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         super().__init__()
         self.encoder = encoder
         self.decoder = decoder
+        self._config.add_attribute(
+            "multi_query_attention", self.encoder.multi_query_attention
+        )
 
     @classmethod
     def from_config(
@@ -463,6 +502,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
         super().__init__()
         self.decoder = decoder
+        for key, value in self.decoder.config.items():
+            self._config.add_attribute(key, value)
 
     @classmethod
     def from_config(
@@ -485,11 +526,17 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
         rotary_scaling_factor: float = 1,
         rotary_base: float = 10000,
+        original_max_position_embeddings: int = 0,
+        max_position_embeddings: int = 0,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
         num_heads_kv: Optional[int] = None,
+        head_dim: Optional[int] = None,
         sliding_window: Optional[int] = None,
+        quant_type: Optional[common_spec.Quantization] = None,
+        quant_group_size: Optional[int] = None,
+        quant_bits: Optional[int] = None,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -516,13 +563,20 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
           rotary_scaling_type: Type of RoPE scaling.
           rotary_scaling_factor: Factor used in the RoPE scaling.
           rotary_base: The base period of the rotary embeddings.
+          original_max_position_embeddings: The original max position embeddings
+            for Su rope embeddings
+          max_position_embeddings: The max position embeddings for Su rope embeddings
           parallel_residual: Use parallel residual connections in each layer block, as used
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
             attention layer norms.
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
+          head_dim: Number of head
           sliding_window: max sequence length to retain KV cache
+          quant_type: quantization type used (like awq... for lower bit quantization)
+          quant_group_size: group size of the lower bit quantization
+          quant_bits: number of bit of the quantization (ex: 4bit)
         """
         decoder = TransformerDecoderSpec(
             num_layers,
@@ -544,11 +598,17 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
             rotary_base=rotary_base,
+            original_max_position_embeddings=original_max_position_embeddings,
+            max_position_embeddings=max_position_embeddings,
             parallel_residual=parallel_residual,
             shared_layer_norm=shared_layer_norm,
             multi_query_attention=multi_query_attention,
             num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
             sliding_window=sliding_window,
+            quant_type=quant_type,
+            quant_group_size=quant_group_size,
+            quant_bits=quant_bits,
         )
 
         return cls(decoder)
@@ -602,6 +662,9 @@ class TransformerEncoderModelSpec(model_spec.LanguageModelSpec):
 
         super().__init__()
         self.encoder = encoder
+        self._config.add_attribute(
+            "multi_query_attention", self.encoder.multi_query_attention
+        )
 
         if pooling_layer:
             self.pooler_dense = common_spec.LinearSpec()
