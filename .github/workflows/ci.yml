@@ -17,7 +17,7 @@ jobs:
       CT2_VERBOSE: 1
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11]
+        os: [ubuntu-20.04, macos-12]
         backend: [mkl, dnnl]
 
     steps:
@@ -157,12 +157,12 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-20.04, macos-12, windows-2019]
         arch: [auto64]
         include:
         - os: ubuntu-20.04
           arch: aarch64
-        - os: macos-11
+        - os: macos-12
           arch: arm64
 
     steps:
@@ -206,7 +206,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-20.04, macos-12, windows-2019]
 
     steps:
       - name: Set up Python 3.8
