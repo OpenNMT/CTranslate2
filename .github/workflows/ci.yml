@@ -17,7 +17,7 @@ jobs:
       CT2_VERBOSE: 1
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-12]
+        os: [ubuntu-20.04]
         backend: [mkl, dnnl]
 
     steps:
@@ -32,17 +32,6 @@ jobs:
           sudo apt-key add *.PUB
           sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
           sudo apt-get update
-
-      - name: Store URL for downloading Intel oneAPI to environment variable
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          echo 'ONEAPI_INSTALLER_URL=https://registrationcenter-download.intel.com/akdlm/irc_nas/19080/m_BaseKit_p_2023.0.0.25441_offline.dmg' >> $GITHUB_ENV
-
-      - name: Install Intel oneAPI
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          wget -q $ONEAPI_INSTALLER_URL
-          hdiutil attach -noverify -noautofsck $(basename $ONEAPI_INSTALLER_URL)
 
       - name: Configure with MKL
         if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
@@ -60,20 +49,6 @@ jobs:
         run: |
           sudo apt-get install -y intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
-
-      - name: Configure with MKL
-        if: startsWith(matrix.os, 'macos') && matrix.backend == 'mkl'
-        env:
-          CT2_USE_MKL: 1
-        run: |
-          sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.mkl.devel
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
-
-      - name: Configure with DNNL
-        if: startsWith(matrix.os, 'macos') && matrix.backend == 'dnnl'
-        run: |
-          sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.dnnl
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DWITH_DNNL=ON .
 
       - name: Build
         run: |
@@ -157,7 +132,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-12, windows-2019]
+        os: [ubuntu-20.04, windows-2019]
         arch: [auto64]
         include:
         - os: ubuntu-20.04
@@ -206,7 +181,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-12, windows-2019]
+        os: [ubuntu-20.04, windows-2019]
 
     steps:
       - name: Set up Python 3.8
@@ -230,11 +205,6 @@ jobs:
         if: startsWith(matrix.os, 'ubuntu')
         run: |
           pip install *cp38*manylinux*x86_64.whl
-
-      - name: Install wheel
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          pip install *cp38*macosx*x86_64.whl
 
       - name: Install wheel
         if: startsWith(matrix.os, 'windows')
