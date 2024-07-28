@@ -1103,6 +1103,85 @@ TEST_P(OpDeviceFPTest, Conv1DPaddingAndStride) {
   expect_storage_eq(output.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, Conv1DGroupNoBias) {
+    const Device device = GetParam().device;
+    if (device != Device::CPU)
+        GTEST_SKIP() << "Grouped convolution is not implemented for CUDA.";
+    const DataType dtype = GetParam().dtype;
+    const float error = GetParam().error;
+    const StorageView expected({2, 2, 2}, std::vector<float>{
+            -0.475623f, -0.601933f, 0.165541f, 0.050849f, -0.566024f,
+            -0.592437f, 0.121356f, 0.232157f});
+    const StorageView conv_input({2, 4, 4}, std::vector<float>{
+            0.547210f, 0.634821f, 0.571043f, 0.443073f, 0.220554f, 0.478427f,
+            0.836031f, 0.476906f, 0.288942f, 0.393840f, 0.077658f, 0.236493f,
+            0.759209f, 0.826134f, 0.728944f, 0.130438f, 0.355182f, 0.884368f,
+            0.494477f, 0.004999f, 0.306053f, 0.764639f, 0.903179f, 0.440537f,
+            0.040332f, 0.533495f, 0.428653f, 0.311188f, 0.951956f, 0.785873f,
+            0.443364f, 0.065968f});
+    const StorageView conv_weight({2, 2, 3}, std::vector<float>{
+            -0.326986f, -0.378711f, -0.120962f, 0.125665f, -0.312741f, 0.161123f,
+            0.226274f, 0.340959f, -0.127573f, 0.094374f, -0.164143f, 0.054516f});
+    StorageView output(dtype, device);
+    ops::Conv1D(1, 0, 1, 2)(conv_input.to(device).to(dtype),
+                            conv_weight.to(device).to(dtype),
+                            output);
+    EXPECT_EQ(output.dtype(), dtype);
+    expect_storage_eq(output.to_float32(), expected, error);
+}
+
+TEST_P(OpDeviceFPTest, Conv1DGroupNoBiasQuantized) {
+    const Device device = GetParam().device;
+    if (device != Device::CPU)
+        GTEST_SKIP() << "Grouped convolution is not implemented for CUDA.";
+    const DataType dtype = GetParam().dtype;
+    const float error = std::max(GetParam().error, float(3e-3));
+    const StorageView expected({2, 2, 2}, std::vector<float>{
+            -0.475623f, -0.601933f, 0.165541f, 0.050849f, -0.566024f,
+            -0.592437f, 0.121356f, 0.232157f});
+    const StorageView conv_input({2, 4, 4}, std::vector<float>{
+            0.547210f, 0.634821f, 0.571043f, 0.443073f, 0.220554f, 0.478427f,
+            0.836031f, 0.476906f, 0.288942f, 0.393840f, 0.077658f, 0.236493f,
+            0.759209f, 0.826134f, 0.728944f, 0.130438f, 0.355182f, 0.884368f,
+            0.494477f, 0.004999f, 0.306053f, 0.764639f, 0.903179f, 0.440537f,
+            0.040332f, 0.533495f, 0.428653f, 0.311188f, 0.951956f, 0.785873f,
+            0.443364f, 0.065968f});
+    // These weights correspond to the ones in Conv1DGroupNoBias
+    // Hence expected output is same (with quantization error)
+    // Therefore we use error = 3e-3
+    const StorageView conv_weight({2, 2, 3}, std::vector<int8_t>{
+            -110, -127,  -41,   42, -105,   54, 84,  127,  -48,   35,  -61,   20});
+    const StorageView conv_qscale({2}, std::vector<float> {335.34806224, 372.47880244});
+    StorageView output(dtype, device);
+    ops::Conv1D(1, 0, 1, 2)(conv_input.to(device).to(dtype),
+                            conv_weight.to(device),
+                            output,
+                            &conv_qscale);
+    EXPECT_EQ(output.dtype(), dtype);
+    expect_storage_eq(output.to_float32(), expected, error);
+}
+
+TEST_P(OpDeviceFPTest, Conv1DGroup) {
+    const Device device = GetParam().device;
+    if (device != Device::CPU)
+        GTEST_SKIP() << "Grouped convolution is not implemented for CUDA.";
+    const DataType dtype = GetParam().dtype;
+    const float error = GetParam().error;
+    const StorageView expected({2, 2, 2}, std::vector<float>{
+            0.142335f, 0.103515f, 0.735452f, 0.755268f, 0.109328f, 0.007098f, 0.791004f, 0.537695f});
+    const StorageView conv_input({2, 4, 4}, std::vector<float>{
+            0.769843f, 0.147572f, 0.195656f, 0.823936f, 0.363211f, 0.584773f, 0.315626f, 0.929829f, 0.724258f, 0.853388f, 0.756254f, 0.791604f, 0.463644f, 0.285105f, 0.952018f, 0.660709f, 0.557387f, 0.147298f, 0.473786f, 0.566577f, 0.255724f, 0.488177f, 0.534283f, 0.678067f, 0.760340f, 0.024571f, 0.559195f, 0.978376f, 0.473044f, 0.351244f, 0.824801f, 0.077629f});
+    const StorageView conv_weight({2, 2, 3}, std::vector<float>{
+            0.345985f, -0.071498f, 0.200554f, 0.185144f, -0.015271f, 0.014293f, 0.006771f, -0.078667f, -0.065937f, 0.382823f, 0.276695f, 0.352038f});
+    const StorageView conv_bias({2}, std::vector<float>{-0.215535f, 0.256019f});
+    StorageView output(dtype, device);
+    ops::Conv1D(1, 0, 1, 2)(conv_input.to(device).to(dtype),
+                            conv_weight.to(device).to(dtype),
+                            conv_bias.to(device).to(dtype),
+                            output);
+    EXPECT_EQ(output.dtype(), dtype);
+    expect_storage_eq(output.to_float32(), expected, error);
+}
 
 INSTANTIATE_TEST_SUITE_P(CPU, OpDeviceTest, ::testing::Values(Device::CPU));
 INSTANTIATE_TEST_SUITE_P(CPU, OpDeviceFPTest,
