@@ -1131,6 +1131,9 @@ TEST_P(OpDeviceFPTest, Conv1DGroupNoBias) {
 }
 
 TEST_P(OpDeviceFPTest, Conv1DGroupNoBiasQuantized) {
+#ifdef CT2_WITH_DNNL
+    GTEST_SKIP() << "Quantized convolution is not implemented for DNNL.";
+#endif
     const Device device = GetParam().device;
     if (device != Device::CPU)
         GTEST_SKIP() << "Grouped convolution is not implemented for CUDA.";

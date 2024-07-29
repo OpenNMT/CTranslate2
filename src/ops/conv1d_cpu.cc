@@ -19,7 +19,7 @@ namespace ctranslate2 {
 
       dnnl::memory::dims input_dims(input.shape().begin(), input.shape().end());
       dnnl::memory::dims output_dims(output.shape().begin(), output.shape().end());
-      dnnl::memory::dims weight_dims(weight.shape().begin(), weight.shape().end());
+      dnnl::memory::dims weight_dims{_groups, weight.dim(0) / _groups, weight.dim(1), weight.dim(2)};
 
       using tag = dnnl::memory::format_tag;
       using dt = dnnl::memory::data_type;
@@ -32,7 +32,7 @@ namespace ctranslate2 {
                              const_cast<void*>(input.buffer()));
       dnnl::memory output_mem({output_dims, dt::f32, tag::ncw}, engine,
                               output.buffer());
-      dnnl::memory weight_mem({weight_dims, dt::f32, tag::oiw}, engine,
+      dnnl::memory weight_mem({weight_dims, dt::f32, tag::goiw}, engine,
                               const_cast<void*>(weight.buffer()));
 
       dnnl::memory::dims stride{_stride};
