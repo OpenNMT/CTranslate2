@@ -1105,8 +1105,6 @@ TEST_P(OpDeviceFPTest, Conv1DPaddingAndStride) {
 
 TEST_P(OpDeviceFPTest, Conv1DGroupNoBias) {
     const Device device = GetParam().device;
-    if (device != Device::CPU)
-        GTEST_SKIP() << "Grouped convolution is not implemented for CUDA.";
     const DataType dtype = GetParam().dtype;
     const float error = GetParam().error;
     const StorageView expected({2, 2, 2}, std::vector<float>{
@@ -1136,7 +1134,7 @@ TEST_P(OpDeviceFPTest, Conv1DGroupNoBiasQuantized) {
 #endif
     const Device device = GetParam().device;
     if (device != Device::CPU)
-        GTEST_SKIP() << "Grouped convolution is not implemented for CUDA.";
+        GTEST_SKIP() << "Grouped quantized convolution is not implemented for CUDA.";
     const DataType dtype = GetParam().dtype;
     const float error = std::max(GetParam().error, float(3e-3));
     const StorageView expected({2, 2, 2}, std::vector<float>{
@@ -1166,8 +1164,6 @@ TEST_P(OpDeviceFPTest, Conv1DGroupNoBiasQuantized) {
 
 TEST_P(OpDeviceFPTest, Conv1DGroup) {
     const Device device = GetParam().device;
-    if (device != Device::CPU)
-        GTEST_SKIP() << "Grouped convolution is not implemented for CUDA.";
     const DataType dtype = GetParam().dtype;
     const float error = GetParam().error;
     const StorageView expected({2, 2, 2}, std::vector<float>{
