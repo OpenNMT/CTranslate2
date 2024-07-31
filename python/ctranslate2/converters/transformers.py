@@ -41,6 +41,7 @@ _SUPPORTED_ACTIVATIONS = {
 _SUPPORTED_ROPE_SCALING = {
     "linear": attention_spec.RotaryScalingType.Linear,
     "su": attention_spec.RotaryScalingType.Su,
+    "llama3": attention_spec.RotaryScalingType.Llama3,
 }
 
 _SUPPORTED_QUANTIZATION = {
@@ -1405,7 +1406,8 @@ class LlamaLoader(ModelLoader):
 
         rope_scaling = getattr(model.config, "rope_scaling", None)
         if rope_scaling:
-            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_scaling["type"])
+            rope_type = rope_scaling.get("type") or rope_scaling["rope_type"]
+            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
             rotary_scaling_factor = rope_scaling["factor"]
 
             if rotary_scaling_type is None:
@@ -1420,6 +1422,7 @@ class LlamaLoader(ModelLoader):
 
         quantization_config = getattr(model.config, "quantization_config", None)
         if quantization_config:
+            quant_type = None
             if quantization_config.quant_method == "awq":
                 quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
             if quant_type is None:
@@ -1458,6 +1461,16 @@ class LlamaLoader(ModelLoader):
 
         self.set_decoder(spec.decoder, model.model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
+
+        # set extra RoPE parameters for Llama-3.1
+        if rotary_scaling_type == attention_spec.RotaryScalingType.Llama3:
+            for layer in spec.decoder.layer:
+                layer.self_attention.rotary_low_freq_factor = rope_scaling[
+                    "low_freq_factor"
+                ]
+                layer.self_attention.rotary_high_freq_factor = rope_scaling[
+                    "high_freq_factor"
+                ]
         return spec
 
     def get_vocabulary(self, model, tokenizer):
