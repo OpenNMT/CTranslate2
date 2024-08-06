@@ -4,7 +4,7 @@ set -e
 set -x
 
 # force use pip < 24.1
-python -m pip install pip<24.1
+python -m pip install 'pip<24.1'
 
 # Install test rquirements
 pip cache purge
