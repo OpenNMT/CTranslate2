@@ -19,9 +19,12 @@ if [ "$CIBW_ARCHS" == "aarch64" ]; then
     rm -r OpenBLAS-*
 
 else
-
     # Install CUDA 12.2:
     yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo
+    # error mirrorlist.centos.org doesn't exists anymore.
+    sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
+    sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
+    sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
     yum install --setopt=obsoletes=0 -y \
         cuda-nvcc-12-2-12.2.140-1 \
         cuda-cudart-devel-12-2-12.2.140-1 \
