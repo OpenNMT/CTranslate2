@@ -73,6 +73,7 @@ namespace ctranslate2 {
       None = -1,
       Linear,
       Su,
+      Llama3,
     };
 
     class RotaryEmbeddings {
@@ -85,6 +86,8 @@ namespace ctranslate2 {
                        const dim_t num_initial_positions = 2048,
                        const StorageView* long_scaling_factor = nullptr,
                        const StorageView* short_scaling_factor = nullptr,
+                       const float low_freq_factor = 1.0,
+                       const float high_freq_factor = 4.0,
                        const dim_t original_max_position_embeddings = 0,
                        const dim_t max_position_embeddings = 0,
                        const bool transpose = true);
@@ -117,6 +120,8 @@ namespace ctranslate2 {
       const dim_t _num_initial_positions;
       std::unique_ptr<StorageView> _rotary_scaling_long_factor;
       std::unique_ptr<StorageView> _rotary_scaling_short_factor;
+      const float _rotary_low_freq_factor;
+      const float _rotary_high_freq_factor;
       const dim_t _original_max_position_embeddings;
       const dim_t _max_position_embeddings;
       const ops::Rotary _rotary_op;

@@ -11,6 +11,7 @@ class RotaryScalingType(enum.IntEnum):
 
     Linear = 0
     Su = 1
+    Llama3 = 2
 
 
 class MultiHeadAttentionSpec(model_spec.LayerSpec):
@@ -69,6 +70,9 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
             elif rotary_scaling_type is RotaryScalingType.Su:
                 self.rotary_scaling_long_factor = None
                 self.rotary_scaling_short_factor = None
+            elif rotary_scaling_type is RotaryScalingType.Llama3:
+                self.rotary_low_freq_factor = None
+                self.rotary_high_freq_factor = None
 
         if num_heads_kv is not None:
             self.num_heads_kv = np.dtype("int32").type(num_heads_kv)
