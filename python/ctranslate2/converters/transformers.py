@@ -2276,6 +2276,13 @@ class XLMRobertaLoader(ModelLoader):
             spec.encodings = spec.encodings[offset + 1 :]
 
 
+@register_loader("RobertaConfig")
+class RobertaLoader (BertLoader):
+    @property
+    def architecture_name(self):
+        return "RobertaModel"
+
+
 def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
