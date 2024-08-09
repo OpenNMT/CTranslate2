@@ -165,6 +165,7 @@ namespace ctranslate2 {
       decoding_options.sampling_temperature = options.sampling_temperature;
       decoding_options.num_hypotheses = options.num_hypotheses;
       decoding_options.return_scores = options.return_scores;
+      decoding_options.return_log_probs_vocab = options.return_log_probs_vocab;
       decoding_options.return_alternatives = options.return_alternatives;
       decoding_options.min_alternative_expansion_prob = options.min_alternative_expansion_prob;
       decoding_options.disable_sequences = vocabulary.to_ids(options.suppress_sequences,
@@ -268,6 +269,7 @@ namespace ctranslate2 {
         final_result.sequences = vocabulary.to_tokens(result.hypotheses);
         final_result.sequences_ids = std::move(result.hypotheses);
         final_result.scores = std::move(result.scores);
+        final_result.log_probs = std::move(result.log_probs_vocab);
         final_results.emplace_back(std::move(final_result));
       }
 
