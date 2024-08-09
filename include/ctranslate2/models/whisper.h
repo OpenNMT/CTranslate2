@@ -41,6 +41,9 @@ namespace ctranslate2 {
       // Include scores in the result.
       bool return_scores = false;
 
+      // Include log probs of each token in the result
+      bool return_log_probs_vocab = false;
+
       // Include the probability of the no speech token in the result.
       bool return_no_speech_prob = false;
 
@@ -59,6 +62,7 @@ namespace ctranslate2 {
       std::vector<std::vector<std::string>> sequences;
       std::vector<std::vector<size_t>> sequences_ids;
       std::vector<float> scores;
+      std::vector<std::vector<StorageView>> log_probs;
       float no_speech_prob = 0;
 
       size_t num_sequences() const {

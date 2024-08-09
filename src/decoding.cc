@@ -157,6 +157,22 @@ namespace ctranslate2 {
     return attention;
   }
 
+  static std::vector<StorageView> build_log_probs(const StorageView& history,
+                                                  const dim_t batch) {
+    if (!history)
+      return {};
+    std::vector<StorageView> log_probs;
+    log_probs.reserve(batch);
+    for (dim_t t = 0; t < batch; ++t) {
+      ops::Slide slide(0, t, 1);
+      StorageView tmp(history.dtype(), history.device());
+      slide(history, tmp);
+      log_probs.emplace_back(std::move(tmp.squeeze(0)));
+    }
+
+    return log_probs;
+  }
+
   static float compute_coverage_penalty(const std::vector<std::vector<float>>& attention,
                                         const float beta) {
     float penalty = 0;
@@ -409,6 +425,7 @@ namespace ctranslate2 {
                      const dim_t min_length,
                      const bool return_scores,
                      const bool return_attention,
+                     const bool return_log_probs_vocab,
                      const bool return_prefix,
                      const size_t num_hypotheses,
                      const bool include_eos_in_hypotheses,
@@ -571,6 +588,10 @@ namespace ctranslate2 {
       // Only keep the first beam_size candidates.
       StorageView active_beams({cur_batch_size * _beam_size}, DataType::INT32);
 
+      std::vector<StorageView> log_probs_vec;
+      if (return_log_probs_vocab)
+        log_probs_vec = std::move(build_log_probs(log_probs, cur_batch_size));
+
       for (dim_t i = 0; i < cur_batch_size; ++i) {
         const dim_t batch_id = batch_offset[i];
         const dim_t prefix_length = use_hard_prefix ? prefix_ids->at(batch_id).size() : 0;
@@ -581,6 +602,11 @@ namespace ctranslate2 {
 
         auto& result = results[batch_id];
         dim_t secondary_candidates_offset = _beam_size;
+
+        if (return_log_probs_vocab) {
+          results[batch_id].log_probs_vocab.resize(1);
+          results[batch_id].log_probs_vocab[0].emplace_back(std::move(log_probs_vec[i]));
+        }
 
         for (dim_t k = 0; k < _beam_size; ++k) {
           const size_t last_id = topk_ids.at<int32_t>({i, k});
@@ -705,6 +731,7 @@ namespace ctranslate2 {
                        const dim_t min_length,
                        const bool return_scores,
                        const bool return_attention,
+                       const bool return_log_probs_vocab,
                        const bool return_prefix,
                        const size_t num_hypotheses,
                        const bool include_eos_in_hypotheses,
@@ -750,6 +777,7 @@ namespace ctranslate2 {
         min_length,
         /*return_scores=*/true,
         return_attention,
+        return_log_probs_vocab,
         return_prefix,
         /*num_hypotheses=*/1,
         include_eos_in_hypotheses,
@@ -766,6 +794,8 @@ namespace ctranslate2 {
         final_result.scores.emplace_back(result.scores[0]);
         if (return_attention)
           final_result.attention.emplace_back(std::move(result.attention[0]));
+        if (return_log_probs_vocab)
+          final_result.log_probs_vocab.emplace_back(std::move(result.log_probs_vocab[0]));
       }
 
       for (auto& result : final_results)
@@ -828,7 +858,7 @@ namespace ctranslate2 {
 
       // Compute log probs only if required.
       StorageView log_probs(dtype, device);
-      if (return_scores)
+      if (return_scores || return_log_probs_vocab)
         ops::LogSoftMax()(logits);
       log_probs.shallow_copy(logits);
 
@@ -851,11 +881,20 @@ namespace ctranslate2 {
       std::vector<int32_t> non_finished_index;
       non_finished_index.reserve(cur_batch_size);
 
+      std::vector<StorageView> log_probs_vec;
+      if (return_log_probs_vocab)
+        log_probs_vec = std::move(build_log_probs(log_probs, cur_batch_size));
+
       for (dim_t i = 0; i < cur_batch_size; ++i) {
         const size_t word_id = best_ids.at<int32_t>(i);
         const size_t batch_id = batch_offset[i];
         const dim_t prefix_length = prefix_ids ? prefix_ids->at(batch_id).size() : 0;
         const float score = best_probs.scalar_at<float>({i, 0});
+
+        if (return_log_probs_vocab) {
+          results[batch_id].log_probs_vocab.resize(1);
+          results[batch_id].log_probs_vocab[0].emplace_back(std::move(log_probs_vec[i]));
+        }
 
         if ((!is_eos(word_id, end_ids) || include_eos_in_hypotheses)
             && (return_prefix || step >= prefix_length)) {
@@ -880,7 +919,9 @@ namespace ctranslate2 {
           step_result.hypothesis_id = 0;
           step_result.is_last = is_finished;
           if (return_scores)
-            step_result.log_prob = score;
+            step_result.score = score;
+          if (return_log_probs_vocab)
+            step_result.log_probs = std::move(log_probs);
           if (_callback(std::move(step_result))) {
             is_finished = true;
           }
@@ -1078,6 +1119,8 @@ namespace ctranslate2 {
       result.scores.resize(options.num_hypotheses, 0);
     if (options.return_attention)
       result.attention.resize(options.num_hypotheses);
+    if (options.return_log_probs_vocab)
+      result.log_probs_vocab.resize(options.num_hypotheses);
 
     if (start_tokens.empty())
       throw std::invalid_argument("One input has no decoder start token");
@@ -1140,6 +1183,7 @@ namespace ctranslate2 {
                                                   /*min_length=*/1,
                                                   /*return_scores=*/true,
                                                   options.return_attention,
+                                                  options.return_log_probs_vocab,
                                                   options.return_prefix,
                                                   options.num_hypotheses,
                                                   options.include_eos_in_hypotheses,
@@ -1158,6 +1202,8 @@ namespace ctranslate2 {
         result.attention[i].emplace_back(std::move(expansion_result.attention[i].back()));
       if (options.return_scores)
         result.scores[i] = expansion_result.scores[i];
+      if (options.return_log_probs_vocab)
+        result.log_probs_vocab[i].emplace_back(std::move(expansion_result.log_probs_vocab[i].back()));
 
       // The next input is the words we just expanded.
       start_ids.push_back(result.hypotheses[i].back());
@@ -1201,6 +1247,7 @@ namespace ctranslate2 {
                                                   std::max(min_length - start_step, dim_t(0)),
                                                   options.return_scores,
                                                   options.return_attention,
+                                                  options.return_log_probs_vocab,
                                                   options.return_prefix,
                                                   /*num_hypotheses=*/1,
                                                   options.include_eos_in_hypotheses,
@@ -1212,6 +1259,12 @@ namespace ctranslate2 {
 
       if (options.return_scores) {
         result.scores[i] += suffix.scores[0];
+      }
+
+      if (options.return_log_probs_vocab) {
+        result.log_probs_vocab[i].insert(result.log_probs_vocab[i].end(),
+                                   std::make_move_iterator(suffix.log_probs_vocab[0].begin()),
+                                   std::make_move_iterator(suffix.log_probs_vocab[0].end()));
       }
 
       if (options.return_attention)
@@ -1293,6 +1346,7 @@ namespace ctranslate2 {
                                         options.min_length,
                                         options.return_scores,
                                         options.return_attention,
+                                        options.return_log_probs_vocab,
                                         options.return_prefix,
                                         options.num_hypotheses,
                                         options.include_eos_in_hypotheses,
