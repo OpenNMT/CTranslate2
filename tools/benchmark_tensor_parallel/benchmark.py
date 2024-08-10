@@ -49,8 +49,8 @@ def process_prompt(generator, max_generation_length, generated_token, prompt):
     step_results = generator.generate_tokens(
         prompt,
         max_length=max_generation_length,
-        sampling_temperature=0.6,
-        sampling_topk=20,
+        sampling_temperature=0.75,
+        sampling_topk=1,
         sampling_topp=1,
     )
     for step_result in step_results:
@@ -77,13 +77,13 @@ def benchmark_generation(generator,
             step_results = generator.generate_tokens(
                 prompt_tokens[i:i + batch_size],
                 max_length=max_generation_length,
-                sampling_temperature=0.6,
-                sampling_topk=20,
+                sampling_temperature=0.75,
+                sampling_topk=1,
                 sampling_topp=1,
             )
             for step_result in step_results:
                 batch_id = step_result.batch_id
-                generated_token[batch_id].append(step_result.token)
+                generated_token[i + batch_id].append(step_result.token)
         end_all = time.time()
         elapsed_time = end_all - start_all
         num_tokens = count_tokens(generated_token)
@@ -148,7 +148,8 @@ def main():
     args = parser.parse_args()
 
     print("Loading the model...")
-    generator = ctranslate2.Generator(args.model_path, device="cuda", tensor_parallel=True, inter_threads=2)
+    generator = ctranslate2.Generator(args.model_path, device="cuda", tensor_parallel=True,
+                                      flash_attention=False, inter_threads=2)
     sp = spm.SentencePieceProcessor(os.path.join(args.model_path, "tokenizer.model"))
 
     if not os.path.exists(args.src):

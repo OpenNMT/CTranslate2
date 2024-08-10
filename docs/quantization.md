@@ -6,6 +6,7 @@ Quantization is a technique that can reduce the model size and accelerate its ex
 * 16-bit integers (INT16)
 * 16-bit floating points (FP16)
 * 16-bit brain floating points (BF16)
+* 4-bit AWQ Quantization
 
 ```{tip}
 See the benchmark results in the main [README](https://github.com/OpenNMT/CTranslate2#benchmarks) to compare the performance and memory usage with and without quantization.
@@ -161,3 +162,21 @@ In this mode, all model weights are stored in half precision and all layers are 
 * NVIDIA GPU with Compute Capability >= 8.0
 
 In this mode, all model weights are stored in BF16 and all layers are run with this type.
+
+### 4-bit AWQ
+
+The compute type would be `int32_float16`
+
+**Supported on:**
+
+* NVIDIA GPU with Compute Capability >= 7.5
+
+In this mode, all model weights are stored in half precision and all layers are run in half precision. Other parameters like scale and zero are stored in ``int32``.
+
+For example,
+
+```bash
+ ct2-transformers-converter --model TheBloke/Llama-2-7B-AWQ --copy_files tokenizer.model --output_dir ct2_model
+```
+
+We have to quantize the model with AWQ first, then convert it to CT2 format.

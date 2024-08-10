@@ -11,6 +11,12 @@
 namespace ctranslate2 {
   namespace models {
 
+    enum class QUANTIZATION_TYPE {
+      CT2,
+      AWQ_GEMM,
+      AWQ_GEMV
+    };
+
     static const size_t current_binary_version = 6;
 
     // Checks whether the provided path could contain a CTranslate2 model.
@@ -90,6 +96,14 @@ namespace ctranslate2 {
         return _use_flash_attention;
       }
 
+      QUANTIZATION_TYPE quant_method() const {
+        return _quant_method;
+      }
+
+      void set_quant_method(QUANTIZATION_TYPE type) {
+        _quant_method = type;
+      }
+
       virtual bool use_global_int16_scale() const {
         return true;
       }
@@ -160,7 +174,7 @@ namespace ctranslate2 {
 
     private:
       void process_linear_weights();
-      void set_compute_type(ComputeType type, Device device, int device_index);
+      void set_compute_type(ComputeType type, Device device, int device_index, bool update_weight=true);
       void ensure_dtype(const std::string& name,
                         StorageView& variable,
                         const DataType target_dtype);
@@ -177,6 +191,7 @@ namespace ctranslate2 {
       std::unordered_map<std::string, std::shared_ptr<StorageView>> _variable_index;
       bool _use_flash_attention = false;
       bool _tensor_parallel = false;
+      QUANTIZATION_TYPE _quant_method = QUANTIZATION_TYPE::CT2;
     };
 
     template<>

@@ -105,6 +105,9 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         num_heads_kv: Optional[int] = None,
         head_dim: Optional[int] = None,
         sliding_window: Optional[int] = None,
+        quant_type: Optional[common_spec.Quantization] = None,
+        quant_group_size: Optional[int] = None,
+        quant_bits: Optional[int] = None,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -147,7 +150,12 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
           sliding_window: Max sequence length to retain in KV Cache.
+          quant_type: quantization type used (like awq... for lower bit quantization)
+          quant_group_size: group size of the lower bit quantization
+          quant_bits: number of bit of the quantization (ex: 4bit)
         """
+
+        self._config = dict()
         if parallel_residual:
             if not pre_norm:
                 raise ValueError("The GPT-J block expects a pre-norm architecture")
@@ -215,13 +223,22 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
             for _ in range(num_layers)
         ]
         self.start_from_zero_embedding = False
-        self.multi_query_attention = multi_query_attention or (
+        self._config["multi_query_attention"] = multi_query_attention or (
             num_heads_kv != num_heads
         )
 
         if project_in_out:
             self.project_in = common_spec.LinearSpec()
             self.project_out = common_spec.LinearSpec()
+
+        if quant_type is not None:
+            self._config["quantization_type"] = quant_type
+            self._config["quantization_bits"] = quant_bits
+            self._config["quantization_group_size"] = quant_group_size
+
+    @property
+    def config(self):
+        return self._config
 
 
 class TransformerEncoderLayerSpec(model_spec.LayerSpec):
@@ -485,9 +502,8 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
         super().__init__()
         self.decoder = decoder
-        self._config.add_attribute(
-            "multi_query_attention", self.decoder.multi_query_attention
-        )
+        for key, value in self.decoder.config.items():
+            self._config.add_attribute(key, value)
 
     @classmethod
     def from_config(
@@ -518,6 +534,9 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         num_heads_kv: Optional[int] = None,
         head_dim: Optional[int] = None,
         sliding_window: Optional[int] = None,
+        quant_type: Optional[common_spec.Quantization] = None,
+        quant_group_size: Optional[int] = None,
+        quant_bits: Optional[int] = None,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -553,7 +572,11 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             attention layer norms.
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
+          head_dim: Number of head
           sliding_window: max sequence length to retain KV cache
+          quant_type: quantization type used (like awq... for lower bit quantization)
+          quant_group_size: group size of the lower bit quantization
+          quant_bits: number of bit of the quantization (ex: 4bit)
         """
         decoder = TransformerDecoderSpec(
             num_layers,
@@ -583,6 +606,9 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             num_heads_kv=num_heads_kv,
             head_dim=head_dim,
             sliding_window=sliding_window,
+            quant_type=quant_type,
+            quant_group_size=quant_group_size,
+            quant_bits=quant_bits,
         )
 
         return cls(decoder)

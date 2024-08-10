@@ -21,6 +21,7 @@ option(BUILD_CLI "Compile the clients" ON)
 option(BUILD_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
+option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
 
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
@@ -191,6 +192,13 @@ set(SOURCES
   src/ops/transpose.cc
   src/ops/nccl_ops.cc
   src/ops/nccl_ops_cpu.cc
+  src/ops/awq/dequantize.cc
+  src/ops/awq/dequantize_cpu.cc
+  src/ops/awq/gemm.cc
+  src/ops/awq/gemm_cpu.cc
+  src/ops/awq/gemv.cc
+  src/ops/awq/gemv_cpu.cc
+  src/ops/sum.cc
   src/padder.cc
   src/profiler.cc
   src/random.cc
@@ -317,7 +325,7 @@ if(WITH_MKL)
   endif()
 
   # Find MKL libraries.
-  find_library(MKL_CORE_LIBRARY NAMES mkl_core PATHS ${MKL_ROOT}/lib ${MKL_ROOT}/lib/intel64)
+  find_library(MKL_CORE_LIBRARY NAMES mkl_core HINTS ${MKL_ROOT}/lib ${MKL_ROOT}/lib/intel64)
   if(MKL_CORE_LIBRARY)
     get_filename_component(MKL_LIBRARY_DIR ${MKL_CORE_LIBRARY} DIRECTORY)
     message(STATUS "Found MKL library directory: ${MKL_LIBRARY_DIR}")
@@ -478,8 +486,10 @@ if (WITH_CUDA)
   set(CUDA_HOST_COMPILER ${CMAKE_CUDA_COMPILER})
 
   # flags for flash attention
-  list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
-  list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
+  if (WITH_FLASH_ATTN)
+    list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
+    list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
+  endif()
 
   message(STATUS "NVCC host compiler: ${CUDA_HOST_COMPILER}")
   message(STATUS "NVCC compilation flags: ${CUDA_NVCC_FLAGS}")
@@ -563,39 +573,84 @@ if (WITH_CUDA)
     src/ops/topp_mask_gpu.cu
     src/ops/quantize_gpu.cu
     src/ops/nccl_ops_gpu.cu
-    src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
-    src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+    src/ops/awq/gemm_gpu.cu
+    src/ops/awq/gemv_gpu.cu
+    src/ops/awq/dequantize_gpu.cu
   )
+  if (WITH_FLASH_ATTN)
+    add_definitions(-DCT2_WITH_FLASH_ATTN)
+    cuda_add_library(${PROJECT_NAME}
+      src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+    )
+
+    set_source_files_properties(
+      src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
+      src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+      PROPERTIES COMPILE_FLAGS "--use_fast_math")
+  endif()
+
+
 elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
 else()
