@@ -16,11 +16,14 @@ namespace ctranslate2 {
                       "Score of each translation hypothesis (empty if :obj:`return_scores` was disabled).")
         .def_readonly("attention", &TranslationResult::attention,
                       "Attention matrix of each translation hypothesis (empty if :obj:`return_attention` was disabled).")
+        .def_readonly("log_probs", &TranslationResult::log_probs,
+                      "Score of each translation hypothesis (empty if :obj:`return_log_probs_vocab` was disabled).")
 
         .def("__repr__", [](const TranslationResult& result) {
           return "TranslationResult(hypotheses=" + std::string(py::repr(py::cast(result.hypotheses)))
             + ", scores=" + std::string(py::repr(py::cast(result.scores)))
             + ", attention=" + std::string(py::repr(py::cast(result.attention)))
+            + ", log_probs=" + std::string(py::repr(py::cast(result.log_probs)))
             + ")";
         })
 

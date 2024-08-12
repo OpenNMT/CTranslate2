@@ -7,7 +7,6 @@
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
-#include <iostream>
 
 namespace ctranslate2 {
   namespace layers {

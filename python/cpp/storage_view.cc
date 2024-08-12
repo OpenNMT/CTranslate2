@@ -192,6 +192,12 @@ namespace ctranslate2 {
           return stream.str();
         })
 
+        .def("__repr__", [](const StorageView& view) {
+          std::ostringstream stream;
+          stream << view;
+          return stream.str();
+        })
+
         .def("to",
              [](const StorageView& view, DataType dtype) {
                ScopedDeviceSetter device_setter(view.device(), view.device_index());
