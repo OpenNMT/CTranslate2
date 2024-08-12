@@ -52,7 +52,6 @@ namespace ctranslate2 {
                      size_t min_decoding_length,
                      bool use_vmap,
                      bool with_scores,
-                     bool return_log_probs_vocab,
                      size_t sampling_topk,
                      float sampling_topp,
                      float sampling_temperature,
