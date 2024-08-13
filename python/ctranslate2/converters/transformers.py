@@ -1021,7 +1021,10 @@ class Wav2Vec2Loader(BartLoader):
     def set_feature_extractor(self, spec, feature_extractor):
         spec.feat_layer0.conv.weight = feature_extractor.conv_layers[0].conv.weight
         spec.feat_layer0.conv.bias = feature_extractor.conv_layers[0].conv.bias
-        self.set_layer_norm(spec.feat_layer0.layer_norm, feature_extractor.conv_layers[0].layer_norm)
+        self.set_layer_norm(
+            spec.feat_layer0.layer_norm,
+            feature_extractor.conv_layers[0].layer_norm
+        )
         for spec_layer, module_layer in zip(spec.feat_layer, feature_extractor.conv_layers[1:]):
             spec_layer.conv.weight = module_layer.conv.weight
             spec_layer.conv.bias = module_layer.conv.bias
