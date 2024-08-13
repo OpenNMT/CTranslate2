@@ -1022,10 +1022,11 @@ class Wav2Vec2Loader(BartLoader):
         spec.feat_layer0.conv.weight = feature_extractor.conv_layers[0].conv.weight
         spec.feat_layer0.conv.bias = feature_extractor.conv_layers[0].conv.bias
         self.set_layer_norm(
-            spec.feat_layer0.layer_norm,
-            feature_extractor.conv_layers[0].layer_norm
+            spec.feat_layer0.layer_norm, feature_extractor.conv_layers[0].layer_norm
         )
-        for spec_layer, module_layer in zip(spec.feat_layer, feature_extractor.conv_layers[1:]):
+        for spec_layer, module_layer in zip(
+            spec.feat_layer, feature_extractor.conv_layers[1:]
+        ):
             spec_layer.conv.weight = module_layer.conv.weight
             spec_layer.conv.bias = module_layer.conv.bias
             self.set_layer_norm(spec_layer.layer_norm, module_layer.layer_norm)
@@ -1037,7 +1038,9 @@ class Wav2Vec2Loader(BartLoader):
     def set_pos_conv_embed(self, spec, encoder, config):
         # forcing parameters to be set because some transformers version initializes garbage numbers
         # conv parameters are float16 so force float32 for the loading
-        encoder.pos_conv_embed.conv.weight.data = encoder.pos_conv_embed.conv.weight.data.float()
+        encoder.pos_conv_embed.conv.weight.data = (
+            encoder.pos_conv_embed.conv.weight.data.float()
+        )
         encoder.pos_conv_embed.conv.bias.data = encoder.pos_conv_embed.conv.bias.float()
         for param in encoder.pos_conv_embed.parameters():
             param.data = param.data.float()
