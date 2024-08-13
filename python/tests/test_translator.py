@@ -111,9 +111,12 @@ def test_batch_translation(max_batch_size):
     assert output[0].scores[0] < 0
     assert not output[0].attention
 
-    expected_repr = "TranslationResult(hypotheses=%s, scores=%s, attention=[], log_probs=[])" % (
-        output[0].hypotheses,
-        output[0].scores,
+    expected_repr = (
+        "TranslationResult(hypotheses=%s, scores=%s, attention=[], log_probs=[])"
+        % (
+            output[0].hypotheses,
+            output[0].scores,
+        )
     )
     assert repr(output[0]) == expected_repr
 
