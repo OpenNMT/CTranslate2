@@ -1,7 +1,6 @@
 from typing import List, Optional, Tuple
 
 import numpy as np
-import torch.nn as nn
 
 from ctranslate2.specs import common_spec, model_spec, transformer_spec
 
