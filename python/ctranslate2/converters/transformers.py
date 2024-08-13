@@ -1038,7 +1038,7 @@ class Wav2Vec2Loader(BartLoader):
         encoder.pos_conv_embed.conv.bias.data = encoder.pos_conv_embed.conv.bias.float()
         for param in encoder.pos_conv_embed.parameters():
             param.data = param.data.float()
-        tmp = encoder.pos_conv_embed(torch.randn((1,1,config.hidden_size)))
+        encoder.pos_conv_embed(torch.randn((1, 1, config.hidden_size)))
         spec.pos_conv_embed.conv.weight = encoder.pos_conv_embed.conv.weight
         spec.pos_conv_embed.conv.bias = encoder.pos_conv_embed.conv.bias
 

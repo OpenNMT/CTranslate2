@@ -982,8 +982,7 @@ class TestWav2Vec2:
 
         w2v2_processor = transformers.Wav2Vec2Processor.from_pretrained(model_name)
         w2v2_processor.save_pretrained(output_dir + "/wav2vec2_processor")
-        processor = transformers.AutoProcessor.from_pretrained(output_dir+"/wav2vec2_processor")
-        model = ctranslate2.models.Wav2Vec2(output_dir, device=device, device_index=[0], compute_type="int8")
+        processor = transformers.AutoProcessor.from_pretrained(output_dir + "/wav2vec2_processor")
 
         device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
         cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
@@ -1009,9 +1008,9 @@ class TestWav2Vec2:
         hidden_states = np.ascontiguousarray(input_values.unsqueeze(0))
         hidden_states = ctranslate2.StorageView.from_array(hidden_states)
         to_cpu = (model.device == "cuda" and len(model.device_index) > 1)
-        output = model.encode(hidden_states,to_cpu=to_cpu)
-        if model.device=="cuda":
-            logits = torch.as_tensor(output, device=ct2_model.device)[0]
+        output = model.encode(hidden_states, to_cpu=to_cpu)
+        if model.device == "cuda":
+            logits = torch.as_tensor(output, device=model.device)[0]
         else:
             logits = torch.as_tensor(np.array(output), dtype=torch.float32, device=model.device)[0]
 

@@ -12,6 +12,7 @@ class Wav2Vec2Config(model_spec.ModelConfig):
     def __init__(self):
         return
 
+
 class Wav2Vec2Spec(model_spec.LanguageModelSpec):
     def __init__(self, feat_layers, num_layers, num_heads):
         super().__init__()
@@ -52,7 +53,7 @@ class Wav2Vec2EncoderSpec(model_spec.LayerSpec):
         self.num_heads = np.dtype("int16").type(num_heads)
         self.feat_layer0 = Wav2Vec2LayerNormConvLayer()
         self.feat_layer = [
-            Wav2Vec2LayerNormConvLayer() for i in range(feat_layers-1)
+            Wav2Vec2LayerNormConvLayer() for i in range(feat_layers - 1)
         ]
         self.fp_layer_norm = common_spec.LayerNormSpec()
         self.fp_projection = common_spec.LinearSpec()
