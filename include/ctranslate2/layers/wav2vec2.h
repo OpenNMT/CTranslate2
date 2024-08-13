@@ -5,6 +5,68 @@
 namespace ctranslate2 {
   namespace layers {
 
+    class Wav2Vec2LayerNormConvLayer0 : public Layer {
+    public:
+      Wav2Vec2LayerNormConvLayer0(const models::Model& model, const std::string& scope);
+
+      void operator()(const StorageView& input, StorageView& output) const;
+
+      DataType output_type() const override {
+        return _conv.output_type();
+      }
+
+      dim_t output_size() const override {
+        return _conv.output_size();
+      }
+
+    private:
+      const Conv1D _conv;
+      const LayerNorm _output_norm;
+      const ops::Transpose _transpose;
+      const ops::GELU _gelu;
+    };
+
+    class Wav2Vec2LayerNormConvLayer : public Layer {
+    public:
+      Wav2Vec2LayerNormConvLayer(const models::Model& model, const std::string& scope);
+
+      void operator()(const StorageView& input, StorageView& output) const;
+
+      DataType output_type() const override {
+        return _conv.output_type();
+      }
+
+      dim_t output_size() const override {
+        return _conv.output_size();
+      }
+
+    private:
+      const Conv1D _conv;
+      const LayerNorm _output_norm;
+      const ops::Transpose _transpose;
+      const ops::GELU _gelu;
+    };
+
+    class Wav2Vec2PosConvLayer : public Layer {
+    public:
+      Wav2Vec2PosConvLayer(const models::Model& model, const std::string& scope);
+
+      void operator()(const StorageView& input, StorageView& output) const;
+
+      DataType output_type() const override {
+        return _conv.output_type();
+      }
+
+      dim_t output_size() const override {
+        return _conv.output_size();
+      }
+
+    private:
+      const Conv1D _conv;
+      const ops::Transpose _transpose;
+      const ops::GELU _gelu;
+    };
+
     class Wav2Vec2Encoder : public Layer {
     public:
       Wav2Vec2Encoder(const models::Model& model, const std::string& scope);
@@ -35,12 +97,17 @@ namespace ctranslate2 {
       }
 
     private:
+      const Wav2Vec2LayerNormConvLayer0 _feat_layer0;
+      const std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>> _feat_layers;
+      const LayerNorm _fp_norm;
+      const Dense _fp_ff;
+      const Wav2Vec2PosConvLayer _pos_conv_embed;
+      const ops::Transpose _transpose;
       const ops::GELU _gelu;
-      // wav2vec2.encoder modules except pos_conv_embed due to groups=16 being not supported
-      //const ops::Transpose _transpose;
       const dim_t _num_heads;
       const std::vector<std::unique_ptr<const TransformerEncoderLayer>> _layers;
       const LayerNorm _output_norm;
+      const Dense _lm_head;
     };
 
   }
