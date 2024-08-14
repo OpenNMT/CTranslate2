@@ -5,30 +5,12 @@
 namespace ctranslate2 {
   namespace layers {
 
-    class Wav2Vec2LayerNormConvLayer0 : public Layer {
-    public:
-      Wav2Vec2LayerNormConvLayer0(const models::Model& model, const std::string& scope);
-
-      void operator()(const StorageView& input, StorageView& output) const;
-
-      DataType output_type() const override {
-        return _conv.output_type();
-      }
-
-      dim_t output_size() const override {
-        return _conv.output_size();
-      }
-
-    private:
-      const Conv1D _conv;
-      const LayerNorm _output_norm;
-      const ops::Transpose _transpose;
-      const ops::GELU _gelu;
-    };
-
     class Wav2Vec2LayerNormConvLayer : public Layer {
     public:
-      Wav2Vec2LayerNormConvLayer(const models::Model& model, const std::string& scope);
+      Wav2Vec2LayerNormConvLayer(const models::Model& model,
+                                 const std::string& scope,
+                                 dim_t stride,
+                                 dim_t padding);
 
       void operator()(const StorageView& input, StorageView& output) const;
 
@@ -41,6 +23,8 @@ namespace ctranslate2 {
       }
 
     private:
+      dim_t _stride;
+      dim_t _padding;
       const Conv1D _conv;
       const LayerNorm _output_norm;
       const ops::Transpose _transpose;
@@ -97,7 +81,7 @@ namespace ctranslate2 {
       }
 
     private:
-      const Wav2Vec2LayerNormConvLayer0 _feat_layer0;
+      const Wav2Vec2LayerNormConvLayer _feat_layer0;
       const std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>> _feat_layers;
       const LayerNorm _fp_norm;
       const Dense _fp_ff;

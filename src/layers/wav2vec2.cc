@@ -1,30 +1,16 @@
 #include "ctranslate2/layers/wav2vec2.h"
-#include <iostream>
 
 
 namespace ctranslate2 {
   namespace layers {
 
-    Wav2Vec2LayerNormConvLayer0::Wav2Vec2LayerNormConvLayer0(const models::Model& model, const std::string& scope)
-      : _conv(model, scope + "/conv", /*stride=*/5, /*padding=*/0)
-      , _transpose({0, 2, 1})
-      , _output_norm(model, scope + "/layer_norm") {
-    }
-
-    void Wav2Vec2LayerNormConvLayer0::operator()(const StorageView& input, StorageView& output) const{
-      PROFILE("Wav2Vec2LayerNormConvLayer0");
-
-      StorageView buffer(input.dtype(), input.device());
-      buffer = std::move(input);
-      _conv(buffer, output);
-      _transpose(output, buffer);
-      _output_norm(buffer, output);
-      _transpose(output, buffer);
-      _gelu(buffer, output);
-    }
-
-    Wav2Vec2LayerNormConvLayer::Wav2Vec2LayerNormConvLayer(const models::Model& model, const std::string& scope)
-      : _conv(model, scope + "/conv", /*stride=*/2, /*padding=*/0)
+    Wav2Vec2LayerNormConvLayer::Wav2Vec2LayerNormConvLayer(const models::Model& model,
+                                                           const std::string& scope,
+                                                           dim_t stride,
+                                                           dim_t padding)
+      : _stride(stride)
+      , _padding(padding)
+      , _conv(model, scope + "/conv", _stride, _padding)
       , _transpose({0, 2, 1})
       , _output_norm(model, scope + "/layer_norm") {
     }
@@ -60,9 +46,11 @@ namespace ctranslate2 {
     }
 
     Wav2Vec2Encoder::Wav2Vec2Encoder(const models::Model& model, const std::string& scope)
-      : _feat_layer0(model, scope + "/feat_layer0")
+      : _feat_layer0(model, scope + "/feat_layer0", /*stride=*/5, /*padding=*/0)
       , _feat_layers(build_layers_list<const Wav2Vec2LayerNormConvLayer>(model,
-                                                                         scope + "/feat_layer"))
+                                                                         scope + "/feat_layer",
+                                                                         /*stride=*/2,
+                                                                         /*padding=*/0))
       , _fp_norm(model, scope + "/fp_layer_norm")
       , _fp_ff(model, scope + "/fp_projection", nullptr, true)
       , _pos_conv_embed(model, scope + "/pos_conv_embed")
