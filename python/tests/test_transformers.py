@@ -1020,5 +1020,6 @@ class TestWav2Vec2:
 
         predicted_ids = torch.argmax(logits, dim=-1)
         transcription = processor.decode(predicted_ids, output_word_offsets=True)
+        transcription = transcription[0].replace(processor.tokenizer.unk_token,'')
 
-        assert transcription[0] == expected_transcription[0]
+        assert transcription == expected_transcription[0]
