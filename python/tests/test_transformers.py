@@ -1000,7 +1000,7 @@ class TestWav2Vec2:
         speech_array = np.load(
             os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
         )
-        input_values = w2v2_processor(
+        input_values = processor(
             speech_array,
             padding=True,
             return_tensors="pt",
