@@ -520,7 +520,7 @@ namespace ctranslate2 {
       disable_tokens.apply();
       std::vector<StorageView> logits_vec;
       if (return_logits_vocab)
-        logits_vec = std::move(build_logits(logits, cur_batch_size));
+        logits_vec = build_logits(logits, cur_batch_size);
 
       StorageView log_probs(dtype, device);
       if (bias_towards_prefix) {
@@ -776,7 +776,7 @@ namespace ctranslate2 {
         min_length,
         /*return_scores=*/true,
         return_attention,
-        return_log_probs_vocab,
+        return_logits_vocab,
         return_prefix,
         /*num_hypotheses=*/1,
         include_eos_in_hypotheses,
@@ -858,7 +858,7 @@ namespace ctranslate2 {
       std::vector<StorageView> logits_vec;
       StorageView logits_orig(dtype, device);
       if (return_logits_vocab) {
-        logits_vec = std::move(build_logits(logits, logits.dim(0)));
+        logits_vec = build_logits(logits, logits.dim(0));
         logits_orig.copy_from(logits);
       }
       // Compute log probs only if required.
