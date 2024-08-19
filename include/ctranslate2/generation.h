@@ -54,7 +54,7 @@ namespace ctranslate2 {
     // Include scores in the result.
     bool return_scores = false;
     // Include log probs of each token in the result
-    bool return_log_probs_vocab = false;
+    bool return_logits_vocab = false;
 
     // Return alternatives at the first unconstrained decoding position. This is typically
     // used with a prefix to provide alternatives at a specifc location.
@@ -81,7 +81,7 @@ namespace ctranslate2 {
     std::vector<std::vector<std::string>> sequences;
     std::vector<std::vector<size_t>> sequences_ids;
     std::vector<float> scores;
-    std::vector<std::vector<StorageView>> log_probs;
+    std::vector<std::vector<StorageView>> logits;
 
     size_t num_sequences() const {
       return sequences.size();
@@ -99,7 +99,7 @@ namespace ctranslate2 {
     size_t hypothesis_id;
     std::string token;
     std::optional<float> score;
-    std::optional<StorageView> log_probs;
+    std::optional<StorageView> logits;
     bool is_last;
 
     GenerationStepResult() = default;
@@ -110,7 +110,7 @@ namespace ctranslate2 {
       , hypothesis_id(result.hypothesis_id)
       , token(vocabulary.to_token(result.token_id))
       , score(result.score)
-      , log_probs(result.log_probs)
+      , logits(result.logits)
       , is_last(result.is_last)
     {
     }

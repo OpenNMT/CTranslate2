@@ -33,7 +33,7 @@ namespace ctranslate2 {
                      bool cache_static_prompt,
                      bool include_prompt_in_result,
                      bool return_scores,
-                     bool return_log_probs_vocab,
+                     bool return_logits_vocab,
                      bool return_alternatives,
                      float min_alternative_expansion_prob,
                      size_t sampling_topk,
@@ -59,7 +59,7 @@ namespace ctranslate2 {
         options.num_hypotheses = num_hypotheses;
         options.return_end_token = return_end_token;
         options.return_scores = return_scores;
-        options.return_log_probs_vocab = return_log_probs_vocab;
+        options.return_logits_vocab = return_logits_vocab;
         options.return_alternatives = return_alternatives;
         options.cache_static_prompt = cache_static_prompt;
         options.include_prompt_in_result = include_prompt_in_result;
@@ -205,7 +205,7 @@ namespace ctranslate2 {
              py::arg("cache_static_prompt")=true,
              py::arg("include_prompt_in_result")=true,
              py::arg("return_scores")=false,
-             py::arg("return_log_probs_vocab")=false,
+             py::arg("return_logits_vocab")=false,
              py::arg("return_alternatives")=false,
              py::arg("min_alternative_expansion_prob")=0,
              py::arg("sampling_topk")=1,
@@ -263,7 +263,7 @@ namespace ctranslate2 {
                      reuse it for future generations using the same static prompt.
                    include_prompt_in_result: Include the :obj:`start_tokens` in the result.
                    return_scores: Include the scores in the output.
-                   return_log_probs_vocab: Include log probs for each token in the output
+                   return_logits_vocab: Include log probs for each token in the output
                    return_alternatives: Return alternatives at the first unconstrained decoding position.
                    min_alternative_expansion_prob: Minimum initial probability to expand an alternative.
                    sampling_topk: Randomly sample predictions from the top K candidates.

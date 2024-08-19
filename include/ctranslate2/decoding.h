@@ -15,7 +15,7 @@ namespace ctranslate2 {
     std::vector<std::vector<size_t>> hypotheses;
     std::vector<float> scores;
     std::vector<std::vector<std::vector<float>>> attention;
-    std::vector<std::vector<StorageView>> log_probs_vocab;
+    std::vector<std::vector<StorageView>> logits_vocab;
   };
 
   struct DecodingStepResult {
@@ -24,7 +24,7 @@ namespace ctranslate2 {
     size_t token_id;
     size_t hypothesis_id;
     std::optional<float> score;
-    std::optional<StorageView> log_probs;
+    std::optional<StorageView> logits;
     bool is_last = false;
   };
 
@@ -43,7 +43,7 @@ namespace ctranslate2 {
            const dim_t min_length,
            const bool return_scores = false,
            const bool return_attention = false,
-           const bool return_log_probs_vocab = true,
+           const bool return_logits_vocab = true,
            const bool return_prefix = true,
            const size_t num_hypotheses = 1,
            const bool include_eos_in_hypotheses = true,
@@ -70,7 +70,7 @@ namespace ctranslate2 {
            const dim_t min_length,
            const bool return_scores = false,
            const bool return_attention = false,
-           const bool return_log_probs_vocab = true,
+           const bool return_logits_vocab = true,
            const bool return_prefix = true,
            const size_t num_hypotheses = 1,
            const bool include_eos_in_hypotheses = true,
@@ -122,7 +122,7 @@ namespace ctranslate2 {
            const dim_t min_length,
            const bool return_scores = false,
            const bool return_attention = false,
-           const bool return_log_probs_vocab = true,
+           const bool return_logits_vocab = true,
            const bool return_prefix = true,
            const size_t num_hypotheses = 1,
            const bool include_eos_in_hypotheses = true,
@@ -154,7 +154,7 @@ namespace ctranslate2 {
     bool include_eos_in_hypotheses = true;
     bool return_scores = false;
     bool return_attention = false;
-    bool return_log_probs_vocab = false;
+    bool return_logits_vocab = false;
     bool return_alternatives = false;
     bool return_prefix = true;
     float min_alternative_expansion_prob = 0;

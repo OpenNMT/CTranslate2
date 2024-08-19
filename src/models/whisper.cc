@@ -302,7 +302,7 @@ namespace ctranslate2 {
       decoding_options.sampling_temperature = options.sampling_temperature;
       decoding_options.num_hypotheses = options.num_hypotheses;
       decoding_options.return_scores = options.return_scores;
-      decoding_options.return_log_probs_vocab = options.return_log_probs_vocab;
+      decoding_options.return_logits_vocab = options.return_logits_vocab;
       decoding_options.include_eos_in_hypotheses = false;
 
       for (const auto& id : options.suppress_tokens) {
@@ -357,7 +357,7 @@ namespace ctranslate2 {
         final_result.sequences = vocabulary.to_tokens(result.hypotheses);
         final_result.sequences_ids = std::move(result.hypotheses);
         final_result.scores = std::move(result.scores);
-        final_result.log_probs = std::move(result.log_probs_vocab);
+        final_result.logits = std::move(result.logits_vocab);
         if (options.return_no_speech_prob)
           final_result.no_speech_prob = no_speech_probs[i];
 

@@ -23,7 +23,7 @@ namespace ctranslate2 {
                       "String value of the generated token.")
         .def_readonly("log_prob", &GenerationStepResult::score,
                       "Log probability of the token (``None`` if :obj:`return_log_prob` was disabled).")
-        .def_readonly("log_probs", &GenerationStepResult::log_probs,
+        .def_readonly("logits", &GenerationStepResult::logits,
                       "Log probability on the vocab of all tokens.")
         .def_readonly("is_last", &GenerationStepResult::is_last,
                       "Whether this step is the last decoding step for this batch.")
@@ -35,7 +35,7 @@ namespace ctranslate2 {
             + ", hypothesis_id=" + std::string(py::repr(py::cast(result.hypothesis_id)))
             + ", token=" + std::string(py::repr(py::cast(result.token)))
             + ", log_prob=" + std::string(py::repr(py::cast(result.score)))
-            + ", log_probs=" + std::string(py::repr(py::cast(result.log_probs)))
+            + ", log_probs=" + std::string(py::repr(py::cast(result.logits)))
             + ", is_last=" + std::string(py::repr(py::cast(result.is_last)))
             + ")";
         })
@@ -49,14 +49,14 @@ namespace ctranslate2 {
                       "Generated sequences of token IDs.")
         .def_readonly("scores", &GenerationResult::scores,
                       "Score of each sequence (empty if :obj:`return_scores` was disabled).")
-        .def_readonly("log_probs", &GenerationResult::log_probs,
-                      "Score of each sequence (empty if :obj:`return_log_probs_vocab` was disabled).")
+        .def_readonly("logits", &GenerationResult::logits,
+                      "Score of each sequence (empty if :obj:`return_logits_vocab` was disabled).")
 
         .def("__repr__", [](const GenerationResult& result) {
           return "GenerationResult(sequences=" + std::string(py::repr(py::cast(result.sequences)))
             + ", sequences_ids=" + std::string(py::repr(py::cast(result.sequences_ids)))
             + ", scores=" + std::string(py::repr(py::cast(result.scores)))
-            + ", log_probs=" + std::string(py::repr(py::cast(result.log_probs)))
+            + ", logits=" + std::string(py::repr(py::cast(result.logits)))
             + ")";
         })
         ;
