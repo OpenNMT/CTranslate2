@@ -9,7 +9,6 @@
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
-#include <iostream>
 
 namespace ctranslate2 {
   namespace layers {
@@ -190,7 +189,6 @@ namespace ctranslate2 {
 
       const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
       keys_matmul(queries, keys, output);
-      //std::coutt << "output after queries x keys: " << output << std::endl;
       if (relative_position_keys)
         add_relative_representations(queries,
                                      *relative_positions,
@@ -235,9 +233,7 @@ namespace ctranslate2 {
         alibi->apply(output, queries_scale);
 
       StorageView attn(values.dtype(), values.device());
-      //std::coutt << "lengths: " << values_lengths << std::endl;
       ops::SoftMax()(output, values_lengths, attn);
-      //std::coutt << "output after softmax: " << attn << std::endl;
 
       if (attention && !return_normalized_attention)
         save_attention(*attention, std::move(output), beam_size);
@@ -318,7 +314,6 @@ namespace ctranslate2 {
       StorageView values_proj(dtype, device);
 
       const StorageView* q = &queries;
-      //std::coutt << "YYYYYYYYYYYYYYYYYYYYYY: " << queries << std::endl;
       if (_layer_norm && _pre_norm) {
         (*_layer_norm)(queries, queries_proj);
         q = &queries_proj;
@@ -432,9 +427,6 @@ namespace ctranslate2 {
       }
 
       StorageView& context = fused_proj;  // Reuse storage.
-      //std::coutt << "queries_proj: " << queries_proj << std::endl;
-      //std::coutt << "keys_proj: " << keys_proj << std::endl;
-      //std::coutt << "values_proj: " << values_proj << std::endl;
       dot_product_attention(queries_proj,
                             keys_proj,
                             values_proj,
@@ -470,9 +462,7 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-      //std::coutt << "attention output after dot attention: " << context << std::endl;
       _linear.back()(context, output);
-      //std::coutt << "zzzzzzzzzzzzzzzzzzzzzzz: " << output << std::endl;
 
       if (_tensor_parallel) {
         Shape shape = output.shape();

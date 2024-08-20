@@ -35,7 +35,7 @@ namespace ctranslate2 {
             + ", hypothesis_id=" + std::string(py::repr(py::cast(result.hypothesis_id)))
             + ", token=" + std::string(py::repr(py::cast(result.token)))
             + ", log_prob=" + std::string(py::repr(py::cast(result.score)))
-            + ", log_probs=" + std::string(py::repr(py::cast(result.logits)))
+            + ", logits=" + std::string(py::repr(py::cast(result.logits)))
             + ", is_last=" + std::string(py::repr(py::cast(result.is_last)))
             + ")";
         })
