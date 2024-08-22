@@ -1,8 +1,9 @@
 #include "ctranslate2/ops/flash_attention.h"
+#ifdef CT2_WITH_FLASH_ATTN
 #include "ctranslate2/ops/flash-attention/flash.h"
 #include "ctranslate2/ops/flash-attention/static_switch.h"
+#endif
 #include "ctranslate2/ops/transpose.h"
-#include "ctranslate2/ops/slide.h"
 #include "cuda/utils.h"
 
 #include "dispatch.h"
@@ -13,6 +14,7 @@
 
 namespace ctranslate2 {
   namespace ops {
+#ifdef CT2_WITH_FLASH_ATTN
     static void set_params_fprop(Flash_fwd_params &params,
       // sizes
                                  const size_t b,
@@ -188,7 +190,7 @@ namespace ctranslate2 {
     }
 
     static const ops::Transpose transpose_op({0, 2, 1, 3});
-
+#endif
     template<>
     void FlashAttention::compute<Device::CUDA>(StorageView& queries,
                                                StorageView& keys,
@@ -203,6 +205,7 @@ namespace ctranslate2 {
                                                const bool rotary_interleave,
                                                StorageView* alibi,
                                                dim_t offset) const {
+#ifdef CT2_WITH_FLASH_ATTN
       const Device device = queries.device();
       const DataType dtype = queries.dtype();
 
@@ -357,6 +360,9 @@ namespace ctranslate2 {
         output.reshape({batch_size, 1, num_heads_k * seqlen_q, head_size_og});
         softmax_lse = softmax_lse.reshape({batch_size, num_heads_k * seqlen_q, 1});
       }
+#else
+      throw std::runtime_error("Flash attention 2 is not supported");
+#endif
     }
   }
 }

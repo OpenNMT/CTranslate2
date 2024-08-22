@@ -41,6 +41,7 @@ _SUPPORTED_ACTIVATIONS = {
 _SUPPORTED_ROPE_SCALING = {
     "linear": attention_spec.RotaryScalingType.Linear,
     "su": attention_spec.RotaryScalingType.Su,
+    "llama3": attention_spec.RotaryScalingType.Llama3,
 }
 
 _SUPPORTED_QUANTIZATION = {
@@ -991,9 +992,8 @@ class Wav2Vec2Loader(BartLoader):
         return "Wav2Vec2ForCTC"
 
     def get_model_spec(self, model):
-        # Wav2Vec2 encoder Wav2Vec2PositionalConvEmbedding conv1d has groups 16
-        # that doesn't look available here so we make Wav2Vec2 encoder layers only
         spec = wav2vec2_spec.Wav2Vec2Spec(
+            model.wav2vec2.config.num_feat_extract_layers,
             model.wav2vec2.encoder.config.num_hidden_layers,
             model.wav2vec2.encoder.config.num_attention_heads,
         )
@@ -1006,9 +1006,7 @@ class Wav2Vec2Loader(BartLoader):
             layer.fc1 = layer.feed_forward.intermediate_dense
             layer.fc2 = layer.feed_forward.output_dense
 
-        self.set_encoder(spec.encoder, model.wav2vec2.encoder)
-        self.set_linear(spec.lm_head, model.lm_head)
-        # only for Wav2Vec2Spec.get_vocabulary_size()
+        self.set_encoder(spec.encoder, model, model.wav2vec2.config)
         return spec
 
     def set_config(self, config, model, tokenizer):
@@ -1020,8 +1018,42 @@ class Wav2Vec2Loader(BartLoader):
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
 
-    def set_encoder(self, spec, encoder):
-        super().set_encoder(spec, encoder)
+    def set_feature_extractor(self, spec, feature_extractor):
+        spec.feat_layer0.conv.weight = feature_extractor.conv_layers[0].conv.weight
+        spec.feat_layer0.conv.bias = feature_extractor.conv_layers[0].conv.bias
+        self.set_layer_norm(
+            spec.feat_layer0.layer_norm, feature_extractor.conv_layers[0].layer_norm
+        )
+        for spec_layer, module_layer in zip(
+            spec.feat_layer, feature_extractor.conv_layers[1:]
+        ):
+            spec_layer.conv.weight = module_layer.conv.weight
+            spec_layer.conv.bias = module_layer.conv.bias
+            self.set_layer_norm(spec_layer.layer_norm, module_layer.layer_norm)
+
+    def set_feature_projection(self, spec, feature_projection):
+        self.set_layer_norm(spec.fp_layer_norm, feature_projection.layer_norm)
+        self.set_linear(spec.fp_projection, feature_projection.projection)
+
+    def set_pos_conv_embed(self, spec, encoder, config):
+        # forcing parameters to be set because some transformers version initializes garbage numbers
+        # conv parameters are float16 so force float32 for the loading
+        encoder.pos_conv_embed.conv.weight.data = (
+            encoder.pos_conv_embed.conv.weight.data.float()
+        )
+        encoder.pos_conv_embed.conv.bias.data = encoder.pos_conv_embed.conv.bias.float()
+        for param in encoder.pos_conv_embed.parameters():
+            param.data = param.data.float()
+        encoder.pos_conv_embed(torch.randn((1, 1, config.hidden_size)))
+        spec.pos_conv_embed.conv.weight = encoder.pos_conv_embed.conv.weight
+        spec.pos_conv_embed.conv.bias = encoder.pos_conv_embed.conv.bias
+
+    def set_encoder(self, spec, model, config):
+        self.set_feature_extractor(spec, model.wav2vec2.feature_extractor)
+        self.set_feature_projection(spec, model.wav2vec2.feature_projection)
+        self.set_pos_conv_embed(spec, model.wav2vec2.encoder, config)
+        super().set_encoder(spec, model.wav2vec2.encoder)
+        self.set_linear(spec.lm_head, model.lm_head)
 
     def set_common_layers(self, spec, module):
         self.set_layer_norm(spec.layer_norm, module.layer_norm)
@@ -1405,7 +1437,8 @@ class LlamaLoader(ModelLoader):
 
         rope_scaling = getattr(model.config, "rope_scaling", None)
         if rope_scaling:
-            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_scaling["type"])
+            rope_type = rope_scaling.get("type") or rope_scaling["rope_type"]
+            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
             rotary_scaling_factor = rope_scaling["factor"]
 
             if rotary_scaling_type is None:
@@ -1420,6 +1453,7 @@ class LlamaLoader(ModelLoader):
 
         quantization_config = getattr(model.config, "quantization_config", None)
         if quantization_config:
+            quant_type = None
             if quantization_config.quant_method == "awq":
                 quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
             if quant_type is None:
@@ -1458,6 +1492,16 @@ class LlamaLoader(ModelLoader):
 
         self.set_decoder(spec.decoder, model.model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
+
+        # set extra RoPE parameters for Llama-3.1
+        if rotary_scaling_type == attention_spec.RotaryScalingType.Llama3:
+            for layer in spec.decoder.layer:
+                layer.self_attention.rotary_low_freq_factor = rope_scaling[
+                    "low_freq_factor"
+                ]
+                layer.self_attention.rotary_high_freq_factor = rope_scaling[
+                    "high_freq_factor"
+                ]
         return spec
 
     def get_vocabulary(self, model, tokenizer):
