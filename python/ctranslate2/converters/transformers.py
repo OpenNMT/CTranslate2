@@ -356,7 +356,7 @@ class BartLoader(ModelLoader):
         self.set_linear(spec.linear[-1], attention.out_proj)
 
     def set_common_layers(self, spec, module):
-        spec.scale_embeddings = module.embed_scale
+        spec.scale_embeddings = getattr(module, 'embed_scale', False)
         self.set_position_encodings(spec.position_encodings, module.embed_positions)
         self.set_embeddings(
             (
