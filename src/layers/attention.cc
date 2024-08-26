@@ -462,7 +462,6 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-
       _linear.back()(context, output);
 
       if (_tensor_parallel) {
