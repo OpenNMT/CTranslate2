@@ -101,6 +101,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         max_position_embeddings: int = 0,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
+        pre_post_layer_norm: bool = False,
         multi_query_attention: bool = False,
         num_heads_kv: Optional[int] = None,
         head_dim: Optional[int] = None,
@@ -147,6 +148,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
             attention layer norms.
+          pre_post_layer_norm: Add post layer norm for each pre norm layer
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
           sliding_window: Max sequence length to retain in KV Cache.
@@ -216,6 +218,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 max_position_embeddings=max_position_embeddings,
                 parallel_residual=parallel_residual,
                 shared_layer_norm=shared_layer_norm,
+                pre_post_layer_norm=pre_post_layer_norm,
                 num_heads_kv=num_heads_kv,
                 head_dim=head_dim,
                 sliding_window=sliding_window,
@@ -279,6 +282,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         max_position_embeddings=0,
         parallel_residual=False,
         shared_layer_norm=False,
+        pre_post_layer_norm=False,
         num_heads_kv=None,
         head_dim=None,
         sliding_window=None,
@@ -315,6 +319,15 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             else:
                 self.input_layer_norm = common_spec.LayerNormSpec()
                 self.post_attention_layer_norm = common_spec.LayerNormSpec()
+
+            delattr(self.self_attention, "layer_norm")
+            delattr(self.ffn, "layer_norm")
+
+        if pre_post_layer_norm:
+            self.input_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
+            self.post_attention_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
+            self.pre_feedforward_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
+            self.post_feedforward_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
 
             delattr(self.self_attention, "layer_norm")
             delattr(self.ffn, "layer_norm")
@@ -530,6 +543,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         max_position_embeddings: int = 0,
         parallel_residual: bool = False,
         shared_layer_norm: bool = False,
+        pre_post_layer_norm: bool = False,
         multi_query_attention: bool = False,
         num_heads_kv: Optional[int] = None,
         head_dim: Optional[int] = None,
@@ -570,6 +584,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             by the GPT-J and GPT-NeoX models.
           shared_layer_norm: When using parallel residual, share the input and post
             attention layer norms.
+          pre_post_layer_norm: add post layer norm for each pre norm layer
           multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
           num_heads_kv: Number of attention heads for the key and value.
           head_dim: Number of head
@@ -602,6 +617,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             max_position_embeddings=max_position_embeddings,
             parallel_residual=parallel_residual,
             shared_layer_norm=shared_layer_norm,
+            pre_post_layer_norm=pre_post_layer_norm,
             multi_query_attention=multi_query_attention,
             num_heads_kv=num_heads_kv,
             head_dim=head_dim,
