@@ -8,11 +8,10 @@ from typing import List, Optional
 
 import numpy as np
 
-import transformers
-
 try:
     import huggingface_hub
     import torch
+    import transformers
 except ImportError:
     pass
 
