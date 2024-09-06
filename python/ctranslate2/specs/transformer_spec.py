@@ -325,9 +325,15 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
 
         if pre_post_layer_norm:
             self.input_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
-            self.post_attention_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
-            self.pre_feedforward_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
-            self.post_feedforward_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
+            self.post_attention_layer_norm = common_spec.LayerNormSpec(
+                rms_norm=rms_norm
+            )
+            self.pre_feedforward_layer_norm = common_spec.LayerNormSpec(
+                rms_norm=rms_norm
+            )
+            self.post_feedforward_layer_norm = common_spec.LayerNormSpec(
+                rms_norm=rms_norm
+            )
 
             delattr(self.self_attention, "layer_norm")
             delattr(self.ffn, "layer_norm")

@@ -8,10 +8,11 @@ from typing import List, Optional
 
 import numpy as np
 
+import transformers
+
 try:
     import huggingface_hub
     import torch
-    import transformers
 except ImportError:
     pass
 
@@ -1422,7 +1423,7 @@ class GemmaLoader(ModelLoader):
 
 
 @register_loader("Gemma2Config")
-class GemmaLoader(ModelLoader):
+class Gemma2Loader(ModelLoader):
     @property
     def architecture_name(self):
         return "Gemma2ForCausalLM"
@@ -1494,9 +1495,7 @@ class GemmaLoader(ModelLoader):
         self.set_layer_norm(spec.layer_norm, module.norm)
 
         for layer_spec, layer in zip(spec.layer, module.layers):
-            self.set_layer_norm(
-                layer_spec.input_layer_norm, layer.input_layernorm
-            )
+            self.set_layer_norm(layer_spec.input_layer_norm, layer.input_layernorm)
 
             self.set_layer_norm(
                 layer_spec.post_attention_layer_norm, layer.post_attention_layernorm
