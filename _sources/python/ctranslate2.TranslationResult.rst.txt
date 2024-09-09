@@ -12,4 +12,5 @@ TranslationResult
 
     - :obj:`~ctranslate2.TranslationResult.attention`
     - :obj:`~ctranslate2.TranslationResult.hypotheses`
+    - :obj:`~ctranslate2.TranslationResult.logits`
     - :obj:`~ctranslate2.TranslationResult.scores`

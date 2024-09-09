@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>GenerationStepResult &mdash; CTranslate2 4.3.1 documentation</title>
+  <title>GenerationStepResult &mdash; CTranslate2 4.4.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.3
+                4.4
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -152,6 +152,7 @@
 <li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.hypothesis_id" title="ctranslate2.GenerationStepResult.hypothesis_id"><code class="xref py py-obj docutils literal notranslate"><span class="pre">hypothesis_id</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.is_last" title="ctranslate2.GenerationStepResult.is_last"><code class="xref py py-obj docutils literal notranslate"><span class="pre">is_last</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.log_prob" title="ctranslate2.GenerationStepResult.log_prob"><code class="xref py py-obj docutils literal notranslate"><span class="pre">log_prob</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.logits" title="ctranslate2.GenerationStepResult.logits"><code class="xref py py-obj docutils literal notranslate"><span class="pre">logits</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.step" title="ctranslate2.GenerationStepResult.step"><code class="xref py py-obj docutils literal notranslate"><span class="pre">step</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.token" title="ctranslate2.GenerationStepResult.token"><code class="xref py py-obj docutils literal notranslate"><span class="pre">token</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.GenerationStepResult.token_id" title="ctranslate2.GenerationStepResult.token_id"><code class="xref py py-obj docutils literal notranslate"><span class="pre">token_id</span></code></a></p></li>
@@ -178,6 +179,12 @@
 <dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.log_prob">
 <em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">log_prob</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.log_prob" title="Permalink to this definition"></a></dt>
 <dd><p>Log probability of the token (<code class="docutils literal notranslate"><span class="pre">None</span></code> if <code class="xref py py-obj docutils literal notranslate"><span class="pre">return_log_prob</span></code> was disabled).</p>
+</dd></dl>
+
+<dl class="py property">
+<dt class="sig sig-object py" id="ctranslate2.GenerationStepResult.logits">
+<em class="property"><span class="pre">property</span><span class="w"> </span></em><span class="sig-name descname"><span class="pre">logits</span></span><a class="headerlink" href="#ctranslate2.GenerationStepResult.logits" title="Permalink to this definition"></a></dt>
+<dd><p>Log probability on the vocab of all tokens.</p>
 </dd></dl>
 
 <dl class="py property">

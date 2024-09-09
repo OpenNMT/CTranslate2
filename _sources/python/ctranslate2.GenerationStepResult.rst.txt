@@ -14,6 +14,7 @@ GenerationStepResult
     - :obj:`~ctranslate2.GenerationStepResult.hypothesis_id`
     - :obj:`~ctranslate2.GenerationStepResult.is_last`
     - :obj:`~ctranslate2.GenerationStepResult.log_prob`
+    - :obj:`~ctranslate2.GenerationStepResult.logits`
     - :obj:`~ctranslate2.GenerationStepResult.step`
     - :obj:`~ctranslate2.GenerationStepResult.token`
     - :obj:`~ctranslate2.GenerationStepResult.token_id`

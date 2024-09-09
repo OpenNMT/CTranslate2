@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 4.3.1 documentation</title>
+  <title>Quantization &mdash; CTranslate2 4.4.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.3
+                4.4
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -66,6 +66,7 @@
 <li class="toctree-l3"><a class="reference internal" href="#bit-integers-int16">16-bit integers (<code class="docutils literal notranslate"><span class="pre">int16</span></code>)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#bit-floating-points-float16">16-bit floating points (<code class="docutils literal notranslate"><span class="pre">float16</span></code>)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#bit-brain-floating-points-bfloat16">16-bit brain floating points (<code class="docutils literal notranslate"><span class="pre">bfloat16</span></code>)</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#bit-awq">4-bit AWQ</a></li>
 </ul>
 </li>
 </ul>
@@ -127,6 +128,7 @@
 <li><p>16-bit integers (INT16)</p></li>
 <li><p>16-bit floating points (FP16)</p></li>
 <li><p>16-bit brain floating points (BF16)</p></li>
+<li><p>4-bit AWQ Quantization</p></li>
 </ul>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
@@ -376,6 +378,20 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <li><p>NVIDIA GPU with Compute Capability &gt;= 8.0</p></li>
 </ul>
 <p>In this mode, all model weights are stored in BF16 and all layers are run with this type.</p>
+</section>
+<section id="bit-awq">
+<h3>4-bit AWQ<a class="headerlink" href="#bit-awq" title="Permalink to this headline"></a></h3>
+<p>The compute type would be <code class="docutils literal notranslate"><span class="pre">int32_float16</span></code></p>
+<p><strong>Supported on:</strong></p>
+<ul class="simple">
+<li><p>NVIDIA GPU with Compute Capability &gt;= 7.5</p></li>
+</ul>
+<p>In this mode, all model weights are stored in half precision and all layers are run in half precision. Other parameters like scale and zero are stored in <code class="docutils literal notranslate"><span class="pre">int32</span></code>.</p>
+<p>For example,</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>TheBloke/Llama-2-7B-AWQ<span class="w"> </span>--copy_files<span class="w"> </span>tokenizer.model<span class="w"> </span>--output_dir<span class="w"> </span>ct2_model
+</pre></div>
+</div>
+<p>We have to quantize the model with AWQ first, then convert it to CT2 format.</p>
 </section>
 </section>
 </section>

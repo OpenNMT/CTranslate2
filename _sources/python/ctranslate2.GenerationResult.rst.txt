@@ -10,6 +10,7 @@ GenerationResult
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.GenerationResult.logits`
     - :obj:`~ctranslate2.GenerationResult.scores`
     - :obj:`~ctranslate2.GenerationResult.sequences`
     - :obj:`~ctranslate2.GenerationResult.sequences_ids`
