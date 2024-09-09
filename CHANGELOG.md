@@ -4,6 +4,23 @@
 
 ### Fixes and improvements
 
+## [v4.4.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.4.0) (2024-09-09)
+**Removed**: Flash Attention support in the Python package due to significant package size increase with minimal performance gain.  
+Note: Flash Attention remains supported in the C++ package with the `WITH_FLASH_ATTN` option.  
+Flash Attention may be re-added in the future if substantial improvements are made.
+
+### New features
+* Support Llama3 (#1751)
+* Support Gemma2 (1772)
+* Add log probs for all tokens in vocab (#1755)
+* Grouped conv1d (#1749 + #1758)
+
+### Fixes and improvements
+* Fix pipeline (#1723 + #1747)
+* Some improvements in flash attention (#1732)
+* Fix crash when using return_alternative on CUDA (#1733)
+* Quantization AWQ GEMM + GEMV (#1727)
+
 ## [v4.3.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.3.1) (2024-06-10)
 Note: Because of exceeding project's size on Pypi (> 20 GB), the release v4.3.0 was pushed unsuccessfully.
 
