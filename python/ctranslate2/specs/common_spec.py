@@ -13,6 +13,7 @@ class Activation(enum.IntEnum):
     GELU = 3
     GELUSigmoid = 4
     Tanh = 5
+    Sigmoid = 6
 
 
 # This enum should match the C++ equivalent in include/ctranslate2/layers/common.h.

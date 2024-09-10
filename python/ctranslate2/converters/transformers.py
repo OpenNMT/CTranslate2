@@ -23,6 +23,7 @@ from ctranslate2.specs import (
     model_spec,
     transformer_spec,
     wav2vec2_spec,
+    wav2vec2bert_spec,
     whisper_spec,
 )
 
@@ -1059,6 +1060,105 @@ class Wav2Vec2Loader(BartLoader):
         self.set_layer_norm(spec.layer_norm, module.layer_norm)
 
 
+@register_loader("Wav2Vec2BertConfig")
+class Wav2Vec2BertLoader(BartLoader):
+    @property
+    def architecture_name(self):
+        return "Wav2Vec2BertForCTC"
+
+    def get_model_spec(self, model):
+        spec = wav2vec2bert_spec.Wav2Vec2BertSpec(
+            model.wav2vec2_bert.config.num_adapter_layers,
+            model.wav2vec2_bert.config.num_hidden_layers,
+        )
+
+        self.set_encoder(spec.encoder, model)
+        return spec
+
+    def set_config(self, config, model, tokenizer):
+        return
+
+    def get_vocabulary(self, model, tokenizer):
+        return tokenizer.get_vocab()
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_feature_projection(self, spec, feature_projection):
+        self.set_layer_norm(spec.fp_layer_norm, feature_projection.layer_norm)
+        self.set_linear(spec.fp_projection, feature_projection.projection)
+
+    def set_attention(self, spec, attention, left_max_position=None, right_max_position=None):
+        split_layers = [common_spec.LinearSpec() for _ in range(3)]
+        self.set_linear(split_layers[0], attention.linear_q)
+        self.set_linear(split_layers[1], attention.linear_k)
+        self.set_linear(split_layers[2], attention.linear_v)
+        utils.fuse_linear(spec.linear[0], split_layers)
+        self.set_linear(spec.linear[-1], attention.linear_out)
+        if left_max_position or right_max_position:
+            spec.relative_asymmetric_position_keys = attention.distance_embedding.weight
+            spec.relative_left_max_position = np.dtype("int32").type(left_max_position)
+            spec.relative_right_max_position = np.dtype("int32").type(right_max_position)
+
+    def set_wav2vec2bert_encoder(self, spec_layers, layers, left_max_position, right_max_position):
+        for slayer, layer in zip(spec_layers, layers):
+            self.set_layer_norm(slayer.enc_ffn1_layer_norm, layer.ffn1_layer_norm)
+            self.set_linear(slayer.enc_ffn1.linear_0, layer.ffn1.intermediate_dense)
+            self.set_linear(slayer.enc_ffn1.linear_1, layer.ffn1.output_dense)
+            self.set_attention(slayer.enc_attn, layer.self_attn, left_max_position, right_max_position)
+            self.set_layer_norm(slayer.enc_attn_layer_norm, layer.self_attn_layer_norm)
+            self.set_layer_norm(
+                slayer.enc_conv_layer_norm, layer.conv_module.layer_norm
+            )
+            self.set_conv1d(slayer.enc_conv_pointwise_conv1, layer.conv_module.pointwise_conv1)
+            self.set_conv1d(slayer.enc_conv_depthwise_conv, layer.conv_module.depthwise_conv)
+            self.set_layer_norm(
+                slayer.enc_conv_depthwise_layer_norm,
+                layer.conv_module.depthwise_layer_norm,
+            )
+            self.set_conv1d(slayer.enc_conv_pointwise_conv2, layer.conv_module.pointwise_conv2)
+            self.set_layer_norm(slayer.enc_ffn2_layer_norm, layer.ffn2_layer_norm)
+            self.set_linear(slayer.enc_ffn2.linear_0, layer.ffn2.intermediate_dense)
+            self.set_linear(slayer.enc_ffn2.linear_1, layer.ffn2.output_dense)
+            self.set_layer_norm(slayer.enc_final_layer_norm, layer.final_layer_norm)
+
+    def set_wav2vec2bert_adapter(self, spec_layers, layers):
+        for slayer, layer in zip(spec_layers, layers):
+            self.set_layer_norm(
+                slayer.adpt_residual_layer_norm, layer.residual_layer_norm
+            )
+            self.set_conv1d(slayer.adpt_residual_conv, layer.residual_conv)
+            self.set_layer_norm(slayer.adpt_attn_layer_norm, layer.self_attn_layer_norm)
+            self.set_conv1d(slayer.adpt_attn_conv, layer.self_attn_conv)
+            self.set_attention(slayer.adpt_attn_layer, layer.self_attn)
+            self.set_layer_norm(slayer.adpt_ffn_layer_norm, layer.ffn_layer_norm)
+            self.set_linear(slayer.adpt_ffn.linear_0, layer.ffn.intermediate_dense)
+            self.set_linear(slayer.adpt_ffn.linear_1, layer.ffn.output_dense)
+
+    def set_encoder(self, spec, model):
+        self.set_feature_projection(spec, model.wav2vec2_bert.feature_projection)
+        self.set_wav2vec2bert_encoder(
+            spec.encoder_layers,
+            model.wav2vec2_bert.encoder.layers,
+            model.wav2vec2_bert.config.left_max_position_embeddings,
+            model.wav2vec2_bert.config.right_max_position_embeddings,
+        )
+        self.set_wav2vec2bert_adapter(
+            spec.adapter_layers, model.wav2vec2_bert.adapter.layers
+        )
+        self.set_linear(spec.lm_head, model.lm_head)
+
+    def set_conv1d(self, spec, module):
+        spec.weight = module.weight
+        if module.bias is not None:
+            spec.bias = module.bias
+
+    def set_layer_norm(self, spec, module):
+        spec.gamma = module.weight
+        if module.bias is not None:
+            spec.beta = module.bias
+
+
 @register_loader("T5Config")
 class T5Loader(ModelLoader):
     @property
@@ -1402,110 +1502,6 @@ class GemmaLoader(ModelLoader):
             )
             self.set_layer_norm(
                 layer_spec.ffn.layer_norm, layer.post_attention_layernorm
-            )
-
-            wq = layer.self_attn.q_proj.weight
-            wk = layer.self_attn.k_proj.weight
-            wv = layer.self_attn.v_proj.weight
-            wo = layer.self_attn.o_proj.weight
-
-            layer_spec.self_attention.linear[0].weight = torch.cat([wq, wk, wv])
-            layer_spec.self_attention.linear[1].weight = wo
-
-            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj)
-            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj)
-            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
-
-            delattr(layer, "self_attn")
-            delattr(layer, "mlp")
-            gc.collect()
-
-
-@register_loader("Gemma2Config")
-class Gemma2Loader(ModelLoader):
-    @property
-    def architecture_name(self):
-        return "Gemma2ForCausalLM"
-
-    def get_model_spec(self, model):
-        num_layers = model.config.num_hidden_layers
-
-        num_heads = model.config.num_attention_heads
-        num_heads_kv = getattr(model.config, "num_key_value_heads", num_heads)
-        if num_heads_kv == num_heads:
-            num_heads_kv = None
-
-        activation_config = getattr(
-            model.config, "hidden_activation", "gelu_pytorch_tanh"
-        )
-
-        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
-            num_layers,
-            num_heads,
-            activation=(
-                common_spec.Activation.GELU
-                if activation_config == "gelu"
-                else common_spec.Activation.GELUTanh
-            ),
-            pre_norm=True,
-            ffn_glu=True,
-            rms_norm=True,
-            rotary_dim=0,
-            rotary_interleave=False,
-            rotary_base=getattr(model.config, "rope_theta", 10000),
-            num_heads_kv=num_heads_kv,
-            head_dim=model.config.head_dim,
-            pre_post_layer_norm=True,
-        )
-
-        self.set_decoder(spec.decoder, model.model)
-        self.set_linear(spec.decoder.projection, model.lm_head)
-        spec.decoder.embeddings.multiply_by_sqrt_depth = model.config.hidden_size**0.5
-        return spec
-
-    def get_vocabulary(self, model, tokenizer):
-        tokens = super().get_vocabulary(model, tokenizer)
-
-        extra_ids = model.config.vocab_size - len(tokens)
-        for i in range(extra_ids):
-            tokens.append("<extra_id_%d>" % i)
-        if model.config.vocab_size < len(tokens):
-            tokens = tokens[: model.config.vocab_size]
-
-        return tokens
-
-    def set_vocabulary(self, spec, tokens):
-        spec.register_vocabulary(tokens)
-
-    def set_config(self, config, model, tokenizer):
-        config.bos_token = tokenizer.bos_token
-        config.eos_token = tokenizer.eos_token
-        config.unk_token = tokenizer.unk_token
-        config.layer_norm_epsilon = model.config.rms_norm_eps
-
-    def set_layer_norm(self, spec, layer_norm):
-        spec.gamma = layer_norm.weight
-        spec.layer_norm_use_residual = True
-
-    def set_decoder(self, spec, module):
-        spec.scale_embeddings = True
-        spec.start_from_zero_embedding = False
-        self.set_embeddings(spec.embeddings, module.embed_tokens)
-        self.set_layer_norm(spec.layer_norm, module.norm)
-
-        for layer_spec, layer in zip(spec.layer, module.layers):
-            self.set_layer_norm(layer_spec.input_layer_norm, layer.input_layernorm)
-
-            self.set_layer_norm(
-                layer_spec.post_attention_layer_norm, layer.post_attention_layernorm
-            )
-
-            self.set_layer_norm(
-                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
-            )
-
-            self.set_layer_norm(
-                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
             )
 
             wq = layer.self_attn.q_proj.weight
