@@ -363,7 +363,7 @@ namespace ctranslate2 {
           if (queries_padder)
             queries_padder->add_padding(fused_proj);
 
-          const ops::Split split_op(2, {_d_model, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          const ops::Split split_op(2, {_num_heads * _d_head, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
           split_op(fused_proj, queries_proj, keys_proj, values_proj);
 
           if (_merge_time_and_head_dims) {
@@ -462,7 +462,6 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-
       _linear.back()(context, output);
 
       if (_tensor_parallel) {
