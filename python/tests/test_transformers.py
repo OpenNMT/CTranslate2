@@ -1087,7 +1087,7 @@ class TestWav2Vec2Bert:
             sampling_rate=16000,
         ).input_features
 
-        hidden_states = np.ascontiguousarray(input_values.unsqueeze)
+        hidden_states = np.ascontiguousarray(input_values)
         hidden_states = ctranslate2.StorageView.from_array(hidden_states)
         to_cpu = model.device == "cuda" and len(model.device_index) > 1
         output = model.encode(hidden_states, to_cpu=to_cpu)
