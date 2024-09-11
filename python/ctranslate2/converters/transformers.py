@@ -1071,7 +1071,6 @@ class Wav2Vec2BertLoader(BartLoader):
             model.wav2vec2_bert.config.num_adapter_layers,
             model.wav2vec2_bert.config.num_hidden_layers,
         )
-
         self.set_encoder(spec.encoder, model)
         return spec
 
