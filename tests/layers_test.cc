@@ -22,7 +22,7 @@ TEST(LayerTest, MakeRelativePositions2D) {
 }
 
 TEST(LayerTest, MakeAsymmetricRelativePositions2D) {
-  const StorageView positions = layers::make_relative_positions(4, 4, 0, 3, 2);
+  const StorageView positions = layers::make_asymmetric_relative_positions(4, 4, 3, 2);
   const StorageView expected({4, 4}, std::vector<int32_t>{
       3, 4, 5, 5,
       2, 3, 4, 5,
