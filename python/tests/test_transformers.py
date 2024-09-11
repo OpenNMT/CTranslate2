@@ -1057,7 +1057,10 @@ class TestWav2Vec2Bert:
         required_version = "4.41.0"
         current_version = transformers.__version__
         if current_version < required_version:
-            pytest.skip(f"Transformers version must be >= {required_version}, but found {current_version}")
+            pytest.skip(
+                f"Transformers version must be >= {required_version},"
+                " but found {current_version}"
+            )
 
         converter = ctranslate2.converters.TransformersConverter(
             model_name, load_as_float16="int8"
