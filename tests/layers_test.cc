@@ -21,6 +21,16 @@ TEST(LayerTest, MakeRelativePositions2D) {
   expect_storage_eq(positions, expected);
 }
 
+TEST(LayerTest, MakeRelativePositions2D) {
+  const StorageView positions = layers::make_relative_positions(4, 4, 0, 3, 2);
+  const StorageView expected({4, 4}, std::vector<int32_t>{
+      3, 4, 5, 5,
+      2, 3, 4, 5,
+      1, 2, 3, 4,
+      0, 1, 2, 3});
+  expect_storage_eq(positions, expected);
+}
+
 TEST_P(LayerDeviceFPTest, Alibi) {
   const Device device = GetParam().device;
   const DataType dtype = GetParam().dtype;

@@ -16,8 +16,8 @@ namespace ctranslate2 {
     StorageView make_relative_positions(dim_t queries_length,
                                         dim_t keys_length,
                                         dim_t max_position,
-                                        dim_t left_max_position,
-                                        dim_t right_max_position) {
+                                        dim_t left_max_position = 0,
+                                        dim_t right_max_position = 0) {
       StorageView positions({queries_length, keys_length}, DataType::INT32);
       auto* positions_data = positions.data<int32_t>();
 
