@@ -1088,7 +1088,9 @@ class Wav2Vec2BertLoader(BartLoader):
         self.set_layer_norm(spec.fp_layer_norm, feature_projection.layer_norm)
         self.set_linear(spec.fp_projection, feature_projection.projection)
 
-    def set_attention(self, spec, attention, left_max_position=None, right_max_position=None):
+    def set_attention(
+        self, spec, attention, left_max_position=None, right_max_position=None
+    ):
         split_layers = [common_spec.LinearSpec() for _ in range(3)]
         self.set_linear(split_layers[0], attention.linear_q)
         self.set_linear(split_layers[1], attention.linear_k)
@@ -1098,25 +1100,37 @@ class Wav2Vec2BertLoader(BartLoader):
         if left_max_position or right_max_position:
             spec.relative_asymmetric_position_keys = attention.distance_embedding.weight
             spec.relative_left_max_position = np.dtype("int32").type(left_max_position)
-            spec.relative_right_max_position = np.dtype("int32").type(right_max_position)
+            spec.relative_right_max_position = np.dtype("int32").type(
+                right_max_position
+            )
 
-    def set_wav2vec2bert_encoder(self, spec_layers, layers, left_max_position, right_max_position):
+    def set_wav2vec2bert_encoder(
+        self, spec_layers, layers, left_max_position, right_max_position
+    ):
         for slayer, layer in zip(spec_layers, layers):
             self.set_layer_norm(slayer.enc_ffn1_layer_norm, layer.ffn1_layer_norm)
             self.set_linear(slayer.enc_ffn1.linear_0, layer.ffn1.intermediate_dense)
             self.set_linear(slayer.enc_ffn1.linear_1, layer.ffn1.output_dense)
-            self.set_attention(slayer.enc_attn, layer.self_attn, left_max_position, right_max_position)
+            self.set_attention(
+                slayer.enc_attn, layer.self_attn, left_max_position, right_max_position
+            )
             self.set_layer_norm(slayer.enc_attn_layer_norm, layer.self_attn_layer_norm)
             self.set_layer_norm(
                 slayer.enc_conv_layer_norm, layer.conv_module.layer_norm
             )
-            self.set_conv1d(slayer.enc_conv_pointwise_conv1, layer.conv_module.pointwise_conv1)
-            self.set_conv1d(slayer.enc_conv_depthwise_conv, layer.conv_module.depthwise_conv)
+            self.set_conv1d(
+                slayer.enc_conv_pointwise_conv1, layer.conv_module.pointwise_conv1
+            )
+            self.set_conv1d(
+                slayer.enc_conv_depthwise_conv, layer.conv_module.depthwise_conv
+            )
             self.set_layer_norm(
                 slayer.enc_conv_depthwise_layer_norm,
                 layer.conv_module.depthwise_layer_norm,
             )
-            self.set_conv1d(slayer.enc_conv_pointwise_conv2, layer.conv_module.pointwise_conv2)
+            self.set_conv1d(
+                slayer.enc_conv_pointwise_conv2, layer.conv_module.pointwise_conv2
+            )
             self.set_layer_norm(slayer.enc_ffn2_layer_norm, layer.ffn2_layer_norm)
             self.set_linear(slayer.enc_ffn2.linear_0, layer.ffn2.intermediate_dense)
             self.set_linear(slayer.enc_ffn2.linear_1, layer.ffn2.output_dense)
