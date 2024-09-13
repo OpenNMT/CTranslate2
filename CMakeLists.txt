@@ -127,6 +127,7 @@ set(SOURCES
   src/layers/decoder.cc
   src/layers/transformer.cc
   src/layers/wav2vec2.cc
+  src/layers/wav2vec2bert.cc
   src/layers/whisper.cc
   src/logging.cc
   src/models/language_model.cc
@@ -136,6 +137,7 @@ set(SOURCES
   src/models/sequence_to_sequence.cc
   src/models/transformer.cc
   src/models/wav2vec2.cc
+  src/models/wav2vec2bert.cc
   src/models/whisper.cc
   src/ops/activation.cc
   src/ops/add.cc
@@ -182,6 +184,7 @@ set(SOURCES
   src/ops/split.cc
   src/ops/slide.cc
   src/ops/sub.cc
+  src/ops/sigmoid.cc
   src/ops/swish.cc
   src/ops/tanh.cc
   src/ops/tile.cc

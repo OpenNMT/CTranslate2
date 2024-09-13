@@ -98,6 +98,12 @@ namespace ctranslate2 {
           break;
         }
 
+        case ActivationType::Sigmoid: {
+          dequantize_gemm_output_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
+            c, a_scales, b_scales, transpose_a, transpose_b, bias, cuda::sigmoid_func<T>(), y, depth);
+          break;
+        }
+
         case ActivationType::Swish: {
           dequantize_gemm_output_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
             c, a_scales, b_scales, transpose_a, transpose_b, bias, cuda::swish_func<T>(), y, depth);

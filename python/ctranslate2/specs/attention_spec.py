@@ -19,6 +19,7 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         self,
         self_attention=False,
         relative_position=False,
+        relative_asymmetric_position=False,
         relative_attention_bias=False,
         rms_norm=False,
         rotary_dim=None,
@@ -46,6 +47,11 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         if relative_attention_bias:
             self.relative_attention_bias = None
             self.relative_attention_max_distance = None
+
+        if relative_asymmetric_position:
+            self.relative_asymmetric_position_keys = None
+            self.relative_left_max_position = None
+            self.relative_right_max_position = None
 
         if original_max_position_embeddings != 0:
             self.original_max_position_embeddings = np.dtype("int32").type(

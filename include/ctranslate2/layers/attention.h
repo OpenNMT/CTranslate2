@@ -10,6 +10,11 @@ namespace ctranslate2 {
                                         dim_t keys_length,
                                         dim_t max_position);
 
+    StorageView make_asymmetric_relative_positions(dim_t queries_length,
+                                                   dim_t keys_length,
+                                                   dim_t left_max_position,
+                                                   dim_t right_max_position);
+
     class RotaryEmbeddings;
     class Alibi;
 
@@ -53,8 +58,11 @@ namespace ctranslate2 {
                                  dim_t beam_size = 1);
       const StorageView* _relative_attention_bias;
       const StorageView* _relative_position_keys;
+      const StorageView* _relative_asymmetric_position_keys;
       const StorageView* _relative_position_values;
       dim_t _maximum_relative_position;
+      dim_t _relative_left_max_position;
+      dim_t _relative_right_max_position;
       const bool _merge_time_and_head_dims;
       const dim_t _cache_time_dim;
     };

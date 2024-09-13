@@ -2,6 +2,7 @@
 
 #include "ctranslate2/ops/gelu.h"
 #include "ctranslate2/ops/relu.h"
+#include "ctranslate2/ops/sigmoid.h"
 #include "ctranslate2/ops/swish.h"
 #include "ctranslate2/ops/tanh.h"
 
@@ -25,6 +26,10 @@ namespace ctranslate2 {
       case ActivationType::GELUSigmoid: {
         static const GELU gelu(GELU::Approximation::Sigmoid);
         return gelu;
+      }
+      case ActivationType::Sigmoid: {
+        static const Sigmoid sigmoid;
+        return sigmoid;
       }
       case ActivationType::Swish: {
         static const Swish swish;
