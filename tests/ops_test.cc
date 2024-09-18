@@ -697,7 +697,7 @@ TEST_P(OpDeviceFPTest, MaskedSoftMaxTriangular) {
       0.8421174, 0.9135181, 0.77135813
     }, device);
   StorageView lengths({2}, std::vector<int32_t>{3, 2}, device);
-  StorageView mask = layers::MultiHeadAttention::prepare_values_mask(lengths, 2, 3, true);
+  StorageView mask = layers::MultiHeadAttention::prepare_length_mask(lengths, 2, 3, true);
   StorageView expected({2, 2, 3, 3}, std::vector<float>{
       1, 0, 0,
       0.28861094, 0.71138906, 0,

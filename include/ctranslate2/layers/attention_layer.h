@@ -29,6 +29,7 @@ namespace ctranslate2 {
       virtual void operator()(const StorageView& queries,
                       const StorageView& values,
                       const StorageView* values_lengths,
+                      const StorageView* values_offsets,
                       StorageView& output,
                       StorageView* cached_keys = nullptr,
                       StorageView* cached_values = nullptr,

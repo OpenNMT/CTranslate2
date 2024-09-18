@@ -30,7 +30,7 @@ namespace ctranslate2 {
                          Alibi* alibi = nullptr);
       DataType output_type() const override;
       dim_t output_size() const override;
-      void operator()(const StorageView& queries,
+      virtual void operator()(const StorageView& queries,
                       const StorageView& values,
                       const StorageView* values_lengths,
                       const StorageView* values_offsets,

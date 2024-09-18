@@ -165,6 +165,7 @@ namespace ctranslate2 {
           (*_self_attention)(hidden,
                              hidden,
                              input_length,
+                             input_offsets,
                              context,
                              cached_self_attn_keys,
                              cached_self_attn_values,
@@ -576,6 +577,8 @@ namespace ctranslate2 {
 
       std::unique_ptr<StorageView> left_padding_self_attn;
 
+      bool multi_query = _layers.front()->get_self_attention().multi_query();
+
       if (lengths) {
         if (allow_padding_removal) {
           input_padder = std::make_unique<Padder>(*lengths, left_padding, max_time);
@@ -592,7 +595,7 @@ namespace ctranslate2 {
           num_heads = SAFE_DIVIDE(num_heads, ScopedMPISetter::getNRanks());
         }
 
-        StorageView lengths_mask = layers::MultiHeadAttention::prepare_values_mask(
+        StorageView lengths_mask = layers::MultiHeadAttention::prepare_length_mask(
           *lengths,
           num_heads,
           max_time,

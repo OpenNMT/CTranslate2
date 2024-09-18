@@ -536,7 +536,7 @@ namespace ctranslate2 {
                                       std::vector<int32_t>(num_frames.begin(), num_frames.end()),
                                       device);
         const StorageView frame_sizes_mask(
-          layers::MultiHeadAttention::prepare_values_mask(frame_sizes,
+          layers::MultiHeadAttention::prepare_length_mask(frame_sizes,
                                                           attention_weights.dim(1),
                                                           attention_weights.dim(2)));
 
