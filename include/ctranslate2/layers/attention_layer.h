@@ -49,7 +49,10 @@ namespace ctranslate2 {
                                              const dim_t num_heads,
                                              const dim_t num_queries,
                                              const bool mask_future = false,
-                                             const bool multi_query = false);
+                                             const bool multi_query = false,
+                                             const dim_t step = 0,
+                                             const StorageView* offsets = nullptr,
+                                             StorageView* values_offsets = nullptr);
 
     protected:
       const bool _tensor_parallel;

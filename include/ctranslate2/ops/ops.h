@@ -44,3 +44,4 @@
 #include "awq/gemv.h"
 #include "awq/dequantize_awq.h"
 #include "sum.h"
+#include "position_encodings_add.h"

@@ -19,6 +19,11 @@ namespace ctranslate2 {
            const dim_t max_time = -1,
            const dim_t pad_batch_to_multiple = 1);
 
+    Padder(const StorageView& lengths,
+           const StorageView* offsets,
+           const dim_t max_time = -1,
+           const dim_t pad_batch_to_multiple = 1);
+
     // Merge batch and time dimensions and remove padding.
     void remove_padding(StorageView& x) const;
 
@@ -26,6 +31,11 @@ namespace ctranslate2 {
     void add_padding(StorageView& x) const;
 
   private:
+    void initialize(const StorageView& lengths,
+                    const StorageView* offsets,
+                    const dim_t max_time,
+                    const dim_t pad_batch_to_multiple);
+
     dim_t _batch_size;
     dim_t _max_time;
     StorageView _padded_to_flat;

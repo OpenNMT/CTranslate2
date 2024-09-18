@@ -181,6 +181,7 @@ namespace ctranslate2 {
                                       const StorageView& keys,
                                       const StorageView& values,
                                       const StorageView* values_lengths,
+                                      const StorageView* values_offsets,
                                       const StorageView* relative_position_keys,
                                       const StorageView* relative_asymmetric_position_keys,
                                       const StorageView* relative_position_values,
@@ -267,7 +268,7 @@ namespace ctranslate2 {
         alibi->apply(output, queries_scale);
 
       StorageView attn(values.dtype(), values.device());
-      ops::SoftMax()(output, values_lengths, attn);
+      ops::SoftMax()(output, values_lengths, values_offsets, attn);
 
       if (attention && !return_normalized_attention)
         save_attention(*attention, std::move(output), beam_size);
@@ -337,6 +338,7 @@ namespace ctranslate2 {
     void MultiHeadAttention::operator()(const StorageView& queries,
                                         const StorageView& values,
                                         const StorageView* values_lengths,
+                                        const StorageView* values_offsets,
                                         StorageView& output,
                                         StorageView* cached_keys,
                                         StorageView* cached_values,
@@ -472,6 +474,7 @@ namespace ctranslate2 {
                             keys_proj,
                             values_proj,
                             values_lengths,
+                            values_offsets,
                             _relative_position_keys,
                             _relative_asymmetric_position_keys,
                             _relative_position_values,

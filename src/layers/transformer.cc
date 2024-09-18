@@ -84,6 +84,7 @@ namespace ctranslate2 {
         (*_self_attention)(input,
                         input,
                         lengths,
+                        nullptr,
                         context,
                         nullptr,
                         nullptr,
@@ -135,6 +136,7 @@ namespace ctranslate2 {
 
     void TransformerDecoderLayer::operator()(const StorageView& input,
                                              const StorageView* input_length,
+                                             const StorageView* input_offsets,
                                              const StorageView* memory,
                                              const StorageView* memory_lengths,
                                              StorageView* cached_self_attn_keys,
@@ -204,6 +206,7 @@ namespace ctranslate2 {
           (*_self_attention)(hidden,
                         hidden,
                         input_length,
+                        input_offsets,
                         attn,
                         cached_self_attn_keys,
                         cached_self_attn_values,
@@ -228,6 +231,7 @@ namespace ctranslate2 {
         (*_self_attention)(input,
                       input,
                       input_length,
+                      input_offsets,
                       output,
                       cached_self_attn_keys,
                       cached_self_attn_values,
@@ -243,6 +247,7 @@ namespace ctranslate2 {
         (*_encoder_attention)(output,
                               *memory,
                               memory_lengths,
+                              nullptr,
                               context,
                               cached_attn_keys,
                               cached_attn_values,
@@ -326,7 +331,7 @@ namespace ctranslate2 {
       if (_embeddings_scale)
         ops::Mul()(input, *_embeddings_scale, input);
       if (_position_encoder)
-        (*_position_encoder)(input);
+        (*_position_encoder)(input, input);
       if (_layernorm_embedding)
         (*_layernorm_embedding)(input, input);
 
@@ -522,6 +527,15 @@ namespace ctranslate2 {
       const Device device = ids.device();
       const bool is_sequence = ids.rank() > 1;
 
+      const StorageView* left_padding = nullptr;
+
+      {
+        const auto it = state.find("offsets");
+        if (it != state.end()) {
+          left_padding = &(it->second);
+        }
+      }
+
       StorageView layer_in(dtype, device);
       StorageView layer_out(dtype, device);
 
@@ -537,7 +551,7 @@ namespace ctranslate2 {
       if (layer_in.rank() == 2)
         layer_in.expand_dims(1);
       if (_position_encoder)
-        (*_position_encoder)(layer_in, std::max(step, dim_t(0)));
+        (*_position_encoder)(layer_in, layer_in, std::max(step, dim_t(0)), left_padding);
       if (_layernorm_embedding)
         (*_layernorm_embedding)(layer_in, layer_in);
 
@@ -555,17 +569,22 @@ namespace ctranslate2 {
       std::unique_ptr<const StorageView> input_lengths;
       std::unique_ptr<const StorageView> input_lengths_mask;
 
-      if (is_sequence && !lengths) {
+      if ((is_sequence || left_padding) && !lengths) {
         input_lengths = std::make_unique<StorageView>(Shape{ids.dim(0)}, int32_t(max_time), device);
         lengths = input_lengths.get();
       }
 
-      bool multi_query = _layers.front()->get_self_attention().multi_query();
+      std::unique_ptr<StorageView> left_padding_self_attn;
 
       if (lengths) {
         if (allow_padding_removal) {
-          input_padder = std::make_unique<Padder>(*lengths, max_time);
+          input_padder = std::make_unique<Padder>(*lengths, left_padding, max_time);
           input_padder->remove_padding(layer_in);
+        }
+
+        if (left_padding) {
+          left_padding_self_attn = std::make_unique<StorageView>(left_padding->dtype(),
+                                                                 left_padding->device());
         }
 
         dim_t num_heads = _num_heads;
@@ -573,16 +592,15 @@ namespace ctranslate2 {
           num_heads = SAFE_DIVIDE(num_heads, ScopedMPISetter::getNRanks());
         }
 
-        StorageView lengths_mask = layers::MultiHeadAttention::prepare_length_mask(
+        StorageView lengths_mask = layers::MultiHeadAttention::prepare_values_mask(
           *lengths,
           num_heads,
           max_time,
           /*mask_future=*/true,
-          multi_query);
-
-
-        if (step > 0)
-          ops::Add()(lengths_mask, StorageView(int32_t(step)), lengths_mask);
+          multi_query,
+          std::max(step, dim_t(0)),
+          left_padding,
+          left_padding_self_attn.get());
 
         input_lengths_mask = std::make_unique<StorageView>(std::move(lengths_mask));
       }
@@ -685,6 +703,7 @@ namespace ctranslate2 {
 
           (*_layers[l])(*layer_in_chunk,
                         input_lengths_mask.get(),
+                        left_padding_self_attn.get(),
                         memory,
                         memory_lengths_mask.get(),
                         cached_self_attn_keys,

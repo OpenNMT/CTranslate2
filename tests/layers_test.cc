@@ -206,6 +206,23 @@ TEST(LayerTest, Padder) {
   expect_storage_eq(x, w_padding);
 }
 
+TEST(LayerTest, PadderOffsets) {
+  const StorageView lengths({3}, std::vector<int32_t>{2, 3, 1});
+  const StorageView offsets({3}, std::vector<int32_t>{2, 1, 3});
+  const Padder padder(lengths, &offsets, /*max_time=*/4);
+
+  StorageView x({3, 4}, std::vector<int32_t>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11});
+  const StorageView wo_padding({6}, std::vector<int32_t>{2, 3, 5, 6, 7, 11});
+  const StorageView w_padding({3, 4}, std::vector<int32_t>{2, 2, 2, 3, 5, 5, 6, 7, 11, 11, 11, 11});
+
+  padder.remove_padding(x);
+  ASSERT_EQ(x.rank(), 1);
+  expect_storage_eq(x, wo_padding);
+  padder.add_padding(x);
+  ASSERT_EQ(x.rank(), 2);
+  expect_storage_eq(x, w_padding);
+}
+
 TEST(LayerTest, PadderToMultiple) {
   const StorageView lengths({3}, std::vector<int32_t>{2, 3, 1});
   const Padder padder(lengths, /*max_time=*/4, /*pad_batch_to_multiple=*/8);
@@ -233,6 +250,36 @@ TEST(LayerTest, PadderIgnore) {
   expect_storage_eq(x, original);
 }
 
+TEST_P(LayerDeviceFPTest, PositionEncoderOffset) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+
+  layers::SinusoidalPositionEncoder position_encoder(4, dtype, device);
+
+  StorageView offsets({2}, std::vector<int32_t>{3, 1}, device);
+  dim_t step = 5;
+
+  StorageView expected_encodings(dtype, device);
+
+  {
+    StorageView zero({2, 5, 4}, 0.f, device);
+    StorageView encodings(dtype, device);
+    position_encoder(zero.to(dtype), encodings);
+
+    StorageView position_ids({2, 1}, std::vector<int32_t>{2, 4}, device);
+    ops::Gather(/*axis=*/1, /*batch_dims=*/1)(encodings, position_ids, expected_encodings);
+  }
+
+  {
+    StorageView zero({2, 1, 4}, 0.f, device);
+    StorageView encodings(dtype, device);
+    position_encoder(zero.to(dtype), encodings, step, &offsets);
+
+    expect_storage_eq(encodings.to_float32(), expected_encodings.to_float32(), error);
+  }
+}
+
 TEST(LayerTest, PositionEncoderNoSharedState) {
   // Test case for issue: http://forum.opennmt.net/t/ctranslate2-c-api-returns-strange-results-when-initializing-2-models/3208
   layers::SinusoidalPositionEncoder position_encoder_1(4);
@@ -243,7 +290,7 @@ TEST(LayerTest, PositionEncoderNoSharedState) {
       {1, 1, 4}, std::vector<float>{0.1, -2.3, 0.5, 1.2});
     StorageView expected(
       {1, 1, 4}, std::vector<float>{0.941471, -2.2999, 1.0403, 2.2});
-    position_encoder_1(input);
+    position_encoder_1(input, input);
     expect_storage_eq(input, expected, 1e-5);
   }
 
@@ -252,7 +299,7 @@ TEST(LayerTest, PositionEncoderNoSharedState) {
       {1, 1, 6}, std::vector<float>{-0.2, -1.3, 0.1, -0.6, 2.0, 1.1});
     StorageView expected(
       {1, 1, 6}, std::vector<float>{0.641471, -1.29, 0.1001, -0.0596977, 2.99995, 2.1});
-    position_encoder_2(input);
+    position_encoder_2(input, input);
     expect_storage_eq(input, expected, 1e-5);
   }
 }
