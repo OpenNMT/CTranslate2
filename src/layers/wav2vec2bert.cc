@@ -51,6 +51,7 @@ namespace ctranslate2 {
       (*_self_attention)(buffer1,
                          buffer1,
                          nullptr,
+                         nullptr,
                          buffer2,
                          nullptr,
                          nullptr,
@@ -146,6 +147,7 @@ namespace ctranslate2 {
       _transpose(buffer1, buffer2);
       (*_self_attention)(buffer2,
                          buffer2,
+                         nullptr,
                          nullptr,
                          buffer1,
                          nullptr,
