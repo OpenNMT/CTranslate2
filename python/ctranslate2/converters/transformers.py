@@ -1876,6 +1876,7 @@ class MistralLoader(ModelLoader):
             quant_type=quant_type,
             quant_group_size=quant_group_size,
             quant_bits=quant_bits,
+            head_dim=model.config.head_dim,
         )
 
         self.set_decoder(spec.decoder, model.model, quant_type=quant_type)
