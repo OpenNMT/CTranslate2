@@ -520,7 +520,7 @@ namespace ctranslate2 {
       disable_tokens.apply();
       std::vector<StorageView> logits_vec;
       if (return_logits_vocab)
-        logits_vec = build_logits(logits, cur_batch_size);
+        logits_vec = build_logits(logits, cur_batch_size * _beam_size);
 
       StorageView log_probs(dtype, device);
       if (bias_towards_prefix) {
@@ -602,11 +602,6 @@ namespace ctranslate2 {
         auto& result = results[batch_id];
         dim_t secondary_candidates_offset = _beam_size;
 
-        if (return_logits_vocab) {
-          results[batch_id].logits_vocab.resize(1);
-          results[batch_id].logits_vocab[0].emplace_back(std::move(logits_vec[i]));
-        }
-
         for (dim_t k = 0; k < _beam_size; ++k) {
           const size_t last_id = topk_ids.at<int32_t>({i, k});
           dim_t next_beam_id = k;
@@ -624,6 +619,9 @@ namespace ctranslate2 {
             result.hypotheses.emplace_back(build_hypothesis(alive_seq, i, k, start, end));
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
+            if (return_logits_vocab) {
+              result.logits_vocab.emplace_back(std::move(logits_vec[i * k]));
+            }
 
             // Move another active beam to this position.
             for (dim_t j = secondary_candidates_offset; j < num_candidates; ++j) {

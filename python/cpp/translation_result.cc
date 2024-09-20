@@ -17,7 +17,7 @@ namespace ctranslate2 {
         .def_readonly("attention", &TranslationResult::attention,
                       "Attention matrix of each translation hypothesis (empty if :obj:`return_attention` was disabled).")
         .def_readonly("logits", &TranslationResult::logits,
-                      "Score of each translation hypothesis (empty if :obj:`return_logits_vocab` was disabled).")
+                      "Logits of each translation hypothesis (empty if :obj:`return_logits_vocab` was disabled).")
 
         .def("__repr__", [](const TranslationResult& result) {
           return "TranslationResult(hypotheses=" + std::string(py::repr(py::cast(result.hypotheses)))
