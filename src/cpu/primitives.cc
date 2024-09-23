@@ -323,6 +323,15 @@ namespace ctranslate2 {
 
   template<>
   template<>
+  void primitives<Device::CPU>::sigmoid(const float* x, float* y, dim_t size) {
+    cpu::parallel_for(0, size, cpu::GRAIN_SIZE / 10,
+                      [x, y](dim_t begin, dim_t end) {
+                        CPU_ISA_DISPATCH((cpu::sigmoid<ISA>(x + begin, y + begin, end - begin)));
+                      });
+  }
+
+  template<>
+  template<>
   void primitives<Device::CPU>::swish(const float* x, float* y, dim_t size) {
     cpu::parallel_for(0, size, cpu::GRAIN_SIZE / 10,
                       [x, y](dim_t begin, dim_t end) {

@@ -1163,3 +1163,84 @@ class TestWav2Vec2:
         transcription = transcription[0].replace(processor.tokenizer.unk_token, "")
 
         assert transcription == expected_transcription[0]
+
+
+
+class TestWav2Vec2Bert:
+    @classmethod
+    def teardown_class(cls):
+        clear_transformers_cache_in_ci()
+
+    @test_utils.only_on_linux
+    @test_utils.on_available_devices
+    @pytest.mark.parametrize(
+        "model_name,expected_transcription",
+        [
+            (
+                "hf-audio/wav2vec2-bert-CV16-en",
+                [
+                    "mr quilter is the apostle of the middle classes and"
+                    " we are glad to welcome his gospel"
+                ],
+            ),
+        ],
+    )
+    def test_transformers_wav2vec2bert(
+        self,
+        tmp_dir,
+        device,
+        model_name,
+        expected_transcription,
+    ):
+        import torch
+        import transformers
+
+        converter = ctranslate2.converters.TransformersConverter(
+            model_name, load_as_float16="int8"
+        )
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+
+        w2v2_processor = transformers.Wav2Vec2BertProcessor.from_pretrained(model_name)
+        w2v2_processor.save_pretrained(output_dir + "/wav2vec2_processor")
+        processor = transformers.AutoProcessor.from_pretrained(
+            output_dir + "/wav2vec2_processor"
+        )
+
+        device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
+        cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        model = ctranslate2.models.Wav2Vec2Bert(
+            output_dir,
+            device=device,
+            device_index=[0],
+            compute_type="int8",
+            intra_threads=cpu_threads,
+            inter_threads=1,
+        )
+
+        speech_array = np.load(
+            os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
+        )
+        input_values = processor(
+            [speech_array],
+            padding=True,
+            return_tensors="pt",
+            sampling_rate=16000,
+        ).input_features
+
+        hidden_states = np.ascontiguousarray(input_values)
+        hidden_states = ctranslate2.StorageView.from_array(hidden_states)
+        to_cpu = model.device == "cuda" and len(model.device_index) > 1
+        output = model.encode(hidden_states, to_cpu=to_cpu)
+        if model.device == "cuda":
+            logits = torch.as_tensor(output, device=model.device)[0]
+        else:
+            logits = torch.as_tensor(
+                np.array(output), dtype=torch.float32, device=model.device
+            )[0]
+
+        predicted_ids = torch.argmax(logits, dim=-1)
+        transcription = processor.decode(predicted_ids, output_word_offsets=True)
+        transcription = transcription[0].replace(processor.tokenizer.unk_token, "")
+
+        assert transcription == expected_transcription[0]
