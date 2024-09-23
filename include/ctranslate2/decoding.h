@@ -161,6 +161,7 @@ namespace ctranslate2 {
     std::vector<size_t> disable_ids;
     std::vector<size_t> disable_ids_begin;
     std::vector<std::vector<size_t>> disable_sequences;
+    std::vector<std::pair<std::vector<size_t>, float>> sequence_bias;
     std::vector<std::shared_ptr<LogitsProcessor>> logits_processors;
     std::function<bool(DecodingStepResult)> callback = nullptr;
   };

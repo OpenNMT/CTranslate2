@@ -70,6 +70,46 @@ namespace ctranslate2 {
     std::vector<int32_t> _flat_indices;
   };
 
+  // Helper class to disable tokens in the model output.
+  class BiasTokens {
+  public:
+    BiasTokens(StorageView& logits);
+
+    void add(dim_t batch_id, dim_t token_id, float bias_value) {
+        const auto flat_index = batch_id * _vocabulary_size + token_id;
+
+        if (_logits_data) {
+            // On CPU, directly assign the value
+            _logits_data[flat_index] = _logits_data[flat_index] * bias_value;
+        } else {
+            // On GPU, prepare a list of unique indices and values to disable
+            const auto it = std::lower_bound(_flat_indices.begin(), _flat_indices.end(), flat_index,
+                [](const auto& a, const auto& b) { return a.first < b; });
+            
+            if (it == _flat_indices.end() || it->first != flat_index) {
+                _flat_indices.emplace(it, flat_index, bias_value);
+            } else {
+                it->second *= bias_value;
+            }
+        }
+    }
+
+    // Disable a token for all batches.
+    void add(dim_t token_id, float bias_value) {
+      for (dim_t batch_id = 0; batch_id < _batch_size; ++batch_id)
+        add(batch_id, token_id, bias_value);
+    }
+
+    void apply();
+
+  private:
+    StorageView& _logits;
+    float* _logits_data;
+    const dim_t _batch_size;
+    const dim_t _vocabulary_size;
+    std::vector<std::pair<int32_t, float>> _flat_indices;
+  };
+
   // Base class for processing the output logits.
   class LogitsProcessor {
   public:
@@ -82,6 +122,7 @@ namespace ctranslate2 {
     virtual void apply(dim_t step,
                        StorageView& logits,
                        DisableTokens& disable_tokens,
+                       BiasTokens& bias_tokens,
                        const StorageView& sequences,
                        const std::vector<dim_t>& batch_offset,
                        const std::vector<std::vector<size_t>>* prefix) = 0;
@@ -109,6 +150,7 @@ namespace ctranslate2 {
     void apply(dim_t step,
                StorageView& logits,
                DisableTokens& disable_tokens,
+               BiasTokens& bias_tokens,
                const StorageView& sequences,
                const std::vector<dim_t>& batch_offset,
                const std::vector<std::vector<size_t>>* prefix) override;
@@ -124,6 +166,7 @@ namespace ctranslate2 {
     void apply(dim_t step,
                StorageView& logits,
                DisableTokens& disable_tokens,
+               BiasTokens& bias_tokens,
                const StorageView& sequences,
                const std::vector<dim_t>& batch_offset,
                const std::vector<std::vector<size_t>>* prefix) override;
@@ -139,6 +182,7 @@ namespace ctranslate2 {
     void apply(dim_t step,
                StorageView& logits,
                DisableTokens& disable_tokens,
+               BiasTokens& bias_tokens,
                const StorageView& sequences,
                const std::vector<dim_t>& batch_offset,
                const std::vector<std::vector<size_t>>* prefix) override;
@@ -148,6 +192,23 @@ namespace ctranslate2 {
     std::vector<std::vector<size_t>> _sequences;
   };
 
+  // Disable the generation of some sequences of tokens.
+  class BiasSequences : public LogitsProcessor {
+  public:
+    BiasSequences(std::vector<std::pair<std::vector<size_t>, float>> sequences);
+    void apply(dim_t step,
+               StorageView& logits,
+               DisableTokens& disable_tokens,
+               BiasTokens& bias_tokens,
+               const StorageView& sequences,
+               const std::vector<dim_t>& batch_offset,
+               const std::vector<std::vector<size_t>>* prefix) override;
+
+  private:
+    std::vector<std::pair<size_t, float>> _ids;
+    std::vector<std::pair<std::vector<size_t>, float>> _sequences;
+  };
+
   // Disable the generation of some tokens.
   class SuppressTokens : public LogitsProcessor {
   public:
@@ -155,6 +216,7 @@ namespace ctranslate2 {
     void apply(dim_t step,
                StorageView& logits,
                DisableTokens& disable_tokens,
+               BiasTokens& bias_tokens,
                const StorageView& sequences,
                const std::vector<dim_t>& batch_offset,
                const std::vector<std::vector<size_t>>* prefix) override;
@@ -170,6 +232,7 @@ namespace ctranslate2 {
     void apply(dim_t step,
                StorageView& logits,
                DisableTokens& disable_tokens,
+               BiasTokens& bias_tokens,
                const StorageView& sequences,
                const std::vector<dim_t>& batch_offset,
                const std::vector<std::vector<size_t>>* prefix) override;
