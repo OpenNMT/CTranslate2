@@ -206,7 +206,8 @@ namespace ctranslate2 {
   static inline void sort_hypotheses(DecodingResult& result,
                                      size_t max_hypotheses,
                                      bool keep_scores,
-                                     bool keep_attention) {
+                                     bool keep_attention,
+                                     bool keep_logits_vocab) {
     std::vector<size_t> idx(result.hypotheses.size());
     std::iota(idx.begin(), idx.end(), 0);
     std::sort(idx.begin(), idx.end(),
@@ -226,6 +227,11 @@ namespace ctranslate2 {
       result.attention = index_vector(result.attention, idx);
     else
       result.attention.clear();
+
+    if (keep_logits_vocab)
+      result.logits_vocab = index_vector(result.logits_vocab, idx);
+    else
+      result.logits_vocab.clear();
   }
 
   static inline void finalize_result(DecodingResult& result,
@@ -233,7 +239,8 @@ namespace ctranslate2 {
                                      const float length_penalty,
                                      const float coverage_penalty,
                                      const bool keep_scores,
-                                     const bool keep_attention) {
+                                     const bool keep_attention,
+                                     const bool keep_logits_vocab) {
     for (size_t i = 0; i < result.scores.size(); ++i) {
       const auto* attention = result.attention.empty() ? nullptr : &result.attention[i];
       result.scores[i] = finalize_hypothesis_score(result.scores[i],
@@ -243,7 +250,7 @@ namespace ctranslate2 {
                                                    attention);
     }
 
-    sort_hypotheses(result, max_hypotheses, keep_scores, keep_attention);
+    sort_hypotheses(result, max_hypotheses, keep_scores, keep_attention, keep_logits_vocab);
   }
 
   BiasedDecoder::BiasedDecoder(const float prefix_bias_beta,
@@ -651,7 +658,8 @@ namespace ctranslate2 {
                           _length_penalty,
                           _coverage_penalty,
                           return_scores,
-                          return_attention);
+                          return_attention,
+                          return_logits_vocab);
         } else {
           non_finished_index.emplace_back(i);
         }
@@ -796,7 +804,7 @@ namespace ctranslate2 {
       }
 
       for (auto& result : final_results)
-        sort_hypotheses(result, num_hypotheses, return_scores, return_attention);
+        sort_hypotheses(result, num_hypotheses, return_scores, return_attention, return_logits_vocab);
 
       return final_results;
     }
@@ -932,7 +940,8 @@ namespace ctranslate2 {
                           _length_penalty,
                           _coverage_penalty,
                           return_scores,
-                          return_attention);
+                          return_attention,
+                          return_logits_vocab);
         } else {
           non_finished_index.emplace_back(i);
           sample_from.at<int32_t>(i) = word_id;
