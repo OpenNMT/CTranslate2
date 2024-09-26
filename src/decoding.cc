@@ -526,8 +526,12 @@ namespace ctranslate2 {
 
       disable_tokens.apply();
       std::vector<StorageView> logits_vec;
-      if (return_logits_vocab)
-        logits_vec = build_logits(logits, cur_batch_size * _beam_size);
+      if (return_logits_vocab) {
+        if (is_expanded)
+          logits_vec = build_logits(logits, cur_batch_size * _beam_size);
+        else
+          logits_vec = build_logits(logits, cur_batch_size);
+      }
 
       StorageView log_probs(dtype, device);
       if (bias_towards_prefix) {
