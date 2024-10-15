@@ -43,6 +43,7 @@ _SUPPORTED_ROPE_SCALING = {
     "linear": attention_spec.RotaryScalingType.Linear,
     "su": attention_spec.RotaryScalingType.Su,
     "llama3": attention_spec.RotaryScalingType.Llama3,
+    "longrope": attention_spec.RotaryScalingType.Su,
 }
 
 _SUPPORTED_QUANTIZATION = {
