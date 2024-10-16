@@ -100,40 +100,43 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
 
     def validate(self) -> None:
         """Verify that the required weights are set.
-
+    
         Raises:
           ValueError: If a required weight is not set in the specification.
         """
         unset_attributes = []
-
-        def _check(spec, name, value):
+    
+        def _convert_value(value):
             if value is None:
-                unset_attributes.append(name)
-                return
-
+                return None
+    
             if isinstance(value, np.ndarray):
-                # float64 is not a supported type.
                 if value.dtype == np.float64:
                     value = value.astype(np.float32)
             elif isinstance(value, float):
-                value = np.dtype("float32").type(value)
+                value = np.float32(value)
             elif isinstance(value, bool):
-                # Convert bool to an integer type.
-                value = np.dtype("int8").type(value)
-            elif isinstance(value, str):
-                if value != OPTIONAL:
-                    value = np.frombuffer(value.encode("utf-8"), dtype=np.int8)
-
-            if isinstance(value, np.ndarray) or isinstance(value, np.generic):
-                value = NumpyVariable(value)
+                value = np.int8(value)
+            elif isinstance(value, str) and value != OPTIONAL:
+                value = np.frombuffer(value.encode("utf-8"), dtype=np.int8)
+            
+            if isinstance(value, (np.ndarray, np.generic)):
+                return NumpyVariable(value)
             elif torch_is_available and isinstance(value, torch.Tensor):
-                value = PyTorchVariable(value)
-
-            attr_name = _split_scope(name)[-1]
-            setattr(spec, attr_name, value)
-
+                return PyTorchVariable(value)
+            
+            return value
+    
+        def _check(spec, name, value):
+            converted = _convert_value(value)
+            if converted is None:
+                unset_attributes.append(name)
+            else:
+                attr_name = _split_scope(name)[-1]
+                setattr(spec, attr_name, converted)
+    
         self._visit(_check)
-
+    
         if unset_attributes:
             raise ValueError(
                 "Some required model attributes are not set:\n\n%s"
