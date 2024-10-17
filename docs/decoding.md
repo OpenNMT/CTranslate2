@@ -79,7 +79,7 @@ The prefix effectively changes the target context and the rest of the translatio
 
 > Dieses Projekt ist auf das effiziente **Servieren** von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.
 
-## Biased decoding
+## Biased prefix decoding for translation
 
 Instead of using {ref}`decoding:autocompletion` to force a translation to start with a `target_prefix` argument, we can "bias" a translation towards a prefix by setting `prefix_bias_beta` to a value in (0, 1).  The higher `prefix_bias_beta` is, the stronger the bias. A translation can diverge from a prefix when `prefix_bias_beta` is low and the translator is confident in decoding tokens that are different from the prefix's tokens.  See [section 4.2](https://arxiv.org/abs/1912.03393) for more details on the biasing algorithm.
 
@@ -112,6 +112,10 @@ print(detokenize(results[0].hypotheses[0]))
 Lowering the bias by setting `prefix_bias_beta=0.1` results in a divergence in the prefix from `das` to `die`:
 
 > Dieses Projekt ist auf **die** effiziente Bedienung von Standard-Übersetzungsmodellen ausgerichtet, ist aber auch ein Ort für Experimente rund um Modellkompression und Inferenzbeschleunigung.
+
+## Shallow biasing for contextual ASR
+
+Setting `sequence_bias` with tuples of `(sequence, biasing_multiplier)` for Whisper models to boost or diminute the hypotheses hitting words in the biasing list during beam search. See [Ssection 3.3](https://aclanthology.org/2024.lrec-main.328.pdf) for the general concept. See [HuggingFace implementation](https://huggingface.co/docs/transformers/en/internal/generation_utils#transformers.SequenceBiasLogitsProcessor) of an additive version.
 
 ## Alternatives at a position
 
