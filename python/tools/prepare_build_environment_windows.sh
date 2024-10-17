@@ -8,8 +8,8 @@ curl -L -nv -o cuda.exe https://developer.download.nvidia.com/compute/cuda/12.2.
 ./cuda.exe -s nvcc_12.2 cudart_12.2 cublas_dev_12.2 curand_dev_12.2
 rm cuda.exe
 
-CUDNN_ROOT="C:/Program Files/NVIDIA/CUDNN/v9.0"
-curl -L -nv -o cudnn.exe https://developer.download.nvidia.com/compute/cudnn/9.0.0/local_installers/cudnn_9.0.0_windows.exe
+CUDNN_ROOT="C:/Program Files/NVIDIA/CUDNN/v9.1"
+curl -L -nv -o cudnn.exe https://developer.download.nvidia.com/compute/cudnn/9.1.0/local_installers/cudnn_9.1.0_windows.exe
 ./cudnn.exe -s
 sleep 10
 cp -r "$CUDNN_ROOT"/* "$CUDA_ROOT"
