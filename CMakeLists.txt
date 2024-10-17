@@ -129,6 +129,7 @@ set(SOURCES
   src/layers/wav2vec2.cc
   src/layers/wav2vec2bert.cc
   src/layers/whisper.cc
+  src/layers/moonshine.cc
   src/logging.cc
   src/models/language_model.cc
   src/models/model.cc
@@ -139,6 +140,7 @@ set(SOURCES
   src/models/wav2vec2.cc
   src/models/wav2vec2bert.cc
   src/models/whisper.cc
+  src/models/moonshine.cc
   src/ops/activation.cc
   src/ops/add.cc
   src/ops/alibi_add.cc
