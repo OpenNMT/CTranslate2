@@ -6,9 +6,28 @@ namespace ctranslate2 {
 
   Padder::Padder(const StorageView& lengths,
                  const dim_t max_time,
-                 const dim_t pad_batch_to_multiple)
-    : _batch_size(lengths.size()) {
-    const std::vector<int32_t> lengths_vec = lengths.to_vector<int32_t>();
+                 const dim_t pad_batch_to_multiple) {
+    initialize(lengths, nullptr, max_time, pad_batch_to_multiple);
+  }
+
+  Padder::Padder(const StorageView& lengths,
+                 const StorageView* offsets,
+                 const dim_t max_time,
+                 const dim_t pad_batch_to_multiple) {
+    initialize(lengths, offsets, max_time, pad_batch_to_multiple);
+  }
+
+  void Padder::initialize(const StorageView& lengths,
+                          const StorageView* offsets,
+                          const dim_t max_time,
+                          const dim_t pad_batch_to_multiple) {
+    _batch_size = lengths.size();
+
+    std::vector<int32_t> lengths_vec = lengths.to_vector<int32_t>();
+    std::vector<int32_t> offsets_vec(_batch_size, 0);
+    if (offsets)
+      offsets_vec = offsets->to_vector<int32_t>();
+
     if (max_time < 0)
       _max_time = *std::max_element(lengths_vec.begin(), lengths_vec.end());
     else
@@ -32,13 +51,22 @@ namespace ctranslate2 {
 
     for (dim_t i = 0; i < _batch_size; ++i) {
       const dim_t length = lengths_vec[i];
-      for (dim_t t = 0; t < length; ++t) {
+      const dim_t start = offsets_vec[i];
+      const dim_t end = start + length;
+
+      for (dim_t t = 0; t < start; ++t) {
+        flat_to_padded.push_back(flat_offset);
+      }
+
+      for (dim_t t = start; t < end; ++t) {
         padded_to_flat.push_back(padded_offset + t);
-        flat_to_padded.push_back(flat_offset + t);
+        flat_to_padded.push_back(flat_offset + t - start);
       }
-      for (dim_t t = length; t < _max_time; ++t) {
-        flat_to_padded.push_back(flat_offset + length - 1);
+
+      for (dim_t t = end; t < _max_time; ++t) {
+        flat_to_padded.push_back(flat_offset + end - 1);
       }
+
       padded_offset += _max_time;
       flat_offset += length;
     }

@@ -126,7 +126,7 @@ namespace ctranslate2 {
 
       std::vector<WhisperGenerationResult>
       generate(StorageView features,
-               const std::vector<std::vector<size_t>>& prompts,
+               std::vector<std::vector<size_t>> prompts,
                const WhisperOptions& options);
 
       std::vector<std::vector<std::pair<std::string, float>>>
