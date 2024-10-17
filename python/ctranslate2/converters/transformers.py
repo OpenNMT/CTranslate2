@@ -43,6 +43,7 @@ _SUPPORTED_ROPE_SCALING = {
     "linear": attention_spec.RotaryScalingType.Linear,
     "su": attention_spec.RotaryScalingType.Su,
     "llama3": attention_spec.RotaryScalingType.Llama3,
+    "longrope": attention_spec.RotaryScalingType.Su,
 }
 
 _SUPPORTED_QUANTIZATION = {
@@ -1876,6 +1877,7 @@ class MistralLoader(ModelLoader):
             quant_type=quant_type,
             quant_group_size=quant_group_size,
             quant_bits=quant_bits,
+            head_dim=model.config.head_dim,
         )
 
         self.set_decoder(spec.decoder, model.model, quant_type=quant_type)
