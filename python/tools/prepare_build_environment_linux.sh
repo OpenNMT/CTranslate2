@@ -29,7 +29,7 @@ else
         cuda-nvcc-12-2-12.2.140-1 \
         cuda-cudart-devel-12-2-12.2.140-1 \
         libcurand-devel-12-2-10.3.3.141-1 \
-        libcudnn8-devel-8.9.7.29-1.cuda12.2 \
+        libcudnn9-devel-cuda-12-9.0.0.312-1 \
         libcublas-devel-12-2-12.2.5.6-1 \
         libnccl-devel-2.19.3-1+cuda12.2
     ln -s cuda-12.2 /usr/local/cuda

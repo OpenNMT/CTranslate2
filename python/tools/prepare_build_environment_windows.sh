@@ -8,8 +8,8 @@ curl -L -nv -o cuda.exe https://developer.download.nvidia.com/compute/cuda/12.2.
 ./cuda.exe -s nvcc_12.2 cudart_12.2 cublas_dev_12.2 curand_dev_12.2
 rm cuda.exe
 
-CUDNN_ROOT="C:/Program Files/NVIDIA/CUDNN/v8.8"
-curl -L -nv -o cudnn.exe https://developer.download.nvidia.com/compute/redist/cudnn/v8.8.0/local_installers/12.0/cudnn_8.8.0.121_windows.exe
+CUDNN_ROOT="C:/Program Files/NVIDIA/CUDNN/v9.0"
+curl -L -nv -o cudnn.exe https://developer.download.nvidia.com/compute/cudnn/9.0.0/local_installers/cudnn_9.0.0_windows.exe
 ./cudnn.exe -s
 sleep 10
 cp -r "$CUDNN_ROOT"/* "$CUDA_ROOT"
@@ -40,4 +40,4 @@ rm -r build
 cp README.md python/
 cp $CTRANSLATE2_ROOT/bin/ctranslate2.dll python/ctranslate2/
 cp "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/redist/intel64_win/compiler/libiomp5md.dll" python/ctranslate2/
-cp "$CUDA_ROOT/bin/cudnn64_8.dll" python/ctranslate2/
+cp "$CUDA_ROOT/bin/cudnn64_9.dll" python/ctranslate2/
