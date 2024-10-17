@@ -12,6 +12,20 @@ CUDNN_ROOT="C:/Program Files/NVIDIA/CUDNN/v9.1"
 curl -L -nv -o cudnn.exe https://developer.download.nvidia.com/compute/cudnn/9.1.0/local_installers/cudnn_9.1.0_windows.exe
 ./cudnn.exe -s
 sleep 10
+# Remove 11.8 folders
+rm -rf "$CUDNN_ROOT/bin/11.8"
+rm -rf "$CUDNN_ROOT/lib/11.8"
+rm -rf "$CUDNN_ROOT/include/11.8"
+
+# Move contents of 12.4 to parent directories
+mv "$CUDNN_ROOT/bin/12.4/"* "$CUDNN_ROOT/bin/"
+mv "$CUDNN_ROOT/lib/12.4/"* "$CUDNN_ROOT/lib/"
+mv "$CUDNN_ROOT/include/12.4/"* "$CUDNN_ROOT/include/"
+
+# Remove empty 12.4 folders
+rmdir "$CUDNN_ROOT/bin/12.4"
+rmdir "$CUDNN_ROOT/lib/12.4"
+rmdir "$CUDNN_ROOT/include/12.4"
 cp -r "$CUDNN_ROOT"/* "$CUDA_ROOT"
 rm cudnn.exe
 
@@ -32,7 +46,7 @@ rm -r oneDNN-*
 
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/compiler/lib/intel64_win;C:/Program Files (x86)/oneDNN" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT" -DCUDNN_LIBRARY="${CUDNN_ROOT}/lib/12.4/x64" -DCUDNN_INCLUDE_DIR="${CUDNN_ROOT}/include/12.4" -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common" ..
+cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/compiler/lib/intel64_win;C:/Program Files (x86)/oneDNN" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT" -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common" ..
 cmake --build . --config Release --target install --parallel 6 --verbose
 cd ..
 rm -r build
@@ -40,4 +54,4 @@ rm -r build
 cp README.md python/
 cp $CTRANSLATE2_ROOT/bin/ctranslate2.dll python/ctranslate2/
 cp "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/redist/intel64_win/compiler/libiomp5md.dll" python/ctranslate2/
-cp "$CUDA_ROOT/bin/12.4/cudnn64_9.dll" python/ctranslate2/
+cp "$CUDA_ROOT/bin/cudnn64_9.dll" python/ctranslate2/
