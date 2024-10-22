@@ -4,6 +4,19 @@
 
 ### Fixes and improvements
 
+## [v4.5.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.5.0) (2024-10-22)
+Note: The Ctranslate2 Python package now supports CUDNN 9 and is no longer compatible with CUDNN 8.  
+
+### New features
+* Support Phi3 (#1800)
+* Support Mistral Nemo (#1785)
+* Support Wav2Vec2Bert ASR (#1778)
+
+### Fixes and improvements
+* Upgrade to CUDNN9 (#1803)
+* Fix logits vocab (#1786 + #1791)
+* Update doc AWQ (#1795)
+
 ## [v4.4.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.4.0) (2024-09-09)
 **Removed**: Flash Attention support in the Python package due to significant package size increase with minimal performance gain.  
 Note: Flash Attention remains supported in the C++ package with the `WITH_FLASH_ATTN` option.  
