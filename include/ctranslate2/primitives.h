@@ -142,13 +142,16 @@ namespace ctranslate2 {
                                          dim_t length,
                                          dim_t vocabulary_size);
 
-    static void prepare_length_mask(const int32_t* lengths,
-                                    dim_t batch_size,
-                                    dim_t num_heads,
-                                    dim_t num_queries,
-                                    bool mask_future,
-                                    bool multi_query,
-                                    int32_t* mask);
+    static void prepare_mha_values_mask(const int32_t* lengths,
+                                        const int32_t* offsets,
+                                        dim_t batch_size,
+                                        dim_t num_heads,
+                                        dim_t num_queries,
+                                        bool mask_future,
+                                        bool multi_query,
+                                        dim_t step,
+                                        int32_t* values_lengths,
+                                        int32_t* values_offsets);
 
     template <typename T>
     static void transpose_2d(const T* a, const dim_t* dims, T* b);

@@ -18,6 +18,7 @@ namespace ctranslate2 {
     void FlashMultiHeadAttention::operator()(const StorageView& queries,
                                              const StorageView&,
                                              const StorageView* values_lengths,
+                                             const StorageView* values_offsets,
                                              StorageView& output,
                                              StorageView* cached_keys,
                                              StorageView* cached_values,
