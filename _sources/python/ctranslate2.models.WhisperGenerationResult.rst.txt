@@ -10,6 +10,7 @@ WhisperGenerationResult
 
     **Attributes:**
 
+    - :obj:`~ctranslate2.models.WhisperGenerationResult.logits`
     - :obj:`~ctranslate2.models.WhisperGenerationResult.no_speech_prob`
     - :obj:`~ctranslate2.models.WhisperGenerationResult.scores`
     - :obj:`~ctranslate2.models.WhisperGenerationResult.sequences`

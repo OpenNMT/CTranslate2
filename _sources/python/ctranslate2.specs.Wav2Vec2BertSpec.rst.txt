@@ -1,0 +1,26 @@
+Wav2Vec2BertSpec
+================
+
+.. autoclass:: ctranslate2.specs.Wav2Vec2BertSpec
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.specs.LanguageModelSpec`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.config`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.name`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.revision`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.get_default_config`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.get_vocabulary_size`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.optimize`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.register_file`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.register_vocabulary`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.save`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.validate`
+    - :obj:`~ctranslate2.specs.Wav2Vec2BertSpec.variables`

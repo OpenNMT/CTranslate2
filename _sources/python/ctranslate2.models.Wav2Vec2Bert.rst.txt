@@ -1,0 +1,26 @@
+Wav2Vec2Bert
+============
+
+.. autoclass:: ctranslate2.models.Wav2Vec2Bert
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.compute_type`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.device`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.device_index`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.model_is_loaded`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.num_active_batches`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.num_queued_batches`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.num_workers`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.tensor_parallel`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.encode`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.load_model`
+    - :obj:`~ctranslate2.models.Wav2Vec2Bert.unload_model`

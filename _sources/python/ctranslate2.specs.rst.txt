@@ -17,5 +17,6 @@ ctranslate2.specs
    ctranslate2.specs.TransformerEncoderModelSpec
    ctranslate2.specs.TransformerEncoderSpec
    ctranslate2.specs.TransformerSpec
+   ctranslate2.specs.Wav2Vec2BertSpec
    ctranslate2.specs.Wav2Vec2Spec
    ctranslate2.specs.WhisperSpec

@@ -6,6 +6,7 @@ ctranslate2.models
 .. toctree::
 
    ctranslate2.models.Wav2Vec2
+   ctranslate2.models.Wav2Vec2Bert
    ctranslate2.models.Whisper
    ctranslate2.models.WhisperGenerationResult
    ctranslate2.models.WhisperGenerationResultAsync

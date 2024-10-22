@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 4.4.0 documentation</title>
+  <title>Quantization &mdash; CTranslate2 4.5.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -32,7 +32,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.4
+                4.5
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -381,17 +381,28 @@ WQ[i,j] = round(scale[i] * W[i,j])
 </section>
 <section id="bit-awq">
 <h3>4-bit AWQ<a class="headerlink" href="#bit-awq" title="Permalink to this headline"></a></h3>
-<p>The compute type would be <code class="docutils literal notranslate"><span class="pre">int32_float16</span></code></p>
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 7.5</p></li>
 </ul>
-<p>In this mode, all model weights are stored in half precision and all layers are run in half precision. Other parameters like scale and zero are stored in <code class="docutils literal notranslate"><span class="pre">int32</span></code>.</p>
-<p>For example,</p>
+<p>CTranslate2 internally handles the compute type for AWQ quantization.
+In this mode, all model weights are stored in half precision and all layers are run in half precision. Other parameters like scale and zero are stored in <code class="docutils literal notranslate"><span class="pre">int32</span></code>.</p>
+<p><strong>Steps to use AWQ Quantization:</strong></p>
+<ul class="simple">
+<li><p>Download a AWQ quantized model from Hugging Face for example (TheBloke/Llama-2-7B-AWQ){https://huggingface.co/TheBloke/Llama-2-7B-AWQ} or quantize your own model with using this (AutoAWQ example){https://casper-hansen.github.io/AutoAWQ/examples/}.</p></li>
+<li><p>Convert AWQ Quantized model to Ctranslate2 model:</p></li>
+</ul>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="w"> </span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>TheBloke/Llama-2-7B-AWQ<span class="w"> </span>--copy_files<span class="w"> </span>tokenizer.model<span class="w"> </span>--output_dir<span class="w"> </span>ct2_model
 </pre></div>
 </div>
-<p>We have to quantize the model with AWQ first, then convert it to CT2 format.</p>
+<ul class="simple">
+<li><p>Run inference as usual with Ctranslate2:</p></li>
+</ul>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>ctranslate2.Generator<span class="o">(</span><span class="s1">&#39;ct2_model&#39;</span>,<span class="w"> </span><span class="nv">device</span><span class="o">=</span><span class="s1">&#39;cuda&#39;</span><span class="o">)</span>
+<span class="nv">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>model.generate_batch<span class="o">([</span>tokens<span class="o">])</span>
+</pre></div>
+</div>
+<p>Currently, CTranslate2 only supports the GEMM and GEMV kernels for AWQ quantization.</p>
 </section>
 </section>
 </section>
