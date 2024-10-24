@@ -20,7 +20,7 @@ if [ "$CIBW_ARCHS" == "aarch64" ]; then
 
 else
     # Install CUDA 12.2:
-    yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel8.repo
+    yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo
     # error mirrorlist.centos.org doesn't exists anymore.
     sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
     sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
