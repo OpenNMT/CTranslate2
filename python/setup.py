@@ -1,6 +1,7 @@
 import glob
 import os
 import sys
+import site
 
 import pybind11
 
@@ -51,6 +52,14 @@ if sys.platform == "darwin":
 elif sys.platform == "win32":
     cflags = ["/std:c++17", "/d2FH4-"]
     package_data["ctranslate2"] = ["*.dll"]
+else:
+    CUDA_RPATHS=[
+        '$ORIGIN/../nvidia/cublas/lib',
+        '$ORIGIN/../nvidia/cuda_runtime/lib',
+        '$ORIGIN/../nvidia/cudnn/lib',
+    ]
+    CUDA_RPATHS= ';'.join(map(str, CUDA_RPATHS))
+    ldflags.append("-Wl,-rpath," + CUDA_RPATHS + "/lib")
 
 ctranslate2_module = Extension(
     "ctranslate2._ext",
