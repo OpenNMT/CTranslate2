@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
