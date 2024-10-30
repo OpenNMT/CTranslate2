@@ -88,7 +88,7 @@ namespace ctranslate2 {
                  Arguments:
                    features: hidden_states (up to v.4.3.1, https://github.com/OpenNMT/CTranslate2/blob/59c7dda738892df7a064aa360d0e45a4c3840b07/python/tests/test_transformers.py#L1028) or
                              raw audio, as a float array with shape (followed by VAD)
-                             ``[batch_size, 409, 1024]`` or ``[batch_size, 1, 131200]``  
+                             ``[batch_size, 409, 1024]`` or ``[batch_size, 1, 131200]``
                    to_cpu: Copy the encoder output to the CPU before returning the value.
 
                  Returns:
