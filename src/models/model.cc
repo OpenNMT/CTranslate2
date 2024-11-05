@@ -214,6 +214,9 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_DNNL
                 || true
 #endif
+#ifdef MOONSHINE
+                || true
+#endif
                 ) {
                 variable_weight_dtype = float_dtype;
               }
