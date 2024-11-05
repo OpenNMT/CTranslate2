@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
@@ -81,17 +82,18 @@ namespace ctranslate2 {
       }
 
     private:
-      const Wav2Vec2LayerNormConvLayer _feat_layer0;
-      const std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>> _feat_layers;
-      const LayerNorm _fp_norm;
-      const Dense _fp_ff;
-      const Wav2Vec2PosConvLayer _pos_conv_embed;
+      const StorageView* _upgraded_model;
+      std::optional<Wav2Vec2LayerNormConvLayer> _feat_layer0;
+      std::optional<std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>>> _feat_layers;
+      std::optional<LayerNorm> _fp_norm;
+      std::optional<Dense> _fp_ff;
+      std::optional<Wav2Vec2PosConvLayer> _pos_conv_embed;
       const ops::Transpose _transpose;
       const ops::GELU _gelu;
       const dim_t _num_heads;
       const std::vector<std::unique_ptr<const TransformerEncoderLayer>> _layers;
       const LayerNorm _output_norm;
-      const Dense _lm_head;
+      std::optional<Dense> _lm_head;
     };
 
   }
