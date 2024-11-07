@@ -137,7 +137,7 @@ jobs:
         include:
         - os: ubuntu-20.04
           arch: aarch64
-        - os: macos-12
+        - os: macos-13
           arch: arm64
 
     steps:
