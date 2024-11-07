@@ -215,7 +215,7 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          pytest -v python/tests/
+          pytest -n auto -v python/tests/
 
 
   check-python-style:
