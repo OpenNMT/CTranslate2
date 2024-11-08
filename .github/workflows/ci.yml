@@ -170,7 +170,7 @@ jobs:
       - name: Upload Python wheels
         uses: actions/upload-artifact@v4
         with:
-          name: python-wheels-${{ matrix.os }}-${{ matrix.arch }}
+          name: python-wheels-${{ runner.os }}-${{ matrix.arch }}
           path: python/wheelhouse
 
 
@@ -199,7 +199,7 @@ jobs:
       - name: Download Python wheels
         uses: actions/download-artifact@v4
         with:
-          pattern: python-wheels-${{ matrix.os }}-*
+          pattern: python-wheels-${{ runner.os }}-*
           merge-multiple: true
           path: .
 
@@ -313,7 +313,7 @@ jobs:
       - name: Download CTranslate2 wheels
         uses: actions/download-artifact@v4
         with:
-          pattern: python-wheels-*
+          pattern: python-wheels-${{ runner.os }}-*
           merge-multiple: true
           path: .
 
