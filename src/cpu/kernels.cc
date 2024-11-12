@@ -489,9 +489,11 @@ namespace ctranslate2 {
           const float variance = std::max(sum_squares / depth - mean * mean, 0.f);
           const float rstd = 1.f / std::sqrt(variance + epsilon);
 
-          for (dim_t j = 0; j < depth; j += weights_size) {
+          int inner_dim = depth / weights_size;
+          for (dim_t j = 0; j < inner_dim; j ++) {
             for (dim_t k = 0; k < weights_size; k++) {
-              y[j+k] = (x[j+k] - mean) * rstd * gamma[k] + beta[k];
+              int idx = k * inner_dim + j;
+              y[idx] = (x[idx] - mean) * rstd * gamma[k] + beta[k];
             }
           }
         }
