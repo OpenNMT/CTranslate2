@@ -14,6 +14,7 @@ option(WITH_OPENBLAS "Compile with OpenBLAS backend" OFF)
 option(WITH_RUY "Compile with Ruy backend" OFF)
 option(WITH_CUDA "Compile with CUDA backend" OFF)
 option(WITH_CUDNN "Compile with cuDNN backend" OFF)
+option(WITH_METAL "Enable Metal backend" OFF)
 option(CUDA_DYNAMIC_LOADING "Dynamically load CUDA libraries at runtime" OFF)
 option(ENABLE_CPU_DISPATCH "Compile CPU kernels for multiple ISA and dispatch at runtime" ON)
 option(ENABLE_PROFILING "Compile with profiling support" OFF)
@@ -659,6 +660,21 @@ elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
 else()
   add_library(${PROJECT_NAME} ${SOURCES})
+endif()
+
+if (WITH_METAL)
+  enable_language(OBJCXX)
+  find_library(METAL_FRAMEWORK Metal REQUIRED)
+  find_library(FOUNDATION_FRAMEWORK Foundation REQUIRED)
+  
+  add_definitions(-DCT2_WITH_METAL)
+  list(APPEND SOURCES
+    src/metal/utils.mm
+  )
+  list(APPEND LIBRARIES
+    ${METAL_FRAMEWORK}
+    ${FOUNDATION_FRAMEWORK}
+  )
 endif()
 
 include(GenerateExportHeader)

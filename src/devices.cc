@@ -3,6 +3,9 @@
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
 #endif
+#ifdef CT2_WITH_METAL
+#  include "metal/utils.h"
+#endif
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <unistd.h>
 #endif
@@ -18,14 +21,25 @@ namespace ctranslate2 {
 #else
       throw std::invalid_argument("This CTranslate2 package was not compiled with CUDA support");
 #endif
+    if (device == "metal" || device == "METAL")
+#ifdef CT2_WITH_METAL
+      return Device::METAL;
+#else
+      throw std::invalid_argument("This CTranslate2 package was not compiled with Metal support");
+#endif
     if (device == "cpu" || device == "CPU")
       return Device::CPU;
-    if (device == "auto" || device == "AUTO")
+    if (device == "auto" || device == "AUTO") {
 #ifdef CT2_WITH_CUDA
-      return cuda::has_gpu() ? Device::CUDA : Device::CPU;
-#else
-      return Device::CPU;
+      if (cuda::has_gpu())
+        return Device::CUDA;
 #endif
+#ifdef CT2_WITH_METAL
+      if (metal::has_metal())
+        return Device::METAL;
+#endif
+      return Device::CPU;
+    }
     throw std::invalid_argument("unsupported device " + device);
   }
 
@@ -33,6 +47,8 @@ namespace ctranslate2 {
     switch (device) {
     case Device::CUDA:
       return "cuda";
+    case Device::METAL:
+      return "metal";
     case Device::CPU:
       return "cpu";
     }
@@ -48,6 +64,12 @@ namespace ctranslate2 {
     case Device::CUDA:
 #ifdef CT2_WITH_CUDA
       return cuda::get_gpu_count();
+#else
+      return 0;
+#endif
+    case Device::METAL:
+#ifdef CT2_WITH_METAL
+      return metal::get_metal_device_count();
 #else
       return 0;
 #endif
@@ -87,6 +109,18 @@ namespace ctranslate2 {
   }
 #endif
 
+#ifdef CT2_WITH_METAL
+  template<>
+  int get_device_index<Device::METAL>() {
+    return metal::get_metal_device_count() > 0 ? 0 : -1;
+  }
+
+  template<>
+  void set_device_index<Device::METAL>(int index) {
+    metal::set_metal_device(index);
+  }
+#endif
+
   int get_device_index(Device device) {
     int index = 0;
     DEVICE_DISPATCH(device, index = get_device_index<D>());
@@ -101,23 +135,28 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_CUDA
     if (device == Device::CUDA) {
       const ScopedDeviceSetter scoped_device_setter(device, index);
-      cudaDeviceSynchronize();
+      CUDA_CHECK(cudaDeviceSynchronize());
     }
-#else
-    (void)device;
-    (void)index;
+#endif
+#ifdef CT2_WITH_METAL
+    if (device == Device::METAL) {
+      const ScopedDeviceSetter scoped_device_setter(device, index);
+      metal::synchronize_device();
+    }
 #endif
   }
 
   void synchronize_stream(Device device) {
 #ifdef CT2_WITH_CUDA
-    if (device == Device::CUDA) {
-      cudaStreamSynchronize(cuda::get_cuda_stream());
-    }
-#else
-    (void)device;
+    if (device == Device::CUDA)
+      CUDA_CHECK(cudaStreamSynchronize(cuda::get_cuda_stream()));
+#endif
+#ifdef CT2_WITH_METAL
+    if (device == Device::METAL)
+      metal::synchronize_device();
 #endif
   }
+
   // Initialize the static member variable
 #ifdef CT2_WITH_TENSOR_PARALLEL
     std::vector<ncclComm_t*> ScopedMPISetter::_nccl_comms;
