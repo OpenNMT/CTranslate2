@@ -2017,7 +2017,11 @@ class Qwen2Loader(ModelLoader):
         spec.register_vocabulary(tokens)
 
     def set_config(self, config, model, tokenizer):
-        config.bos_token = tokenizer.bos_token if tokenizer.bos_token is not None else tokenizer.pad_token
+        config.bos_token = (
+            tokenizer.bos_token
+            if tokenizer.bos_token is not None
+            else tokenizer.pad_token
+        )
         config.eos_token = tokenizer.eos_token
         config.unk_token = (
             tokenizer.unk_token if tokenizer.unk_token is not None else ""
@@ -2041,15 +2045,9 @@ class Qwen2Loader(ModelLoader):
             )
 
             split_layers = [common_spec.LinearSpec() for _ in range(3)]
-            self.set_linear(
-                split_layers[0], layer.self_attn.q_proj
-            )
-            self.set_linear(
-                split_layers[1], layer.self_attn.k_proj
-            )
-            self.set_linear(
-                split_layers[2], layer.self_attn.v_proj
-            )
+            self.set_linear(split_layers[0], layer.self_attn.q_proj)
+            self.set_linear(split_layers[1], layer.self_attn.k_proj)
+            self.set_linear(split_layers[2], layer.self_attn.v_proj)
 
             utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
             self.set_linear(
@@ -2057,15 +2055,9 @@ class Qwen2Loader(ModelLoader):
                 layer.self_attn.o_proj,
             )
 
-            self.set_linear(
-                layer_spec.ffn.linear_0, layer.mlp.gate_proj
-            )
-            self.set_linear(
-                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj
-            )
-            self.set_linear(
-                layer_spec.ffn.linear_1, layer.mlp.down_proj
-            )
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj)
+            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
 
             delattr(layer, "self_attn")
             delattr(layer, "mlp")
