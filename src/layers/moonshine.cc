@@ -20,7 +20,7 @@ namespace ctranslate2 {
 
       StorageView input(output_type(), features.device());
       StorageView input_reshaped = std::move(features);
-      input_reshaped.expand_dims(0);
+      input_reshaped.expand_dims(1);
 
       _conv1(input_reshaped, input);
       _tanh(input, input);
