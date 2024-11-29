@@ -20,7 +20,6 @@ from ctranslate2.converters.converter import Converter
 from ctranslate2.specs import (
     attention_spec,
     common_spec,
-    model_spec,
     transformer_spec,
     wav2vec2_spec,
     wav2vec2bert_spec,
