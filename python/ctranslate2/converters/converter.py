@@ -5,7 +5,7 @@ import shutil
 
 from typing import Optional
 
-from ctranslate2.specs.model_spec import ACCEPTED_MODEL_TYPES, ModelSpec
+from ctranslate2.specs.model_spec import ACCEPTED_MODEL_TYPES
 
 
 class Converter(abc.ABC):
