@@ -1,19 +1,20 @@
 import argparse
+import json
 import re
 
 import numpy as np
-import json
 
+from safetensors.torch import safe_open
+
+from ctranslate2.converters import utils
+from ctranslate2.converters.converter import Converter
 from ctranslate2.specs import (
-    TransformerSpec,
-    TransformerEncoderSpec,
     TransformerDecoderSpec,
+    TransformerEncoderSpec,
+    TransformerSpec,
 )
 from ctranslate2.specs.common_spec import Activation
 from ctranslate2.specs.moonshine_spec import MoonshineSpec
-from ctranslate2.converters import utils
-from ctranslate2.converters.converter import Converter
-from safetensors.torch import safe_open
 
 
 class MoonshineConverter(Converter):
