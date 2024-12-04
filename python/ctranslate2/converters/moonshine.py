@@ -20,17 +20,22 @@ class MoonshineConverter(Converter):
     def __init__(self, safetensor_file, vocab_file, moonshine_variant):
         self.safetensor_file = safetensor_file
         self.vocab_file = vocab_file
-        if moonshine_variant == 'tiny':
+        if moonshine_variant == "tiny":
             self.layers = 6
             self.heads = 8
-        elif moonshine_variant == 'base':
-            self.layers=8
+        elif moonshine_variant == "base":
+            self.layers = 8
             self.heads = 8
         else:
             raise ValueError('moonshine_variant must be one of ["tiny", "base"]')
 
     def _load(self):
-        spec = MoonshineSpec(num_encoder_layers=self.layers, num_encoder_heads=self.heads, num_decoder_layers=self.layers, num_decoder_heads=self.heads)
+        spec = MoonshineSpec(
+            num_encoder_layers=self.layers,
+            num_encoder_heads=self.heads,
+            num_decoder_layers=self.layers,
+            num_decoder_heads=self.heads,
+        )
         self.load_preprocessor(spec.preprocessor)
         self.load_encoder(spec.encoder)
         self.load_decoder(spec.decoder)
@@ -41,7 +46,7 @@ class MoonshineConverter(Converter):
         tokens_dict = {}
         with open(self.vocab_file, encoding="utf-8") as f:
             tokenizer_dict = json.load(f)
-            d = tokenizer_dict['model']['vocab']
+            d = tokenizer_dict["model"]["vocab"]
             for token in d.keys():
                 idx = d[token]
                 token = re.sub(r"\\([^x])", r"\1", token)
@@ -54,9 +59,9 @@ class MoonshineConverter(Converter):
                     token = token.replace("''", "'")
                 if idx is not None:
                     tokens_dict[idx] = token
-            added_tokens = tokenizer_dict['added_tokens']
+            added_tokens = tokenizer_dict["added_tokens"]
             for t in added_tokens:
-                tokens_dict[t['id']] = t['content']
+                tokens_dict[t["id"]] = t["content"]
 
         return [tokens_dict[idx] for idx in sorted(tokens_dict.keys())]
 
@@ -75,7 +80,9 @@ class MoonshineConverter(Converter):
     def load_ffn(self, ffn_spec, st_prefix, swiglu=False):
         st = safe_open(self.safetensor_file, framework="pt", device="cpu")
         if swiglu:
-            ffn_spec.linear_0_noact.weight = st.get_tensor(f"{st_prefix}.ff_noact.weight")
+            ffn_spec.linear_0_noact.weight = st.get_tensor(
+                f"{st_prefix}.ff_noact.weight"
+            )
             ffn_spec.linear_0.weight = st.get_tensor(f"{st_prefix}.ff_proj.weight")
             ffn_spec.linear_0_noact.bias = st.get_tensor(f"{st_prefix}.ff_noact.bias")
             ffn_spec.linear_0.bias = st.get_tensor(f"{st_prefix}.ff_proj.bias")
@@ -110,7 +117,9 @@ class MoonshineConverter(Converter):
     def load_encoder(self, encoder_spec):
         self.load_layernorm(encoder_spec.layer_norm, "model.encoder.post_norm")
         for idx, l in enumerate(encoder_spec.layer):
-            self.load_attention(l.self_attention, f"model.encoder.layers.{idx}.attention")
+            self.load_attention(
+                l.self_attention, f"model.encoder.layers.{idx}.attention"
+            )
             self.load_layernorm(
                 l.self_attention.layer_norm, f"model.encoder.layers.{idx}.norm1"
             )
@@ -128,8 +137,14 @@ class MoonshineConverter(Converter):
             self.load_layernorm(
                 l.self_attention.layer_norm, f"model.decoder.layers.{idx}.norm1"
             )
-            self.load_attention(l.attention, f"model.decoder.layers.{idx}.cross_attention", self_attention=False)
-            self.load_layernorm(l.attention.layer_norm, f"model.decoder.layers.{idx}.norm2")
+            self.load_attention(
+                l.attention,
+                f"model.decoder.layers.{idx}.cross_attention",
+                self_attention=False,
+            )
+            self.load_layernorm(
+                l.attention.layer_norm, f"model.decoder.layers.{idx}.norm2"
+            )
             self.load_ffn(l.ffn, f"model.decoder.layers.{idx}.ff", swiglu=True)
             self.load_layernorm(l.ffn.layer_norm, f"model.decoder.layers.{idx}.norm3")
 
@@ -154,7 +169,9 @@ def main():
 
     Converter.declare_arguments(parser)
     args = parser.parse_args()
-    converter = MoonshineConverter(args.model_path, args.vocab_path, args.moonshine_variant)
+    converter = MoonshineConverter(
+        args.model_path, args.vocab_path, args.moonshine_variant
+    )
     converter.convert_from_args(args)
 
 
