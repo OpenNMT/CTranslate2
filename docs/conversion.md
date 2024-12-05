@@ -8,6 +8,7 @@ The Python module includes a [conversion API](python/ctranslate2.converters.rst)
 
 * [Fairseq](guides/fairseq.md)
 * [Marian](guides/marian.md)
+* [Moonshine](guides/moonshine.md)
 * [OpenNMT-py](guides/opennmt_py.md)
 * [OpenNMT-tf](guides/opennmt_tf.md)
 * [OPUS-MT](guides/opus_mt.md)

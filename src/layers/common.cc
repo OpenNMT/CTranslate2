@@ -453,7 +453,10 @@ namespace ctranslate2 {
     }
 
     void LayerNorm::operator()(const StorageView& input, StorageView& output) const {
-      if (_beta) {
+      if (_gamma.size() != input.dim(input.rank() - 1) && _gamma.size() == input.dim(input.rank() - 2)) {
+        const ops::LayerNorm norm_op(-2, _epsilon, true);
+        norm_op(*_beta, _gamma, input, output);
+      } else if (_beta) {
         const ops::LayerNorm norm_op(-1, _epsilon);
         norm_op(*_beta, _gamma, input, output);
       } else {
