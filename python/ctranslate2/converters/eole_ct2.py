@@ -1,12 +1,13 @@
 import argparse
 
+from eole.config.run import PredictConfig
+from eole.constants import PositionEncodingType
+from eole.inputters.inputter import vocabs_to_dict
+from eole.models.model import BaseModel
+
 from ctranslate2.converters import utils
 from ctranslate2.converters.converter import Converter
 from ctranslate2.specs import common_spec, transformer_spec
-from eole.config.run import PredictConfig
-from eole.models.model import BaseModel
-from eole.inputters.inputter import vocabs_to_dict
-from eole.constants import PositionEncodingType
 
 _SUPPORTED_ACTIVATIONS = {
     "gelu": common_spec.Activation.GELU,
