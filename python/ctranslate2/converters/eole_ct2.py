@@ -43,12 +43,25 @@ def _get_model_spec_seq2seq(
         alignment_heads = config.decoder.alignment_heads
 
     num_heads = getattr(config.decoder, "heads", 8)
+    num_kv = getattr(config.decoder, "heads_kv", 0)
+    if num_kv == num_heads or num_kv == 0:
+        num_kv = None
+    rotary_dim = 0 if with_rotary else None
+    rotary_interleave = getattr(config.rope_config, "rotary_interleave", True)
+    ffn_glu = activation_fn == "gated-silu"
+    sliding_window = getattr(config, "sliding_window", 0)
 
     model_spec = transformer_spec.TransformerSpec.from_config(
         (config.encoder.layers, config.decoder.layers),
         num_heads,
         with_relative_position=with_relative_position,
+        alibi=with_alibi,
         activation=_SUPPORTED_ACTIVATIONS[activation_fn],
+        rms_norm=config.layer_norm == "rms",
+        rotary_dim=rotary_dim,
+        rotary_interleave=rotary_interleave,
+        num_heads_kv=num_kv,
+        sliding_window=sliding_window,
         alignment_layer=alignment_layer,
         alignment_heads=alignment_heads,
         num_source_embeddings=num_source_embeddings,
