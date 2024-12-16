@@ -57,6 +57,7 @@ def _get_model_spec_seq2seq(
         with_relative_position=with_relative_position,
         alibi=with_alibi,
         activation=_SUPPORTED_ACTIVATIONS[activation_fn],
+        ffn_glu=ffn_glu,
         rms_norm=config.layer_norm == "rms",
         rotary_dim=rotary_dim,
         rotary_interleave=rotary_interleave,
