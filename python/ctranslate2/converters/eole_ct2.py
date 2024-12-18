@@ -205,7 +205,9 @@ def set_transformer_encoder(spec, variables):
     set_input_layers(spec, variables, "src_emb")
     set_layer_norm(spec.layer_norm, variables, "encoder.layer_norm")
     for i, layer in enumerate(spec.layer):
-        set_transformer_encoder_layer(layer, variables, "encoder.transformer_layers.%d" % i)
+        set_transformer_encoder_layer(
+            layer, variables, "encoder.transformer_layers.%d" % i
+        )
 
 
 def set_transformer_decoder(spec, variables, with_encoder_attention=True):
