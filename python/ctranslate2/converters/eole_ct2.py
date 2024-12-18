@@ -233,7 +233,7 @@ def set_input_layers(spec, variables, scope):
         spec.scale_embeddings = False
 
     embeddings_specs = spec.embeddings
-    ## encoder embeddings are stored in a list(onmt/ct2 legacy with features) 
+    # encoder embeddings are stored in a list(onmt/ct2 legacy with features)
     if isinstance(embeddings_specs, list):
         embeddings_specs = embeddings_specs[0]
     set_embeddings(embeddings_specs, variables, "%s.embeddings" % scope)
