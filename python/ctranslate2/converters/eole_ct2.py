@@ -205,7 +205,7 @@ def set_transformer_encoder(spec, variables):
     set_input_layers(spec, variables, "src_emb")
     set_layer_norm(spec.layer_norm, variables, "encoder.layer_norm")
     for i, layer in enumerate(spec.layer):
-        set_transformer_encoder_layer(layer, variables, "encoder.transformer.%d" % i)
+        set_transformer_encoder_layer(layer, variables, "encoder.transformer_layers.%d" % i)
 
 
 def set_transformer_decoder(spec, variables, with_encoder_attention=True):
@@ -232,7 +232,11 @@ def set_input_layers(spec, variables, scope):
     else:
         spec.scale_embeddings = False
 
-    set_embeddings(spec.embeddings, variables, "%s.embeddings" % scope)
+    embeddings_specs = spec.embeddings
+    ## encoder embeddings are stored in a list(onmt/ct2 legacy with features) 
+    if isinstance(embeddings_specs, list):
+        embeddings_specs = embeddings_specs[0]
+    set_embeddings(embeddings_specs, variables, "%s.embeddings" % scope)
 
 
 def set_transformer_encoder_layer(spec, variables, scope):
