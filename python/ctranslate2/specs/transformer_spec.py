@@ -22,6 +22,11 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
         relative_attention_bias: bool = False,
         ffn_glu: bool = False,
         rms_norm: bool = False,
+        rotary_dim: Optional[int] = None,
+        rotary_interleave: bool = True,
+        rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
+        rotary_scaling_factor: float = 1,
+        rotary_base: float = 10000,
         multi_query_attention: bool = False,
     ):
         """Initializes a Transformer encoder specification.
@@ -66,6 +71,11 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
                 relative_attention_bias=relative_attention_bias,
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
+                rotary_dim=rotary_dim,
+                rotary_interleave=rotary_interleave,
+                rotary_scaling_type=rotary_scaling_type,
+                rotary_scaling_factor=rotary_scaling_factor,
+                rotary_base=rotary_base,
                 num_heads_kv=1 if multi_query_attention else None,
             )
             for _ in range(num_layers)
@@ -251,6 +261,11 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
         relative_attention_bias=False,
         ffn_glu=False,
         rms_norm=False,
+        rotary_dim=None,
+        rotary_interleave=True,
+        rotary_scaling_type=None,
+        rotary_scaling_factor=1,
+        rotary_base=10000,
         num_heads_kv=None,
         sliding_window=None,
     ):
@@ -259,6 +274,11 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
             relative_position=relative_position,
             relative_attention_bias=relative_attention_bias,
             rms_norm=rms_norm,
+            rotary_dim=rotary_dim,
+            rotary_interleave=rotary_interleave,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=rotary_base,
             num_heads_kv=num_heads_kv,
             sliding_window=sliding_window,
         )

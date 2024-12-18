@@ -7,7 +7,7 @@ namespace ctranslate2 {
 
     class LayerNorm : public TernaryOp {
     public:
-      LayerNorm(const dim_t axis = -1, const float epsilon = 1e-5);
+      LayerNorm(const dim_t axis = -1, const float epsilon = 1e-5, const bool multi_axis=false);
 
       using TernaryOp::operator();
       void operator()(const StorageView& beta,
@@ -32,10 +32,12 @@ namespace ctranslate2 {
                    const dim_t outer_size,
                    const dim_t axis_size,
                    const dim_t inner_size,
+                   const bool multi_axis,
                    StorageView& output) const;
 
       const dim_t _axis;
       const float _epsilon;
+      const bool _multi_axis;
     };
 
   }

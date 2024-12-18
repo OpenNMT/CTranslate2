@@ -110,6 +110,7 @@ setup(
         "console_scripts": [
             "ct2-fairseq-converter=ctranslate2.converters.fairseq:main",
             "ct2-marian-converter=ctranslate2.converters.marian:main",
+            "ct2-moonshine-converter=ctranslate2.converters.moonshine:main",
             "ct2-openai-gpt2-converter=ctranslate2.converters.openai_gpt2:main",
             "ct2-opennmt-py-converter=ctranslate2.converters.opennmt_py:main",
             "ct2-opennmt-tf-converter=ctranslate2.converters.opennmt_tf:main",
