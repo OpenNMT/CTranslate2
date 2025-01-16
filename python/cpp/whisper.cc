@@ -133,6 +133,7 @@ namespace ctranslate2 {
           return "WhisperGenerationResult(sequences=" + std::string(py::repr(py::cast(result.sequences)))
             + ", sequences_ids=" + std::string(py::repr(py::cast(result.sequences_ids)))
             + ", scores=" + std::string(py::repr(py::cast(result.scores)))
+            + ", logits=" + std::string(py::repr(py::cast(result.logits)))
             + ", no_speech_prob=" + std::string(py::repr(py::cast(result.no_speech_prob)))
             + ")";
         })
