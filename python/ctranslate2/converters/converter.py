@@ -5,7 +5,7 @@ import shutil
 
 from typing import Optional
 
-from ctranslate2.specs.model_spec import ACCEPTED_MODEL_TYPES, ModelSpec
+from ctranslate2.specs.model_spec import ACCEPTED_MODEL_TYPES, DEVICE, ModelSpec
 
 
 class Converter(abc.ABC):
@@ -31,6 +31,18 @@ class Converter(abc.ABC):
             help="Weight quantization type.",
         )
         parser.add_argument(
+            "--group_size",
+            type=int,
+            default=None,
+            help="Group size used in quantization lower bit",
+        )
+        parser.add_argument(
+            "--device",
+            default=None,
+            choices=DEVICE,
+            help="Device where the quantization runs on. Available only with hqq quantization",
+        )
+        parser.add_argument(
             "--force",
             action="store_true",
             help="Force conversion even if the output directory already exists.",
@@ -51,6 +63,8 @@ class Converter(abc.ABC):
             args.output_dir,
             vmap=args.vocab_mapping,
             quantization=args.quantization,
+            group_size=args.group_size,
+            device=args.device,
             force=args.force,
         )
 
@@ -59,6 +73,8 @@ class Converter(abc.ABC):
         output_dir: str,
         vmap: Optional[str] = None,
         quantization: Optional[str] = None,
+        group_size: Optional[int] = None,
+        device: Optional[str] = None,
         force: bool = False,
     ) -> str:
         """Converts the model to the CTranslate2 format.
@@ -69,6 +85,10 @@ class Converter(abc.ABC):
             in the converted model directory.
           quantization: Weight quantization scheme (possible values are: int8, int8_float32,
             int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
+          group_size: group size used by the quantization in lower bit (possible values
+            are: 32, 64, 128...)
+          device: Device where the compute of the scales and zero in quantization lower bit
+            runs (possible values are: cuda, cpu)
           force: Override the output directory if it already exists.
 
         Returns:
@@ -95,7 +115,7 @@ class Converter(abc.ABC):
             model_spec.register_vocabulary_mapping(vmap)
 
         model_spec.validate()
-        model_spec.optimize(quantization=quantization)
+        model_spec.optimize(quantization=quantization, group_size=group_size, device=device)
 
         # Create model directory.
         if os.path.exists(output_dir):

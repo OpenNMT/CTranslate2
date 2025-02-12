@@ -1,4 +1,4 @@
-#include "ctranslate2/ops/dequantize.h"
+ #include "ctranslate2/ops/dequantize.h"
 
 #include "dispatch.h"
 
