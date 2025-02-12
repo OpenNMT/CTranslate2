@@ -1,8 +1,9 @@
 #include "./utils.h"
 
-#include <atomic>
+#include <array>
 #include <cstdlib>
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <vector>
 
@@ -12,6 +13,8 @@
 
 namespace ctranslate2 {
   namespace cuda {
+
+    constexpr int max_gpus = 16;
 
     const char* cublasGetStatusName(cublasStatus_t status)
     {
@@ -42,27 +45,16 @@ namespace ctranslate2 {
       }
     }
 
-    // We assign the default CUDA stream to the main thread since it can interact with
-    // multiple devices (e.g. load replicas on each GPU). The main thread is created
-    // before the others, so it will be the first to see the flag below set to true.
-    static std::atomic<bool> is_main_thread(true);
-
     class CudaStream {
     public:
-      CudaStream() {
-        if (is_main_thread) {
-          is_main_thread = false;
-          _stream = cudaStreamDefault;
-        } else {
-          CUDA_CHECK(cudaGetDevice(&_device));
-          CUDA_CHECK(cudaStreamCreate(&_stream));
-        }
+      CudaStream(int device)
+        : _device(device)
+      {
+        CUDA_CHECK(cudaStreamCreateWithFlags(&_stream, cudaStreamNonBlocking));
       }
       ~CudaStream() {
-        if (_stream != cudaStreamDefault) {
-          ScopedDeviceSetter scoped_device_setter(Device::CUDA, _device);
-          cudaStreamDestroy(_stream);
-        }
+        ScopedDeviceSetter scoped_device_setter(Device::CUDA, _device);
+        cudaStreamDestroy(_stream);
       }
       cudaStream_t get() const {
         return _stream;
@@ -70,6 +62,32 @@ namespace ctranslate2 {
     private:
       int _device;
       cudaStream_t _stream;
+    };
+
+    // Pool of CUDA streams, one per device.
+    class CudaStreamPool {
+    public:
+      CudaStreamPool() {
+        if (get_gpu_count() > max_gpus)
+          throw std::runtime_error("Number of CUDA devices on the machine is larger than "
+                                   "the maximum supported number ("
+                                   + std::to_string(max_gpus) + ")");
+      }
+
+      cudaStream_t get_device_stream() {
+        int device = 0;
+        CUDA_CHECK(cudaGetDevice(&device));
+
+        std::call_once(_init_streams[device], [this, device]() {
+          _streams[device] = std::make_unique<CudaStream>(device);
+        });
+
+        return _streams[device]->get();
+      }
+
+    private:
+      std::array<std::unique_ptr<CudaStream>, max_gpus> _streams;
+      std::array<std::once_flag, max_gpus> _init_streams;
     };
 
     class CublasHandle {
@@ -95,8 +113,8 @@ namespace ctranslate2 {
     // when the thread exits.
 
     cudaStream_t get_cuda_stream() {
-      static thread_local CudaStream cuda_stream;
-      return cuda_stream.get();
+      static thread_local CudaStreamPool cuda_stream_pool;
+      return cuda_stream_pool.get_device_stream();
     }
 
     cublasHandle_t get_cublas_handle() {
