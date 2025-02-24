@@ -150,7 +150,7 @@ jobs:
         name: Set up QEMU
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.21.3
+        uses: pypa/cibuildwheel@v2.22.0
         with:
           package-dir: python
           output-dir: python/wheelhouse
@@ -184,10 +184,10 @@ jobs:
         os: [ubuntu-20.04, windows-2019]
 
     steps:
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - uses: actions/checkout@v4
 
@@ -206,13 +206,13 @@ jobs:
       - name: Install wheel
         if: startsWith(matrix.os, 'ubuntu')
         run: |
-          pip install *cp38*manylinux*x86_64.whl
+          pip install *cp39*manylinux*x86_64.whl
 
       - name: Install wheel
         if: startsWith(matrix.os, 'windows')
         shell: bash
         run: |
-          pip install *cp38*win*.whl
+          pip install *cp39*win*.whl
 
       - name: Run tests
         shell: bash
@@ -226,10 +226,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Install dependencies
         run: |
@@ -305,10 +305,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Python 3.8
+      - name: Set up Python 3.9
         uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: 3.9
 
       - name: Download CTranslate2 wheels
         uses: actions/download-artifact@v4
@@ -319,7 +319,7 @@ jobs:
 
       - name: Install CTranslate2 wheel
         run: |
-          pip install *cp38*manylinux*x86_64.whl
+          pip install *cp39*manylinux*x86_64.whl
 
       - name: Install dependencies to build docs
         working-directory: docs
