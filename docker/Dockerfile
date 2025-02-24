@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu20.04 as builder
+FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04 as builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -77,7 +77,7 @@ RUN cd python && \
     python3 -m pip --no-cache-dir install -r install_requirements.txt && \
     python3 setup.py bdist_wheel --dist-dir $CTRANSLATE2_ROOT
 
-FROM nvidia/cuda:12.2.2-base-ubuntu20.04
+FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
 # We remove the cuda-compat package because it conflicts with the CUDA Enhanced Compatibility.
 # See e.g. https://github.com/NVIDIA/nvidia-docker/issues/1515
