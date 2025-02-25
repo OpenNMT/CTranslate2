@@ -78,6 +78,7 @@ namespace ctranslate2 {
                     const float* beta,
                     float* output,
                     dim_t batch_size,
+                    dim_t weights_size,
                     dim_t depth,
                     float epsilon);
 

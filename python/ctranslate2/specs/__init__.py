@@ -6,6 +6,7 @@ from ctranslate2.specs.model_spec import (
     ModelSpec,
     SequenceToSequenceModelSpec,
 )
+from ctranslate2.specs.moonshine_spec import MoonshineSpec
 from ctranslate2.specs.transformer_spec import (
     TransformerDecoderModelSpec,
     TransformerDecoderSpec,

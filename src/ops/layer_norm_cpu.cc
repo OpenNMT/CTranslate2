@@ -13,6 +13,7 @@ namespace ctranslate2 {
                             const dim_t outer_size,
                             const dim_t axis_size,
                             const dim_t inner_size,
+                            const bool multi_axis,
                             StorageView& output) const {
       if (axis == input.rank() - 1 && beta && gamma) {
         CPU_ISA_DISPATCH((cpu::layer_norm<ISA>(input.data<T>(),
@@ -20,7 +21,17 @@ namespace ctranslate2 {
                                                beta->data<T>(),
                                                output.data<T>(),
                                                outer_size,
+                                               gamma->size(),
                                                axis_size,
+                                               _epsilon)));
+      } else if (multi_axis && axis != input.rank() - 1 && beta && gamma) {
+        CPU_ISA_DISPATCH((cpu::layer_norm<ISA>(input.data<T>(),
+                                               gamma->data<T>(),
+                                               beta->data<T>(),
+                                               output.data<T>(),
+                                               outer_size,
+                                               gamma->size(),
+                                               axis_size * inner_size,
                                                _epsilon)));
       } else {
         CPU_ISA_DISPATCH((cpu::layer_norm_axis<ISA>(input.data<T>(),
@@ -43,6 +54,7 @@ namespace ctranslate2 {
                                        const dim_t outer_size,          \
                                        const dim_t axis_size,           \
                                        const dim_t inner_size,          \
+                                       const bool multi_axis,           \
                                        StorageView& output) const;
 
     DECLARE_IMPL(float)

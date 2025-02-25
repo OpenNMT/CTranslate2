@@ -5,9 +5,10 @@
 namespace ctranslate2 {
   namespace ops {
 
-    LayerNorm::LayerNorm(const dim_t axis, const float epsilon)
+    LayerNorm::LayerNorm(const dim_t axis, const float epsilon, const bool multi_axis)
       : _axis(axis)
       , _epsilon(epsilon)
+      , _multi_axis(multi_axis)
     {
     }
 
@@ -51,6 +52,7 @@ namespace ctranslate2 {
                                                outer_size,
                                                axis_size,
                                                inner_size,
+                                               _multi_axis,
                                                output)));
     }
 

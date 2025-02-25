@@ -6,3 +6,4 @@ tensorflow-cpu==2.11.*
 pytest
 wurlitzer==3.0.*;platform_system=='Linux'
 torch==2.2.0
+safetensors

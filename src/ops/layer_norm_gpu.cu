@@ -9,6 +9,7 @@ namespace at {
     // Forward declaration of the CUDA kernels.
     template <typename T, typename SizeT>
     __global__ void LayerNormForwardCUDAKernel(SizeT N,
+                                               SizeT axis_size,
                                                float eps,
                                                const T* X,
                                                const T* gamma,
@@ -30,13 +31,15 @@ namespace ctranslate2 {
                             const dim_t axis,
                             const dim_t outer_size,
                             const dim_t axis_size,
-                            const dim_t,
+                            const dim_t inner_size,
+			    const bool multi_axis,
                             StorageView& output) const {
-      if (axis != input.rank() - 1 || !beta || !gamma)
+      if (!multi_axis && axis != input.rank() - 1 || !beta || !gamma)
         throw std::invalid_argument("Generalized LayerNorm is currently not implemented on GPU");
 
       at::native::LayerNormForwardCUDAKernel<cuda::device_type<T>, cuda::index_t>
         <<<outer_size, CUDA_NUM_THREADS, 0, cuda::get_cuda_stream()>>>(
+	  inner_size * axis_size,
           axis_size,
           _epsilon,
           cuda::device_cast(input.data<T>()),
@@ -54,6 +57,7 @@ namespace ctranslate2 {
                                         const dim_t outer_size,         \
                                         const dim_t axis_size,          \
                                         const dim_t inner_size,         \
+					const bool multi_axis,		\
                                         StorageView& output) const;
 
     DECLARE_IMPL(float)
@@ -147,6 +151,7 @@ namespace at {
 
     template <typename T, typename SizeT>
     __global__ void LayerNormForwardCUDAKernel(SizeT N,
+                                               SizeT axis_size,
                                                float eps,
                                                const T* X,
                                                const T* gamma,
@@ -179,11 +184,13 @@ namespace at {
 
       __syncthreads();
 
-      for (SizeT j = threadIdx.x; j < N; j += blockDim.x) {
-        const SizeT index = i * N + j;
-        Y[index] = (float(X[index]) - s_mean) * s_variance * float(gamma[j]) + float(beta[j]);
+      SizeT inner_dim = N / axis_size;
+      for (SizeT j = 0; j < inner_dim; j++) {
+        for (SizeT k = threadIdx.x; k < axis_size; k += blockDim.x) {
+	  const SizeT index = i * N + k * inner_dim + j;
+	  Y[index] = (float(X[index]) - s_mean) * s_variance * float(gamma[k]) + float(beta[k]);
+        }
       }
     }
-
   }
 }

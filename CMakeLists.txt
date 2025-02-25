@@ -22,6 +22,11 @@ option(BUILD_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
+option(MOONSHINE "Compile with moonshine specializations" OFF)
+
+if (MOONSHINE)
+  add_definitions(-DMOONSHINE)
+endif()
 
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
@@ -132,6 +137,7 @@ set(SOURCES
   src/layers/wav2vec2.cc
   src/layers/wav2vec2bert.cc
   src/layers/whisper.cc
+  src/layers/moonshine.cc
   src/logging.cc
   src/models/language_model.cc
   src/models/model.cc
@@ -142,6 +148,7 @@ set(SOURCES
   src/models/wav2vec2.cc
   src/models/wav2vec2bert.cc
   src/models/whisper.cc
+  src/models/moonshine.cc
   src/ops/activation.cc
   src/ops/add.cc
   src/ops/alibi_add.cc

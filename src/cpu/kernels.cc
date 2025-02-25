@@ -465,6 +465,7 @@ namespace ctranslate2 {
                                 const float* beta,
                                 float* output,
                                 dim_t batch_size,
+                                dim_t weights_size,
                                 dim_t depth,
                                 float epsilon) {
       parallel_for(0, batch_size, 1, [&](dim_t begin, dim_t end) {
@@ -488,8 +489,12 @@ namespace ctranslate2 {
           const float variance = std::max(sum_squares / depth - mean * mean, 0.f);
           const float rstd = 1.f / std::sqrt(variance + epsilon);
 
-          for (dim_t j = 0; j < depth; ++j) {
-            y[j] = (x[j] - mean) * rstd * gamma[j] + beta[j];
+          int inner_dim = depth / weights_size;
+          for (dim_t j = 0; j < inner_dim; j ++) {
+            for (dim_t k = 0; k < weights_size; k++) {
+              int idx = k * inner_dim + j;
+              y[idx] = (x[idx] - mean) * rstd * gamma[k] + beta[k];
+            }
           }
         }
       });
