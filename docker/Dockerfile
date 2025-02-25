@@ -86,7 +86,7 @@ RUN apt-get update && \
         libcublas-12-2 \
         libcudnn8=8.9.7.29-1+cuda12.2 \
         libnccl2=2.19.3-1+cuda12.2 \
-        libopenmpi3=4.0.3-0ubuntu1 \
+        libopenmpi3=4.1.2-2ubuntu1 \
         openmpi-bin \
         libgomp1 \
         python3-pip \
