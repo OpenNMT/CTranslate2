@@ -2738,6 +2738,7 @@ class RobertaLoader(ModelLoader):
         if offset > 0:
             spec.encodings = spec.encodings[offset + 1 :]
 
+
 @register_loader("CamembertConfig")
 class CamembertLoader(ModelLoader):
     @property
@@ -2818,6 +2819,7 @@ class CamembertLoader(ModelLoader):
         offset = getattr(module, "padding_idx", 0)
         if offset > 0:
             spec.encodings = spec.encodings[offset + 1 :]
+
 
 def main():
     parser = argparse.ArgumentParser(
