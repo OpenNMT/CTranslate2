@@ -1004,7 +1004,7 @@ class Wav2Vec2Loader(BartLoader):
         return "Wav2Vec2ForCTC"
 
     def get_model_spec(self, model):
-        return_hidden = getattr(model.wav2vec2.config, 'return_hidden', False)
+        return_hidden = getattr(model.wav2vec2.config, "return_hidden", False)
         spec = wav2vec2_spec.Wav2Vec2Spec(
             model.wav2vec2.config.num_feat_extract_layers,
             model.wav2vec2.encoder.config.num_hidden_layers,
@@ -1068,7 +1068,7 @@ class Wav2Vec2Loader(BartLoader):
         self.set_feature_projection(spec, model.wav2vec2.feature_projection)
         self.set_pos_conv_embed(spec, model.wav2vec2.encoder, config)
         super().set_encoder(spec, model.wav2vec2.encoder)
-        return_hidden = getattr(model.wav2vec2.config, 'return_hidden', False)
+        return_hidden = getattr(model.wav2vec2.config, "return_hidden", False)
         if not return_hidden:
             self.set_linear(spec.lm_head, model.lm_head)
 
@@ -1083,7 +1083,7 @@ class Wav2Vec2BertLoader(BartLoader):
         return "Wav2Vec2BertForCTC"
 
     def get_model_spec(self, model):
-        return_hidden = getattr(model.wav2vec2_bert.config, 'return_hidden', False)
+        return_hidden = getattr(model.wav2vec2_bert.config, "return_hidden", False)
         spec = wav2vec2bert_spec.Wav2Vec2BertSpec(
             model.wav2vec2_bert.config.num_adapter_layers,
             model.wav2vec2_bert.config.num_hidden_layers,
@@ -1178,7 +1178,7 @@ class Wav2Vec2BertLoader(BartLoader):
         self.set_wav2vec2bert_adapter(
             spec.adapter_layers, model.wav2vec2_bert.adapter.layers
         )
-        return_hidden = getattr(model.wav2vec2_bert.config, 'return_hidden', False)
+        return_hidden = getattr(model.wav2vec2_bert.config, "return_hidden", False)
         if not return_hidden:
             self.set_linear(spec.lm_head, model.lm_head)
 
