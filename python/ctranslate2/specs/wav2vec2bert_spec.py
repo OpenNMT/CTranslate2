@@ -1,3 +1,4 @@
+import numpy as np
 from ctranslate2.specs import attention_spec, common_spec, model_spec
 
 
@@ -9,11 +10,19 @@ class Wav2Vec2BertConfig(model_spec.ModelConfig):
 
 
 class Wav2Vec2BertSpec(model_spec.LanguageModelSpec):
-    def __init__(self, num_hidden_layers, num_adapter_layers):
+    def __init__(
+        self,
+        num_hidden_layers,
+        num_adapter_layers,
+        vocab_size,
+        return_hidden,
+    ):
         super().__init__()
+        self.vocab_size = np.dtype("int16").type(vocab_size)
         self.encoder = Wav2Vec2BertEncoderSpec(
             num_adapter_layers,
             num_hidden_layers,
+            return_hidden,
         )
 
     @property
@@ -28,7 +37,7 @@ class Wav2Vec2BertSpec(model_spec.LanguageModelSpec):
         return Wav2Vec2BertConfig()
 
     def get_vocabulary_size(self):
-        return self.encoder.lm_head.weight.shape[0]
+        return int(self.vocab_size.numpy())
 
 
 class Wav2Vec2BertFeedForwardSpec(model_spec.LayerSpec):
@@ -78,9 +87,10 @@ class AdapterSpec(model_spec.LayerSpec):
 
 
 class Wav2Vec2BertEncoderSpec(model_spec.LayerSpec):
-    def __init__(self, num_hidden_layers, num_adapter_layers):
+    def __init__(self, num_hidden_layers, num_adapter_layers, return_hidden):
         self.fp_layer_norm = common_spec.LayerNormSpec()
         self.fp_projection = common_spec.LinearSpec()
         self.encoder_layers = [EncoderSpec() for _ in range(num_hidden_layers)]
         self.adapter_layers = [AdapterSpec() for _ in range(num_adapter_layers)]
-        self.lm_head = common_spec.LinearSpec()
+        if not return_hidden:
+            self.lm_head = common_spec.LinearSpec()

@@ -78,7 +78,12 @@ namespace ctranslate2 {
       features.move_to(device, dtype);
 
       StorageView encoder_output(dtype, device);
-      (*_encoder)(features, encoder_output);
+      if (_encoder->_upgraded_model) {
+        encoder_output = maybe_encode(std::move(features));
+      }
+      else {
+        (*_encoder)(features, encoder_output);
+      }
 
       if (to_cpu) {
         if (device != Device::CPU)
