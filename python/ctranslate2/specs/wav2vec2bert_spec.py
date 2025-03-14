@@ -1,4 +1,5 @@
 import numpy as np
+
 from ctranslate2.specs import attention_spec, common_spec, model_spec
 
 
