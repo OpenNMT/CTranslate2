@@ -59,11 +59,21 @@ namespace ctranslate2 {
       void operator()(const StorageView& features, StorageView& output);
 
       DataType output_type() const override {
-        return _output_norm.output_type();
+        if (_lm_head) {
+          return (*_lm_head).output_type();
+        }
+        else {
+          return _output_norm.output_type();
+        }
       }
 
       dim_t output_size() const override {
-        return _output_norm.output_size();
+        if (_lm_head) {
+          return (*_lm_head).output_size();
+        }
+        else {
+          return _output_norm.output_size();
+        }
       }
 
       dim_t input_size() const {
@@ -81,8 +91,10 @@ namespace ctranslate2 {
                 && features.dim(1) != input_size());
       }
 
-    private:
       const StorageView* _upgraded_model;
+
+    private:
+      const StorageView* _return_logits;
       std::optional<Wav2Vec2LayerNormConvLayer> _feat_layer0;
       std::optional<std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>>> _feat_layers;
       std::optional<LayerNorm> _fp_norm;

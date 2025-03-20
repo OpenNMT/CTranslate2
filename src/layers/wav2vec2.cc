@@ -46,7 +46,8 @@ namespace ctranslate2 {
     }
 
     Wav2Vec2Encoder::Wav2Vec2Encoder(const models::Model& model, const std::string& scope)
-      : _upgraded_model(model.get_variable_if_exists(scope + "/lm_head/weight"))
+      : _return_logits(model.get_variable_if_exists(scope + "/lm_head/weight"))
+      , _upgraded_model(model.get_variable_if_exists(scope + "/fp_projection/weight"))
       , _num_heads(model.get_attribute_with_default<int32_t>(scope + "/num_heads", 8))
       , _transpose({0, 2, 1})
       , _layers(build_layers_list<const TransformerEncoderLayer>(model,
@@ -65,7 +66,9 @@ namespace ctranslate2 {
         _fp_norm.emplace(model, scope + "/fp_layer_norm");
         _fp_ff.emplace(model, scope + "/fp_projection", nullptr, true);
         _pos_conv_embed.emplace(model, scope + "/pos_conv_embed");
-        _lm_head.emplace(model, scope + "/lm_head", nullptr, true);
+        if (_return_logits) {
+          _lm_head.emplace(model, scope + "/lm_head", nullptr, true);
+        }
       }
     }
 
@@ -101,12 +104,16 @@ namespace ctranslate2 {
           (*layer)(feat_buffer2, nullptr, feat_buffer);
           feat_buffer2 = std::move(feat_buffer);
         }
-        _output_norm(feat_buffer2, feat_buffer);
-
-        (*_lm_head)(feat_buffer, output); //_lm_head(feat_buffer, output);
+        if (_return_logits) {
+          _output_norm(feat_buffer2, feat_buffer);
+          (*_lm_head)(feat_buffer, output);
+        }
+        else {
+          _output_norm(feat_buffer2, output);
+        }
       }
       else { // backward compatibility for the previous converted model
-        StorageView input(output_type(), features.device());
+        StorageView input(features.dtype(), features.device());
         input = features;
         for (const auto& layer : _layers) {
           (*layer)(input, nullptr, output);
