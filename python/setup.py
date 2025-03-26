@@ -1,6 +1,7 @@
 import glob
 import os
 import sys
+import site
 
 import pybind11
 
@@ -43,6 +44,7 @@ _maybe_add_library_root("CTRANSLATE2")
 
 cflags = ["-std=c++17", "-fvisibility=hidden"]
 ldflags = []
+rpaths = []
 package_data = {}
 if sys.platform == "darwin":
     # std::visit requires macOS 10.14
@@ -51,6 +53,12 @@ if sys.platform == "darwin":
 elif sys.platform == "win32":
     cflags = ["/std:c++17", "/d2FH4-"]
     package_data["ctranslate2"] = ["*.dll"]
+else:
+    rpaths=[
+        '$ORIGIN/../nvidia/cublas/lib',
+        '$ORIGIN/../nvidia/cuda_runtime/lib',
+        '$ORIGIN/../nvidia/cudnn/lib',
+    ]
 
 ctranslate2_module = Extension(
     "ctranslate2._ext",
@@ -60,6 +68,7 @@ ctranslate2_module = Extension(
     include_dirs=include_dirs,
     library_dirs=library_dirs,
     libraries=["ctranslate2"],
+    runtime_library_dirs=rpaths
 )
 
 ParallelCompile("CMAKE_BUILD_PARALLEL_LEVEL").install()
