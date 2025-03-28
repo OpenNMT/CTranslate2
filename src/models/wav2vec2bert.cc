@@ -77,8 +77,7 @@ namespace ctranslate2 {
       const DataType dtype = _encoder->output_type();
       features.move_to(device, dtype);
 
-      StorageView encoder_output(dtype, device);
-      (*_encoder)(features, encoder_output);
+      StorageView encoder_output = maybe_encode(std::move(features));
 
       if (to_cpu) {
         if (device != Device::CPU)
