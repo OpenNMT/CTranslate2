@@ -43,6 +43,19 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CUDA>::indexed_pointwise_multiply(T* x, const T* values, const int32_t* indices, dim_t num_indices) {
+    auto element_it = thrust::device_pointer_cast(cuda::device_cast(x));
+    auto index_it = thrust::device_pointer_cast(indices);
+    auto value_it = thrust::device_pointer_cast(cuda::device_cast(values));
+  
+    auto permutation_it = thrust::make_permutation_iterator(element_it, index_it);
+  
+    THRUST_CALL(thrust::transform, permutation_it, permutation_it + num_indices, value_it, permutation_it,
+                thrust::multiplies<cuda::device_type<T>>());
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CUDA>::copy(const T* x, T* y, dim_t size) {
     CUDA_CHECK(cudaMemcpyAsync(y, x, size * sizeof (T),
                                cudaMemcpyDeviceToDevice, cuda::get_cuda_stream()));
@@ -726,6 +739,8 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CUDA>::indexed_fill(T*, T, const int32_t*, dim_t); \
   template void                                                         \
+  primitives<Device::CUDA>::indexed_pointwise_multiply(T* x, const T*, const int32_t*, dim_t); \
+  template void                                                         \
   primitives<Device::CUDA>::copy<T>(const T* x, T* y, dim_t size);      \
   template T                                                            \
   primitives<Device::CUDA>::sum(const T* array, dim_t size);            \
@@ -795,7 +810,7 @@ namespace ctranslate2 {
   template void primitives<Device::CUDA>::gelu(const T*, T*, dim_t);    \
   template void primitives<Device::CUDA>::gelu_tanh(const T*, T*, dim_t); \
   template void primitives<Device::CUDA>::gelu_sigmoid(const T*, T*, dim_t); \
-  template void primitives<Device::CUDA>::sigmoid(const T*, T*, dim_t);   \
+    template void primitives<Device::CUDA>::sigmoid(const T*, T*, dim_t);   \
   template void primitives<Device::CUDA>::swish(const T*, T*, dim_t);   \
   template float primitives<Device::CUDA>::logsumexp(const T*, dim_t);  \
   template void primitives<Device::CUDA>::sin(const T*, T*, dim_t);     \
