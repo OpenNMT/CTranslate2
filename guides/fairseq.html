@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fairseq &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Fairseq &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -32,7 +34,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -115,7 +117,7 @@
            <div itemprop="articleBody">
              
   <section id="fairseq">
-<h1>Fairseq<a class="headerlink" href="#fairseq" title="Permalink to this headline"></a></h1>
+<h1>Fairseq<a class="headerlink" href="#fairseq" title="Permalink to this heading"></a></h1>
 <p>CTranslate2 supports some Transformer models trained with <a class="reference external" href="https://github.com/pytorch/fairseq/">Fairseq</a>. The following model names are currently supported:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">bart</span></code></p></li>
@@ -130,14 +132,14 @@ ct2-fairseq-converter<span class="w"> </span>--model_path<span class="w"> </span
 </pre></div>
 </div>
 <section id="beam-search-equivalence">
-<h2>Beam search equivalence<a class="headerlink" href="#beam-search-equivalence" title="Permalink to this headline"></a></h2>
+<h2>Beam search equivalence<a class="headerlink" href="#beam-search-equivalence" title="Permalink to this heading"></a></h2>
 <p>The default beam search parameters in CTranslate2 are different than Fairseq. Set the following parameters to match the Fairseq behavior:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span><span class="n">tokens</span><span class="p">,</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">5</span><span class="p">)</span>
 </pre></div>
 </div>
 </section>
 <section id="wmt16-english-german">
-<h2>WMT16 English-German<a class="headerlink" href="#wmt16-english-german" title="Permalink to this headline"></a></h2>
+<h2>WMT16 English-German<a class="headerlink" href="#wmt16-english-german" title="Permalink to this heading"></a></h2>
 <p>Download and convert the pretrained <a class="reference external" href="https://github.com/pytorch/fairseq/tree/main/examples/translation">WMT16 English-German model</a>:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://dl.fbaipublicfiles.com/fairseq/models/wmt16.en-de.joined-dict.transformer.tar.bz2
 tar<span class="w"> </span>xf<span class="w"> </span>wmt16.en-de.joined-dict.transformer.tar.bz2
@@ -148,7 +150,7 @@ ct2-fairseq-converter<span class="w"> </span>--model_path<span class="w"> </span
 </pre></div>
 </div>
 <p>The converted model can then be used on tokenized inputs:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
 
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 <span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[</span><span class="s2">&quot;H@@&quot;</span><span class="p">,</span> <span class="s2">&quot;ello&quot;</span><span class="p">,</span> <span class="s2">&quot;world@@&quot;</span><span class="p">,</span> <span class="s2">&quot;!&quot;</span><span class="p">]])</span>
@@ -162,7 +164,7 @@ ct2-fairseq-converter<span class="w"> </span>--model_path<span class="w"> </span
 </div>
 </section>
 <section id="wmt19-language-model">
-<h2>WMT19 language model<a class="headerlink" href="#wmt19-language-model" title="Permalink to this headline"></a></h2>
+<h2>WMT19 language model<a class="headerlink" href="#wmt19-language-model" title="Permalink to this heading"></a></h2>
 <p>The FAIR team published <a class="reference external" href="https://github.com/pytorch/fairseq/blob/main/examples/language_model/README.md">pretrained language models</a> as part of the WMT19 news translation task. They can be converted to the CTranslate2 format:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://dl.fbaipublicfiles.com/fairseq/models/lm/wmt19.en.tar.gz
 tar<span class="w"> </span>xf<span class="w"> </span>wmt19.en.tar.gz
@@ -171,8 +173,8 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>w
 </pre></div>
 </div>
 <p>The model can then be used to sample or score sequences of tokens. All inputs should start with the special token <code class="docutils literal notranslate"><span class="pre">&lt;/s&gt;</span></code>:</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
-<span class="kn">import</span> <span class="nn">ctranslate2</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
 
 <span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;wmt19_en_ct2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 
@@ -192,7 +194,7 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>w
 </div>
 </section>
 <section id="m2m-100">
-<h2>M2M-100<a class="headerlink" href="#m2m-100" title="Permalink to this headline"></a></h2>
+<h2>M2M-100<a class="headerlink" href="#m2m-100" title="Permalink to this heading"></a></h2>
 <p>The pretrained multilingual model <a class="reference external" href="https://github.com/pytorch/fairseq/tree/main/examples/m2m_100">M2M-100</a> can also be used in CTranslate2. The conversion option <code class="docutils literal notranslate"><span class="pre">--fixed_dictionary</span></code> is required for this model that uses a single vocabulary file:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="c1"># 418M parameters:</span>
 wget<span class="w"> </span>https://dl.fbaipublicfiles.com/m2m_100/418M_last_checkpoint.pt
@@ -209,8 +211,8 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>.
 </pre></div>
 </div>
 <p>For translation, the language tokens should prefix the source and target sequences. Language tokens have the format <code class="docutils literal notranslate"><span class="pre">__X__</span></code> where <code class="docutils literal notranslate"><span class="pre">X</span></code> is the language code. See the end of the fixed dictionary file for the list of accepted languages.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
-<span class="kn">import</span> <span class="nn">sentencepiece</span> <span class="k">as</span> <span class="nn">spm</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sentencepiece</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">spm</span>
 
 <span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">()</span>
 <span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;spm.128k.model&quot;</span><span class="p">)</span>
@@ -227,7 +229,7 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>.
 </div>
 </section>
 <section id="mbart-50">
-<h2>MBART-50<a class="headerlink" href="#mbart-50" title="Permalink to this headline"></a></h2>
+<h2>MBART-50<a class="headerlink" href="#mbart-50" title="Permalink to this heading"></a></h2>
 <p><a class="reference external" href="https://github.com/pytorch/fairseq/blob/main/examples/multilingual/README.md">MBART-50</a> is another pretrained multilingual translation model.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>wget<span class="w"> </span>https://dl.fbaipublicfiles.com/fairseq/models/mbart50/mbart50.ft.nn.tar.gz
 tar<span class="w"> </span>xf<span class="w"> </span>mbart50.ft.nn.tar.gz
@@ -237,8 +239,8 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>m
 </pre></div>
 </div>
 <p>Similar to M2M-100, the language tokens should prefix the source and target sequences. The list of language tokens is defined in the file <code class="docutils literal notranslate"><span class="pre">mbart50.ft.nn/ML50_langs.txt</span></code>.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
-<span class="kn">import</span> <span class="nn">sentencepiece</span> <span class="k">as</span> <span class="nn">spm</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sentencepiece</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">spm</span>
 
 <span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">()</span>
 <span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;mbart50.ft.nn/sentence.bpe.model&quot;</span><span class="p">)</span>

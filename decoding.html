@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Decoding features &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Decoding features &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -117,7 +119,7 @@
            <div itemprop="articleBody">
              
   <section id="decoding-features">
-<h1>Decoding features<a class="headerlink" href="#decoding-features" title="Permalink to this headline"></a></h1>
+<h1>Decoding features<a class="headerlink" href="#decoding-features" title="Permalink to this heading"></a></h1>
 <p>This page describes CTranslate2 decoding features.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -134,7 +136,7 @@
 <div><p>This project is geared towards efficient serving of standard translation models but is also a place for experimentation around model compression and inference acceleration.</p>
 </div></blockquote>
 <section id="greedy-search">
-<h2>Greedy search<a class="headerlink" href="#greedy-search" title="Permalink to this headline"></a></h2>
+<h2>Greedy search<a class="headerlink" href="#greedy-search" title="Permalink to this heading"></a></h2>
 <p>Greedy search is the most basic and fastest decoding strategy. It simply takes the token that has the highest probability at each timestep.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
@@ -145,7 +147,7 @@
 </div></blockquote>
 </section>
 <section id="beam-search">
-<h2>Beam search<a class="headerlink" href="#beam-search" title="Permalink to this headline"></a></h2>
+<h2>Beam search<a class="headerlink" href="#beam-search" title="Permalink to this heading"></a></h2>
 <p>Beam search is a common decoding strategy for sequence models. The algorithm keeps N hypotheses at all times. This negatively impacts decoding speed and memory but allows finding a better final hypothesis.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">4</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
@@ -160,7 +162,7 @@
 </div>
 </section>
 <section id="length-constraints">
-<h2>Length constraints<a class="headerlink" href="#length-constraints" title="Permalink to this headline"></a></h2>
+<h2>Length constraints<a class="headerlink" href="#length-constraints" title="Permalink to this heading"></a></h2>
 <p>The arguments <code class="docutils literal notranslate"><span class="pre">min_decoding_length</span></code> and <code class="docutils literal notranslate"><span class="pre">max_decoding_length</span></code> control the minimum and maximum number of tokens generated by the decoder. The length does not include the end of sequence token:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span> <span class="n">max_decoding_length</span><span class="o">=</span><span class="mi">10</span><span class="p">)</span>
 <span class="k">assert</span> <span class="nb">len</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span> <span class="o">==</span> <span class="mi">10</span>
@@ -177,7 +179,7 @@
 </div>
 </section>
 <section id="autocompletion">
-<h2>Autocompletion<a class="headerlink" href="#autocompletion" title="Permalink to this headline"></a></h2>
+<h2>Autocompletion<a class="headerlink" href="#autocompletion" title="Permalink to this heading"></a></h2>
 <p>The <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument can be used to force the start of the translation. Let’s say we want to replace the first occurrence of <code class="docutils literal notranslate"><span class="pre">die</span></code> by <code class="docutils literal notranslate"><span class="pre">das</span></code> in the translation:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
@@ -193,7 +195,7 @@
 </div></blockquote>
 </section>
 <section id="biased-decoding">
-<h2>Biased decoding<a class="headerlink" href="#biased-decoding" title="Permalink to this headline"></a></h2>
+<h2>Biased decoding<a class="headerlink" href="#biased-decoding" title="Permalink to this heading"></a></h2>
 <p>Instead of using <a class="reference internal" href="#autocompletion"><span class="std std-ref">Autocompletion</span></a> to force a translation to start with a <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument, we can “bias” a translation towards a prefix by setting <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> to a value in (0, 1).  The higher <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> is, the stronger the bias. A translation can diverge from a prefix when <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> is low and the translator is confident in decoding tokens that are different from the prefix’s tokens.  See <a class="reference external" href="https://arxiv.org/abs/1912.03393">section 4.2</a> for more details on the biasing algorithm.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
@@ -225,7 +227,7 @@
 </div></blockquote>
 </section>
 <section id="alternatives-at-a-position">
-<h2>Alternatives at a position<a class="headerlink" href="#alternatives-at-a-position" title="Permalink to this headline"></a></h2>
+<h2>Alternatives at a position<a class="headerlink" href="#alternatives-at-a-position" title="Permalink to this heading"></a></h2>
 <p>Combining <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> with the <code class="docutils literal notranslate"><span class="pre">return_alternatives</span></code> flag returns alternative sequences just after the prefix:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
@@ -252,7 +254,7 @@
 </div>
 </section>
 <section id="random-sampling">
-<h2>Random sampling<a class="headerlink" href="#random-sampling" title="Permalink to this headline"></a></h2>
+<h2>Random sampling<a class="headerlink" href="#random-sampling" title="Permalink to this heading"></a></h2>
 <p>This decoding mode randomly samples tokens from the model output distribution. This strategy is frequently used in back-translation techniques (<a class="reference external" href="https://www.aclweb.org/anthology/D18-1045/">Edunov et al. 2018</a>). The example below restricts the sampling to the best 10 candidates at each timestep and returns 3 random hypotheses:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>

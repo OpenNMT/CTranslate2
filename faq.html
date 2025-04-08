@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Frequently asked questions &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Frequently asked questions &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -115,9 +117,9 @@
            <div itemprop="articleBody">
              
   <section id="frequently-asked-questions">
-<h1>Frequently asked questions<a class="headerlink" href="#frequently-asked-questions" title="Permalink to this headline"></a></h1>
+<h1>Frequently asked questions<a class="headerlink" href="#frequently-asked-questions" title="Permalink to this heading"></a></h1>
 <section id="how-does-it-relate-to-the-original-ctranslate-project">
-<h2>How does it relate to the original CTranslate project?<a class="headerlink" href="#how-does-it-relate-to-the-original-ctranslate-project" title="Permalink to this headline"></a></h2>
+<h2>How does it relate to the original CTranslate project?<a class="headerlink" href="#how-does-it-relate-to-the-original-ctranslate-project" title="Permalink to this heading"></a></h2>
 <p>The original <a class="reference external" href="https://github.com/OpenNMT/CTranslate">CTranslate</a> project shares a similar goal which is to provide a custom execution engine for OpenNMT models that is lightweight and fast. However, it has some limitations that were hard to overcome:</p>
 <ul class="simple">
 <li><p>a strong dependency on LuaTorch and OpenNMT-lua, which are now both deprecated in favor of other toolkits;</p></li>
@@ -130,7 +132,7 @@
 </ul>
 </section>
 <section id="why-and-when-should-i-use-this-implementation-instead-of-pytorch-or-tensorflow">
-<h2>Why and when should I use this implementation instead of PyTorch or TensorFlow?<a class="headerlink" href="#why-and-when-should-i-use-this-implementation-instead-of-pytorch-or-tensorflow" title="Permalink to this headline"></a></h2>
+<h2>Why and when should I use this implementation instead of PyTorch or TensorFlow?<a class="headerlink" href="#why-and-when-should-i-use-this-implementation-instead-of-pytorch-or-tensorflow" title="Permalink to this heading"></a></h2>
 <p>Here are some scenarios where this project could be used:</p>
 <ul class="simple">
 <li><p>You want to accelarate Transformer models for production usage, especially on CPUs.</p></li>
@@ -145,15 +147,15 @@
 </ul>
 </section>
 <section id="what-are-the-known-limitations">
-<h2>What are the known limitations?<a class="headerlink" href="#what-are-the-known-limitations" title="Permalink to this headline"></a></h2>
+<h2>What are the known limitations?<a class="headerlink" href="#what-are-the-known-limitations" title="Permalink to this heading"></a></h2>
 <p>The current approach only exports the weights from existing models and redefines the computation graph via the code. This implies a strong assumption of the graph architecture executed by the original framework.</p>
 </section>
 <section id="what-are-the-future-plans">
-<h2>What are the future plans?<a class="headerlink" href="#what-are-the-future-plans" title="Permalink to this headline"></a></h2>
+<h2>What are the future plans?<a class="headerlink" href="#what-are-the-future-plans" title="Permalink to this heading"></a></h2>
 <p>There are many ways to make this project better and even faster. See the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/issues">open issues</a> for an overview of current and planned features.</p>
 </section>
 <section id="do-you-provide-a-translation-server">
-<h2>Do you provide a translation server?<a class="headerlink" href="#do-you-provide-a-translation-server" title="Permalink to this headline"></a></h2>
+<h2>Do you provide a translation server?<a class="headerlink" href="#do-you-provide-a-translation-server" title="Permalink to this heading"></a></h2>
 <p>The <a class="reference external" href="https://forum.opennmt.net/t/simple-opennmt-py-rest-server/1392">OpenNMT-py REST server</a> is able to serve CTranslate2 models. See the <a class="reference external" href="https://github.com/OpenNMT/OpenNMT-py/commit/91d5d57142b9aa0a0859fbfa0dd94f301f56f879">code integration</a> to learn more.</p>
 </section>
 </section>

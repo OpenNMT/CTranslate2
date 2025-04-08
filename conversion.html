@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Model conversion &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Model conversion &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -120,10 +122,10 @@
            <div itemprop="articleBody">
              
   <section id="model-conversion">
-<h1>Model conversion<a class="headerlink" href="#model-conversion" title="Permalink to this headline"></a></h1>
+<h1>Model conversion<a class="headerlink" href="#model-conversion" title="Permalink to this heading"></a></h1>
 <p>The core CTranslate2 implementation is framework agnostic. The logic that is specific to each framework is moved to a conversion step that loads supported models into a unified representation. The weights are then optionally quantized and saved into an optimized binary format.</p>
 <section id="supported-frameworks">
-<h2>Supported frameworks<a class="headerlink" href="#supported-frameworks" title="Permalink to this headline"></a></h2>
+<h2>Supported frameworks<a class="headerlink" href="#supported-frameworks" title="Permalink to this heading"></a></h2>
 <p>The Python module includes a <a class="reference internal" href="python/ctranslate2.converters.html"><span class="doc std std-doc">conversion API</span></a> and conversion scripts for multiple frameworks:</p>
 <ul class="simple">
 <li><p><a class="reference internal" href="guides/fairseq.html"><span class="doc std std-doc">Fairseq</span></a></p></li>
@@ -135,7 +137,7 @@
 </ul>
 </section>
 <section id="model-structure">
-<h2>Model structure<a class="headerlink" href="#model-structure" title="Permalink to this headline"></a></h2>
+<h2>Model structure<a class="headerlink" href="#model-structure" title="Permalink to this heading"></a></h2>
 <p>The conversion produces a model directory containing a binary model file, a JSON configuration, and one or more vocabulary files:</p>
 <div class="highlight-text notranslate"><div class="highlight"><pre><span></span>config.json
 model.bin
@@ -149,11 +151,11 @@ target_vocabulary.json
 </div>
 </section>
 <section id="quantization-and-reduced-precision">
-<h2>Quantization and reduced precision<a class="headerlink" href="#quantization-and-reduced-precision" title="Permalink to this headline"></a></h2>
+<h2>Quantization and reduced precision<a class="headerlink" href="#quantization-and-reduced-precision" title="Permalink to this heading"></a></h2>
 <p>The converters support reducing the weights precision to save on space and possibly accelerate the model execution. See the <a class="reference internal" href="quantization.html"><span class="doc std std-doc">Quantization</span></a> documentation.</p>
 </section>
 <section id="backward-compatibility">
-<h2>Backward compatibility<a class="headerlink" href="#backward-compatibility" title="Permalink to this headline"></a></h2>
+<h2>Backward compatibility<a class="headerlink" href="#backward-compatibility" title="Permalink to this heading"></a></h2>
 <p>New versions of CTranslate2 are backward compatible with models that were previously converted. This compatibility is rarely broken, even for major versions.</p>
 <div class="admonition attention">
 <p class="admonition-title">Attention</p>
@@ -162,26 +164,26 @@ target_vocabulary.json
 </div>
 </section>
 <section id="portability">
-<h2>Portability<a class="headerlink" href="#portability" title="Permalink to this headline"></a></h2>
+<h2>Portability<a class="headerlink" href="#portability" title="Permalink to this heading"></a></h2>
 <p>Converted models are portable in the sense they can be loaded on another machine using a different operating system or CPU architecture.</p>
 <p>The only restriction is the 2 machines must use the same <a class="reference external" href="https://en.wikipedia.org/wiki/Endianness">endianness</a>.</p>
 </section>
 <section id="add-a-new-converter">
-<h2>Add a new converter<a class="headerlink" href="#add-a-new-converter" title="Permalink to this headline"></a></h2>
+<h2>Add a new converter<a class="headerlink" href="#add-a-new-converter" title="Permalink to this heading"></a></h2>
 <p>You can write your own converter as long as the model architecture is supported by CTranslate2. The converter should populate a model specification with trained weights.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>See the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/tree/master/python/ctranslate2/converters">existing converters</a> which could be used as templates.</p>
 </div>
 <section id="model-specification">
-<h3>Model specification<a class="headerlink" href="#model-specification" title="Permalink to this headline"></a></h3>
+<h3>Model specification<a class="headerlink" href="#model-specification" title="Permalink to this heading"></a></h3>
 <p>A model specification defines the structures and names of the model weights. Converters should fill out this specification with weights coming from a trained model.</p>
 <p>In the Python code, a model specification is represented as nested <a class="reference internal" href="python/ctranslate2.specs.LayerSpec.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">LayerSpec</span></code></span></a> objects, where intermediate objects define weights scopes and leaf objects define the weights name and value. This is similar to how you would define a model in PyTorch (using <code class="docutils literal notranslate"><span class="pre">nn.Module</span></code>) or TensorFlow (using <code class="docutils literal notranslate"><span class="pre">tf.Module</span></code>).</p>
 <p>The final structure defines the full name of each weight that the C++ code should read when building the model. For example, a weight that can be accessed with <code class="docutils literal notranslate"><span class="pre">root.encoder.embeddings.weight</span></code> (where <code class="docutils literal notranslate"><span class="pre">root</span></code> is the top-level <code class="docutils literal notranslate"><span class="pre">LayerSpec</span></code> object) will have for name <code class="docutils literal notranslate"><span class="pre">encoder/embeddings/weight</span></code> in the serialized model.</p>
 <p>Changes in this structure are tracked by a revision number (see next section).</p>
 </section>
 <section id="model-serialization">
-<h3>Model serialization<a class="headerlink" href="#model-serialization" title="Permalink to this headline"></a></h3>
+<h3>Model serialization<a class="headerlink" href="#model-serialization" title="Permalink to this heading"></a></h3>
 <p>The model serialization is defined in the Python file <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/blob/master/python/ctranslate2/specs/model_spec.py"><code class="docutils literal notranslate"><span class="pre">model_spec.py</span></code></a>. It is a simple binary serialization that is easy and fast to load from C++.</p>
 <p>Converted models have 2 levels of versioning to manage backward compatibility:</p>
 <ol class="arabic simple">

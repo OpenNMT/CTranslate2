@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quickstart &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Quickstart &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -112,14 +114,14 @@
            <div itemprop="articleBody">
              
   <section id="quickstart">
-<h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this headline"></a></h1>
+<h1>Quickstart<a class="headerlink" href="#quickstart" title="Permalink to this heading"></a></h1>
 <p>Get started with CTranslate2 with end-to-end examples using machine translation models.</p>
 <div class="admonition seealso">
 <p class="admonition-title">See also</p>
 <p>The <a class="reference internal" href="guides/transformers.html"><span class="doc std std-doc">Transformers guide</span></a> which contains a bunch of examples for various models.</p>
 </div>
 <section id="python">
-<h2>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h2>
+<h2>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h2>
 <p>Start using CTranslate2 from Python by converting a pretrained model and running your first translation.</p>
 <p><strong>1. Install the Python packages</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>ctranslate2<span class="w"> </span>OpenNMT-py<span class="o">==</span><span class="m">2</span>.*<span class="w"> </span>sentencepiece
@@ -135,8 +137,8 @@ tar<span class="w"> </span>xf<span class="w"> </span>transformer-ende-wmt-pyOnmt
 </pre></div>
 </div>
 <p><strong>4. Translate texts with the Python API</strong></p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span> <span class="nn">ctranslate2</span>
-<span class="kn">import</span> <span class="nn">sentencepiece</span> <span class="k">as</span> <span class="nn">spm</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">sentencepiece</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">spm</span>
 
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
 <span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">(</span><span class="s2">&quot;sentencepiece.model&quot;</span><span class="p">)</span>
@@ -159,7 +161,7 @@ tar<span class="w"> </span>xf<span class="w"> </span>transformer-ende-wmt-pyOnmt
 <p>If that’s the case, you successfully converted and executed a translation model with CTranslate2! Consider browsing the other sections for more information and examples.</p>
 </section>
 <section id="c">
-<h2>C++<a class="headerlink" href="#c" title="Permalink to this headline"></a></h2>
+<h2>C++<a class="headerlink" href="#c" title="Permalink to this heading"></a></h2>
 <p>Start using the CTranslate2 library in your own C++ project.</p>
 <p><strong>1. Compile and Install CTranslate2</strong></p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build

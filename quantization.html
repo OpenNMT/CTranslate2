@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Quantization &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -121,7 +123,7 @@
            <div itemprop="articleBody">
              
   <section id="quantization">
-<h1>Quantization<a class="headerlink" href="#quantization" title="Permalink to this headline"></a></h1>
+<h1>Quantization<a class="headerlink" href="#quantization" title="Permalink to this heading"></a></h1>
 <p>Quantization is a technique that can reduce the model size and accelerate its execution with little to no degradation in accuracy. CTranslate2 supports the most common types:</p>
 <ul class="simple">
 <li><p>8-bit integers (INT8)</p></li>
@@ -135,7 +137,7 @@
 <p>See the benchmark results in the main <a class="reference external" href="https://github.com/OpenNMT/CTranslate2#benchmarks">README</a> to compare the performance and memory usage with and without quantization.</p>
 </div>
 <section id="quantize-on-model-conversion">
-<h2>Quantize on model conversion<a class="headerlink" href="#quantize-on-model-conversion" title="Permalink to this headline"></a></h2>
+<h2>Quantize on model conversion<a class="headerlink" href="#quantize-on-model-conversion" title="Permalink to this heading"></a></h2>
 <p>Enabling the quantization when converting the model is helpful to reduce its size on disk. The converters expose the option <code class="docutils literal notranslate"><span class="pre">quantization</span></code> that accepts the following values:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">int8</span></code></p></li>
@@ -189,7 +191,7 @@
 </table>
 </section>
 <section id="quantize-on-model-loading">
-<h2>Quantize on model loading<a class="headerlink" href="#quantize-on-model-loading" title="Permalink to this headline"></a></h2>
+<h2>Quantize on model loading<a class="headerlink" href="#quantize-on-model-loading" title="Permalink to this heading"></a></h2>
 <p>Quantization can also be enabled or changed when loading the model. The translator exposes the option <code class="docutils literal notranslate"><span class="pre">compute_type</span></code> that accepts the following values:</p>
 <ul class="simple">
 <li><p><code class="docutils literal notranslate"><span class="pre">default</span></code>: keep the same quantization that was used during model conversion (see <a class="reference internal" href="#implicit-type-conversion-on-load"><span class="std std-ref">Implicit type conversion on load</span></a> for exceptions)</p></li>
@@ -213,7 +215,7 @@
 </div>
 </section>
 <section id="implicit-type-conversion-on-load">
-<h2>Implicit type conversion on load<a class="headerlink" href="#implicit-type-conversion-on-load" title="Permalink to this headline"></a></h2>
+<h2>Implicit type conversion on load<a class="headerlink" href="#implicit-type-conversion-on-load" title="Permalink to this heading"></a></h2>
 <p>By default, the runtime tries to use the type that is saved in the converted model as the computation type. However, if the current platform or backend do not support optimized execution for this computation type (e.g. <code class="docutils literal notranslate"><span class="pre">int16</span></code> is not optimized on GPU), then the library converts the model weights to another optimized type. The tables below document the fallback types in prebuilt binaries:</p>
 <p><strong>On CPU:</strong></p>
 <table class="colwidths-auto docutils align-default">
@@ -324,9 +326,9 @@
 </div>
 </section>
 <section id="supported-types">
-<h2>Supported types<a class="headerlink" href="#supported-types" title="Permalink to this headline"></a></h2>
+<h2>Supported types<a class="headerlink" href="#supported-types" title="Permalink to this heading"></a></h2>
 <section id="bit-integers-int8">
-<h3>8-bit integers (<code class="docutils literal notranslate"><span class="pre">int8</span></code>)<a class="headerlink" href="#bit-integers-int8" title="Permalink to this headline"></a></h3>
+<h3>8-bit integers (<code class="docutils literal notranslate"><span class="pre">int8</span></code>)<a class="headerlink" href="#bit-integers-int8" title="Permalink to this heading"></a></h3>
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 7.0 or Compute Capability 6.1</p></li>
@@ -351,7 +353,7 @@ WQ[i,j] = round(scale[i] * W[i,j])
 </ul>
 </section>
 <section id="bit-integers-int16">
-<h3>16-bit integers (<code class="docutils literal notranslate"><span class="pre">int16</span></code>)<a class="headerlink" href="#bit-integers-int16" title="Permalink to this headline"></a></h3>
+<h3>16-bit integers (<code class="docutils literal notranslate"><span class="pre">int16</span></code>)<a class="headerlink" href="#bit-integers-int16" title="Permalink to this heading"></a></h3>
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>Intel CPU with the Intel MKL backend</p></li>
@@ -364,7 +366,7 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <p>Similar to the <code class="docutils literal notranslate"><span class="pre">int8</span></code> quantization, only the weights of the embedding and linear layers are quantized to 16-bit integers. The other layers are run in FP32.</p>
 </section>
 <section id="bit-floating-points-float16">
-<h3>16-bit floating points (<code class="docutils literal notranslate"><span class="pre">float16</span></code>)<a class="headerlink" href="#bit-floating-points-float16" title="Permalink to this headline"></a></h3>
+<h3>16-bit floating points (<code class="docutils literal notranslate"><span class="pre">float16</span></code>)<a class="headerlink" href="#bit-floating-points-float16" title="Permalink to this heading"></a></h3>
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 7.0</p></li>
@@ -372,7 +374,7 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <p>In this mode, all model weights are stored in half precision and all layers are run in half precision.</p>
 </section>
 <section id="bit-brain-floating-points-bfloat16">
-<h3>16-bit brain floating points (<code class="docutils literal notranslate"><span class="pre">bfloat16</span></code>)<a class="headerlink" href="#bit-brain-floating-points-bfloat16" title="Permalink to this headline"></a></h3>
+<h3>16-bit brain floating points (<code class="docutils literal notranslate"><span class="pre">bfloat16</span></code>)<a class="headerlink" href="#bit-brain-floating-points-bfloat16" title="Permalink to this heading"></a></h3>
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 8.0</p></li>
@@ -380,7 +382,7 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <p>In this mode, all model weights are stored in BF16 and all layers are run with this type.</p>
 </section>
 <section id="bit-awq">
-<h3>4-bit AWQ<a class="headerlink" href="#bit-awq" title="Permalink to this headline"></a></h3>
+<h3>4-bit AWQ<a class="headerlink" href="#bit-awq" title="Permalink to this heading"></a></h3>
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 7.5</p></li>

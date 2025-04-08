@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Performance tips &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Performance tips &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -114,10 +116,10 @@
            <div itemprop="articleBody">
              
   <section id="performance-tips">
-<h1>Performance tips<a class="headerlink" href="#performance-tips" title="Permalink to this headline"></a></h1>
+<h1>Performance tips<a class="headerlink" href="#performance-tips" title="Permalink to this heading"></a></h1>
 <p>Below are some general recommendations to further improve performance.</p>
 <section id="cpu">
-<h2>CPU<a class="headerlink" href="#cpu" title="Permalink to this headline"></a></h2>
+<h2>CPU<a class="headerlink" href="#cpu" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><p>Use int8 quantization</p></li>
 <li><p>Use an Intel CPU supporting AVX512</p></li>
@@ -127,7 +129,7 @@
 </ul>
 </section>
 <section id="gpu">
-<h2>GPU<a class="headerlink" href="#gpu" title="Permalink to this headline"></a></h2>
+<h2>GPU<a class="headerlink" href="#gpu" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><p>Use a larger batch size whenever possible</p></li>
 <li><p>Use a NVIDIA GPU with Tensor Cores (Compute Capability &gt;= 7.0)</p></li>
@@ -135,7 +137,7 @@
 </ul>
 </section>
 <section id="translator">
-<h2>Translator<a class="headerlink" href="#translator" title="Permalink to this headline"></a></h2>
+<h2>Translator<a class="headerlink" href="#translator" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><p>The default beam size for translation is 2, but consider setting <code class="docutils literal notranslate"><span class="pre">beam_size=1</span></code> to improve performance</p></li>
 <li><p>When using a beam size of 1, keep <code class="docutils literal notranslate"><span class="pre">return_scores</span></code> disabled if you are not using prediction scores: the final softmax layer can be skipped</p></li>
@@ -149,7 +151,7 @@
 </div>
 </section>
 <section id="generator">
-<h2>Generator<a class="headerlink" href="#generator" title="Permalink to this headline"></a></h2>
+<h2>Generator<a class="headerlink" href="#generator" title="Permalink to this heading"></a></h2>
 <ul class="simple">
 <li><p>Set <code class="docutils literal notranslate"><span class="pre">include_prompt_in_result=False</span></code> so that the input prompt can be forwarded in the decoder at once</p></li>
 <li><p>If the model uses a system prompt, consider passing it to the argument <code class="docutils literal notranslate"><span class="pre">static_prompt</span></code> for it to be cached</p></li>

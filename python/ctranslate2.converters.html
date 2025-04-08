@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ctranslate2.converters &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>ctranslate2.converters &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -32,7 +34,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -125,17 +127,92 @@
            <div itemprop="articleBody">
              
   <section id="module-ctranslate2.converters">
-<span id="ctranslate2-converters"></span><h1>ctranslate2.converters<a class="headerlink" href="#module-ctranslate2.converters" title="Permalink to this headline"></a></h1>
+<span id="ctranslate2-converters"></span><h1>ctranslate2.converters<a class="headerlink" href="#module-ctranslate2.converters" title="Permalink to this heading"></a></h1>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.Converter.html">Converter</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html">FairseqConverter</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html">MarianConverter</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html">OpenAIGPT2Converter</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html">OpenNMTPyConverter</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html">OpenNMTTFConverter</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html">OpusMTConverter</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html">TransformersConverter</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.Converter.html">Converter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter"><code class="docutils literal notranslate"><span class="pre">Converter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter.convert"><code class="docutils literal notranslate"><span class="pre">Converter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">Converter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">Converter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html">FairseqConverter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter"><code class="docutils literal notranslate"><span class="pre">FairseqConverter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.__init__"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.convert"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html">MarianConverter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter"><code class="docutils literal notranslate"><span class="pre">MarianConverter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.__init__"><code class="docutils literal notranslate"><span class="pre">MarianConverter.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.convert"><code class="docutils literal notranslate"><span class="pre">MarianConverter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">MarianConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">MarianConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html">OpenAIGPT2Converter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.__init__"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.convert"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html">OpenNMTPyConverter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.__init__"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.convert"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html">OpenNMTTFConverter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.__init__"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.convert"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.declare_arguments()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.from_config"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.from_config()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html">OpusMTConverter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.__init__"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.convert"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html">TransformersConverter</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter"><code class="docutils literal notranslate"><span class="pre">TransformersConverter</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.__init__"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.convert"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.convert()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.declare_arguments()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.get_model_file"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.get_model_file()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.load_model"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.load_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.load_tokenizer"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.load_tokenizer()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </div>
 </section>

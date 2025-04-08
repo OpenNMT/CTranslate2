@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Python &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Python &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -32,7 +34,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -114,69 +116,630 @@
            <div itemprop="articleBody">
              
   <section id="python">
-<h1>Python<a class="headerlink" href="#python" title="Permalink to this headline"></a></h1>
+<h1>Python<a class="headerlink" href="#python" title="Permalink to this heading"></a></h1>
 <div class="toctree-wrapper compound">
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.html">ctranslate2</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.DataType.html">DataType</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Device.html">Device</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Encoder.html">Encoder</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html">EncoderForwardOutput</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.GenerationStepResult.html">GenerationStepResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.MpiInfo.html">MpiInfo</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Translator.html">Translator</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.contains_model.html">contains_model</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html">get_cuda_device_count</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.get_log_level.html">get_log_level</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.get_supported_compute_types.html">get_supported_compute_types</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.set_log_level.html">set_log_level</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.set_random_seed.html">set_random_seed</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html">AsyncGenerationResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html#ctranslate2.AsyncGenerationResult"><code class="docutils literal notranslate"><span class="pre">AsyncGenerationResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html#ctranslate2.AsyncGenerationResult.done"><code class="docutils literal notranslate"><span class="pre">AsyncGenerationResult.done()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.AsyncGenerationResult.html#ctranslate2.AsyncGenerationResult.result"><code class="docutils literal notranslate"><span class="pre">AsyncGenerationResult.result()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html">AsyncScoringResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html#ctranslate2.AsyncScoringResult"><code class="docutils literal notranslate"><span class="pre">AsyncScoringResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html#ctranslate2.AsyncScoringResult.done"><code class="docutils literal notranslate"><span class="pre">AsyncScoringResult.done()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.AsyncScoringResult.html#ctranslate2.AsyncScoringResult.result"><code class="docutils literal notranslate"><span class="pre">AsyncScoringResult.result()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html">AsyncTranslationResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html#ctranslate2.AsyncTranslationResult"><code class="docutils literal notranslate"><span class="pre">AsyncTranslationResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html#ctranslate2.AsyncTranslationResult.done"><code class="docutils literal notranslate"><span class="pre">AsyncTranslationResult.done()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.AsyncTranslationResult.html#ctranslate2.AsyncTranslationResult.result"><code class="docutils literal notranslate"><span class="pre">AsyncTranslationResult.result()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.DataType.html">DataType</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType"><code class="docutils literal notranslate"><span class="pre">DataType</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.__init__"><code class="docutils literal notranslate"><span class="pre">DataType.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.bfloat16"><code class="docutils literal notranslate"><span class="pre">DataType.bfloat16</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.float16"><code class="docutils literal notranslate"><span class="pre">DataType.float16</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.float32"><code class="docutils literal notranslate"><span class="pre">DataType.float32</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.int16"><code class="docutils literal notranslate"><span class="pre">DataType.int16</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.int32"><code class="docutils literal notranslate"><span class="pre">DataType.int32</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.int8"><code class="docutils literal notranslate"><span class="pre">DataType.int8</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.name"><code class="docutils literal notranslate"><span class="pre">DataType.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.DataType.html#ctranslate2.DataType.value"><code class="docutils literal notranslate"><span class="pre">DataType.value</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Device.html">Device</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Device.html#ctranslate2.Device"><code class="docutils literal notranslate"><span class="pre">Device</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Device.html#ctranslate2.Device.__init__"><code class="docutils literal notranslate"><span class="pre">Device.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Device.html#ctranslate2.Device.cpu"><code class="docutils literal notranslate"><span class="pre">Device.cpu</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Device.html#ctranslate2.Device.cuda"><code class="docutils literal notranslate"><span class="pre">Device.cuda</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Device.html#ctranslate2.Device.name"><code class="docutils literal notranslate"><span class="pre">Device.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Device.html#ctranslate2.Device.value"><code class="docutils literal notranslate"><span class="pre">Device.value</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Encoder.html">Encoder</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder"><code class="docutils literal notranslate"><span class="pre">Encoder</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.__init__"><code class="docutils literal notranslate"><span class="pre">Encoder.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.forward_batch"><code class="docutils literal notranslate"><span class="pre">Encoder.forward_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.load_model"><code class="docutils literal notranslate"><span class="pre">Encoder.load_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.unload_model"><code class="docutils literal notranslate"><span class="pre">Encoder.unload_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.compute_type"><code class="docutils literal notranslate"><span class="pre">Encoder.compute_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.device"><code class="docutils literal notranslate"><span class="pre">Encoder.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.device_index"><code class="docutils literal notranslate"><span class="pre">Encoder.device_index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Encoder.model_is_loaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Encoder.num_active_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.num_encoders"><code class="docutils literal notranslate"><span class="pre">Encoder.num_encoders</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Encoder.num_queued_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Encoder.html#ctranslate2.Encoder.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Encoder.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html">EncoderForwardOutput</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html#ctranslate2.EncoderForwardOutput"><code class="docutils literal notranslate"><span class="pre">EncoderForwardOutput</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html#ctranslate2.EncoderForwardOutput.last_hidden_state"><code class="docutils literal notranslate"><span class="pre">EncoderForwardOutput.last_hidden_state</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.EncoderForwardOutput.html#ctranslate2.EncoderForwardOutput.pooler_output"><code class="docutils literal notranslate"><span class="pre">EncoderForwardOutput.pooler_output</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.ExecutionStats.html">ExecutionStats</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats"><code class="docutils literal notranslate"><span class="pre">ExecutionStats</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats.num_examples"><code class="docutils literal notranslate"><span class="pre">ExecutionStats.num_examples</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats.num_tokens"><code class="docutils literal notranslate"><span class="pre">ExecutionStats.num_tokens</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats.total_time_in_ms"><code class="docutils literal notranslate"><span class="pre">ExecutionStats.total_time_in_ms</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.GenerationResult.html">GenerationResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult"><code class="docutils literal notranslate"><span class="pre">GenerationResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult.logits"><code class="docutils literal notranslate"><span class="pre">GenerationResult.logits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult.scores"><code class="docutils literal notranslate"><span class="pre">GenerationResult.scores</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult.sequences"><code class="docutils literal notranslate"><span class="pre">GenerationResult.sequences</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationResult.html#ctranslate2.GenerationResult.sequences_ids"><code class="docutils literal notranslate"><span class="pre">GenerationResult.sequences_ids</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.GenerationStepResult.html">GenerationStepResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.batch_id"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.batch_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.hypothesis_id"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.hypothesis_id</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.is_last"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.is_last</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.log_prob"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.log_prob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.logits"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.logits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.step"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.step</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.token"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.token</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.token_id"><code class="docutils literal notranslate"><span class="pre">GenerationStepResult.token_id</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Generator.html">Generator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.__init__"><code class="docutils literal notranslate"><span class="pre">Generator.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.async_generate_tokens"><code class="docutils literal notranslate"><span class="pre">Generator.async_generate_tokens()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.forward_batch"><code class="docutils literal notranslate"><span class="pre">Generator.forward_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.generate_batch"><code class="docutils literal notranslate"><span class="pre">Generator.generate_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.generate_iterable"><code class="docutils literal notranslate"><span class="pre">Generator.generate_iterable()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.generate_tokens"><code class="docutils literal notranslate"><span class="pre">Generator.generate_tokens()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.load_model"><code class="docutils literal notranslate"><span class="pre">Generator.load_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.score_batch"><code class="docutils literal notranslate"><span class="pre">Generator.score_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.score_iterable"><code class="docutils literal notranslate"><span class="pre">Generator.score_iterable()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.unload_model"><code class="docutils literal notranslate"><span class="pre">Generator.unload_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.compute_type"><code class="docutils literal notranslate"><span class="pre">Generator.compute_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.device"><code class="docutils literal notranslate"><span class="pre">Generator.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.device_index"><code class="docutils literal notranslate"><span class="pre">Generator.device_index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Generator.model_is_loaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Generator.num_active_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.num_generators"><code class="docutils literal notranslate"><span class="pre">Generator.num_generators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Generator.num_queued_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Generator.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.MpiInfo.html">MpiInfo</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.MpiInfo.html#ctranslate2.MpiInfo"><code class="docutils literal notranslate"><span class="pre">MpiInfo</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.MpiInfo.html#ctranslate2.MpiInfo.getCurRank"><code class="docutils literal notranslate"><span class="pre">MpiInfo.getCurRank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.MpiInfo.html#ctranslate2.MpiInfo.getLocalRank"><code class="docutils literal notranslate"><span class="pre">MpiInfo.getLocalRank()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.MpiInfo.html#ctranslate2.MpiInfo.getNRanks"><code class="docutils literal notranslate"><span class="pre">MpiInfo.getNRanks()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.ScoringResult.html">ScoringResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.ScoringResult.html#ctranslate2.ScoringResult"><code class="docutils literal notranslate"><span class="pre">ScoringResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.ScoringResult.html#ctranslate2.ScoringResult.log_probs"><code class="docutils literal notranslate"><span class="pre">ScoringResult.log_probs</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.ScoringResult.html#ctranslate2.ScoringResult.tokens"><code class="docutils literal notranslate"><span class="pre">ScoringResult.tokens</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.StorageView.html">StorageView</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView"><code class="docutils literal notranslate"><span class="pre">StorageView</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView.from_array"><code class="docutils literal notranslate"><span class="pre">StorageView.from_array()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView.to"><code class="docutils literal notranslate"><span class="pre">StorageView.to()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView.to_device"><code class="docutils literal notranslate"><span class="pre">StorageView.to_device()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView.device"><code class="docutils literal notranslate"><span class="pre">StorageView.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView.device_index"><code class="docutils literal notranslate"><span class="pre">StorageView.device_index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView.dtype"><code class="docutils literal notranslate"><span class="pre">StorageView.dtype</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.StorageView.html#ctranslate2.StorageView.shape"><code class="docutils literal notranslate"><span class="pre">StorageView.shape</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.TranslationResult.html">TranslationResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.TranslationResult.html#ctranslate2.TranslationResult"><code class="docutils literal notranslate"><span class="pre">TranslationResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.TranslationResult.html#ctranslate2.TranslationResult.attention"><code class="docutils literal notranslate"><span class="pre">TranslationResult.attention</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.TranslationResult.html#ctranslate2.TranslationResult.hypotheses"><code class="docutils literal notranslate"><span class="pre">TranslationResult.hypotheses</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.TranslationResult.html#ctranslate2.TranslationResult.logits"><code class="docutils literal notranslate"><span class="pre">TranslationResult.logits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.TranslationResult.html#ctranslate2.TranslationResult.scores"><code class="docutils literal notranslate"><span class="pre">TranslationResult.scores</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.Translator.html">Translator</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.__init__"><code class="docutils literal notranslate"><span class="pre">Translator.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.generate_tokens"><code class="docutils literal notranslate"><span class="pre">Translator.generate_tokens()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.load_model"><code class="docutils literal notranslate"><span class="pre">Translator.load_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.score_batch"><code class="docutils literal notranslate"><span class="pre">Translator.score_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.score_file"><code class="docutils literal notranslate"><span class="pre">Translator.score_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.score_iterable"><code class="docutils literal notranslate"><span class="pre">Translator.score_iterable()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.translate_batch"><code class="docutils literal notranslate"><span class="pre">Translator.translate_batch()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.translate_file"><code class="docutils literal notranslate"><span class="pre">Translator.translate_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.translate_iterable"><code class="docutils literal notranslate"><span class="pre">Translator.translate_iterable()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.unload_model"><code class="docutils literal notranslate"><span class="pre">Translator.unload_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.compute_type"><code class="docutils literal notranslate"><span class="pre">Translator.compute_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.device"><code class="docutils literal notranslate"><span class="pre">Translator.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.device_index"><code class="docutils literal notranslate"><span class="pre">Translator.device_index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Translator.model_is_loaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Translator.num_active_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Translator.num_queued_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.num_translators"><code class="docutils literal notranslate"><span class="pre">Translator.num_translators</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Translator.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.contains_model.html">contains_model</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.contains_model.html#ctranslate2.contains_model"><code class="docutils literal notranslate"><span class="pre">contains_model()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html">get_cuda_device_count</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_cuda_device_count.html#ctranslate2.get_cuda_device_count"><code class="docutils literal notranslate"><span class="pre">get_cuda_device_count()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.get_log_level.html">get_log_level</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_log_level.html#ctranslate2.get_log_level"><code class="docutils literal notranslate"><span class="pre">get_log_level()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.get_supported_compute_types.html">get_supported_compute_types</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.get_supported_compute_types.html#ctranslate2.get_supported_compute_types"><code class="docutils literal notranslate"><span class="pre">get_supported_compute_types()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.set_log_level.html">set_log_level</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.set_log_level.html#ctranslate2.set_log_level"><code class="docutils literal notranslate"><span class="pre">set_log_level()</span></code></a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.set_random_seed.html">set_random_seed</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.set_random_seed.html#ctranslate2.set_random_seed"><code class="docutils literal notranslate"><span class="pre">set_random_seed()</span></code></a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.converters.html">ctranslate2.converters</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.Converter.html">Converter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html">FairseqConverter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html">MarianConverter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html">OpenAIGPT2Converter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html">OpenNMTPyConverter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html">OpenNMTTFConverter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html">OpusMTConverter</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html">TransformersConverter</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.Converter.html">Converter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter"><code class="docutils literal notranslate"><span class="pre">Converter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter.convert"><code class="docutils literal notranslate"><span class="pre">Converter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">Converter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.Converter.html#ctranslate2.converters.Converter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">Converter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html">FairseqConverter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter"><code class="docutils literal notranslate"><span class="pre">FairseqConverter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.__init__"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.convert"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">FairseqConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html">MarianConverter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter"><code class="docutils literal notranslate"><span class="pre">MarianConverter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.__init__"><code class="docutils literal notranslate"><span class="pre">MarianConverter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.convert"><code class="docutils literal notranslate"><span class="pre">MarianConverter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">MarianConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.MarianConverter.html#ctranslate2.converters.MarianConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">MarianConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html">OpenAIGPT2Converter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.__init__"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.convert"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenAIGPT2Converter.html#ctranslate2.converters.OpenAIGPT2Converter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpenAIGPT2Converter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html">OpenNMTPyConverter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.__init__"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.convert"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTPyConverter.html#ctranslate2.converters.OpenNMTPyConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpenNMTPyConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html">OpenNMTTFConverter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.__init__"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.convert"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.declare_arguments()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter.from_config"><code class="docutils literal notranslate"><span class="pre">OpenNMTTFConverter.from_config()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html">OpusMTConverter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.__init__"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.convert"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.OpusMTConverter.html#ctranslate2.converters.OpusMTConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">OpusMTConverter.declare_arguments()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html">TransformersConverter</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter"><code class="docutils literal notranslate"><span class="pre">TransformersConverter</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.__init__"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.convert"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.convert()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.convert_from_args"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.convert_from_args()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.declare_arguments"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.declare_arguments()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.get_model_file"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.get_model_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.load_model"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.load_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.load_tokenizer"><code class="docutils literal notranslate"><span class="pre">TransformersConverter.load_tokenizer()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.html">ctranslate2.models</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html">Wav2Vec2</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html">Wav2Vec2Bert</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Whisper.html">Whisper</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html">WhisperGenerationResult</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html">WhisperGenerationResultAsync</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html">Wav2Vec2</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.__init__"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.encode"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.load_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.load_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.unload_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.unload_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.compute_type"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.compute_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.device"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.device_index"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.device_index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.model_is_loaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.num_active_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.num_queued_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_workers"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.num_workers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html">Wav2Vec2Bert</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.__init__"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.encode"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.load_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.load_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.unload_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.unload_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.compute_type"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.compute_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.device"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.device_index"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.device_index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.model_is_loaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.num_active_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.num_queued_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_workers"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.num_workers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Whisper.html">Whisper</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper"><code class="docutils literal notranslate"><span class="pre">Whisper</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.__init__"><code class="docutils literal notranslate"><span class="pre">Whisper.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.align"><code class="docutils literal notranslate"><span class="pre">Whisper.align()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.detect_language"><code class="docutils literal notranslate"><span class="pre">Whisper.detect_language()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.encode"><code class="docutils literal notranslate"><span class="pre">Whisper.encode()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.generate"><code class="docutils literal notranslate"><span class="pre">Whisper.generate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.load_model"><code class="docutils literal notranslate"><span class="pre">Whisper.load_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.unload_model"><code class="docutils literal notranslate"><span class="pre">Whisper.unload_model()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.compute_type"><code class="docutils literal notranslate"><span class="pre">Whisper.compute_type</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device"><code class="docutils literal notranslate"><span class="pre">Whisper.device</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device_index"><code class="docutils literal notranslate"><span class="pre">Whisper.device_index</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.is_multilingual"><code class="docutils literal notranslate"><span class="pre">Whisper.is_multilingual</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Whisper.model_is_loaded</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.n_mels"><code class="docutils literal notranslate"><span class="pre">Whisper.n_mels</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Whisper.num_active_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_languages"><code class="docutils literal notranslate"><span class="pre">Whisper.num_languages</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Whisper.num_queued_batches</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_workers"><code class="docutils literal notranslate"><span class="pre">Whisper.num_workers</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Whisper.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html">WhisperGenerationResult</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.logits"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.logits</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.no_speech_prob"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.no_speech_prob</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.scores"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.scores</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.sequences"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.sequences</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.sequences_ids"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.sequences_ids</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html">WhisperGenerationResultAsync</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResultAsync</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync.done"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResultAsync.done()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync.result"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResultAsync.result()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.specs.html">ctranslate2.specs</a><ul>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.Activation.html">Activation</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html">EmbeddingsMerge</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html">LanguageModelSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html">LayerSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html">ModelSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html">RotaryScalingType</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html">SequenceToSequenceModelSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html">TransformerDecoderModelSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html">TransformerDecoderSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html">TransformerEncoderModelSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html">TransformerEncoderSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html">TransformerSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html">Wav2Vec2BertSpec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html">Wav2Vec2Spec</a></li>
-<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html">WhisperSpec</a></li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.Activation.html">Activation</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation"><code class="docutils literal notranslate"><span class="pre">Activation</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.GELU"><code class="docutils literal notranslate"><span class="pre">Activation.GELU</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.GELUSigmoid"><code class="docutils literal notranslate"><span class="pre">Activation.GELUSigmoid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.GELUTanh"><code class="docutils literal notranslate"><span class="pre">Activation.GELUTanh</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.RELU"><code class="docutils literal notranslate"><span class="pre">Activation.RELU</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.SWISH"><code class="docutils literal notranslate"><span class="pre">Activation.SWISH</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.Sigmoid"><code class="docutils literal notranslate"><span class="pre">Activation.Sigmoid</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.Tanh"><code class="docutils literal notranslate"><span class="pre">Activation.Tanh</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html">EmbeddingsMerge</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.ADD"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.ADD</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.CONCAT"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.CONCAT</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html">LanguageModelSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.__init__"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.get_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.get_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.optimize"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.register_file"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.register_vocabulary"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.register_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.save"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.validate"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.variables"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.config"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.name"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.revision"><code class="docutils literal notranslate"><span class="pre">LanguageModelSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html">LayerSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec"><code class="docutils literal notranslate"><span class="pre">LayerSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec.optimize"><code class="docutils literal notranslate"><span class="pre">LayerSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec.validate"><code class="docutils literal notranslate"><span class="pre">LayerSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec.variables"><code class="docutils literal notranslate"><span class="pre">LayerSpec.variables()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html">ModelSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec"><code class="docutils literal notranslate"><span class="pre">ModelSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.__init__"><code class="docutils literal notranslate"><span class="pre">ModelSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">ModelSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.optimize"><code class="docutils literal notranslate"><span class="pre">ModelSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.register_file"><code class="docutils literal notranslate"><span class="pre">ModelSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.save"><code class="docutils literal notranslate"><span class="pre">ModelSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.validate"><code class="docutils literal notranslate"><span class="pre">ModelSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.variables"><code class="docutils literal notranslate"><span class="pre">ModelSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.config"><code class="docutils literal notranslate"><span class="pre">ModelSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.name"><code class="docutils literal notranslate"><span class="pre">ModelSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.revision"><code class="docutils literal notranslate"><span class="pre">ModelSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html">RotaryScalingType</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.Linear"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.Linear</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.Llama3"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.Llama3</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.Su"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.Su</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html">SequenceToSequenceModelSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.__init__"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.get_source_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.get_source_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.get_target_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.get_target_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.optimize"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.register_file"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.register_source_vocabulary"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.register_source_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.register_target_vocabulary"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.register_target_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.register_vocabulary_mapping"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.register_vocabulary_mapping()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.save"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.validate"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.variables"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.config"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.name"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.revision"><code class="docutils literal notranslate"><span class="pre">SequenceToSequenceModelSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html">TransformerDecoderModelSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.__init__"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.from_config"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.from_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.get_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.get_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.optimize"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.register_file"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.register_vocabulary"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.register_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.save"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.validate"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.variables"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.config"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.name"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec.revision"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderModelSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html">TransformerDecoderSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.__init__"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.optimize"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.validate"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.variables"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerDecoderSpec.html#ctranslate2.specs.TransformerDecoderSpec.config"><code class="docutils literal notranslate"><span class="pre">TransformerDecoderSpec.config</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html">TransformerEncoderModelSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.__init__"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.get_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.get_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.optimize"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.register_file"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.register_vocabulary"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.register_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.save"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.validate"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.variables"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.config"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.name"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderModelSpec.html#ctranslate2.specs.TransformerEncoderModelSpec.revision"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderModelSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html">TransformerEncoderSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.__init__"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.optimize"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.validate"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerEncoderSpec.html#ctranslate2.specs.TransformerEncoderSpec.variables"><code class="docutils literal notranslate"><span class="pre">TransformerEncoderSpec.variables()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html">TransformerSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec"><code class="docutils literal notranslate"><span class="pre">TransformerSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.__init__"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.from_config"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.from_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.get_source_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.get_source_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.get_target_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.get_target_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.optimize"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.register_file"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.register_source_vocabulary"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.register_source_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.register_target_vocabulary"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.register_target_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.register_vocabulary_mapping"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.register_vocabulary_mapping()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.save"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.validate"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.variables"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.config"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.name"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.TransformerSpec.html#ctranslate2.specs.TransformerSpec.revision"><code class="docutils literal notranslate"><span class="pre">TransformerSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html">Wav2Vec2BertSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.__init__"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.get_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.get_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.optimize"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.register_file"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.register_vocabulary"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.register_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.save"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.validate"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.variables"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.config"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.name"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2BertSpec.html#ctranslate2.specs.Wav2Vec2BertSpec.revision"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2BertSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html">Wav2Vec2Spec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.__init__"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.get_default_config"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.get_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.get_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.optimize"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.register_file"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.register_vocabulary"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.register_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.save"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.validate"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.variables"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.config"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.name"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.Wav2Vec2Spec.html#ctranslate2.specs.Wav2Vec2Spec.revision"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Spec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html">WhisperSpec</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec"><code class="docutils literal notranslate"><span class="pre">WhisperSpec</span></code></a><ul>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.__init__"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.__init__()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.get_default_config"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.get_default_config()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.get_vocabulary_size"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.get_vocabulary_size()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.optimize"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.optimize()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.register_file"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.register_file()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.register_vocabulary"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.register_vocabulary()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.save"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.save()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.validate"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.validate()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.variables"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.variables()</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.config"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.config</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.name"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.name</span></code></a></li>
+<li class="toctree-l4"><a class="reference internal" href="ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec.revision"><code class="docutils literal notranslate"><span class="pre">WhisperSpec.revision</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </li>
 </ul>

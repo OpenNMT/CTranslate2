@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ctranslate2.models &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>ctranslate2.models &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
         <script src="../_static/jquery.js"></script>
         <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
@@ -32,7 +34,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -122,16 +124,90 @@
            <div itemprop="articleBody">
              
   <section id="module-ctranslate2.models">
-<span id="ctranslate2-models"></span><h1>ctranslate2.models<a class="headerlink" href="#module-ctranslate2.models" title="Permalink to this headline"></a></h1>
+<span id="ctranslate2-models"></span><h1>ctranslate2.models<a class="headerlink" href="#module-ctranslate2.models" title="Permalink to this heading"></a></h1>
 <p>A collection of models which don’t fit in the generic classes <a class="reference internal" href="ctranslate2.Translator.html#ctranslate2.Translator" title="ctranslate2.Translator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.Translator</span></code></a>
 and <a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator" title="ctranslate2.Generator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.Generator</span></code></a>.</p>
 <div class="toctree-wrapper compound">
 <ul>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html">Wav2Vec2</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html">Wav2Vec2Bert</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Whisper.html">Whisper</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html">WhisperGenerationResult</a></li>
-<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html">WhisperGenerationResultAsync</a></li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html">Wav2Vec2</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.__init__"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.encode"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.encode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.load_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.load_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.unload_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.unload_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.compute_type"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.compute_type</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.device"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.device</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.device_index"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.device_index</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.model_is_loaded</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.num_active_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.num_queued_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_workers"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.num_workers</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html">Wav2Vec2Bert</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.__init__"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.encode"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.encode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.load_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.load_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.unload_model"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.unload_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.compute_type"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.compute_type</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.device"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.device</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.device_index"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.device_index</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.model_is_loaded</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.num_active_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.num_queued_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_workers"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.num_workers</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2Bert.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Whisper.html">Whisper</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper"><code class="docutils literal notranslate"><span class="pre">Whisper</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.__init__"><code class="docutils literal notranslate"><span class="pre">Whisper.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.align"><code class="docutils literal notranslate"><span class="pre">Whisper.align()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.detect_language"><code class="docutils literal notranslate"><span class="pre">Whisper.detect_language()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.encode"><code class="docutils literal notranslate"><span class="pre">Whisper.encode()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.generate"><code class="docutils literal notranslate"><span class="pre">Whisper.generate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.load_model"><code class="docutils literal notranslate"><span class="pre">Whisper.load_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.unload_model"><code class="docutils literal notranslate"><span class="pre">Whisper.unload_model()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.compute_type"><code class="docutils literal notranslate"><span class="pre">Whisper.compute_type</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device"><code class="docutils literal notranslate"><span class="pre">Whisper.device</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.device_index"><code class="docutils literal notranslate"><span class="pre">Whisper.device_index</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.is_multilingual"><code class="docutils literal notranslate"><span class="pre">Whisper.is_multilingual</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.model_is_loaded"><code class="docutils literal notranslate"><span class="pre">Whisper.model_is_loaded</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.n_mels"><code class="docutils literal notranslate"><span class="pre">Whisper.n_mels</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Whisper.num_active_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_languages"><code class="docutils literal notranslate"><span class="pre">Whisper.num_languages</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Whisper.num_queued_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.num_workers"><code class="docutils literal notranslate"><span class="pre">Whisper.num_workers</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.tensor_parallel"><code class="docutils literal notranslate"><span class="pre">Whisper.tensor_parallel</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html">WhisperGenerationResult</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.logits"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.logits</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.no_speech_prob"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.no_speech_prob</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.scores"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.scores</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.sequences"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.sequences</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResult.html#ctranslate2.models.WhisperGenerationResult.sequences_ids"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResult.sequences_ids</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html">WhisperGenerationResultAsync</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResultAsync</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync.done"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResultAsync.done()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync.result"><code class="docutils literal notranslate"><span class="pre">WhisperGenerationResultAsync.result()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 </ul>
 </div>
 </section>

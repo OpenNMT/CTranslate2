@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Installation &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -119,9 +121,9 @@
            <div itemprop="articleBody">
              
   <section id="installation">
-<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this headline"></a></h1>
+<h1>Installation<a class="headerlink" href="#installation" title="Permalink to this heading"></a></h1>
 <section id="install-with-pip">
-<h2>Install with pip<a class="headerlink" href="#install-with-pip" title="Permalink to this headline"></a></h2>
+<h2>Install with pip<a class="headerlink" href="#install-with-pip" title="Permalink to this heading"></a></h2>
 <p>Binary Python wheels are published on <a class="reference external" href="https://pypi.org/project/ctranslate2/">PyPI</a> and can be directly installed with pip:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>ctranslate2
 </pre></div>
@@ -143,9 +145,9 @@
 </div>
 </section>
 <section id="install-with-docker">
-<h2>Install with Docker<a class="headerlink" href="#install-with-docker" title="Permalink to this headline"></a></h2>
+<h2>Install with Docker<a class="headerlink" href="#install-with-docker" title="Permalink to this heading"></a></h2>
 <p>Docker images can be downloaded from the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/pkgs/container/ctranslate2">GitHub Container registry</a>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda11.2
 </pre></div>
 </div>
 <p>The images include:</p>
@@ -155,7 +157,7 @@
 <li><p>the Python module installed in the Python system packages</p></li>
 <li><p>the translator executable, which is the image entrypoint:</p></li>
 </ul>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu20.04-cuda11.2<span class="w"> </span>--help
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>run<span class="w"> </span>--rm<span class="w"> </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda11.2<span class="w"> </span>--help
 </pre></div>
 </div>
 <p>To update to the new version that supports CUDA 12.</p>
@@ -165,16 +167,16 @@
 </div>
 </section>
 <section id="install-from-sources">
-<h2>Install from sources<a class="headerlink" href="#install-from-sources" title="Permalink to this headline"></a></h2>
+<h2>Install from sources<a class="headerlink" href="#install-from-sources" title="Permalink to this heading"></a></h2>
 <section id="download-the-source-code">
-<h3>Download the source code<a class="headerlink" href="#download-the-source-code" title="Permalink to this headline"></a></h3>
+<h3>Download the source code<a class="headerlink" href="#download-the-source-code" title="Permalink to this heading"></a></h3>
 <p>Clone the CTranslate2 Git repository and its submodules.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>--recursive<span class="w"> </span>https://github.com/OpenNMT/CTranslate2.git
 </pre></div>
 </div>
 </section>
 <section id="compile-the-c-library">
-<h3>Compile the C++ library<a class="headerlink" href="#compile-the-c-library" title="Permalink to this headline"></a></h3>
+<h3>Compile the C++ library<a class="headerlink" href="#compile-the-c-library" title="Permalink to this heading"></a></h3>
 <p>Compiling the library requires a compiler supporting C++17 and CMake 3.15 or greater.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
 cmake<span class="w"> </span>..
@@ -186,7 +188,7 @@ sudo<span class="w"> </span>ldconfig
 <p>By default, the library is compiled with the <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> backend which should be installed separately. See the <a class="reference internal" href="#build-options"><span class="std std-ref">Build options</span></a> to select or add another backend.</p>
 </section>
 <section id="compile-the-python-wrapper">
-<h3>Compile the Python wrapper<a class="headerlink" href="#compile-the-python-wrapper" title="Permalink to this headline"></a></h3>
+<h3>Compile the Python wrapper<a class="headerlink" href="#compile-the-python-wrapper" title="Permalink to this heading"></a></h3>
 <p>Once the C++ library is installed, you can compile the Python wrapper which uses <a class="reference external" href="https://github.com/pybind/pybind11">pybind11</a>. This step requires the Python development libraries to be installed on the system.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>python
 pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>install_requirements.txt
@@ -204,7 +206,7 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
 </div>
 </section>
 <section id="build-options">
-<h3>Build options<a class="headerlink" href="#build-options" title="Permalink to this headline"></a></h3>
+<h3>Build options<a class="headerlink" href="#build-options" title="Permalink to this heading"></a></h3>
 <p>The following options can be set with <code class="docutils literal notranslate"><span class="pre">-DOPTION=VALUE</span></code> during the CMake configuration:</p>
 <table class="colwidths-auto docutils align-default">
 <thead>

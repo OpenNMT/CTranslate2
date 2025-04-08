@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Multithreading and parallelism &mdash; CTranslate2 4.5.0 documentation</title>
+  <title>Multithreading and parallelism &mdash; CTranslate2 4.6.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -16,7 +16,9 @@
         <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
         <script src="_static/jquery.js"></script>
         <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
         <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
@@ -32,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.5
+                4.6
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -114,9 +116,9 @@
            <div itemprop="articleBody">
              
   <section id="multithreading-and-parallelism">
-<h1>Multithreading and parallelism<a class="headerlink" href="#multithreading-and-parallelism" title="Permalink to this headline"></a></h1>
+<h1>Multithreading and parallelism<a class="headerlink" href="#multithreading-and-parallelism" title="Permalink to this heading"></a></h1>
 <section id="intra-op-multithreading-on-cpu">
-<h2>Intra-op multithreading on CPU<a class="headerlink" href="#intra-op-multithreading-on-cpu" title="Permalink to this headline"></a></h2>
+<h2>Intra-op multithreading on CPU<a class="headerlink" href="#intra-op-multithreading-on-cpu" title="Permalink to this heading"></a></h2>
 <p>Most model operations (matmul, softmax, etc.) are using multiple threads on CPU. The number of threads can be configured with the parameter <code class="docutils literal notranslate"><span class="pre">intra_threads</span></code> (the default value is 4):</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">intra_threads</span><span class="o">=</span><span class="mi">8</span><span class="p">)</span>
 </pre></div>
@@ -125,7 +127,7 @@
 <p>When OpenMP is disabled (which is the case for example in the Python ARM64 wheels for macOS), the multithreading is implemented with <a class="reference external" href="https://github.com/bshoshany/thread-pool"><code class="docutils literal notranslate"><span class="pre">BS::thread_pool</span></code></a>.</p>
 </section>
 <section id="data-parallelism">
-<h2>Data parallelism<a class="headerlink" href="#data-parallelism" title="Permalink to this headline"></a></h2>
+<h2>Data parallelism<a class="headerlink" href="#data-parallelism" title="Permalink to this heading"></a></h2>
 <p>Objects running models such as the <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> and <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> can be configured to process multiple batches in parallel, including on multiple GPUs:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Create a CPU translator with 4 workers each using 1 intra-op thread:</span>
 <span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">,</span> <span class="n">inter_threads</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span> <span class="n">intra_threads</span><span class="o">=</span><span class="mi">1</span><span class="p">)</span>
@@ -152,7 +154,7 @@
 </div>
 </section>
 <section id="model-and-tensor-parallelism">
-<h2>Model and tensor parallelism<a class="headerlink" href="#model-and-tensor-parallelism" title="Permalink to this headline"></a></h2>
+<h2>Model and tensor parallelism<a class="headerlink" href="#model-and-tensor-parallelism" title="Permalink to this heading"></a></h2>
 <p>Models used with <a class="reference internal" href="python/ctranslate2.Translator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Translator</span></code></span></a> and <a class="reference internal" href="python/ctranslate2.Generator.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">Generator</span></code></span></a> can be split into multiple GPUs.
 This is very useful when the model is too big to be loaded in only 1 GPU.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cuda&quot;</span><span class="p">,</span> <span class="n">tensor_parallel</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
@@ -202,7 +204,7 @@ because tensor parallel mode will check only for available gpus on the system an
 </div>
 </section>
 <section id="asynchronous-execution">
-<h2>Asynchronous execution<a class="headerlink" href="#asynchronous-execution" title="Permalink to this headline"></a></h2>
+<h2>Asynchronous execution<a class="headerlink" href="#asynchronous-execution" title="Permalink to this heading"></a></h2>
 <p>Some methods can run asynchronously with <code class="docutils literal notranslate"><span class="pre">asynchronous=True</span></code>. In this mode, the method returns immediately and the result can be retrieved later:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">async_results</span> <span class="o">=</span> <span class="p">[]</span>
 <span class="k">for</span> <span class="n">batch</span> <span class="ow">in</span> <span class="n">batch_generator</span><span class="p">():</span>
