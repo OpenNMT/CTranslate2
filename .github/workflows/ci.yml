@@ -139,6 +139,8 @@ jobs:
           arch: aarch64
         - os: macos-13
           arch: arm64
+        - os: macos-13
+          arch: x86_64
 
     steps:
       - uses: actions/checkout@v4
