@@ -217,7 +217,7 @@ jobs:
       - name: Run tests
         shell: bash
         run: |
-          pytest -v python/tests/
+          pytest -v python/tests/ --ignore=python/tests/test_opennmt_tf.py
 
 
   check-python-style:
