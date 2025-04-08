@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include "ctranslate2/layers/attention.h"
 #include "ctranslate2/layers/flash_attention.h"
 #include "ctranslate2/layers/common.h"
@@ -92,11 +93,21 @@ namespace ctranslate2 {
       void operator()(const StorageView& features, StorageView& output);
 
       DataType output_type() const override {
-        return _lm_head.output_type();
+        if (_lm_head) {
+          return (*_lm_head).output_type();
+        }
+        else {
+          return DataType::FLOAT32;
+        }
       }
 
       dim_t output_size() const override {
-        return _lm_head.output_size();
+        if (_lm_head) {
+          return (*_lm_head).output_size();
+        }
+        else {
+          return 1024;
+        }
       }
 
       dim_t input_size() const {
@@ -115,11 +126,12 @@ namespace ctranslate2 {
       }
 
     private:
+      const StorageView* _return_logits;
       const LayerNorm _fp_layer_norm;
       const Dense _fp_projection;
       const std::vector<std::unique_ptr<const EncoderLayer>> _encoder_layers;
       const std::vector<std::unique_ptr<const AdapterLayer>> _adapt_layers;
-      const Dense _lm_head;
+      std::optional<Dense> _lm_head;
     };
 
   }
