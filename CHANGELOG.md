@@ -13,6 +13,7 @@ Note: The Ctranslate2 Python package now supports python 3.13, drop the support 
 * Add noexecstack linker flags (#1852 + #1861)
 * Support Qwen2 (#1820)
 * Eoleconv (#1832)
+* Add support RobertModel (#1864)
 
 ### Fixes and improvements
 * Fix github action (#1871)
