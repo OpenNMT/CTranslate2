@@ -902,12 +902,13 @@ class WhisperLoader(BartLoader):
     def architecture_name(self):
         return "WhisperForConditionalGeneration"
 
-    def get_model_spec(self, model):
+    def get_model_spec(self, model, low_rank=False):
         spec = whisper_spec.WhisperSpec(
             model.config.encoder_layers,
             model.config.encoder_attention_heads,
             model.config.decoder_layers,
             model.config.decoder_attention_heads,
+            low_rank=low_rank,
         )
 
         self.set_encoder(spec.encoder, model.model.encoder)
@@ -996,6 +997,9 @@ class WhisperLoader(BartLoader):
         spec.weight = module.weight
         spec.bias = module.bias
 
+class LiteWhisperLoader(WhisperLoader):
+    def get_model_spec(self, model):
+        return super().get_model_spec(model, low_rank=True)
 
 @register_loader("Wav2Vec2Config")
 class Wav2Vec2Loader(BartLoader):
