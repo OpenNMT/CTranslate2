@@ -838,7 +838,7 @@ class TestWhisper:
         import transformers
 
         model_name = "efficient-speech/lite-whisper-tiny"
-        converter = transformers.converters.TransformersConverter(model_name, trust_remote_code=True)
+        converter = ctranslate2.converters.TransformersConverter(model_name, trust_remote_code=True)
         output_dir = converter.convert('./ctranslate2_model')
 
         audio_path = os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
