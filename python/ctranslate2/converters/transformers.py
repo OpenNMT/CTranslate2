@@ -997,7 +997,12 @@ class WhisperLoader(BartLoader):
         spec.weight = module.weight
         spec.bias = module.bias
 
+@register_loader("LiteWhisperConfig")
 class LiteWhisperLoader(WhisperLoader):
+    @property
+    def architecture_name(self):
+        return "LiteWhisperForConditionalGeneration"
+
     def get_model_spec(self, model):
         return super().get_model_spec(model, low_rank=True)
 
