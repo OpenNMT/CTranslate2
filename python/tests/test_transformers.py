@@ -832,7 +832,7 @@ class TestWhisper:
             transcription = processor.decode(token_ids)
             assert transcription == expected_transcription
 
-    # @test_utils.only_on_linux
+    @test_utils.only_on_linux
     @test_utils.on_available_devices
     def test_transformers_lite_whisper(tmpdir, device):
         import transformers
