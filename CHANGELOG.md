@@ -4,8 +4,23 @@
 
 ### Fixes and improvements
 
+## [v4.6.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.0) (2025-04-08)
+Note: The Ctranslate2 Python package now supports python 3.13, drop the support for python 3.8.
+
+### New features
+* Pyhton 3.13 support (#1858)
+* Support returning hidden vector in Wav2Vec2 and Wav2Vec2Bert Models (#1867)
+* Add noexecstack linker flags (#1852 + #1861)
+* Support Qwen2 (#1820)
+* Eoleconv (#1832)
+* Add support RobertModel (#1864)
+
+### Fixes and improvements
+* Fix github action (#1871)
+* Prevent double library def (#1818)
+
 ## [v4.5.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.5.0) (2024-10-22)
-Note: The Ctranslate2 Python package now supports CUDNN 9 and is no longer compatible with CUDNN 8.  
+Note: The Ctranslate2 Python package now supports CUDNN 9 and is no longer compatible with CUDNN 8.
 
 ### New features
 * Support Phi3 (#1800)
@@ -18,8 +33,8 @@ Note: The Ctranslate2 Python package now supports CUDNN 9 and is no longer compa
 * Update doc AWQ (#1795)
 
 ## [v4.4.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.4.0) (2024-09-09)
-**Removed**: Flash Attention support in the Python package due to significant package size increase with minimal performance gain.  
-Note: Flash Attention remains supported in the C++ package with the `WITH_FLASH_ATTN` option.  
+**Removed**: Flash Attention support in the Python package due to significant package size increase with minimal performance gain.
+Note: Flash Attention remains supported in the C++ package with the `WITH_FLASH_ATTN` option.
 Flash Attention may be re-added in the future if substantial improvements are made.
 
 ### New features
