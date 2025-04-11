@@ -96,6 +96,7 @@ class TransformersConverter(Converter):
           trust_remote_code: Allow converting models using custom code.
         """
         self._model_name_or_path = model_name_or_path
+        self._model_processor_name = (model_name_or_path if not model_name_or_path.startswith('efficient-speech/lite-whisper') else 'openai/whisper-large-v3')
         self._activation_scales = activation_scales
         self._copy_files = copy_files
         self._load_as_float16 = load_as_float16
@@ -119,9 +120,6 @@ class TransformersConverter(Converter):
                     % (config_name, ", ".join(sorted(_MODEL_LOADERS.keys())))
                 )
 
-            model_class = getattr(transformers, loader.architecture_name)
-            tokenizer_class = transformers.AutoTokenizer
-
             kwargs = {
                 "torch_dtype": (
                     torch.float16
@@ -137,14 +135,19 @@ class TransformersConverter(Converter):
             if self._trust_remote_code:
                 kwargs["trust_remote_code"] = self._trust_remote_code
 
-            model = self.load_model(model_class, self._model_name_or_path, **kwargs)
+            if hasattr(transformers, loader.architecture_name):
+                model_class = getattr(transformers, loader.architecture_name)
+                model = self.load_model(model_class, self._model_name_or_path, **kwargs)
+            else:
+                model = transformers.AutoModel.from_pretrained(self._model_name_or_path, **kwargs)
 
             tokenizer_kwargs = {}
             if self._trust_remote_code:
                 tokenizer_kwargs["trust_remote_code"] = self._trust_remote_code
 
+            tokenizer_class = transformers.AutoTokenizer
             tokenizer = self.load_tokenizer(
-                tokenizer_class, self._model_name_or_path, **tokenizer_kwargs
+                tokenizer_class, self._model_processor_name, **tokenizer_kwargs
             )
 
             spec = loader(model, tokenizer)
