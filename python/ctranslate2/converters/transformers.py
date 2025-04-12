@@ -2470,7 +2470,7 @@ class ExaoneLoader(ModelLoader):
             if rotary_scaling_type is None:
                 raise NotImplementedError(
                     f"RoPE scaling type '{rope_type}' is not yet implemented. "
-                    f"The following RoPE types are supported: {', '.join(_SUPPORTED_ROPE_SCALING.keys())}"
+                    f"These RoPE types are supported: {', '.join(_SUPPORTED_ROPE_SCALING.keys())}"
                 )
         else:
             rotary_scaling_type = None
