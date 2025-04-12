@@ -2470,7 +2470,7 @@ class ExaoneLoader(ModelLoader):
             if rotary_scaling_type is None:
                 raise NotImplementedError(
                     f"RoPE scaling type '{rope_type}' is not yet implemented. "
-                    f"The following RoPE scaling types are currently supported: {', '.join(_SUPPORTED_ROPE_SCALING.keys())}"
+                    f"The following RoPE types are supported: {', '.join(_SUPPORTED_ROPE_SCALING.keys())}"
                 )
         else:
             rotary_scaling_type = None
@@ -2499,7 +2499,7 @@ class ExaoneLoader(ModelLoader):
             for layer in spec.decoder.layer:
                 layer.self_attention.rotary_low_freq_factor = rope_scaling["low_freq_factor"]
                 layer.self_attention.rotary_high_freq_factor = rope_scaling["high_freq_factor"]
-                
+
         return spec
 
     def get_vocabulary(self, model, tokenizer):
@@ -2508,7 +2508,7 @@ class ExaoneLoader(ModelLoader):
         extra_ids = model.config.vocab_size - len(tokens)
         for i in range(extra_ids):
             tokens.append(f"<extra_id_{i}>")
-            
+
         if model.config.vocab_size < len(tokens):
             tokens = tokens[:model.config.vocab_size]
 
