@@ -844,6 +844,7 @@ namespace ctranslate2 {
                      " running independently a model in each device");
       }
 
+      bool supports_flash_attention = false;
       if (device == Device::CUDA) {
         int device_id = ctranslate2::get_device_index(ctranslate2::Device::CUDA);
         auto dprops = ctranslate2::cuda::get_device_properties(device_id);
@@ -851,7 +852,7 @@ namespace ctranslate2 {
         
         // Minimum compute capability for Flash Attention is Ampere (8.0)
         const float min_flash_attn_compute_capability = 8.0f;
-        bool supports_flash_attention = compute_capability >= min_flash_attn_compute_capability;
+        supports_flash_attention = compute_capability >= min_flash_attn_compute_capability;
       }
       
       if (use_flash_attention && (device != Device::CUDA || !supports_flash_attention)) {
