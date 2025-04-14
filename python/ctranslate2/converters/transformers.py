@@ -379,7 +379,7 @@ class BartLoader(ModelLoader):
             self.set_linear(split_layers[2], attention.v_proj)
 
         if self_attention:
-            if low__rank:
+            if low_rank:
                 utils.fuse_low_rank_linear(spec.linear[0], split_layers)
             else:
                 utils.fuse_linear(spec.linear[0], split_layers)
