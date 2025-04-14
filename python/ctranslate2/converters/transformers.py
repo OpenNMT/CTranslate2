@@ -240,6 +240,19 @@ class ModelLoader(abc.ABC):
             spec.weight = spec.weight.transpose(0, 1)
         if module.bias is not None:
             spec.bias = module.bias
+    
+    def set_low_rank_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
+        if quant_type == common_spec.Quantization.CT2:
+            spec.weight1 = module.weight1
+            spec.weight2 = module.weight2
+        else:
+            spec.weight1 = module.qweight1
+            spec.weight2 = module.qweight2
+            spec.weight_scale = module.scales
+            spec.weight_zero = module.qzeros
+
+        if module.bias is not None:
+            spec.bias = module.bias
 
     def set_embeddings(self, spec, module):
         spec.weight = module.weight
