@@ -312,7 +312,7 @@ class BartLoader(ModelLoader):
             model.config.decoder_start_token_id
         )
 
-    def set_encoder(self, spec, encoder):
+    def set_encoder(self, spec, encoder, low_rank=False):
         self.set_common_layers(spec, encoder)
 
         for layer_spec, layer in zip(spec.layer, encoder.layers):
@@ -320,14 +320,19 @@ class BartLoader(ModelLoader):
                 layer_spec.self_attention,
                 layer.self_attn,
                 self_attention=True,
+                low_rank=low_rank,
             )
             self.set_layer_norm(
                 layer_spec.self_attention.layer_norm,
                 layer.self_attn_layer_norm,
             )
 
-            self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
-            self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
+            if low_rank:
+                self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
+                self.set_low_rank_linear(layer_spec.ffn.linear_1, layer.fc2)
+            else:
+                self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
+                self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
     def set_decoder(self, spec, decoder):
@@ -359,17 +364,32 @@ class BartLoader(ModelLoader):
             self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
-    def set_attention(self, spec, attention, self_attention=False):
-        split_layers = [common_spec.LinearSpec() for _ in range(3)]
-        self.set_linear(split_layers[0], attention.q_proj)
-        self.set_linear(split_layers[1], attention.k_proj)
-        self.set_linear(split_layers[2], attention.v_proj)
+    def set_attention(self, spec, attention, self_attention=False, low_rank=False):
+        split_layers = [
+            (common_spec.LowRankLinearSpec() if low_rank else common_spec.LinearSpec())
+            for _ in range(3)
+        ]
+        if low_rank:
+            self.set_low_rank_linear(split_layers[0], attention.q_proj)
+            self.set_low_rank_linear(split_layers[1], attention.k_proj)
+            self.set_low_rank_linear(split_layers[2], attention.v_proj)
+        else:
+            self.set_linear(split_layers[0], attention.q_proj)
+            self.set_linear(split_layers[1], attention.k_proj)
+            self.set_linear(split_layers[2], attention.v_proj)
 
         if self_attention:
-            utils.fuse_linear(spec.linear[0], split_layers)
+            if low__rank:
+                utils.fuse_low_rank_linear(spec.linear[0], split_layers)
+            else:
+                utils.fuse_linear(spec.linear[0], split_layers)
         else:
-            utils.fuse_linear(spec.linear[0], split_layers[:1])
-            utils.fuse_linear(spec.linear[1], split_layers[1:])
+            if low_rank:
+                utils.fuse_low_rank_linear(spec.linear[0], split_layers[:1])
+                utils.fuse_low_rank_linear(spec.linear[1], split_layers[1:])
+            else:
+                utils.fuse_linear(spec.linear[0], split_layers[:1])
+                utils.fuse_linear(spec.linear[1], split_layers[1:])
 
         self.set_linear(spec.linear[-1], attention.out_proj)
 
@@ -927,7 +947,7 @@ class WhisperLoader(BartLoader):
             low_rank=low_rank,
         )
 
-        self.set_encoder(spec.encoder, model.model.encoder)
+        self.set_encoder(spec.encoder, model.model.encoder, low_rank=low_rank)
         self.set_decoder(spec.decoder, model.model.decoder)
         self.set_linear(spec.decoder.projection, model.proj_out)
 
@@ -996,10 +1016,10 @@ class WhisperLoader(BartLoader):
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
 
-    def set_encoder(self, spec, encoder):
+    def set_encoder(self, spec, encoder, low_rank=False):
         self.set_conv1d(spec.conv1, encoder.conv1)
         self.set_conv1d(spec.conv2, encoder.conv2)
-        super().set_encoder(spec, encoder)
+        super().set_encoder(spec, encoder, low_rank=low_rank)
 
     def set_decoder(self, spec, decoder):
         self.set_embeddings(spec.embeddings, decoder.embed_tokens)
