@@ -47,7 +47,7 @@ def fuse_low_rank_linear(spec, layers):
 
         concatenate = torch.cat
         zeros = torch.zeros
-    raise ValueError(f"Layers!!: {[len(layer.weight1) for layer in layers]}")
+    print(f"Layers!!: {[len(layer.weight1) for layer in layers]}")
     spec.weight1 = concatenate([layer.weight1 for layer in layers])
     spec.weight2 = concatenate([layer.weight2 for layer in layers])
 
