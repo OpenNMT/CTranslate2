@@ -763,7 +763,7 @@ class TestWhisper:
         expected_no_speech_probs,
     ):
         import transformers
-
+        print('device type here idiot:', str(device))
         converter = ctranslate2.converters.TransformersConverter(model_name)
         output_dir = str(tmp_dir.join("ctranslate2_model"))
         output_dir = converter.convert(output_dir)
