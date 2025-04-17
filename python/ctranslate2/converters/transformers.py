@@ -391,7 +391,10 @@ class BartLoader(ModelLoader):
                 utils.fuse_linear(spec.linear[0], split_layers[:1])
                 utils.fuse_linear(spec.linear[1], split_layers[1:])
 
-        self.set_linear(spec.linear[-1], attention.out_proj)
+        if low_rank:
+            self.set_low_rank_linear(spec.linear[-1], attention.out_proj)
+        else:
+            self.set_linear(spec.linear[-1], attention.out_proj)
 
     def set_common_layers(self, spec, module):
         import math
