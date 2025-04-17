@@ -50,7 +50,7 @@ def fuse_low_rank_linear(spec, layers):
     print(f"fuse_low_rank_linear 1: {[layer.weight1.shape for layer in layers]}")
     print(f"fuse_low_rank_linear 2: {[layer.weight2.shape for layer in layers]}")
     spec.weight1 = concatenate([layer.weight1 for layer in layers], axis=1)
-    spec.weight2 = concatenate([layer.weight2 for layer in layers], axis=1)
+    spec.weight2 = concatenate([layer.weight2 for layer in layers])
 
     bias_dtype = None
     for layer in layers:
