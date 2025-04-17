@@ -47,9 +47,9 @@ def fuse_low_rank_linear(spec, layers):
 
         concatenate = torch.cat
         zeros = torch.zeros
-    print(f"Layers!!: {[layer.weight1.shape for layer in layers]}")
-    spec.weight1 = concatenate([layer.weight1 for layer in layers])
-    spec.weight2 = concatenate([layer.weight2 for layer in layers])
+
+    spec.weight1 = concatenate([layer.weight1 for layer in layers], axis=1)
+    spec.weight2 = concatenate([layer.weight2 for layer in layers], axis=1)
 
     bias_dtype = None
     for layer in layers:
