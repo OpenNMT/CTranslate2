@@ -327,12 +327,16 @@ class BartLoader(ModelLoader):
                 layer.self_attn_layer_norm,
             )
 
-            if low_rank:
+            if hasattr(layer.fc1, 'weight1'):
                 self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
-                self.set_low_rank_linear(layer_spec.ffn.linear_1, layer.fc2)
             else:
                 self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
+
+            if hasattr(layer.fc2, 'weight1'):
+                self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
+            else:
                 self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
+
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
     def set_decoder(self, spec, decoder):
