@@ -327,6 +327,9 @@ class BartLoader(ModelLoader):
                 layer.self_attn_layer_norm,
             )
 
+            print(f"layer_spec.ffn.linear_0 has weight1: {hasattr(layer_spec.ffn.linear_0, 'weight1')}")
+            print(f"layer.fc1 has weight1: {hasattr(layer.fc1, 'weight1')}")
+
             if hasattr(layer.fc1, 'weight1'):
                 self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
             else:
