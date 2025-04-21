@@ -373,8 +373,8 @@ class BartLoader(ModelLoader):
     def set_attention(self, spec, attention, self_attention=False, low_rank=False):
         split_layers = [
             common_spec.LowRankLinearSpec() if hasattr(attention.q_proj, 'weight1') else common_spec.LinearSpec(),
-            common_spec.LowRankLinearSpec() if hasattr(attention.k_proj, 'weight2') else common_spec.LinearSpec(),
-            common_spec.LowRankLinearSpec() if hasattr(attention.v_proj, 'weight3') else common_spec.LinearSpec(),
+            common_spec.LowRankLinearSpec() if hasattr(attention.k_proj, 'weight1') else common_spec.LinearSpec(),
+            common_spec.LowRankLinearSpec() if hasattr(attention.v_proj, 'weight1') else common_spec.LinearSpec(),
         ]
 
         if hasattr(split_layers[0], "weight1"):
