@@ -48,8 +48,9 @@ def fuse_low_rank_linear(spec, layers):
         concatenate = torch.cat
         zeros = torch.zeros
 
-    spec.weight1 = concatenate([layer.weight1 for layer in layers], axis=1)
-    spec.weight2 = concatenate([layer.weight2 for layer in layers])
+    # TODO(eyoel-gebre): maybe don't concat fallback linear to low_rank?
+    spec.weight1 = concatenate([layer.weight if not hasattr(layer, 'weight1') else layer.weight1 for layer in layers], axis=1)
+    spec.weight2 = concatenate([layer.weight if not hasattr(layer, 'weight2') else layer.weight2 for layer in layers])
 
     bias_dtype = None
     for layer in layers:
