@@ -328,14 +328,12 @@ class BartLoader(ModelLoader):
             )
 
             if hasattr(layer.fc1, 'weight1'):
-                layer_spec.ffn.linear_0 = common_spec.LowRankLinearSpec()
                 self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
             else:
                 layer_spec.ffn.linear_0 = common_spec.LinearSpec()
                 self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
 
             if hasattr(layer.fc2, 'weight1'):
-                layer_spec.ffn.linear_1 = common_spec.LowRankLinearSpec()
                 self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
             else:
                 layer_spec.ffn.linear_1 = common_spec.LinearSpec()
@@ -374,16 +372,24 @@ class BartLoader(ModelLoader):
 
     def set_attention(self, spec, attention, self_attention=False, low_rank=False):
         split_layers = [
-            (common_spec.LowRankLinearSpec() if low_rank else common_spec.LinearSpec())
-            for _ in range(3)
+            common_spec.LowRankLinearSpec() if hasattr(attention.q_proj, 'weight1') else common_spec.LinearSpec(),
+            common_spec.LowRankLinearSpec() if hasattr(attention.k_proj, 'weight2') else common_spec.LinearSpec(),
+            common_spec.LowRankLinearSpec() if hasattr(attention.v_proj, 'weight3') else common_spec.LinearSpec(),
         ]
-        if low_rank:
+
+        if hasattr(split_layers[0], "weight1"):
             self.set_low_rank_linear(split_layers[0], attention.q_proj)
-            self.set_low_rank_linear(split_layers[1], attention.k_proj)
-            self.set_low_rank_linear(split_layers[2], attention.v_proj)
         else:
             self.set_linear(split_layers[0], attention.q_proj)
+        
+        if hasattr(split_layers[1], "weight1"):
+            self.set_low_rank_linear(split_layers[1], attention.k_proj)
+        else:
             self.set_linear(split_layers[1], attention.k_proj)
+
+        if hasattr(split_layers[2], "weight1"):
+            self.set_low_rank_linear(split_layers[2], attention.v_proj)
+        else:
             self.set_linear(split_layers[2], attention.v_proj)
 
         if self_attention:
