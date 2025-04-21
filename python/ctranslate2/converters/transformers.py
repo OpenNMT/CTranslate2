@@ -229,6 +229,9 @@ class ModelLoader(abc.ABC):
         spec.beta = module.bias
 
     def set_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
+        print("set linear")
+        print(f"module: {module}")
+        print(f'spec: {spec}')
         if quant_type == common_spec.Quantization.CT2:
             spec.weight = module.weight
         else:
@@ -1053,9 +1056,6 @@ class LiteWhisperLoader(WhisperLoader):
         return "LiteWhisperForConditionalGeneration"
 
     def get_model_spec(self, model):
-        print(f"Model: {model}")
-        print(f"Model class: {model.__class__.__name__}")
-        print(f"Model config: {model.config}")
         return super().get_model_spec(model, low_rank=True)
 
 @register_loader("Wav2Vec2Config")
