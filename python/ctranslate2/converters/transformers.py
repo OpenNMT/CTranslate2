@@ -232,6 +232,9 @@ class ModelLoader(abc.ABC):
         print("set linear")
         print(f"module: {module}")
         print(f'spec: {spec}')
+        print(module.weight)
+        spec.weight = 5
+        print(spec.weight)
         if quant_type == common_spec.Quantization.CT2:
             spec.weight = module.weight
         else:
