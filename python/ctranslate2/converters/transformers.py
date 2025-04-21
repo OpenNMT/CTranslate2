@@ -229,12 +229,6 @@ class ModelLoader(abc.ABC):
         spec.beta = module.bias
 
     def set_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
-        print("set linear")
-        print(f"module: {module}")
-        print(f'spec: {spec}')
-        print(module.weight)
-        spec.weight = 5
-        print(spec.weight)
         if quant_type == common_spec.Quantization.CT2:
             spec.weight = module.weight
         else:
@@ -333,20 +327,18 @@ class BartLoader(ModelLoader):
                 layer.self_attn_layer_norm,
             )
 
-            print(f"layer_spec.ffn.linear_0 has weight1: {hasattr(layer_spec.ffn.linear_0, 'weight1')}")
-            print(f"layer.fc1 has weight1: {hasattr(layer.fc1, 'weight1')}")
-            print(f"layer_spec.ffn.linear_1 has weight1: {hasattr(layer_spec.ffn.linear_1, 'weight1')}")
-            print(f"layer.fc2 has weight1: {hasattr(layer.fc2, 'weight1')}")
-            print(f"layer.fc2 has weight: {hasattr(layer.fc2, 'weight')}")
-
             if hasattr(layer.fc1, 'weight1'):
+                layer_spec.ffn.linear_0 = common_spec.LowRankLinearSpec()
                 self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
             else:
+                layer_spec.ffn.linear_0 = common_spec.LinearSpec()
                 self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
 
             if hasattr(layer.fc2, 'weight1'):
+                layer_spec.ffn.linear_1 = common_spec.LowRankLinearSpec()
                 self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
             else:
+                layer_spec.ffn.linear_1 = common_spec.LinearSpec()
                 self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
 
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
