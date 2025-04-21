@@ -1052,6 +1052,9 @@ class LiteWhisperLoader(WhisperLoader):
         return "LiteWhisperForConditionalGeneration"
 
     def get_model_spec(self, model):
+        print(f"Model: {model}")
+        print(f"Model class: {model.__class__.__name__}")
+        print(f"Model config: {model.config}")
         return super().get_model_spec(model, low_rank=True)
 
 @register_loader("Wav2Vec2Config")
