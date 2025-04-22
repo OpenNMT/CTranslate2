@@ -763,10 +763,7 @@ class TestWhisper:
         expected_no_speech_probs,
     ):
         import transformers
-        import torch
-        import sys
-        device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        print(f'platform:  {sys.platform}')
+
         converter = ctranslate2.converters.TransformersConverter(model_name)
         output_dir = str(tmp_dir.join("ctranslate2_model"))
         output_dir = converter.convert(output_dir)
