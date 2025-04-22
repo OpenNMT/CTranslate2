@@ -398,12 +398,8 @@ class BartLoader(ModelLoader):
             else:
                 utils.fuse_linear(spec.linear[0], split_layers)
         else:
-            if low_rank:
-                utils.fuse_low_rank_linear(spec.linear[0], split_layers[:1])
-                utils.fuse_low_rank_linear(spec.linear[1], split_layers[1:])
-            else:
-                utils.fuse_linear(spec.linear[0], split_layers[:1])
-                utils.fuse_linear(spec.linear[1], split_layers[1:])
+            utils.fuse_linear(spec.linear[0], split_layers[:1])
+            utils.fuse_linear(spec.linear[1], split_layers[1:])
 
         if hasattr(attention.out_proj, "weight1"):
             self.set_low_rank_linear(spec.linear[-1], attention.out_proj)

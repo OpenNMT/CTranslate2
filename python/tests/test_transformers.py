@@ -837,43 +837,6 @@ class TestWhisper:
 
     @test_utils.only_on_linux
     @test_utils.on_available_devices
-    def test_transformers_lite_whisper(tmpdir, device):
-        import transformers
-
-        model_name = "efficient-speech/lite-whisper-tiny"
-        converter = ctranslate2.converters.TransformersConverter(model_name, trust_remote_code=True)
-        output_dir = converter.convert('./ctranslate2_model')
-
-        audio_path = os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
-        audio = np.load(audio_path)
-
-        processor = transformers.WhisperProcessor.from_pretrained(model_name)
-        inputs = processor(audio, return_tensors="np", sampling_rate=16000)
-        features = ctranslate2.StorageView.from_array(inputs.input_features)
-
-        model = ctranslate2.models.WhisperModel.from_path(output_dir, device=device)
-
-        results = model.detect_language(features)
-        best_lang, best_prob = results[0][0]
-        assert best_lang == "<|en|>"
-        assert best_prob > 0.9
-
-        prompt = processor.get_decoder_prompt_ids(language="en", task="transcribe")
-        prompt = [token for _, token in prompt]
-
-        results = model.generate(features, [prompt])
-
-        transcription = processor.decode(
-            results[0].sequences_ids[0], skip_special_tokens=True
-        )
-        assert transcription == (
-            " Mr. Quilter is the apostle of the middle classes "
-            "and we are glad to welcome his gospel."
-        )
-
-
-    @test_utils.only_on_linux
-    @test_utils.on_available_devices
     @pytest.mark.parametrize(
         "test_names", [["jfk"], ["jfk", "jfk"], ["mr_quilter", "jfk"]]
     )
