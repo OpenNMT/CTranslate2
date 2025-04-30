@@ -1081,7 +1081,10 @@ class LiteWhisperLoader(WhisperLoader):
         else:
             self.set_linear(spec.linear[2], attention.v_proj)
 
-        self.set_linear(spec.linear[-1], attention.out_proj)
+        if hasattr(attention.out_proj, "weight1"):
+            self.set_low_rank_linear(spec.linear[-1], attention.out_proj)
+        else
+            self.set_linear(spec.linear[-1], attention.out_proj)
 
 @register_loader("Wav2Vec2Config")
 class Wav2Vec2Loader(BartLoader):
