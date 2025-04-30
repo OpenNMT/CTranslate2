@@ -243,11 +243,11 @@ class ModelLoader(abc.ABC):
     
     def set_low_rank_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
         if quant_type == common_spec.Quantization.CT2:
-            spec.weight1 = module.weight1
-            spec.weight2 = module.weight2
+            spec.low_rank_weight1 = module.weight1
+            spec.low_rank_weight2 = module.weight2
         else:
-            spec.weight1 = module.qweight1
-            spec.weight2 = module.qweight2
+            spec.low_rank_weight1 = module.qweight1
+            spec.low_rank_weight2 = module.qweight2
             spec.weight_scale = module.scales
             spec.weight_zero = module.qzeros
 
@@ -312,7 +312,7 @@ class BartLoader(ModelLoader):
             model.config.decoder_start_token_id
         )
 
-    def set_encoder(self, spec, encoder, low_rank=False):
+    def set_encoder(self, spec, encoder):
         self.set_common_layers(spec, encoder)
 
         for layer_spec, layer in zip(spec.layer, encoder.layers):
@@ -320,25 +320,14 @@ class BartLoader(ModelLoader):
                 layer_spec.self_attention,
                 layer.self_attn,
                 self_attention=True,
-                low_rank=low_rank,
             )
             self.set_layer_norm(
                 layer_spec.self_attention.layer_norm,
                 layer.self_attn_layer_norm,
             )
 
-            if hasattr(layer.fc1, 'weight1'):
-                self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
-            else:
-                layer_spec.ffn.linear_0 = common_spec.LinearSpec()
-                self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
-
-            if hasattr(layer.fc2, 'weight1'):
-                self.set_low_rank_linear(layer_spec.ffn.linear_1, layer.fc2)
-            else:
-                layer_spec.ffn.linear_1 = common_spec.LinearSpec()
-                self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
-
+            self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
+            self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
     def set_decoder(self, spec, decoder):
@@ -370,42 +359,19 @@ class BartLoader(ModelLoader):
             self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
-    def set_attention(self, spec, attention, self_attention=False, low_rank=False):
-        split_layers = [
-            common_spec.LowRankLinearSpec() if hasattr(attention.q_proj, 'weight1') else common_spec.LinearSpec(),
-            common_spec.LowRankLinearSpec() if hasattr(attention.k_proj, 'weight1') else common_spec.LinearSpec(),
-            common_spec.LowRankLinearSpec() if hasattr(attention.v_proj, 'weight1') else common_spec.LinearSpec(),
-        ]
-
-        if hasattr(split_layers[0], "weight1"):
-            self.set_low_rank_linear(split_layers[0], attention.q_proj)
-        else:
-            self.set_linear(split_layers[0], attention.q_proj)
-        
-        if hasattr(split_layers[1], "weight1"):
-            self.set_low_rank_linear(split_layers[1], attention.k_proj)
-        else:
-            self.set_linear(split_layers[1], attention.k_proj)
-
-        if hasattr(split_layers[2], "weight1"):
-            self.set_low_rank_linear(split_layers[2], attention.v_proj)
-        else:
-            self.set_linear(split_layers[2], attention.v_proj)
+    def set_attention(self, spec, attention, self_attention=False):
+        split_layers = [common_spec.LinearSpec() for _ in range(3)]
+        self.set_linear(split_layers[0], attention.q_proj)
+        self.set_linear(split_layers[1], attention.k_proj)
+        self.set_linear(split_layers[2], attention.v_proj)
 
         if self_attention:
-            if low_rank:
-                utils.fuse_low_rank_linear(spec.linear[0], split_layers)
-            else:
-                utils.fuse_linear(spec.linear[0], split_layers)
+            utils.fuse_linear(spec.linear[0], split_layers)
         else:
             utils.fuse_linear(spec.linear[0], split_layers[:1])
             utils.fuse_linear(spec.linear[1], split_layers[1:])
 
-        if hasattr(attention.out_proj, "weight1"):
-            self.set_low_rank_linear(spec.linear[-1], attention.out_proj)
-        else:
-            spec.linear[-1] = common_spec.LinearSpec()
-            self.set_linear(spec.linear[-1], attention.out_proj)
+        self.set_linear(spec.linear[-1], attention.out_proj)
 
     def set_common_layers(self, spec, module):
         import math
@@ -952,16 +918,15 @@ class WhisperLoader(BartLoader):
     def architecture_name(self):
         return "WhisperForConditionalGeneration"
 
-    def get_model_spec(self, model, low_rank=False):
+    def get_model_spec(self, model):
         spec = whisper_spec.WhisperSpec(
             model.config.encoder_layers,
             model.config.encoder_attention_heads,
             model.config.decoder_layers,
             model.config.decoder_attention_heads,
-            low_rank=low_rank,
         )
 
-        self.set_encoder(spec.encoder, model.model.encoder, low_rank=low_rank)
+        self.set_encoder(spec.encoder, model.model.encoder)
         self.set_decoder(spec.decoder, model.model.decoder)
         self.set_linear(spec.decoder.projection, model.proj_out)
 
@@ -1030,10 +995,10 @@ class WhisperLoader(BartLoader):
     def set_vocabulary(self, spec, tokens):
         spec.register_vocabulary(tokens)
 
-    def set_encoder(self, spec, encoder, low_rank=False):
+    def set_encoder(self, spec, encoder):
         self.set_conv1d(spec.conv1, encoder.conv1)
         self.set_conv1d(spec.conv2, encoder.conv2)
-        super().set_encoder(spec, encoder, low_rank=low_rank)
+        super().set_encoder(spec, encoder)
 
     def set_decoder(self, spec, decoder):
         self.set_embeddings(spec.embeddings, decoder.embed_tokens)
@@ -1054,7 +1019,70 @@ class LiteWhisperLoader(WhisperLoader):
         return "LiteWhisperForConditionalGeneration"
 
     def get_model_spec(self, model):
-        return super().get_model_spec(model, low_rank=True)
+        spec = whisper_spec.WhisperSpec(
+            model.config.encoder_layers,
+            model.config.encoder_attention_heads,
+            model.config.decoder_layers,
+            model.config.decoder_attention_heads,
+            low_rank=True,
+        )
+
+        self.set_encoder(spec.encoder, model.model.encoder)
+        self.set_decoder(spec.decoder, model.model.decoder)
+        self.set_linear(spec.decoder.projection, model.proj_out)
+
+        return spec
+
+    def set_encoder(self, spec, encoder):
+        self.set_conv1d(spec.conv1, encoder.conv1)
+        self.set_conv1d(spec.conv2, encoder.conv2)
+
+        self.set_common_layers(spec, encoder)
+
+        for layer_spec, layer in zip(spec.layer, encoder.layers):
+            self.set_low_rank_attention(
+                layer_spec.self_attention,
+                layer.self_attn,
+                self_attention=True,
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm,
+                layer.self_attn_layer_norm,
+            )
+
+            # Double check if these are low rank or not because of potential
+            # fall backs to full precision.
+            if hasattr(layer.fc1, 'weight1'):
+                self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
+            else:
+                layer_spec.ffn.linear_0 = common_spec.LinearSpec()
+                self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
+
+            if hasattr(layer.fc2, 'weight1'):
+                self.set_low_rank_linear(layer_spec.ffn.linear_1, layer.fc2)
+            else:
+                layer_spec.ffn.linear_1 = common_spec.LinearSpec()
+                self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
+
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
+
+    def set_low_rank_attention(self, spec, attention):
+        if hasattr(attention.q_proj, "weight1"):
+            self.set_low_rank_linear(spec.linear[0], attention.q_proj)
+        else:
+            self.set_linear(spec.linear[0], attention.q_proj)
+        
+        if hasattr(attention.k_proj, "weight1"):
+            self.set_low_rank_linear(spec.linear[1], attention.k_proj)
+        else:
+            self.set_linear(spec.linear[1], attention.k_proj)
+
+        if hasattr(attention.v_pro, "weight1"):
+            self.set_low_rank_linear(spec.linear[2], attention.v_proj)
+        else:
+            self.set_linear(spec.linear[2], attention.v_proj)
+
+        self.set_linear(spec.linear[-1], attention.out_proj)
 
 @register_loader("Wav2Vec2Config")
 class Wav2Vec2Loader(BartLoader):

@@ -37,9 +37,12 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         self.queries_scale = model_spec.OPTIONAL
 
         self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
-        self.linear = [
-            common_spec.LinearSpec() if not low_rank else common_spec.LowRankLinearSpec() for _ in range(2 if self_attention else 3)
-        ]
+        if low_rank:
+            self.linear = [common_spec.LowRankLinearSpec() for _ in range(4)]
+        else:
+            self.linear = [
+                common_spec.LinearSpec() for _ in range(2 if self_attention else 3)
+            ]
 
         if relative_position:
             self.relative_position_keys = None

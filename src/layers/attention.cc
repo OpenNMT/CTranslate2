@@ -334,6 +334,7 @@ namespace ctranslate2 {
       return _d_model;
     }
 
+    // TODO: Maybe need to also impl in flash attn.
     void MultiHeadAttention::operator()(const StorageView& queries,
                                         const StorageView& values,
                                         const StorageView* values_lengths,
@@ -360,13 +361,22 @@ namespace ctranslate2 {
         q = &queries_proj;
       }
 
-      _linear[0](*q, fused_proj);
+      if (!_is_low_rank) {
+        _linear[0](*q, fused_proj);
+      } else {
+        // Low-rank attention does not fuse qkv.
+        _linear[0](*q, queries_proj);
+        _linear[1](*q, keys_proj);
+        _linear[2](*q, values_proj);
+      }
 
       dim_t beam_size = 1;
 
       bool prefilling = (_sliding_window > 0 && values_lengths);
 
       if (!_self_attention) {
+        if (_is_low_rank)
+          throw std::invalid_argument("MultiHeadAttention does not support low-rank attention with cross-attention");
         queries_proj = std::move(fused_proj);
 
         if (cached_keys == nullptr || cached_keys->empty()) {
@@ -401,6 +411,8 @@ namespace ctranslate2 {
       } else {
 
         if (_num_heads_kv < _num_heads) {
+          if (_is_low_rank)
+            throw std::invalid_argument("MutliHeadAttention does not support low-rank attention with multi-query or GQA");
           if (queries_padder)
             queries_padder->add_padding(fused_proj);
 
@@ -419,8 +431,15 @@ namespace ctranslate2 {
           }
 
         } else {
-          split_heads(fused_proj, 3 * _num_heads, queries_padder);
-          ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
+          if (!_is_low_rank) {
+            split_heads(fused_proj, 3 * _num_heads, queries_padder);
+            ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
+          } else {
+            // No GQA or multi-query attention means each head has the same size.
+            split_heads(queries_proj, _num_heads, queries_padder);
+            split_heads(keys_proj, _num_heads, queries_padder);
+            split_heads(values_proj, _num_heads, queries_padder);
+          }
         }
 
         if (_rotary_embeddings) {

@@ -35,41 +35,6 @@ def fuse_linear(spec, layers):
         )
 
 
-def fuse_low_rank_linear(spec, layers):
-    if not layers:
-        raise ValueError("Cannot fuse low rank linear layers: at least one layer is required")
-
-    if isinstance(layers[0].weight1, np.ndarray):
-        concatenate = np.concatenate
-        zeros = np.zeros
-    else:
-        import torch
-
-        concatenate = torch.cat
-        zeros = torch.zeros
-
-    # TODO(eyoel-gebre): maybe don't concat fallback linear to low_rank?
-    spec.weight1 = concatenate([layer.weight if not hasattr(layer, 'weight1') else layer.weight1 for layer in layers], axis=1)
-    spec.weight2 = concatenate([layer.weight if not hasattr(layer, 'weight2') else layer.weight2 for layer in layers])
-
-    bias_dtype = None
-    for layer in layers:
-        if layer.has_bias():
-            bias_dtype = layer.bias.dtype
-            break
-
-    if bias_dtype is not None:
-        spec.bias = concatenate(
-            [
-                (
-                    layer.bias
-                    if layer.has_bias()
-                    else zeros([layer.weight1.shape[0]], dtype=bias_dtype)
-                )
-                for layer in layers
-            ]
-        )
-
 def fuse_linear_prequant(spec, layers, axis):
     if not layers:
         raise ValueError("Cannot fuse linear layers: at least one layer is required")

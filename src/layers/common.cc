@@ -250,6 +250,13 @@ namespace ctranslate2 {
       return _encoding.dim(1);
     }
 
+    static bool set_low_rank(const models::Model& model, const std::string& scope) {
+      const StorageView* low_rank_weight = model.get_variable_if_exists(scope + "/low_rank_weight_1");
+      if (low_rank_weight) {
+        return true;
+      }
+      return false;
+    }
 
     static const StorageView& get_linear_weight(const models::Model& model,
                                                 const std::string& scope,
@@ -268,7 +275,9 @@ namespace ctranslate2 {
                  const ops::ActivationType* activation_type,
                  const bool is_layer_out)
       : _packed_weight(false)
-      , _weight(get_linear_weight(model, scope, &_packed_weight))
+      , _is_low_rank(set_low_rank(model, scope))
+      , _weight(_is_low_rank ? *model.get_variable_if_exists(scope + "/low_rank_weight1") : get_linear_weight(model, scope, &_packed_weight))
+      , _weight2(_is_low_rank ? model.get_variable_if_exists(scope + "/low_rank_weight2") : nullptr)
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
       , _qzero(model.get_variable_if_exists(scope + "/weight_zero"))
@@ -307,6 +316,10 @@ namespace ctranslate2 {
     }
 
     dim_t Dense::output_size() const {
+      if (_is_low_rank) {
+        // TODO: Double check this
+        return _weight2->dim(0);
+      }
       return _partial_weight ? _partial_weight.dim(0) : _weight.dim(0);
     }
 
@@ -340,6 +353,7 @@ namespace ctranslate2 {
       PROFILE("Dense");
       const StorageView* qscale = _partial_qscale.empty() ? _qscale : &_partial_qscale;
       const StorageView* weight = _partial_weight.empty() ? &_weight : &_partial_weight;
+      const StorageView* weight2 = _is_low_rank ? _weight2 : nullptr;
       const StorageView* bias = _partial_bias.empty() ? _bias : &_partial_bias;
       const StorageView* compensation = (_partial_u8_shift_compensation.empty()
                                          ? _u8_shift_compensation
@@ -349,6 +363,8 @@ namespace ctranslate2 {
       if (affected_by_tp && ScopedMPISetter::getCurRank() != 0)
         bias = nullptr;
       if (_quantized_gemm) {
+        if (_is_low_rank)
+          throw std::runtime_error("Low rank dense layer not supported with quantized gemm");
         const auto device = input.device();
         StorageView qinput(_weight.dtype(), device);
         StorageView qinput_scale(_qscale->dtype(), device);
@@ -396,6 +412,8 @@ namespace ctranslate2 {
                        output,
                        bias);
       } else if (_qzero && _qscale) {
+        if (_is_low_rank)
+          throw std::runtime_error("Low rank dense layer not supported with quantized gemm");
         switch (_quant_method) {
           case models::QUANTIZATION_TYPE::AWQ_GEMM:
             if (input.dim(0) * input.dim(1) >= 1024) {
@@ -428,7 +446,9 @@ namespace ctranslate2 {
                                         "support only ct2 and awq quantization");
         }
       } else {
-        _gemm_op(input, *weight, output, nullptr, bias);
+        StorageView& intermediate_output = output;
+        _gemm_op(input, *weight, intermediate_output, nullptr);
+        _gemm_op(intermediate_output, *weight2, output, nullptr, bias);
       }
     }
 

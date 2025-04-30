@@ -10,3 +10,5 @@ python/dist/
 .cache
 docs/build/
 docs/python/
+
+.vscode
