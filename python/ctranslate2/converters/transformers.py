@@ -1043,7 +1043,6 @@ class LiteWhisperLoader(WhisperLoader):
             self.set_low_rank_attention(
                 layer_spec.self_attention,
                 layer.self_attn,
-                self_attention=True,
             )
             self.set_layer_norm(
                 layer_spec.self_attention.layer_norm,
