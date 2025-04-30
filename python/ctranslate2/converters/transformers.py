@@ -1065,7 +1065,7 @@ class LiteWhisperLoader(WhisperLoader):
 
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
-    def set_low_rank_or_linear_router(self, spec, i, module):
+    def set_low_rank_or_linear_router(self, spec, module, i):
         if hasattr(module, "weight1"):
             self.set_low_rank_linear(spec.linear[i], module)
         else:
