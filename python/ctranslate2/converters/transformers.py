@@ -1065,17 +1065,18 @@ class LiteWhisperLoader(WhisperLoader):
 
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
-    def set_low_rank_or_linear_router(self, spec, module):
+    def set_low_rank_or_linear_router(self, spec, i, module):
         if hasattr(module, "weight1"):
-            self.set_low_rank_linear(spec, module)
+            self.set_low_rank_linear(spec.linear[i], module)
         else:
-            self.set_linear(spec, module)
+            spec.linear[i] = common_spec.LinearSpec()
+            self.set_linear(spec.linear[i], module)
     
     def set_low_rank_attention(self, spec, attention):
-        self.set_low_rank_or_linear_router(spec.linear[0], attention.q_proj)
-        self.set_low_rank_or_linear_router(spec.linear[1], attention.k_proj)
-        self.set_low_rank_or_linear_router(spec.linear[2], attention.v_proj)
-        self.set_low_rank_or_linear_router(spec.linear[3], attention.out_proj)
+        self.set_low_rank_or_linear_router(spec, attention.q_proj, 0)
+        self.set_low_rank_or_linear_router(spec, attention.k_proj, 1)
+        self.set_low_rank_or_linear_router(spec, attention.v_proj, 2)
+        self.set_low_rank_or_linear_router(spec, attention.out_proj, 3)
 
 @register_loader("Wav2Vec2Config")
 class Wav2Vec2Loader(BartLoader):
