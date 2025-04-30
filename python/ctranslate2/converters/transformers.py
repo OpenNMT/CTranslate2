@@ -1076,7 +1076,7 @@ class LiteWhisperLoader(WhisperLoader):
         else:
             self.set_linear(spec.linear[1], attention.k_proj)
 
-        if hasattr(attention.v_pro, "weight1"):
+        if hasattr(attention.v_proj, "weight1"):
             self.set_low_rank_linear(spec.linear[2], attention.v_proj)
         else:
             self.set_linear(spec.linear[2], attention.v_proj)
