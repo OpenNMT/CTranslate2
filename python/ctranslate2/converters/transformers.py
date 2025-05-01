@@ -243,11 +243,11 @@ class ModelLoader(abc.ABC):
     
     def set_low_rank_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
         if quant_type == common_spec.Quantization.CT2:
-            spec.low_rank_weight1 = module.weight1
-            spec.low_rank_weight2 = module.weight2
+            spec.low_rank_weight_1 = module.weight1
+            spec.low_rank_weight_2 = module.weight2
         else:
-            spec.low_rank_weight1 = module.qweight1
-            spec.low_rank_weight2 = module.qweight2
+            spec.low_rank_weight_1 = module.qweight1
+            spec.low_rank_weight_2 = module.qweight2
             spec.weight_scale = module.scales
             spec.weight_zero = module.qzeros
 

@@ -54,8 +54,8 @@ class LinearSpec(model_spec.LayerSpec):
 class LowRankLinearSpec(model_spec.LayerSpec):
     def __init__(self):
         super().__init__()
-        self.low_rank_weight1 = None
-        self.low_rank_weight2 = None
+        self.low_rank_weight_1 = None
+        self.low_rank_weight_2 = None
         self.weight_scale = model_spec.OPTIONAL
         self.weight_zero = model_spec.OPTIONAL
         self.bias = model_spec.OPTIONAL
