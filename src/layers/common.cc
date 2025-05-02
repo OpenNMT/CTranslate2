@@ -296,7 +296,7 @@ namespace ctranslate2 {
       , _gemm_op(/*alpha=*/1,
                  /*beta=*/0,
                  /*trans_a=*/false,
-                 /*trans_b=*/true,
+                 /*trans_b=*/ _is_low_rank ? false : true,
                  /*a_is_packed=*/false,
                  _packed_weight,
                  _quantized_gemm ? nullptr : activation_type)

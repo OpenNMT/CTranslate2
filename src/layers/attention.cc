@@ -436,8 +436,8 @@ namespace ctranslate2 {
           } else {
             // No GQA or multi-query attention means each head has the same size.
             split_heads(queries_proj, _num_heads, queries_padder);
-            split_heads(keys_proj, _num_heads, queries_padder);
-            split_heads(values_proj, _num_heads, queries_padder);
+            split_heads(keys_proj, _num_heads_kv, queries_padder);
+            split_heads(values_proj, _num_heads_kv, queries_padder);
           }
         }
 
