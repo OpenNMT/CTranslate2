@@ -206,7 +206,8 @@ namespace ctranslate2 {
   static inline void sort_hypotheses(DecodingResult& result,
                                      size_t max_hypotheses,
                                      bool keep_scores,
-                                     bool keep_attention) {
+                                     bool keep_attention,
+                                     bool keep_logits_vocab) {
     std::vector<size_t> idx(result.hypotheses.size());
     std::iota(idx.begin(), idx.end(), 0);
     std::sort(idx.begin(), idx.end(),
@@ -226,6 +227,11 @@ namespace ctranslate2 {
       result.attention = index_vector(result.attention, idx);
     else
       result.attention.clear();
+
+    if (keep_logits_vocab)
+      result.logits_vocab = index_vector(result.logits_vocab, idx);
+    else
+      result.logits_vocab.clear();
   }
 
   static inline void finalize_result(DecodingResult& result,
@@ -233,7 +239,8 @@ namespace ctranslate2 {
                                      const float length_penalty,
                                      const float coverage_penalty,
                                      const bool keep_scores,
-                                     const bool keep_attention) {
+                                     const bool keep_attention,
+                                     const bool keep_logits_vocab) {
     for (size_t i = 0; i < result.scores.size(); ++i) {
       const auto* attention = result.attention.empty() ? nullptr : &result.attention[i];
       result.scores[i] = finalize_hypothesis_score(result.scores[i],
@@ -243,7 +250,7 @@ namespace ctranslate2 {
                                                    attention);
     }
 
-    sort_hypotheses(result, max_hypotheses, keep_scores, keep_attention);
+    sort_hypotheses(result, max_hypotheses, keep_scores, keep_attention, keep_logits_vocab);
   }
 
   BiasedDecoder::BiasedDecoder(const float prefix_bias_beta,
@@ -522,8 +529,12 @@ namespace ctranslate2 {
       bias_tokens.apply();
       
       std::vector<StorageView> logits_vec;
-      if (return_logits_vocab)
-        logits_vec = build_logits(logits, cur_batch_size);
+      if (return_logits_vocab) {
+        if (is_expanded)
+          logits_vec = build_logits(logits, cur_batch_size * _beam_size);
+        else
+          logits_vec = build_logits(logits, cur_batch_size);
+      }
 
       StorageView log_probs(dtype, device);
       if (bias_towards_prefix) {
@@ -605,11 +616,6 @@ namespace ctranslate2 {
         auto& result = results[batch_id];
         dim_t secondary_candidates_offset = _beam_size;
 
-        if (return_logits_vocab) {
-          results[batch_id].logits_vocab.resize(1);
-          results[batch_id].logits_vocab[0].emplace_back(std::move(logits_vec[i]));
-        }
-
         for (dim_t k = 0; k < _beam_size; ++k) {
           const size_t last_id = topk_ids.at<int32_t>({i, k});
           dim_t next_beam_id = k;
@@ -627,6 +633,9 @@ namespace ctranslate2 {
             result.hypotheses.emplace_back(build_hypothesis(alive_seq, i, k, start, end));
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
+            if (return_logits_vocab) {
+              result.logits_vocab.emplace_back(std::move(logits_vec[i * k]));
+            }
 
             // Move another active beam to this position.
             for (dim_t j = secondary_candidates_offset; j < num_candidates; ++j) {
@@ -656,7 +665,8 @@ namespace ctranslate2 {
                           _length_penalty,
                           _coverage_penalty,
                           return_scores,
-                          return_attention);
+                          return_attention,
+                          return_logits_vocab);
         } else {
           non_finished_index.emplace_back(i);
         }
@@ -801,7 +811,7 @@ namespace ctranslate2 {
       }
 
       for (auto& result : final_results)
-        sort_hypotheses(result, num_hypotheses, return_scores, return_attention);
+        sort_hypotheses(result, num_hypotheses, return_scores, return_attention, return_logits_vocab);
 
       return final_results;
     }
@@ -939,7 +949,8 @@ namespace ctranslate2 {
                           _length_penalty,
                           _coverage_penalty,
                           return_scores,
-                          return_attention);
+                          return_attention,
+                          return_logits_vocab);
         } else {
           non_finished_index.emplace_back(i);
           sample_from.at<int32_t>(i) = word_id;
