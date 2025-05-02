@@ -446,6 +446,9 @@ namespace ctranslate2 {
                                         "support only ct2 and awq quantization");
         }
       } else {
+        if (!_is_low_rank) {
+          _gemm_op(input, *weight, output, nullptr, bias);
+      } else {
         StorageView& intermediate_output = output;
         _gemm_op(input, *weight, intermediate_output, nullptr);
         _gemm_op(intermediate_output, *weight2, output, nullptr, bias);
