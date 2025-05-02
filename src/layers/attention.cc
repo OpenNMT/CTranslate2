@@ -334,7 +334,6 @@ namespace ctranslate2 {
       return _d_model;
     }
 
-    // TODO: Maybe need to also impl in flash attn.
     void MultiHeadAttention::operator()(const StorageView& queries,
                                         const StorageView& values,
                                         const StorageView* values_lengths,
