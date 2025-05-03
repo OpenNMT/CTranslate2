@@ -127,6 +127,8 @@ class TransformersConverter(Converter):
                     % (config_name, ", ".join(sorted(_MODEL_LOADERS.keys())))
                 )
 
+            tokenizer_class = transformers.AutoTokenizer
+            
             kwargs = {
                 "torch_dtype": (
                     torch.float16
@@ -152,7 +154,6 @@ class TransformersConverter(Converter):
             if self._trust_remote_code:
                 tokenizer_kwargs["trust_remote_code"] = self._trust_remote_code
 
-            tokenizer_class = transformers.AutoTokenizer
             tokenizer = self.load_tokenizer(
                 tokenizer_class, self._model_processor_name, **tokenizer_kwargs
             )
