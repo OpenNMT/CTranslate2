@@ -128,7 +128,7 @@ class TransformersConverter(Converter):
                 )
 
             tokenizer_class = transformers.AutoTokenizer
-            
+
             kwargs = {
                 "torch_dtype": (
                     torch.float16
