@@ -3,6 +3,7 @@ import argparse
 import gc
 import itertools
 import os
+import re
 
 from typing import List, Optional
 
@@ -96,7 +97,13 @@ class TransformersConverter(Converter):
           trust_remote_code: Allow converting models using custom code.
         """
         self._model_name_or_path = model_name_or_path
-        self._model_processor_name = (model_name_or_path if not model_name_or_path.startswith('efficient-speech/lite-whisper') else 'openai/whisper-large-v3')
+        self._model_processor_name = model_name_or_path
+        if model_name_or_path.startswith('efficient-speech/lite-whisper'):
+            # If this is a lite-whisper model, use openai's 
+            # corresponding preprocessor.
+            regex = r'whisper-[a-z0-9-]+?(?=-(?:fast|acc)|$)'
+            regex_result = re.search(regex, model_name_or_path)
+            self._model_processor_name = f"openai/{regex_result.group()}"
         self._activation_scales = activation_scales
         self._copy_files = copy_files
         self._load_as_float16 = load_as_float16
