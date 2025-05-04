@@ -147,8 +147,11 @@ class TransformersConverter(Converter):
             if hasattr(transformers, loader.architecture_name):
                 model_class = getattr(transformers, loader.architecture_name)
                 model = self.load_model(model_class, self._model_name_or_path, **kwargs)
-            else:
+            elif self._model_name_or_path.startswith('efficient-speech/lite-whisper'):
                 model = transformers.AutoModel.from_pretrained(self._model_name_or_path, **kwargs)
+            else:
+                raise ValueError(
+                    "The model %s is not supported by the converter. " % self._model_name_or_path)
 
             tokenizer_kwargs = {}
             if self._trust_remote_code:
