@@ -317,8 +317,10 @@ namespace ctranslate2 {
 
     dim_t Dense::output_size() const {
       if (_is_low_rank) {
-        // TODO: Double check this
-        return _weight2->dim(0);
+        if (_partial_weight)
+          throw std::runtime_error("Low rank dense layer does not support partial weights");
+        // weight is transposed when low_rank
+        return _weight2->dim(1);
       }
       return _partial_weight ? _partial_weight.dim(0) : _weight.dim(0);
     }
