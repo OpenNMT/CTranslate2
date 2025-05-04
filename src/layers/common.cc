@@ -353,6 +353,8 @@ namespace ctranslate2 {
 
     void Dense::operator()(const StorageView& input, StorageView& output) const {
       PROFILE("Dense");
+      if (_is_low_rank && !_partial_weight.empty())
+        throw std::runtime_error("Low rank dense layer does not support partial weights");
       const StorageView* qscale = _partial_qscale.empty() ? _qscale : &_partial_qscale;
       const StorageView* weight = _partial_weight.empty() ? &_weight : &_partial_weight;
       const StorageView* weight2 = _is_low_rank ? _weight2 : nullptr;
