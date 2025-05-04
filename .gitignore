@@ -1,5 +1,6 @@
 *.pyc
 /.vs
+.vscode
 /build
 
 CMake*.json
@@ -10,5 +11,3 @@ python/dist/
 .cache
 docs/build/
 docs/python/
-
-.vscode
