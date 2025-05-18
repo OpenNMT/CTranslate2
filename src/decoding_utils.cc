@@ -61,9 +61,8 @@ namespace ctranslate2 {
     const StorageView flat_indices({num_indices}, indices, device);
     const StorageView flat_values({num_indices}, values, device);
 
-    // Apply the disable values on GPU
     DEVICE_AND_TYPE_DISPATCH(device, dtype,
-                             primitives<Device::CUDA>::indexed_pointwise_multiply(_logits.data<T>(),
+                             primitives<D>::indexed_pointwise_multiply(_logits.data<T>(),
                                                                                   flat_values.data<T>(),
                                                                                   flat_indices.data<int32_t>(),
                                                                                   num_indices));
