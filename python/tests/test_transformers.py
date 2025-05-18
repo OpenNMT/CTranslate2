@@ -832,7 +832,6 @@ class TestWhisper:
             transcription = processor.decode(token_ids)
             assert transcription == expected_transcription
 
-
     @test_utils.only_on_linux
     @test_utils.on_available_devices
     @pytest.mark.parametrize(
@@ -884,7 +883,7 @@ class TestWhisper:
                     pytest.approx(0.0022832120303064585, abs=1e-4),
                     pytest.approx(0.06885894387960434, abs=1e-3),
                 ],
-            )
+            ),
         ],
     )
     def test_transformers_contextually_biased_whisper(
@@ -901,9 +900,11 @@ class TestWhisper:
         converter = ctranslate2.converters.TransformersConverter(model_name)
         output_dir = str(tmp_dir.join("ctranslate2_model"))
         output_dir = converter.convert(output_dir)
-        print(os.path.join(
-            os.path.dirname(os.path.realpath(__file__)), "..", "..", "tests", "data"
-        ))
+        print(
+            os.path.join(
+                os.path.dirname(os.path.realpath(__file__)), "..", "..", "tests", "data"
+            )
+        )
         audio_paths = [
             os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy"),
             os.path.join(test_utils.get_data_dir(), "audio", "jfk.npy"),
@@ -935,14 +936,18 @@ class TestWhisper:
             with pytest.raises(RuntimeError, match="multilingual"):
                 model.detect_language(features)
 
-        #bias the first two generated words into ("Mr. Quiltre")
+        # bias the first two generated words into ("Mr. Quiltre")
         results = model.generate(
             features,
             prompts,
             beam_size=2,
             num_hypotheses=2,
             return_no_speech_prob=True,
-            sequence_bias=[([2221, 13, 2326, 2352, 265], 1.3), ([2221, 13, 2326, 2352], 1.3), ([2221, 13, 2326], 1.3)],
+            sequence_bias=[
+                ([2221, 13, 2326, 2352, 265], 1.3),
+                ([2221, 13, 2326, 2352], 1.3),
+                ([2221, 13, 2326], 1.3),
+            ],
         )
 
         timestamp_begin = (
@@ -1163,7 +1168,6 @@ class TestWav2Vec2:
         transcription = transcription[0].replace(processor.tokenizer.unk_token, "")
 
         assert transcription == expected_transcription[0]
-
 
 
 class TestWav2Vec2Bert:
