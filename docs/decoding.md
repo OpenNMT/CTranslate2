@@ -115,7 +115,7 @@ Lowering the bias by setting `prefix_bias_beta=0.1` results in a divergence in t
 
 ## Shallow biasing for contextual ASR
 
-Setting `sequence_bias` with tuples of `(sequence, biasing_multiplier)` for Whisper models to boost or diminute the hypotheses hitting words in the biasing list during beam search. See [Ssection 3.3](https://aclanthology.org/2024.lrec-main.328.pdf) for the general concept. See [HuggingFace implementation](https://huggingface.co/docs/transformers/en/internal/generation_utils#transformers.SequenceBiasLogitsProcessor) of an additive version.
+Setting `sequence_bias` with tuples of `(sequence, biasing_multiplier)` for Whisper models to boost or diminute the hypotheses hitting words in the biasing list during beam search. See [section 3.3](https://aclanthology.org/2024.lrec-main.328.pdf) for the general concept. See [HuggingFace implementation](https://huggingface.co/docs/transformers/en/internal/generation_utils#transformers.SequenceBiasLogitsProcessor) of an additive version.
 
 ## Alternatives at a position
 

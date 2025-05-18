@@ -295,7 +295,7 @@ namespace ctranslate2 {
                    suppress_blank: Suppress blank outputs at the beginning of the sampling.
                    suppress_tokens: List of token IDs to suppress. -1 will suppress a default set
                      of symbols as defined in the model ``config.json`` file.
-                   sequence_bias: List of pairs of sequences and a biasing factor to boost or surpass
+                   sequence_bias: List of pairs of sequences and a biasing factor to boost or suppress
                      certain sequences.
                    sampling_topk: Randomly sample predictions from the top K candidates.
                    sampling_temperature: Sampling temperature to generate more random samples.

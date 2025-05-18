@@ -936,7 +936,7 @@ class TestWhisper:
             with pytest.raises(RuntimeError, match="multilingual"):
                 model.detect_language(features)
 
-        # bias the first two generated words into ("Mr. Quiltre")
+        # Bias the first two generated words into "Mr. Quiltre"
         results = model.generate(
             features,
             prompts,

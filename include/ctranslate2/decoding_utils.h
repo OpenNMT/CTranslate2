@@ -70,7 +70,7 @@ namespace ctranslate2 {
     std::vector<int32_t> _flat_indices;
   };
 
-  // Helper class to disable tokens in the model output.
+  // Helper class to bias tokens in the model output.
   class BiasTokens {
   public:
     BiasTokens(StorageView& logits);
@@ -79,10 +79,10 @@ namespace ctranslate2 {
         const auto flat_index = batch_id * _vocabulary_size + token_id;
 
         if (_logits_data) {
-            // On CPU, directly assign the value
+            // On CPU w directly assign the biased value.
             _logits_data[flat_index] = _logits_data[flat_index] * bias_value;
         } else {
-            // On GPU, prepare a list of unique indices and values to disable
+            // On GPU we prepare a list of unique indices and values to bias.
             const auto it = std::lower_bound(_flat_indices.begin(), _flat_indices.end(), flat_index,
                 [](const auto& a, const auto& b) { return a.first < b; });
             
@@ -94,7 +94,7 @@ namespace ctranslate2 {
         }
     }
 
-    // Disable a token for all batches.
+    // Bias a token for all batches.
     void add(dim_t token_id, float bias_value) {
       for (dim_t batch_id = 0; batch_id < _batch_size; ++batch_id)
         add(batch_id, token_id, bias_value);
@@ -192,7 +192,7 @@ namespace ctranslate2 {
     std::vector<std::vector<size_t>> _sequences;
   };
 
-  // Disable the generation of some sequences of tokens.
+  // Bias towards the generation of some sequences of tokens.
   class BiasSequences : public LogitsProcessor {
   public:
     BiasSequences(std::vector<std::pair<std::vector<size_t>, float>> sequences);
