@@ -164,7 +164,8 @@ namespace ctranslate2 {
     }
 
     Wav2Vec2BertEncoder::Wav2Vec2BertEncoder(const models::Model& model, const std::string& scope)
-      : _fp_layer_norm(model, scope + "/fp_layer_norm")
+      : _return_logits(model.get_variable_if_exists(scope + "/lm_head/weight"))
+      , _fp_layer_norm(model, scope + "/fp_layer_norm")
       , _fp_projection(model, scope + "/fp_projection", nullptr, true)
       , _encoder_layers(build_layers_list<const EncoderLayer>(model,
                                                               scope + "/encoder_layers",
@@ -175,8 +176,10 @@ namespace ctranslate2 {
                                                             scope + "/adapter_layers",
                                                             /*pre_norm=*/true,
                                                             ops::ActivationType::ReLU,
-                                                            /*use_flash_attention=*/false))
-      , _lm_head(model, scope + "/lm_head", nullptr, true) {
+                                                            /*use_flash_attention=*/false)) {
+      if (_return_logits) {
+        _lm_head.emplace(model, scope + "/lm_head", nullptr, true);
+      }
     }
 
     void Wav2Vec2BertEncoder::operator()(const StorageView& features, StorageView& output) {
@@ -203,7 +206,12 @@ namespace ctranslate2 {
         buffer2 = std::move(buffer1);
       }
 
-      _lm_head(buffer2, output);
+      if (_return_logits) {
+        (*_lm_head)(buffer2, output);
+      }
+      else {
+        output = std::move(buffer2);
+      }
     }
 
   }

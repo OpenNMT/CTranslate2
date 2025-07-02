@@ -43,6 +43,7 @@ _SUPPORTED_ROPE_SCALING = {
     "linear": attention_spec.RotaryScalingType.Linear,
     "su": attention_spec.RotaryScalingType.Su,
     "llama3": attention_spec.RotaryScalingType.Llama3,
+    "longrope": attention_spec.RotaryScalingType.Su,
 }
 
 _SUPPORTED_QUANTIZATION = {
@@ -1003,10 +1004,13 @@ class Wav2Vec2Loader(BartLoader):
         return "Wav2Vec2ForCTC"
 
     def get_model_spec(self, model):
+        return_hidden = getattr(model.wav2vec2.config, "return_hidden", False)
         spec = wav2vec2_spec.Wav2Vec2Spec(
             model.wav2vec2.config.num_feat_extract_layers,
             model.wav2vec2.encoder.config.num_hidden_layers,
             model.wav2vec2.encoder.config.num_attention_heads,
+            model.lm_head.weight.shape[0],
+            return_hidden,
         )
 
         # layer component name matching (no duplications saving)
@@ -1064,7 +1068,9 @@ class Wav2Vec2Loader(BartLoader):
         self.set_feature_projection(spec, model.wav2vec2.feature_projection)
         self.set_pos_conv_embed(spec, model.wav2vec2.encoder, config)
         super().set_encoder(spec, model.wav2vec2.encoder)
-        self.set_linear(spec.lm_head, model.lm_head)
+        return_hidden = getattr(model.wav2vec2.config, "return_hidden", False)
+        if not return_hidden:
+            self.set_linear(spec.lm_head, model.lm_head)
 
     def set_common_layers(self, spec, module):
         self.set_layer_norm(spec.layer_norm, module.layer_norm)
@@ -1077,9 +1083,12 @@ class Wav2Vec2BertLoader(BartLoader):
         return "Wav2Vec2BertForCTC"
 
     def get_model_spec(self, model):
+        return_hidden = getattr(model.wav2vec2_bert.config, "return_hidden", False)
         spec = wav2vec2bert_spec.Wav2Vec2BertSpec(
             model.wav2vec2_bert.config.num_adapter_layers,
             model.wav2vec2_bert.config.num_hidden_layers,
+            model.lm_head.weight.shape[0],
+            return_hidden,
         )
         self.set_encoder(spec.encoder, model)
         return spec
@@ -1169,7 +1178,9 @@ class Wav2Vec2BertLoader(BartLoader):
         self.set_wav2vec2bert_adapter(
             spec.adapter_layers, model.wav2vec2_bert.adapter.layers
         )
-        self.set_linear(spec.lm_head, model.lm_head)
+        return_hidden = getattr(model.wav2vec2_bert.config, "return_hidden", False)
+        if not return_hidden:
+            self.set_linear(spec.lm_head, model.lm_head)
 
     def set_conv1d(self, spec, module):
         spec.weight = module.weight
@@ -1955,6 +1966,114 @@ class MistralLoader(ModelLoader):
             gc.collect()
 
 
+@register_loader("Qwen2Config")
+class Qwen2Loader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "Qwen2ForCausalLM"
+
+    def get_model_spec(self, model):
+        num_layers = model.config.num_hidden_layers
+
+        num_heads = model.config.num_attention_heads
+        num_heads_kv = getattr(model.config, "num_key_value_heads", num_heads)
+        if num_heads_kv == num_heads:
+            num_heads_kv = None
+
+        rope_scaling = getattr(model.config, "rope_scaling", None)
+        if rope_scaling:
+            rope_type = rope_scaling.get("type") or rope_scaling["rope_type"]
+            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
+            rotary_scaling_factor = rope_scaling["factor"]
+
+            if rotary_scaling_type is None:
+                raise NotImplementedError(
+                    "RoPE scaling type '%s' is not yet implemented. "
+                    "The following RoPE scaling types are currently supported: %s"
+                    % (rope_scaling["type"], ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
+                )
+        else:
+            rotary_scaling_type = None
+            rotary_scaling_factor = 1
+
+        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
+            num_layers,
+            num_heads,
+            activation=common_spec.Activation.SWISH,
+            pre_norm=True,
+            ffn_glu=True,
+            rms_norm=True,
+            rotary_dim=0,
+            rotary_interleave=False,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=getattr(model.config, "rope_theta", 10000),
+            num_heads_kv=num_heads_kv,
+        )
+
+        self.set_decoder(spec.decoder, model.model)
+        self.set_linear(spec.decoder.projection, model.lm_head)
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = (
+            tokenizer.bos_token
+            if tokenizer.bos_token is not None
+            else tokenizer.pad_token
+        )
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = (
+            tokenizer.unk_token if tokenizer.unk_token is not None else ""
+        )
+        config.layer_norm_epsilon = model.config.rms_norm_eps
+
+    def set_layer_norm(self, spec, layer_norm):
+        spec.gamma = layer_norm.weight
+
+    def set_decoder(self, spec, module):
+        spec.scale_embeddings = False
+        self.set_embeddings(spec.embeddings, module.embed_tokens)
+        self.set_layer_norm(spec.layer_norm, module.norm)
+
+        for layer_spec, layer in zip(spec.layer, module.layers):
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm, layer.input_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.ffn.layer_norm, layer.post_attention_layernorm
+            )
+
+            split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(split_layers[0], layer.self_attn.q_proj)
+            self.set_linear(split_layers[1], layer.self_attn.k_proj)
+            self.set_linear(split_layers[2], layer.self_attn.v_proj)
+
+            utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+            )
+
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj)
+            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
+
+            delattr(layer, "self_attn")
+            delattr(layer, "mlp")
+            gc.collect()
+
+
 @register_loader("MixFormerSequentialConfig")
 class MixFormerSequentialLoader(ModelLoader):
     @property
@@ -2515,6 +2634,170 @@ class XLMRobertaLoader(ModelLoader):
             self.set_linear(spec.pooler_dense, model.roberta.pooler.dense)
 
         for layer_spec, layer in zip(spec.encoder.layer, model.roberta.encoder.layer):
+            split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(split_layers[0], layer.attention.self.query)
+            self.set_linear(split_layers[1], layer.attention.self.key)
+            self.set_linear(split_layers[2], layer.attention.self.value)
+            utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+
+            self.set_linear(
+                layer_spec.self_attention.linear[1], layer.attention.output.dense
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm, layer.attention.output.LayerNorm
+            )
+
+            self.set_linear(layer_spec.ffn.linear_0, layer.intermediate.dense)
+            self.set_linear(layer_spec.ffn.linear_1, layer.output.dense)
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.output.LayerNorm)
+
+        return spec
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.unk_token = tokenizer.unk_token
+        config.layer_norm_epsilon = model.config.layer_norm_eps
+
+    def set_position_encodings(self, spec, module):
+        spec.encodings = module.weight
+        offset = getattr(module, "padding_idx", 0)
+        if offset > 0:
+            spec.encodings = spec.encodings[offset + 1 :]
+
+
+@register_loader("RobertaConfig")
+class RobertaLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "RobertaModel"
+
+    def get_model_spec(self, model):
+        assert model.config.position_embedding_type == "absolute"
+
+        encoder_spec = transformer_spec.TransformerEncoderSpec(
+            model.config.num_hidden_layers,
+            model.config.num_attention_heads,
+            pre_norm=False,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.hidden_act],
+            layernorm_embedding=True,
+            num_source_embeddings=2,
+            embeddings_merge=common_spec.EmbeddingsMerge.ADD,
+        )
+
+        if model.pooler is None:
+            pooling_layer = False
+        else:
+            pooling_layer = True
+
+        spec = transformer_spec.TransformerEncoderModelSpec(
+            encoder_spec,
+            pooling_layer=pooling_layer,
+            pooling_activation=common_spec.Activation.Tanh,
+        )
+
+        spec.encoder.scale_embeddings = False
+
+        self.set_embeddings(
+            spec.encoder.embeddings[0], model.embeddings.word_embeddings
+        )
+        self.set_embeddings(
+            spec.encoder.embeddings[1], model.embeddings.token_type_embeddings
+        )
+        self.set_position_encodings(
+            spec.encoder.position_encodings,
+            model.embeddings.position_embeddings,
+        )
+        self.set_layer_norm(
+            spec.encoder.layernorm_embedding, model.embeddings.LayerNorm
+        )
+        if pooling_layer:
+            self.set_linear(spec.pooler_dense, model.pooler.dense)
+
+        for layer_spec, layer in zip(spec.encoder.layer, model.encoder.layer):
+            split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(split_layers[0], layer.attention.self.query)
+            self.set_linear(split_layers[1], layer.attention.self.key)
+            self.set_linear(split_layers[2], layer.attention.self.value)
+            utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+
+            self.set_linear(
+                layer_spec.self_attention.linear[1], layer.attention.output.dense
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm, layer.attention.output.LayerNorm
+            )
+
+            self.set_linear(layer_spec.ffn.linear_0, layer.intermediate.dense)
+            self.set_linear(layer_spec.ffn.linear_1, layer.output.dense)
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.output.LayerNorm)
+
+        return spec
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.unk_token = tokenizer.unk_token
+        config.layer_norm_epsilon = model.config.layer_norm_eps
+
+    def set_position_encodings(self, spec, module):
+        spec.encodings = module.weight
+        offset = getattr(module, "padding_idx", 0)
+        if offset > 0:
+            spec.encodings = spec.encodings[offset + 1 :]
+
+
+@register_loader("CamembertConfig")
+class CamembertLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "CamembertModel"
+
+    def get_model_spec(self, model):
+        assert model.config.position_embedding_type == "absolute"
+
+        encoder_spec = transformer_spec.TransformerEncoderSpec(
+            model.config.num_hidden_layers,
+            model.config.num_attention_heads,
+            pre_norm=False,
+            activation=_SUPPORTED_ACTIVATIONS[model.config.hidden_act],
+            layernorm_embedding=True,
+            num_source_embeddings=2,
+            embeddings_merge=common_spec.EmbeddingsMerge.ADD,
+        )
+
+        if model.pooler is None:
+            pooling_layer = False
+        else:
+            pooling_layer = True
+
+        spec = transformer_spec.TransformerEncoderModelSpec(
+            encoder_spec,
+            pooling_layer=pooling_layer,
+            pooling_activation=common_spec.Activation.Tanh,
+        )
+
+        spec.encoder.scale_embeddings = False
+
+        self.set_embeddings(
+            spec.encoder.embeddings[0], model.embeddings.word_embeddings
+        )
+        self.set_embeddings(
+            spec.encoder.embeddings[1], model.embeddings.token_type_embeddings
+        )
+        self.set_position_encodings(
+            spec.encoder.position_encodings,
+            model.embeddings.position_embeddings,
+        )
+        self.set_layer_norm(
+            spec.encoder.layernorm_embedding, model.embeddings.LayerNorm
+        )
+        if pooling_layer:
+            self.set_linear(spec.pooler_dense, model.pooler.dense)
+
+        for layer_spec, layer in zip(spec.encoder.layer, model.encoder.layer):
             split_layers = [common_spec.LinearSpec() for _ in range(3)]
             self.set_linear(split_layers[0], layer.attention.self.query)
             self.set_linear(split_layers[1], layer.attention.self.key)
