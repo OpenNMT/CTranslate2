@@ -22,6 +22,8 @@ option(BUILD_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
+option(GOOGLE_ADDRESS_SANITIZER "ASAN" OFF)
+
 
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
@@ -475,6 +477,16 @@ if (WITH_RUY)
   unset(CMAKE_POSITION_INDEPENDENT_CODE)
   list(APPEND LIBRARIES ruy)
 endif()
+
+IF (GOOGLE_ADDRESS_SANITIZER AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG"))
+  MESSAGE (STATUS "GOOGLE_ADDRESS_SANITIZER: ENABLED")
+  set(ASAN_FLAGS " -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common")
+  string(APPEND CMAKE_C_FLAGS ${ASAN_FLAGS})
+  string(APPEND CMAKE_CXX_FLAGS ${ASAN_FLAGS})
+  add_link_options(-fsanitize=address)
+ELSEIF (GOOGLE_ADDRESS_SANITIZER)
+  MESSAGE(FATAL_ERROR "SANITIZER requires Debug build type") # simplify CMake configuration for now
+ENDIF ()
 
 if (WITH_CUDA)
   find_package(CUDA 11.0 REQUIRED)
