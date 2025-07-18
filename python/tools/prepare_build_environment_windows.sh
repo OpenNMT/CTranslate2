@@ -29,8 +29,42 @@ rmdir "$CUDNN_ROOT/include/12.4"
 cp -r "$CUDNN_ROOT"/* "$CUDA_ROOT"
 rm cudnn.exe
 
+echo "Installing MSVC 14.29.30133 in Windows Server 2022 Docker container..."
+
+# Download Visual Studio Build Tools installer
+echo "Downloading Visual Studio Build Tools installer..."
+curl -L -o vs_buildtools.exe "https://aka.ms/vs/16/release/vs_buildtools.exe"
+
+# Install Visual Studio Build Tools with MSVC v142 toolset (14.29)
+echo "Installing Visual Studio Build Tools with MSVC 14.29..."
+./vs_buildtools.exe --quiet --wait --add Microsoft.VisualStudio.Workload.VCTools \
+  --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
+  --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 \
+  --add Microsoft.VisualStudio.Component.VC.14.29.16.11.x86.x64 \
+  --add Microsoft.VisualStudio.Component.Windows10SDK.19041 \
+  --add Microsoft.VisualStudio.Component.VC.CMake.Project \
+  --includeRecommended
+
+# Verify installation
+echo "Verifying MSVC installation..."
+if [ -f "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" ]; then
+    echo "MSVC 14.29.30133 installed successfully!"
+    
+    # Display compiler version
+    "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" 2>&1 | head -1
+else
+    echo "Installation verification failed. Checking available versions..."
+    ls -la "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/" || echo "MSVC directory not found"
+    exit 1
+fi
+
 # See https://github.com/oneapi-src/oneapi-ci for installer URLs
-curl --netrc-optional -L -nv -o webimage.exe https://registrationcenter-download.intel.com/akdlm/irc_nas/19078/w_BaseKit_p_2023.0.0.25940_offline.exe
+curl --netrc-optional -L -nv -o webimage.exe \
+     --retry 5 \
+     --retry-delay 10 \
+     --retry-max-time 300 \
+     --continue-at - \
+     https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2cbb02eb-dd4c-4058-a4ac-2e38729a8409/intel-oneapi-base-toolkit-2025.1.2.7_offline.exe
 ./webimage.exe -s -x -f webimage_extracted --log extract.log
 rm webimage.exe
 ./webimage_extracted/bootstrapper.exe -s --action install --components="intel.oneapi.win.mkl.devel" --eula=accept -p=NEED_VS2017_INTEGRATION=0 -p=NEED_VS2019_INTEGRATION=0 --log-dir=.
@@ -39,19 +73,35 @@ ONEDNN_VERSION=3.1.1
 curl --netrc-optional -L -O https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz
 tar xf *.tar.gz && rm *.tar.gz
 cd oneDNN-*
-cmake -DCMAKE_BUILD_TYPE=Release -DONEDNN_LIBRARY_TYPE=STATIC -DONEDNN_BUILD_EXAMPLES=OFF -DONEDNN_BUILD_TESTS=OFF -DONEDNN_ENABLE_WORKLOAD=INFERENCE -DONEDNN_ENABLE_PRIMITIVE="CONVOLUTION;REORDER" -DONEDNN_BUILD_GRAPH=OFF .
+cmake -G "Visual Studio 16 2019" -DCMAKE_CXX_COMPILER="/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" -DCMAKE_C_COMPILER="/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe"  -DCMAKE_BUILD_TYPE=Release -DONEDNN_LIBRARY_TYPE=STATIC -DONEDNN_BUILD_EXAMPLES=OFF -DONEDNN_BUILD_TESTS=OFF -DONEDNN_ENABLE_WORKLOAD=INFERENCE -DONEDNN_ENABLE_PRIMITIVE="CONVOLUTION;REORDER" -DONEDNN_BUILD_GRAPH=OFF .
 cmake --build . --config Release --target install --parallel 6
 cd ..
 rm -r oneDNN-*
 
 mkdir build
 cd build
-cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/compiler/lib/intel64_win;C:/Program Files (x86)/oneDNN" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT" -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common" ..
+cmake -G "Visual Studio 16 2019" -DCMAKE_CXX_COMPILER="/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" -DCMAKE_C_COMPILER="/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX=$CTRANSLATE2_ROOT -DCMAKE_PREFIX_PATH="C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/compiler/lib/intel64_win;C:/Program Files (x86)/oneDNN" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DWITH_CUDA=ON -DWITH_CUDNN=ON -DCUDA_TOOLKIT_ROOT_DIR="$CUDA_ROOT" -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common" ..
 cmake --build . --config Release --target install --parallel 6 --verbose
 cd ..
 rm -r build
 
 cp README.md python/
 cp $CTRANSLATE2_ROOT/bin/ctranslate2.dll python/ctranslate2/
-cp "C:/Program Files (x86)/Intel/oneAPI/compiler/latest/windows/redist/intel64_win/compiler/libiomp5md.dll" python/ctranslate2/
+
+# Find the libiomp5md.dll file
+LIBIOMP5_PATH=$(find "C:/Program Files (x86)/Intel/oneAPI" -name "libiomp5md.dll" -type f 2>/dev/null | head -1)
+
+# Check if file was found
+if [ -z "$LIBIOMP5_PATH" ]; then
+    echo "Error: libiomp5md.dll not found in Intel oneAPI installation."
+    echo "Please ensure Intel oneAPI HPC Toolkit (with compiler) is installed."
+    echo ""
+    echo "Alternative locations to check manually:"
+    echo "- C:/Program Files/Intel/oneAPI/compiler/*/windows/redist/intel64_win/compiler/"
+    echo "- C:/Program Files (x86)/Intel/oneAPI/compiler/*/windows/redist/intel64_win/compiler/"
+    exit 1
+fi
+echo "Found libiomp5md.dll at: $LIBIOMP5_PATH"
+
+cp "$LIBIOMP5_PATH" python/ctranslate2/
 cp "$CUDA_ROOT/bin/cudnn64_9.dll" python/ctranslate2/

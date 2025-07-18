@@ -688,7 +688,8 @@ endif()
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
-
+MESSAGE(STATUS "XXXCompiler Id: ${CMAKE_CXX_COMPILER_ID}")
+MESSAGE(STATUS "XXXCompiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 include(GNUInstallDirs)
 
 if (BUILD_CLI)
