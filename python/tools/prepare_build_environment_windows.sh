@@ -29,14 +29,8 @@ rmdir "$CUDNN_ROOT/include/12.4"
 cp -r "$CUDNN_ROOT"/* "$CUDA_ROOT"
 rm cudnn.exe
 
-echo "Installing MSVC 14.29.30133 in Windows Server 2022 Docker container..."
-
-# Download Visual Studio Build Tools installer
-echo "Downloading Visual Studio Build Tools installer..."
-curl -L -o vs_buildtools.exe "https://aka.ms/vs/16/release/vs_buildtools.exe"
-
-# Install Visual Studio Build Tools with MSVC v142 toolset (14.29)
-echo "Installing Visual Studio Build Tools with MSVC 14.29..."
+# Install MSVC 14.29.30133 
+curl -L -o vs_buildtools.exe "https://aka.ms/vs/16/release/vs_buildtools.exe"  
 ./vs_buildtools.exe --quiet --wait --add Microsoft.VisualStudio.Workload.VCTools \
   --add Microsoft.VisualStudio.Component.VC.Tools.x86.x64 \
   --add Microsoft.VisualStudio.Component.VC.v141.x86.x64 \
@@ -45,11 +39,9 @@ echo "Installing Visual Studio Build Tools with MSVC 14.29..."
   --add Microsoft.VisualStudio.Component.VC.CMake.Project \
   --includeRecommended
 
-# Verify installation
-echo "Verifying MSVC installation..."
+# Verify installation 
 if [ -f "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" ]; then
     echo "MSVC 14.29.30133 installed successfully!"
-    
     # Display compiler version
     "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" 2>&1 | head -1
 else
@@ -59,12 +51,7 @@ else
 fi
 
 # See https://github.com/oneapi-src/oneapi-ci for installer URLs
-curl --netrc-optional -L -nv -o webimage.exe \
-     --retry 5 \
-     --retry-delay 10 \
-     --retry-max-time 300 \
-     --continue-at - \
-     https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2cbb02eb-dd4c-4058-a4ac-2e38729a8409/intel-oneapi-base-toolkit-2025.1.2.7_offline.exe
+curl --netrc-optional -L -nv -o webimage.exe https://registrationcenter-download.intel.com/akdlm/IRC_NAS/2cbb02eb-dd4c-4058-a4ac-2e38729a8409/intel-oneapi-base-toolkit-2025.1.2.7_offline.exe
 ./webimage.exe -s -x -f webimage_extracted --log extract.log
 rm webimage.exe
 ./webimage_extracted/bootstrapper.exe -s --action install --components="intel.oneapi.win.mkl.devel" --eula=accept -p=NEED_VS2017_INTEGRATION=0 -p=NEED_VS2019_INTEGRATION=0 --log-dir=.

@@ -23,6 +23,9 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
 
+MESSAGE(STATUS "Compiler Id: ${CMAKE_CXX_COMPILER_ID}")
+MESSAGE(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
+
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
   add_definitions(-DCT2_ENABLE_PROFILING)
@@ -688,8 +691,7 @@ endif()
 if(BUILD_TESTS)
   add_subdirectory(tests)
 endif()
-MESSAGE(STATUS "XXXCompiler Id: ${CMAKE_CXX_COMPILER_ID}")
-MESSAGE(STATUS "XXXCompiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
+
 include(GNUInstallDirs)
 
 if (BUILD_CLI)
