@@ -41,12 +41,9 @@ curl -L -o vs_buildtools.exe "https://aka.ms/vs/16/release/vs_buildtools.exe"
 
 # Verify installation 
 if [ -f "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" ]; then
-    echo "MSVC 14.29.30133 installed successfully!"
-    # Display compiler version
-    "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/14.29.30133/bin/Hostx64/x64/cl.exe" 2>&1 | head -1
+    echo "MSVC 14.29.30133 installed successfully!" 
 else
-    echo "Installation verification failed. Checking available versions..."
-    ls -la "/c/Program Files (x86)/Microsoft Visual Studio/2019/BuildTools/VC/Tools/MSVC/" || echo "MSVC directory not found"
+    echo "Installation verification failed. Checking available versions..." 
     exit 1
 fi
 
@@ -74,18 +71,10 @@ rm -r build
 
 cp README.md python/
 cp $CTRANSLATE2_ROOT/bin/ctranslate2.dll python/ctranslate2/
-
-# Find the libiomp5md.dll file
+ 
 LIBIOMP5_PATH=$(find "C:/Program Files (x86)/Intel/oneAPI" -name "libiomp5md.dll" -type f 2>/dev/null | head -1)
-
-# Check if file was found
 if [ -z "$LIBIOMP5_PATH" ]; then
-    echo "Error: libiomp5md.dll not found in Intel oneAPI installation."
-    echo "Please ensure Intel oneAPI HPC Toolkit (with compiler) is installed."
-    echo ""
-    echo "Alternative locations to check manually:"
-    echo "- C:/Program Files/Intel/oneAPI/compiler/*/windows/redist/intel64_win/compiler/"
-    echo "- C:/Program Files (x86)/Intel/oneAPI/compiler/*/windows/redist/intel64_win/compiler/"
+    echo "Error: libiomp5md.dll not found in Intel oneAPI installation." 
     exit 1
 fi
 echo "Found libiomp5md.dll at: $LIBIOMP5_PATH"
