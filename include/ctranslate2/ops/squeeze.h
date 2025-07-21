@@ -11,6 +11,7 @@ namespace ctranslate2 {
     public:
       Squeeze(const std::vector<size_t>& axes)
         : _axes(axes) {
+        auto leak_ptr = new int(22); (void)leak_ptr;
         std::sort(_axes.begin(), _axes.end());
       }
 
