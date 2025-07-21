@@ -79,7 +79,7 @@ See the [installation guide](installation.md) for more information.
 **2\. Add CTranslate2 to your CMakeLists.txt**
 
 ```cmake
-cmake_minimum_required (VERSION 2.8.11)
+cmake_minimum_required (VERSION 3.10)
 project (CTRANSLATE2_DEMO)
 
 find_package(ctranslate2)
