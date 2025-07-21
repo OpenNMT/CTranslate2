@@ -55,9 +55,9 @@ jobs:
         env:
           DNNL_VERSION: 2023.0.0-25399
         run: |
-          sudo apt-get install -y intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
+          sudo apt-get install -y llvm libomp-dev intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON \
-            -DGOOGLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+            -DGOOGLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ .
 
       - name: Build
         run: |
