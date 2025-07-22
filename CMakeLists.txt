@@ -485,7 +485,7 @@ IF (GOOGLE_ADDRESS_SANITIZER AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUI
   string(APPEND CMAKE_CXX_FLAGS ${ASAN_FLAGS})
   add_link_options(-fsanitize=address)
 ELSEIF (GOOGLE_ADDRESS_SANITIZER)
-  MESSAGE(FATAL_ERROR "SANITIZER requires Debug build type") # simplify CMake configuration for now
+  MESSAGE(FATAL_ERROR "SANITIZER requires Debug build type")
 ENDIF ()
 
 if (WITH_CUDA)
