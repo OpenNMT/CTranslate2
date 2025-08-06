@@ -9,10 +9,10 @@ if sys.platform == "win32":
 
     # Adressing python 3.9 < version
     try:
-        from importlib import resources
+        from importlib.resources import files
 
         # Fixed the pkg_resources depreciation
-        package_dir = str(resources.files(module_name))
+        package_dir = str(files(module_name))
     except ImportError:
         import pkg_resources
 
