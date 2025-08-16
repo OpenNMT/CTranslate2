@@ -26,6 +26,8 @@ namespace ctranslate2 {
   void synchronize_device(Device device, int index);
   void synchronize_stream(Device device);
 
+  void destroy_context(Device device);
+
   class ScopedDeviceSetter {
   public:
     ScopedDeviceSetter(Device device, int index)
