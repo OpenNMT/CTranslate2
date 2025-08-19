@@ -150,6 +150,7 @@ namespace ctranslate2 {
       const models::QUANTIZATION_TYPE _quant_method;
       const bool _quantized_gemm;
       const ops::Gemm _gemm_op;
+      const ops::Gemm _gemm_op_low_rank;
       const ops::Quantize _quantize_op;
       const ops::Dequantize _dequantize_op;
       const ops::ActivationType* _activation_type;

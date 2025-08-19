@@ -3,7 +3,6 @@ import argparse
 import gc
 import itertools
 import os
-import re
 
 from typing import List, Optional
 
@@ -97,13 +96,6 @@ class TransformersConverter(Converter):
           trust_remote_code: Allow converting models using custom code.
         """
         self._model_name_or_path = model_name_or_path
-        self._model_processor_name = model_name_or_path
-        if model_name_or_path.startswith('efficient-speech/lite-whisper'):
-            # If this is a lite-whisper model, use openai's 
-            # corresponding preprocessor.
-            regex = r'whisper-[a-z0-9-]+?(?=-(?:fast|acc)|$)'
-            regex_result = re.search(regex, model_name_or_path)
-            self._model_processor_name = f"openai/{regex_result.group()}"
         self._activation_scales = activation_scales
         self._copy_files = copy_files
         self._load_as_float16 = load_as_float16
@@ -127,6 +119,14 @@ class TransformersConverter(Converter):
                     % (config_name, ", ".join(sorted(_MODEL_LOADERS.keys())))
                 )
 
+            # If lite whisper use corresponding openai tokenizer
+            if config.model_type == "lite-whisper":
+                base_name = self._model_name_or_path.split("/")[-1]  # e.g., "lite-whisper-large-v3"
+                base_name = base_name.replace("lite-", "")           # e.g., "whisper-large-v3"
+                tokenizer_path = f"openai/{base_name}"
+            else:
+                tokenizer_path = self._model_name_or_path
+
             tokenizer_class = transformers.AutoTokenizer
 
             kwargs = {
@@ -147,18 +147,15 @@ class TransformersConverter(Converter):
             if hasattr(transformers, loader.architecture_name):
                 model_class = getattr(transformers, loader.architecture_name)
                 model = self.load_model(model_class, self._model_name_or_path, **kwargs)
-            elif self._model_name_or_path.startswith('efficient-speech/lite-whisper'):
-                model = transformers.AutoModel.from_pretrained(self._model_name_or_path, **kwargs)
             else:
-                raise ValueError(
-                    "The model %s is not supported by the converter. " % self._model_name_or_path)
+                model = transformers.AutoModel.from_pretrained(self._model_name_or_path, **kwargs)
 
             tokenizer_kwargs = {}
             if self._trust_remote_code:
                 tokenizer_kwargs["trust_remote_code"] = self._trust_remote_code
 
             tokenizer = self.load_tokenizer(
-                tokenizer_class, self._model_processor_name, **tokenizer_kwargs
+                tokenizer_class, tokenizer_path, **tokenizer_kwargs
             )
 
             spec = loader(model, tokenizer)
@@ -249,19 +246,6 @@ class ModelLoader(abc.ABC):
 
         if isinstance(module, transformers.Conv1D):
             spec.weight = spec.weight.transpose(0, 1)
-        if module.bias is not None:
-            spec.bias = module.bias
-    
-    def set_low_rank_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
-        if quant_type == common_spec.Quantization.CT2:
-            spec.low_rank_weight_1 = module.weight1
-            spec.low_rank_weight_2 = module.weight2
-        else:
-            spec.low_rank_weight_1 = module.qweight1
-            spec.low_rank_weight_2 = module.qweight2
-            spec.weight_scale = module.scales
-            spec.weight_zero = module.qzeros
-
         if module.bias is not None:
             spec.bias = module.bias
 
@@ -1044,10 +1028,45 @@ class LiteWhisperLoader(WhisperLoader):
 
         return spec
 
+
+    def set_config(self, config, model, tokenizer):
+        gen_config = getattr(model, "generation_config", None)
+
+        if gen_config is not None:
+            config.suppress_ids = gen_config.suppress_tokens
+            config.suppress_ids_begin = gen_config.begin_suppress_tokens
+            if hasattr(gen_config, "alignment_heads"):
+                config.alignment_heads = gen_config.alignment_heads
+            if hasattr(gen_config, "lang_to_id"):
+                config.lang_ids = sorted(gen_config.lang_to_id.values())
+        else:
+            config.suppress_ids = model.config.suppress_tokens
+            config.suppress_ids_begin = model.config.begin_suppress_tokens
+            config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
+
+        if getattr(config, "lang_ids", None) is None:
+            config.lang_ids = self._get_lang_ids_from_tokenizer(tokenizer)
+
+        if config.alignment_heads is None:
+            config.alignment_heads = _WHISPER_ALIGNMENT_HEADS.get(model.name_or_path)
+            if config.alignment_heads is None:
+                    # Use the last half layers for alignment by default.
+                num_layers = model.config.decoder_layers
+                num_heads = model.config.decoder_attention_heads
+                config.alignment_heads = list(
+                    itertools.product(
+                    range(num_layers // 2, num_layers),
+                    range(num_heads),
+                )
+                )
+
     def set_encoder(self, spec, encoder):
+        """
+        Override encoder mapping for LiteWhisper.
+        """
         self.set_conv1d(spec.conv1, encoder.conv1)
         self.set_conv1d(spec.conv2, encoder.conv2)
-
+        
         self.set_common_layers(spec, encoder)
 
         for layer_spec, layer in zip(spec.layer, encoder.layers):
@@ -1060,15 +1079,15 @@ class LiteWhisperLoader(WhisperLoader):
                 layer.self_attn_layer_norm,
             )
 
-            # Double check if these are low rank or not because of potential
-            # fall backs to full precision.
-            if hasattr(layer.fc1, 'weight1'):
+            if hasattr(layer.fc1, "weight1"):
+                # low rank
                 self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
             else:
                 layer_spec.ffn.linear_0 = common_spec.LinearSpec()
                 self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
-
-            if hasattr(layer.fc2, 'weight1'):
+            
+            if hasattr(layer.fc2, "weight1"):
+                # low rank
                 self.set_low_rank_linear(layer_spec.ffn.linear_1, layer.fc2)
             else:
                 layer_spec.ffn.linear_1 = common_spec.LinearSpec()
@@ -1076,13 +1095,26 @@ class LiteWhisperLoader(WhisperLoader):
 
             self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
 
+    def set_low_rank_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
+        if quant_type == common_spec.Quantization.CT2:
+            spec.low_rank_weight_1 = module.weight1.transpose(0, 1).contiguous()
+            spec.low_rank_weight_2 = module.weight2.transpose(0, 1).contiguous()
+        else:
+            spec.low_rank_weight_1 = module.qweight1.transpose(0, 1).contiguous()
+            spec.low_rank_weight_2 = module.qweight2.transpose(0, 1).contiguous()
+            spec.weight_scale = module.scales
+            spec.weight_zero = module.qzeros
+
+        if module.bias is not None:
+            spec.bias = module.bias
+
     def set_low_rank_or_linear_router(self, spec, module, i):
         if hasattr(module, "weight1"):
             self.set_low_rank_linear(spec.linear[i], module)
         else:
             spec.linear[i] = common_spec.LinearSpec()
             self.set_linear(spec.linear[i], module)
-    
+
     def set_low_rank_attention(self, spec, attention):
         self.set_low_rank_or_linear_router(spec, attention.q_proj, 0)
         self.set_low_rank_or_linear_router(spec, attention.k_proj, 1)
@@ -3000,6 +3032,7 @@ _WHISPER_ALIGNMENT_HEADS = {
         (3, 4),
     ],
     "openai/whisper-tiny": [(2, 2), (3, 0), (3, 2), (3, 3), (3, 4), (3, 5)],
+    "efficient-speech/whisper-tiny": [(2, 2), (3, 0), (3, 2), (3, 3), (3, 4), (3, 5)],
     "openai/whisper-base.en": [(3, 3), (4, 7), (5, 1), (5, 5), (5, 7)],
     "openai/whisper-base": [
         (3, 1),
@@ -3102,6 +3135,18 @@ _WHISPER_ALIGNMENT_HEADS = {
         (27, 15),
     ],
     "openai/whisper-large-v3": [
+        (7, 0),
+        (10, 17),
+        (12, 18),
+        (13, 12),
+        (16, 1),
+        (17, 14),
+        (19, 11),
+        (21, 4),
+        (24, 1),
+        (25, 6),
+    ],
+    "efficient-speech/whisper-large-v3": [
         (7, 0),
         (10, 17),
         (12, 18),

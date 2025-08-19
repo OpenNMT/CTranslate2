@@ -52,10 +52,16 @@ namespace ctranslate2 {
     }
 
     static bool set_low_rank(const models::Model& model, const std::string& scope) {
-      const StorageView* low_rank_weight = model.get_variable_if_exists(scope + "/linear_0/low_rank_weight_1");
-      if (low_rank_weight) {
-        return true;
+      const dim_t max_layers = 4;
+      for (int i = 0; i < max_layers; ++i) {
+        std::string prefix = scope + "/linear_" + std::to_string(i);
+        const StorageView* w1 = model.get_variable_if_exists(prefix + "/low_rank_weight_1");
+        const StorageView* w2 = model.get_variable_if_exists(prefix + "/low_rank_weight_2");
+        if (w1 && w2) {
+          return true;
+        }
       }
+      // If no low-rank pair is found, then it is not low-rank
       return false;
     }
 
@@ -63,13 +69,7 @@ namespace ctranslate2 {
                                                  const std::string& scope,
                                                  bool self_attention,
                                                  bool _is_low_rank) {
-      dim_t num_linear_layers;
-      if (!_is_low_rank) {
-        num_linear_layers = self_attention ? 2 : 3;
-      } else {
-        num_linear_layers = 4;
-      }
-
+      const dim_t num_linear_layers = !_is_low_rank ? (self_attention ? 2 : 3) : 4;
       std::vector<Dense> layers;
       layers.reserve(num_linear_layers);
       for (dim_t i = 0; i < num_linear_layers; ++i)

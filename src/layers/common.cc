@@ -250,12 +250,8 @@ namespace ctranslate2 {
       return _encoding.dim(1);
     }
 
-    static bool set_low_rank(const models::Model& model, const std::string& scope) {
-      const StorageView* low_rank_weight = model.get_variable_if_exists(scope + "/low_rank_weight_1");
-      if (low_rank_weight) {
-        return true;
-      }
-      return false;
+    static bool has_low_rank(const models::Model& model, const std::string& scope) {
+        return model.get_variable_if_exists(scope + "/low_rank_weight_1") != nullptr;
     }
 
     static const StorageView& get_linear_weight(const models::Model& model,
@@ -275,7 +271,7 @@ namespace ctranslate2 {
                  const ops::ActivationType* activation_type,
                  const bool is_layer_out)
       : _packed_weight(false)
-      , _is_low_rank(set_low_rank(model, scope))
+      , _is_low_rank(has_low_rank(model, scope))
       , _weight(_is_low_rank ? *model.get_variable_if_exists(scope + "/low_rank_weight_1") : get_linear_weight(model, scope, &_packed_weight))
       , _weight2(_is_low_rank ? model.get_variable_if_exists(scope + "/low_rank_weight_2") : nullptr)
       , _bias(model.get_variable_if_exists(scope + "/bias"))
@@ -296,10 +292,17 @@ namespace ctranslate2 {
       , _gemm_op(/*alpha=*/1,
                  /*beta=*/0,
                  /*trans_a=*/false,
-                 /*trans_b=*/ _is_low_rank ? false : true,
+                 /*trans_b=*/true,
                  /*a_is_packed=*/false,
                  _packed_weight,
                  _quantized_gemm ? nullptr : activation_type)
+      , _gemm_op_low_rank(/*alpha=*/1,
+                 /*beta=*/0,
+                 /*trans_a=*/false,
+                 /*trans_b=*/true,
+                 /*a_is_packed=*/false,
+                 /*packaged_weight=*/false,
+                 /*activation_type=*/ nullptr)
       , _quantize_op(model.use_global_int16_scale()
                      ? ops::Quantize::ScaleType::GLOBAL
                      : ops::Quantize::ScaleType::PER_LAYER,
@@ -319,8 +322,7 @@ namespace ctranslate2 {
       if (_is_low_rank) {
         if (_partial_weight)
           throw std::runtime_error("Low rank dense layer does not support partial weights");
-        // weight is transposed when low_rank
-        return _weight2->dim(1);
+        return _weight2->dim(0);
       }
       return _partial_weight ? _partial_weight.dim(0) : _weight.dim(0);
     }
@@ -368,7 +370,7 @@ namespace ctranslate2 {
         bias = nullptr;
       if (_quantized_gemm) {
         if (_is_low_rank)
-          throw std::runtime_error("Low rank dense layer not supported with quantized gemm");
+          throw std::runtime_error("Low rank dense layer is not supported with quantized gemm");
         const auto device = input.device();
         StorageView qinput(_weight.dtype(), device);
         StorageView qinput_scale(_qscale->dtype(), device);
@@ -417,7 +419,7 @@ namespace ctranslate2 {
                        bias);
       } else if (_qzero && _qscale) {
         if (_is_low_rank)
-          throw std::runtime_error("Low rank dense layer not supported with quantized gemm");
+          throw std::runtime_error("Low rank dense layer is not supported with quantized gemm");
         switch (_quant_method) {
           case models::QUANTIZATION_TYPE::AWQ_GEMM:
             if (input.dim(0) * input.dim(1) >= 1024) {
@@ -450,12 +452,16 @@ namespace ctranslate2 {
                                         "support only ct2 and awq quantization");
         }
       } else {
-        if (!_is_low_rank) {
+        if(!_is_low_rank) {
           _gemm_op(input, *weight, output, nullptr, bias);
         } else {
-          StorageView& intermediate_output = output;
-          _gemm_op(input, *weight, intermediate_output, nullptr);
-          _gemm_op(intermediate_output, *weight2, output, nullptr, bias);
+              StorageView intermediate_output(input.device(), input.dtype());
+
+              // First multiplication: input [M,K] * weight^T [K,R]
+              _gemm_op_low_rank(input, *weight, intermediate_output, nullptr);
+
+              // Second multiplication: intermediate [M,R] * weight2^T [R,N]
+              _gemm_op(intermediate_output, *weight2, output, nullptr, bias);
         }
       }
     }

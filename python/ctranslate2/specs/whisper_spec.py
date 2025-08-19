@@ -41,9 +41,10 @@ class WhisperSpec(model_spec.LanguageModelSpec):
           num_encoder_heads: The number of encoder attention heads.
           num_decoder_layers: The number of decoder layers.
           num_decoder_heads: The number of decoder attention heads.
+          low_rank: Whether to use lite whisper model or not.
         """
         super().__init__()
-        self.encoder = WhisperEncoderSpec(num_encoder_layers, num_encoder_heads, low_rank)
+        self.encoder = WhisperEncoderSpec(num_encoder_layers, num_encoder_heads, low_rank=low_rank)
         self.decoder = transformer_spec.TransformerDecoderSpec(
             num_decoder_layers,
             num_decoder_heads,
