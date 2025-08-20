@@ -14,6 +14,8 @@ namespace ctranslate2 {
     bool cpu_supports_avx512();
 #elif defined(CT2_ARM64_BUILD)
     bool cpu_supports_neon();
+#elif defined(CT2_WITH_RVV)
+    bool cpu_supports_rvv();
 #endif
 
   }

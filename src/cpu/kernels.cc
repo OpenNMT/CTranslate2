@@ -14,6 +14,10 @@
 #elif (defined(__ARM_NEON) && !defined(CT2_WITH_CPU_DISPATCH)) || defined(USE_NEON)
 #  define TARGET_ISA CpuIsa::NEON
 #  include "cpu/vec_neon.h"
+#elif (defined(CT2_WITH_RVV) && defined(__riscv_vector))
+#  define USE_RVV
+#  define TARGET_ISA CpuIsa::RVV
+#  include "cpu/vec_rvv.h"
 #else
 #  define TARGET_ISA CpuIsa::GENERIC
 #  include "cpu/vec.h"
@@ -213,7 +217,7 @@ namespace ctranslate2 {
 
     template<>
     void exp<TARGET_ISA>(const float* x, float* y, dim_t size) {
-      vectorized_unary_transform<TARGET_ISA>(x, y, size, Vec<float, TARGET_ISA>::exp);
+        vectorized_unary_transform<TARGET_ISA>(x, y, size, Vec<float, TARGET_ISA>::exp);
     }
 
     template<>
@@ -263,11 +267,20 @@ namespace ctranslate2 {
 
     template <CpuIsa ISA, typename T>
     void add(T a, const T* x, T* y, dim_t size) {
+#ifdef USE_RVV
+      T a_copy = a;
+      vectorized_unary_transform<ISA>(x, y, size,
+        [a_copy](vec_type<T, ISA> v) {
+          auto vec_a = Vec<T, ISA>::load(a_copy);
+          return Vec<T, ISA>::add(v, vec_a);
+        });
+#else
       auto vec_a = Vec<T, ISA>::load(a);
       vectorized_unary_transform<ISA>(x, y, size,
-                                      [vec_a](vec_type<T, ISA> v) {
-                                        return Vec<T, ISA>::add(v, vec_a);
-                                      });
+        [vec_a](vec_type<T, ISA> v) {
+          return Vec<T, ISA>::add(v, vec_a);
+        });
+#endif
     }
 
     template <CpuIsa ISA, typename T>
@@ -282,11 +295,20 @@ namespace ctranslate2 {
 
     template <CpuIsa ISA, typename T>
     void mul(T a, const T* x, T* y, dim_t size) {
+#ifdef USE_RVV
+      T a_copy = a;
+      vectorized_unary_transform<ISA>(x, y, size,
+        [a_copy](vec_type<T, ISA> v) {
+          auto vec_a = Vec<T, ISA>::load(a_copy);
+          return Vec<T, ISA>::mul(v, vec_a);
+        });
+#else
       auto vec_a = Vec<T, ISA>::load(a);
       vectorized_unary_transform<ISA>(x, y, size,
-                                      [vec_a](vec_type<T, ISA> v) {
-                                        return Vec<T, ISA>::mul(v, vec_a);
-                                      });
+        [vec_a](vec_type<T, ISA> v) {
+          return Vec<T, ISA>::mul(v, vec_a);
+        });
+#endif
     }
 
     template <CpuIsa ISA, typename T>
@@ -296,11 +318,20 @@ namespace ctranslate2 {
 
     template <CpuIsa ISA, typename T>
     void max(T a, const T* x, T* y, dim_t size) {
+#ifdef USE_RVV
+      T a_copy = a;
+      vectorized_unary_transform<ISA>(x, y, size,
+        [a_copy](vec_type<T, ISA> v) {
+          auto vec_a = Vec<T, ISA>::load(a_copy);
+          return Vec<T, ISA>::max(v, vec_a);
+        });
+#else
       auto vec_a = Vec<T, ISA>::load(a);
       vectorized_unary_transform<ISA>(x, y, size,
-                                      [vec_a](vec_type<T, ISA> v) {
-                                        return Vec<T, ISA>::max(v, vec_a);
-                                      });
+        [vec_a](vec_type<T, ISA> v) {
+          return Vec<T, ISA>::max(v, vec_a);
+        });
+#endif
     }
 
     template <CpuIsa ISA, typename T>
@@ -310,11 +341,20 @@ namespace ctranslate2 {
 
     template <CpuIsa ISA, typename T>
     void min(T a, const T* x, T* y, dim_t size) {
+#ifdef USE_RVV
+      T a_copy = a;
+      vectorized_unary_transform<ISA>(x, y, size,
+        [a_copy](vec_type<T, ISA> v) {
+          auto vec_a = Vec<T, ISA>::load(a_copy);
+          return Vec<T, ISA>::min(v, vec_a);
+        });
+#else
       auto vec_a = Vec<T, ISA>::load(a);
       vectorized_unary_transform<ISA>(x, y, size,
-                                      [vec_a](vec_type<T, ISA> v) {
-                                        return Vec<T, ISA>::min(v, vec_a);
-                                      });
+        [vec_a](vec_type<T, ISA> v) {
+          return Vec<T, ISA>::min(v, vec_a);
+        });
+#endif
     }
 
     template <CpuIsa ISA, typename T>
@@ -349,6 +389,7 @@ namespace ctranslate2 {
                                             static_cast<T>(0),
                                             Vec<T, ISA>::abs,
                                             Vec<T, ISA>::max,
+                                            
                                             Vec<T, ISA>::reduce_max,
                                             Vec<T>::abs,
                                             Vec<T>::max);
@@ -377,14 +418,22 @@ namespace ctranslate2 {
       using VecType = Vec<float, TARGET_ISA>;
 
       const auto x_max = reduce_max<TARGET_ISA>(x, size);
-      const auto vec_x_max = VecType::load(x_max);
 
-      const auto scalar_exp_func = [x_max](vec_type<float> v) {
-        return Vec<float>::exp(Vec<float>::sub(v, x_max));
+      const auto scalar_exp_func = [x_max](float v) {
+        return std::exp(v - x_max);
       };
-      const auto vec_exp_func = [vec_x_max](vec_type<float, TARGET_ISA> v) {
+#ifdef USE_RVV
+      float x_max_copy = x_max;
+      auto vec_exp_func = [x_max_copy](vec_type<float, TARGET_ISA> v) {
+        auto vec_x_max = VecType::load(x_max_copy);
         return VecType::exp(VecType::sub(v, vec_x_max));
       };
+#else
+      const auto vec_x_max = VecType::load(x_max);
+      auto vec_exp_func = [vec_x_max](vec_type<float, TARGET_ISA> v) {
+        return VecType::exp(VecType::sub(v, vec_x_max));
+      };
+#endif
 
       const auto exp_sum = vectorized_map_reduce_all<TARGET_ISA>(
         x,
@@ -429,14 +478,21 @@ namespace ctranslate2 {
           }
 
           const auto x_max = reduce_max<TARGET_ISA>(x, size);
-          const auto vec_x_max = VecType::load(x_max);
-
-          const auto scalar_exp_func = [x_max](vec_type<float> v) {
-            return Vec<float>::exp(Vec<float>::sub(v, x_max));
+          const auto scalar_exp_func = [x_max](float v) {
+            return std::exp(v - x_max);
           };
-          const auto vec_exp_func = [vec_x_max](vec_type<float, TARGET_ISA> v) {
+#ifdef USE_RVV
+          float x_max_copy = x_max;
+          auto vec_exp_func = [x_max_copy](vec_type<float, TARGET_ISA> v) {
+            auto vec_x_max = VecType::load(x_max_copy);
             return VecType::exp(VecType::sub(v, vec_x_max));
           };
+#else
+          const auto vec_x_max = VecType::load(x_max);
+          auto vec_exp_func = [vec_x_max](vec_type<float, TARGET_ISA> v) {
+            return VecType::exp(VecType::sub(v, vec_x_max));
+          };
+#endif
 
           if (log) {
             const auto exp_sum = vectorized_map_reduce_all<TARGET_ISA>(
