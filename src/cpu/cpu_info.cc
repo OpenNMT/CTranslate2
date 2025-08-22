@@ -58,4 +58,22 @@ namespace ctranslate2 {
   }
 }
 
+#elif defined(CT2_WITH_RVV)
+
+namespace ctranslate2 {
+  namespace cpu {
+
+    const char* cpu_vendor() {
+      return "RVV";
+    }
+
+    bool cpu_supports_rvv() {
+      return true;
+    }
+
+  }
+}
+
+
+
 #endif

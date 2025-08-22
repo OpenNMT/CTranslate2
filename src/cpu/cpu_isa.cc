@@ -35,6 +35,9 @@ namespace ctranslate2 {
 #elif defined(CT2_ARM64_BUILD)
       case CpuIsa::NEON:
         return "NEON";
+#elif defined(CT2_WITH_RVV)
+      case CpuIsa::RVV:
+        return "RVV";
 #endif
       default:
         return "GENERIC";
@@ -54,6 +57,9 @@ namespace ctranslate2 {
 #elif defined(CT2_ARM64_BUILD)
         if (env_isa == "NEON")
           return try_isa(env_isa, CpuIsa::NEON, cpu_supports_neon());
+#elif defined(CT2_WITH_RVV)
+        if (env_isa == "RVV")
+          return try_isa(env_isa, CpuIsa::RVV, cpu_supports_rvv());
 #endif
         if (env_isa == "GENERIC")
           return CpuIsa::GENERIC;
@@ -71,6 +77,9 @@ namespace ctranslate2 {
 #  elif defined(CT2_ARM64_BUILD)
       if (cpu_supports_neon())
         return CpuIsa::NEON;
+#  elif defined(CT2_WITH_RVV)
+      if (cpu_supports_rvv())
+        return CpuIsa::RVV;
 #  endif
 #endif
 
