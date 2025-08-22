@@ -31,7 +31,9 @@ else
         libcurand-devel-12-2-10.3.3.141-1 \
         libcudnn9-devel-cuda-12-9.1.0.70-1 \
         libcublas-devel-12-2-12.2.5.6-1 \
-        libnccl-devel-2.19.3-1+cuda12.2
+        # libnccl-devel-2.19.3-1+cuda12.2
+    yum-config-manager --add-repo https://developer.download.nvidia.cn/compute/machine-learning/repos/rhel8/x86_64/nvidia-machine-learning-rhel8.repo
+    yum install -y libnccl-devel-2.15.5-1+cuda12.2
     ln -s cuda-12.2 /usr/local/cuda
 
     ONEAPI_VERSION=2023.2.0
