@@ -1,4 +1,10 @@
 cmake_minimum_required(VERSION 3.10)
+
+# Set policy for setting the MSVC runtime library for static MSVC builds
+if(POLICY CMP0091)
+  cmake_policy(SET CMP0091 NEW)
+endif()
+
 project(ctranslate2)
 
 option(WITH_MKL "Compile with Intel MKL backend" ON)
