@@ -119,6 +119,8 @@ namespace ctranslate2 {
       const std::unique_ptr<const LayerNorm> _shared_layer_norm;
       const std::unique_ptr<const LayerNorm> _input_layer_norm;
       const std::unique_ptr<const LayerNorm> _post_attention_layer_norm;
+      const std::unique_ptr<const LayerNorm> _pre_feedforward_layer_norm;
+      const std::unique_ptr<const LayerNorm> _post_feedforward_layer_norm;
       const std::unique_ptr<const AttentionLayer> _encoder_attention;
       const FeedForwardNetwork _ff;
     };

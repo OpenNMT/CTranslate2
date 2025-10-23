@@ -31,6 +31,25 @@ namespace ctranslate2 {
       return positions;
     }
 
+    StorageView make_asymmetric_relative_positions(dim_t queries_length,
+                                                  dim_t keys_length,
+                                                  dim_t left_max_position,
+                                                  dim_t right_max_position) {
+      StorageView positions({queries_length, keys_length}, DataType::INT32);
+      auto* positions_data = positions.data<int32_t>();
+
+      const dim_t offset = keys_length - queries_length;
+
+      for (dim_t i = 0; i < queries_length; ++i) {
+        auto* row = positions_data + i * keys_length;
+        for (dim_t j = 0; j < keys_length; ++j) {
+          row[j] = std::max(std::min(j - i, right_max_position), -left_max_position) + left_max_position;
+        }
+      }
+
+      return positions;
+    }
+
     static StorageView get_relative_position_bucket(bool bidirectional,
                                                     dim_t query_length,
                                                     dim_t key_length,
@@ -163,8 +182,11 @@ namespace ctranslate2 {
                                       const StorageView& values,
                                       const StorageView* values_lengths,
                                       const StorageView* relative_position_keys,
+                                      const StorageView* relative_asymmetric_position_keys,
                                       const StorageView* relative_position_values,
                                       const StorageView* relative_attention_bias,
+                                      dim_t relative_left_max_position,
+                                      dim_t relative_right_max_position,
                                       dim_t maximum_relative_position,
                                       StorageView& output,
                                       StorageView* attention = nullptr,
@@ -178,13 +200,19 @@ namespace ctranslate2 {
       PROFILE("dot_product_attention");
 
       std::unique_ptr<const StorageView> relative_positions;
-      if (relative_position_keys || relative_position_values) {
+      if (relative_position_keys || relative_position_values || relative_asymmetric_position_keys) {
         const dim_t query_length = queries.dim(2);
         const dim_t key_length = keys.dim(2);
-        relative_positions = std::make_unique<StorageView>(
-          make_relative_positions(query_length,
-                                  key_length,
-                                  maximum_relative_position).to(queries.device()));
+        if (relative_asymmetric_position_keys)
+          relative_positions = std::make_unique<StorageView>(
+            make_asymmetric_relative_positions(query_length,
+                                    key_length,
+                                    relative_left_max_position,
+                                    relative_right_max_position).to(queries.device()));
+        else relative_positions = std::make_unique<StorageView>(
+               make_relative_positions(query_length,
+                                       key_length,
+                                       maximum_relative_position).to(queries.device()));
       }
 
       const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
@@ -196,6 +224,12 @@ namespace ctranslate2 {
                                      keys_matmul,
                                      output);
 
+      if (relative_asymmetric_position_keys)
+        add_relative_representations(queries,
+                                     *relative_positions,
+                                     *relative_asymmetric_position_keys,
+                                     keys_matmul,
+                                     output);
       if (relative_attention_bias) {
         StorageView local_position_bias(output.dtype(), output.device());
 
@@ -269,6 +303,7 @@ namespace ctranslate2 {
       : AttentionLayer(model, scope, num_heads, self_attention, pre_norm, is_decoder, alibi, false)
       , _relative_attention_bias(model.get_variable_if_exists(scope + "/relative_attention_bias"))
       , _relative_position_keys(model.get_variable_if_exists(scope + "/relative_position_keys"))
+      , _relative_asymmetric_position_keys(model.get_variable_if_exists(scope + "/relative_asymmetric_position_keys"))
       , _relative_position_values(model.get_variable_if_exists(scope + "/relative_position_values"))
       , _merge_time_and_head_dims(_multi_query
                                   && !_relative_attention_bias
@@ -278,6 +313,12 @@ namespace ctranslate2 {
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
+      else if (_relative_asymmetric_position_keys) {
+        _relative_left_max_position = model.get_attribute<int32_t>(
+          scope + "/relative_left_max_position");
+        _relative_right_max_position = model.get_attribute<int32_t>(
+          scope + "/relative_right_max_position");
+      }
       else if (_relative_attention_bias)
         _maximum_relative_position = model.get_attribute<int32_t>(
           scope + "/relative_attention_max_distance");
@@ -363,7 +404,7 @@ namespace ctranslate2 {
           if (queries_padder)
             queries_padder->add_padding(fused_proj);
 
-          const ops::Split split_op(2, {_d_model, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          const ops::Split split_op(2, {_num_heads * _d_head, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
           split_op(fused_proj, queries_proj, keys_proj, values_proj);
 
           if (_merge_time_and_head_dims) {
@@ -432,8 +473,11 @@ namespace ctranslate2 {
                             values_proj,
                             values_lengths,
                             _relative_position_keys,
+                            _relative_asymmetric_position_keys,
                             _relative_position_values,
                             _relative_attention_bias,
+                            _relative_left_max_position,
+                            _relative_right_max_position,
                             _maximum_relative_position,
                             context,
                             attention,
@@ -462,7 +506,6 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-
       _linear.back()(context, output);
 
       if (_tensor_parallel) {

@@ -92,6 +92,9 @@ if(MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /d2FH4-")
 else()
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+  if(NOT APPLE AND NOT WIN32)
+    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,noexecstack")
+  endif()
 endif()
 
 find_package(Threads)
@@ -127,6 +130,7 @@ set(SOURCES
   src/layers/decoder.cc
   src/layers/transformer.cc
   src/layers/wav2vec2.cc
+  src/layers/wav2vec2bert.cc
   src/layers/whisper.cc
   src/logging.cc
   src/models/language_model.cc
@@ -136,6 +140,7 @@ set(SOURCES
   src/models/sequence_to_sequence.cc
   src/models/transformer.cc
   src/models/wav2vec2.cc
+  src/models/wav2vec2bert.cc
   src/models/whisper.cc
   src/ops/activation.cc
   src/ops/add.cc
@@ -182,6 +187,7 @@ set(SOURCES
   src/ops/split.cc
   src/ops/slide.cc
   src/ops/sub.cc
+  src/ops/sigmoid.cc
   src/ops/swish.cc
   src/ops/tanh.cc
   src/ops/tile.cc
@@ -553,39 +559,9 @@ if (WITH_CUDA)
   else()
     list(APPEND LIBRARIES ${CUDA_CUBLAS_LIBRARIES})
   endif()
-  set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
-  cuda_add_library(${PROJECT_NAME}
-    ${SOURCES}
-    src/cuda/allocator.cc
-    src/cuda/primitives.cu
-    src/cuda/random.cu
-    src/cuda/utils.cc
-    src/ops/alibi_add_gpu.cu
-    src/ops/bias_add_gpu.cu
-    src/ops/concat_split_slide_gpu.cu
-    src/ops/conv1d_gpu.cu
-    src/ops/dequantize_gpu.cu
-    src/ops/flash_attention_gpu.cu
-    src/ops/gather_gpu.cu
-    src/ops/gumbel_max_gpu.cu
-    src/ops/layer_norm_gpu.cu
-    src/ops/mean_gpu.cu
-    src/ops/multinomial_gpu.cu
-    src/ops/rms_norm_gpu.cu
-    src/ops/rotary_gpu.cu
-    src/ops/softmax_gpu.cu
-    src/ops/tile_gpu.cu
-    src/ops/topk_gpu.cu
-    src/ops/topp_mask_gpu.cu
-    src/ops/quantize_gpu.cu
-    src/ops/nccl_ops_gpu.cu
-    src/ops/awq/gemm_gpu.cu
-    src/ops/awq/gemv_gpu.cu
-    src/ops/awq/dequantize_gpu.cu
-  )
   if (WITH_FLASH_ATTN)
     add_definitions(-DCT2_WITH_FLASH_ATTN)
-    cuda_add_library(${PROJECT_NAME}
+    list(APPEND SOURCES
       src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
       src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
       src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
@@ -655,6 +631,36 @@ if (WITH_CUDA)
       src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
       PROPERTIES COMPILE_FLAGS "--use_fast_math")
   endif()
+  set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
+  cuda_add_library(${PROJECT_NAME}
+    ${SOURCES}
+    src/cuda/allocator.cc
+    src/cuda/primitives.cu
+    src/cuda/random.cu
+    src/cuda/utils.cc
+    src/ops/alibi_add_gpu.cu
+    src/ops/bias_add_gpu.cu
+    src/ops/concat_split_slide_gpu.cu
+    src/ops/conv1d_gpu.cu
+    src/ops/dequantize_gpu.cu
+    src/ops/flash_attention_gpu.cu
+    src/ops/gather_gpu.cu
+    src/ops/gumbel_max_gpu.cu
+    src/ops/layer_norm_gpu.cu
+    src/ops/mean_gpu.cu
+    src/ops/multinomial_gpu.cu
+    src/ops/rms_norm_gpu.cu
+    src/ops/rotary_gpu.cu
+    src/ops/softmax_gpu.cu
+    src/ops/tile_gpu.cu
+    src/ops/topk_gpu.cu
+    src/ops/topp_mask_gpu.cu
+    src/ops/quantize_gpu.cu
+    src/ops/nccl_ops_gpu.cu
+    src/ops/awq/gemm_gpu.cu
+    src/ops/awq/gemv_gpu.cu
+    src/ops/awq/dequantize_gpu.cu
+  )
 
 
 elseif(WITH_CUDNN)

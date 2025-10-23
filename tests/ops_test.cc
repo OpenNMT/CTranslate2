@@ -883,6 +883,17 @@ TEST_P(OpDeviceFPTest, GELUSigmoid) {
   expect_storage_eq(output.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, Sigmoid) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  StorageView input({2}, std::vector<float>{0.2, -1.3}, device);
+  StorageView expected({2}, std::vector<float>{0.54983395, 0.21416503}, device);
+  StorageView output(dtype, device);
+  ops::Sigmoid()(input.to(dtype), output);
+  expect_storage_eq(output.to_float32(), expected, error);
+}
+
 TEST_P(OpDeviceFPTest, Swish) {
   const Device device = GetParam().device;
   const DataType dtype = GetParam().dtype;

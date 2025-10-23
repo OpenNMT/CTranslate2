@@ -1,13 +1,13 @@
 #include "module.h"
 
-#include <ctranslate2/models/wav2vec2.h>
+#include <ctranslate2/models/wav2vec2bert.h>
 
 #include "replica_pool.h"
 
 namespace ctranslate2 {
   namespace python {
 
-    class Wav2Vec2Wrapper : public ReplicaPoolHelper<models::Wav2Vec2> {
+    class Wav2Vec2BertWrapper : public ReplicaPoolHelper<models::Wav2Vec2Bert> {
     public:
       using ReplicaPoolHelper::ReplicaPoolHelper;
 
@@ -19,11 +19,11 @@ namespace ctranslate2 {
     };
 
 
-    void register_wav2vec2(py::module& m) {
-      py::class_<Wav2Vec2Wrapper>(
-        m, "Wav2Vec2",
+    void register_wav2vec2bert(py::module& m) {
+      py::class_<Wav2Vec2BertWrapper>(
+        m, "Wav2Vec2Bert",
         R"pbdoc(
-            Implements the Wav2Vec2 speech recognition model published by Facebook.
+            Implements the Wav2Vec2Bert speech recognition model published by Facebook.
 
             See Also:
                https://github.com/facebookresearch/fairseq/tree/main/examples/wav2vec
@@ -42,7 +42,7 @@ namespace ctranslate2 {
              py::arg("tensor_parallel")=false,
              py::arg("files")=py::none(),
              R"pbdoc(
-                 Initializes a Wav2Vec2 model from a converted model.
+                 Initializes a Wav2Vec2Bert model from a converted model.
 
                  Arguments:
                    model_path: Path to the CTranslate2 model directory.
@@ -63,22 +63,22 @@ namespace ctranslate2 {
                      :obj:`model_path` acts as an identifier for this model.
              )pbdoc")
 
-        .def_property_readonly("device", &Wav2Vec2Wrapper::device,
+        .def_property_readonly("device", &Wav2Vec2BertWrapper::device,
                                "Device this model is running on.")
-        .def_property_readonly("device_index", &Wav2Vec2Wrapper::device_index,
+        .def_property_readonly("device_index", &Wav2Vec2BertWrapper::device_index,
                                "List of device IDs where this model is running on.")
-        .def_property_readonly("compute_type", &Wav2Vec2Wrapper::compute_type,
+        .def_property_readonly("compute_type", &Wav2Vec2BertWrapper::compute_type,
                                "Computation type used by the model.")
-        .def_property_readonly("num_workers", &Wav2Vec2Wrapper::num_replicas,
+        .def_property_readonly("num_workers", &Wav2Vec2BertWrapper::num_replicas,
                                "Number of model workers backing this instance.")
-        .def_property_readonly("num_queued_batches", &Wav2Vec2Wrapper::num_queued_batches,
+        .def_property_readonly("num_queued_batches", &Wav2Vec2BertWrapper::num_queued_batches,
                                "Number of batches waiting to be processed.")
-        .def_property_readonly("tensor_parallel", &Wav2Vec2Wrapper::tensor_parallel,
+        .def_property_readonly("tensor_parallel", &Wav2Vec2BertWrapper::tensor_parallel,
                                "Run model with tensor parallel mode.")
-        .def_property_readonly("num_active_batches", &Wav2Vec2Wrapper::num_active_batches,
+        .def_property_readonly("num_active_batches", &Wav2Vec2BertWrapper::num_active_batches,
                                "Number of batches waiting to be processed or currently processed.")
 
-        .def("encode", &Wav2Vec2Wrapper::encode,
+        .def("encode", &Wav2Vec2BertWrapper::encode,
              py::arg("features"),
              py::arg("to_cpu")=false,
              py::call_guard<py::gil_scoped_release>(),
@@ -86,27 +86,26 @@ namespace ctranslate2 {
                  Encodes the input features.
 
                  Arguments:
-                   features: hidden_states (up to v.4.3.1, https://github.com/OpenNMT/CTranslate2/blob/59c7dda738892df7a064aa360d0e45a4c3840b07/python/tests/test_transformers.py#L1028) or
-                             raw audio, as a float array with shape (followed by VAD)
-                             ``[batch_size, 409, 1024]`` or ``[batch_size, 1, 131200]`` 
+                   features: Mel spectogram of the audio, as a float array with shape
+                     ``[batch_size, 80, 3000]``.
                    to_cpu: Copy the encoder output to the CPU before returning the value.
 
                  Returns:
                    The encoder output.
              )pbdoc")
 
-        .def("unload_model", &Wav2Vec2Wrapper::unload_model,
+        .def("unload_model", &Wav2Vec2BertWrapper::unload_model,
              py::arg("to_cpu")=false,
              py::call_guard<py::gil_scoped_release>(),
              R"pbdoc(
-                 Unloads the model attached to this wav2vec2 but keep enough runtime context
-                 to quickly resume wav2vec2 on the initial device.
+                 Unloads the model attached to this wav2vec2bert but keep enough runtime context
+                 to quickly resume wav2vec2bert on the initial device.
 
                  Arguments:
                    to_cpu: If ``True``, the model is moved to the CPU memory and not fully unloaded.
              )pbdoc")
 
-        .def("load_model", &Wav2Vec2Wrapper::load_model,
+        .def("load_model", &Wav2Vec2BertWrapper::load_model,
              py::arg("keep_cache")=false,
              py::call_guard<py::gil_scoped_release>(),
              R"pbdoc(
@@ -116,7 +115,7 @@ namespace ctranslate2 {
                    keep_cache: If ``True``, the model cache in the CPU memory is not deleted if it exists.
              )pbdoc")
 
-        .def_property_readonly("model_is_loaded", &Wav2Vec2Wrapper::model_is_loaded,
+        .def_property_readonly("model_is_loaded", &Wav2Vec2BertWrapper::model_is_loaded,
                                "Whether the model is loaded on the initial device and ready to be used.")
         ;
     }

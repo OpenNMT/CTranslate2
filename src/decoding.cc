@@ -157,6 +157,22 @@ namespace ctranslate2 {
     return attention;
   }
 
+  static std::vector<StorageView> build_logits(const StorageView& history,
+                                                  const dim_t batch) {
+    if (!history)
+      return {};
+    std::vector<StorageView> logits;
+    logits.reserve(batch);
+    for (dim_t t = 0; t < batch; ++t) {
+      ops::Slide slide(0, t, 1);
+      StorageView tmp(history.dtype(), history.device());
+      slide(history, tmp);
+      logits.emplace_back(std::move(tmp.squeeze(0)));
+    }
+
+    return logits;
+  }
+
   static float compute_coverage_penalty(const std::vector<std::vector<float>>& attention,
                                         const float beta) {
     float penalty = 0;
@@ -190,7 +206,8 @@ namespace ctranslate2 {
   static inline void sort_hypotheses(DecodingResult& result,
                                      size_t max_hypotheses,
                                      bool keep_scores,
-                                     bool keep_attention) {
+                                     bool keep_attention,
+                                     bool keep_logits_vocab) {
     std::vector<size_t> idx(result.hypotheses.size());
     std::iota(idx.begin(), idx.end(), 0);
     std::sort(idx.begin(), idx.end(),
@@ -210,6 +227,11 @@ namespace ctranslate2 {
       result.attention = index_vector(result.attention, idx);
     else
       result.attention.clear();
+
+    if (keep_logits_vocab)
+      result.logits_vocab = index_vector(result.logits_vocab, idx);
+    else
+      result.logits_vocab.clear();
   }
 
   static inline void finalize_result(DecodingResult& result,
@@ -217,7 +239,8 @@ namespace ctranslate2 {
                                      const float length_penalty,
                                      const float coverage_penalty,
                                      const bool keep_scores,
-                                     const bool keep_attention) {
+                                     const bool keep_attention,
+                                     const bool keep_logits_vocab) {
     for (size_t i = 0; i < result.scores.size(); ++i) {
       const auto* attention = result.attention.empty() ? nullptr : &result.attention[i];
       result.scores[i] = finalize_hypothesis_score(result.scores[i],
@@ -227,7 +250,7 @@ namespace ctranslate2 {
                                                    attention);
     }
 
-    sort_hypotheses(result, max_hypotheses, keep_scores, keep_attention);
+    sort_hypotheses(result, max_hypotheses, keep_scores, keep_attention, keep_logits_vocab);
   }
 
   BiasedDecoder::BiasedDecoder(const float prefix_bias_beta,
@@ -409,6 +432,7 @@ namespace ctranslate2 {
                      const dim_t min_length,
                      const bool return_scores,
                      const bool return_attention,
+                     const bool return_logits_vocab,
                      const bool return_prefix,
                      const size_t num_hypotheses,
                      const bool include_eos_in_hypotheses,
@@ -501,6 +525,13 @@ namespace ctranslate2 {
       }
 
       disable_tokens.apply();
+      std::vector<StorageView> logits_vec;
+      if (return_logits_vocab) {
+        if (is_expanded)
+          logits_vec = build_logits(logits, cur_batch_size * _beam_size);
+        else
+          logits_vec = build_logits(logits, cur_batch_size);
+      }
 
       StorageView log_probs(dtype, device);
       if (bias_towards_prefix) {
@@ -599,6 +630,9 @@ namespace ctranslate2 {
             result.hypotheses.emplace_back(build_hypothesis(alive_seq, i, k, start, end));
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
+            if (return_logits_vocab) {
+              result.logits_vocab.emplace_back(std::move(logits_vec[i * k]));
+            }
 
             // Move another active beam to this position.
             for (dim_t j = secondary_candidates_offset; j < num_candidates; ++j) {
@@ -628,7 +662,8 @@ namespace ctranslate2 {
                           _length_penalty,
                           _coverage_penalty,
                           return_scores,
-                          return_attention);
+                          return_attention,
+                          return_logits_vocab);
         } else {
           non_finished_index.emplace_back(i);
         }
@@ -705,6 +740,7 @@ namespace ctranslate2 {
                        const dim_t min_length,
                        const bool return_scores,
                        const bool return_attention,
+                       const bool return_logits_vocab,
                        const bool return_prefix,
                        const size_t num_hypotheses,
                        const bool include_eos_in_hypotheses,
@@ -750,6 +786,7 @@ namespace ctranslate2 {
         min_length,
         /*return_scores=*/true,
         return_attention,
+        return_logits_vocab,
         return_prefix,
         /*num_hypotheses=*/1,
         include_eos_in_hypotheses,
@@ -766,10 +803,12 @@ namespace ctranslate2 {
         final_result.scores.emplace_back(result.scores[0]);
         if (return_attention)
           final_result.attention.emplace_back(std::move(result.attention[0]));
+        if (return_logits_vocab)
+          final_result.logits_vocab.emplace_back(std::move(result.logits_vocab[0]));
       }
 
       for (auto& result : final_results)
-        sort_hypotheses(result, num_hypotheses, return_scores, return_attention);
+        sort_hypotheses(result, num_hypotheses, return_scores, return_attention, return_logits_vocab);
 
       return final_results;
     }
@@ -826,6 +865,12 @@ namespace ctranslate2 {
 
       disable_tokens.apply();
 
+      std::vector<StorageView> logits_vec;
+      StorageView logits_orig(dtype, device);
+      if (return_logits_vocab) {
+        logits_vec = build_logits(logits, logits.dim(0));
+        logits_orig.copy_from(logits);
+      }
       // Compute log probs only if required.
       StorageView log_probs(dtype, device);
       if (return_scores)
@@ -857,6 +902,11 @@ namespace ctranslate2 {
         const dim_t prefix_length = prefix_ids ? prefix_ids->at(batch_id).size() : 0;
         const float score = best_probs.scalar_at<float>({i, 0});
 
+        if (return_logits_vocab) {
+          results[batch_id].logits_vocab.resize(1);
+          results[batch_id].logits_vocab[0].emplace_back(std::move(logits_vec[i]));
+        }
+
         if ((!is_eos(word_id, end_ids) || include_eos_in_hypotheses)
             && (return_prefix || step >= prefix_length)) {
           results[batch_id].hypotheses[0].push_back(word_id);
@@ -880,7 +930,9 @@ namespace ctranslate2 {
           step_result.hypothesis_id = 0;
           step_result.is_last = is_finished;
           if (return_scores)
-            step_result.log_prob = score;
+            step_result.score = score;
+          if (return_logits_vocab)
+            step_result.logits = std::move(logits_orig);
           if (_callback(std::move(step_result))) {
             is_finished = true;
           }
@@ -892,7 +944,8 @@ namespace ctranslate2 {
                           _length_penalty,
                           _coverage_penalty,
                           return_scores,
-                          return_attention);
+                          return_attention,
+                          return_logits_vocab);
         } else {
           non_finished_index.emplace_back(i);
           sample_from.at<int32_t>(i) = word_id;
@@ -1078,6 +1131,8 @@ namespace ctranslate2 {
       result.scores.resize(options.num_hypotheses, 0);
     if (options.return_attention)
       result.attention.resize(options.num_hypotheses);
+    if (options.return_logits_vocab)
+      result.logits_vocab.resize(options.num_hypotheses);
 
     if (start_tokens.empty())
       throw std::invalid_argument("One input has no decoder start token");
@@ -1140,6 +1195,7 @@ namespace ctranslate2 {
                                                   /*min_length=*/1,
                                                   /*return_scores=*/true,
                                                   options.return_attention,
+                                                  options.return_logits_vocab,
                                                   options.return_prefix,
                                                   options.num_hypotheses,
                                                   options.include_eos_in_hypotheses,
@@ -1158,6 +1214,8 @@ namespace ctranslate2 {
         result.attention[i].emplace_back(std::move(expansion_result.attention[i].back()));
       if (options.return_scores)
         result.scores[i] = expansion_result.scores[i];
+      if (options.return_logits_vocab)
+        result.logits_vocab[i].emplace_back(std::move(expansion_result.logits_vocab[i].back()));
 
       // The next input is the words we just expanded.
       start_ids.push_back(result.hypotheses[i].back());
@@ -1201,6 +1259,7 @@ namespace ctranslate2 {
                                                   std::max(min_length - start_step, dim_t(0)),
                                                   options.return_scores,
                                                   options.return_attention,
+                                                  options.return_logits_vocab,
                                                   options.return_prefix,
                                                   /*num_hypotheses=*/1,
                                                   options.include_eos_in_hypotheses,
@@ -1212,6 +1271,12 @@ namespace ctranslate2 {
 
       if (options.return_scores) {
         result.scores[i] += suffix.scores[0];
+      }
+
+      if (options.return_logits_vocab) {
+        result.logits_vocab[i].insert(result.logits_vocab[i].end(),
+                                   std::make_move_iterator(suffix.logits_vocab[0].begin()),
+                                   std::make_move_iterator(suffix.logits_vocab[0].end()));
       }
 
       if (options.return_attention)
@@ -1293,6 +1358,7 @@ namespace ctranslate2 {
                                         options.min_length,
                                         options.return_scores,
                                         options.return_attention,
+                                        options.return_logits_vocab,
                                         options.return_prefix,
                                         options.num_hypotheses,
                                         options.include_eos_in_hypotheses,

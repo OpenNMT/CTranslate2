@@ -1,4 +1,4 @@
-#include "ctranslate2/models/wav2vec2.h"
+#include "ctranslate2/models/wav2vec2bert.h"
 
 #include <algorithm>
 
@@ -15,15 +15,15 @@
 namespace ctranslate2 {
   namespace models {
 
-    const Vocabulary& Wav2Vec2Model::get_vocabulary() const {
+    const Vocabulary& Wav2Vec2BertModel::get_vocabulary() const {
       return *_vocabulary;
     }
 
-    size_t Wav2Vec2Model::current_spec_revision() const {
-      return 3;
+    size_t Wav2Vec2BertModel::current_spec_revision() const {
+      return 1;
     }
 
-    void Wav2Vec2Model::initialize(ModelReader& model_reader) {
+    void Wav2Vec2BertModel::initialize(ModelReader& model_reader) {
       VocabularyInfo vocab_info;
       vocab_info.unk_token = "[UNK]";
       vocab_info.bos_token = "<s>";
@@ -34,39 +34,39 @@ namespace ctranslate2 {
         throw std::runtime_error("Cannot load the vocabulary from the model directory");
     }
 
-    bool Wav2Vec2Model::is_quantizable(const std::string& variable_name) const {
+    bool Wav2Vec2BertModel::is_quantizable(const std::string& variable_name) const {
       return Model::is_quantizable(variable_name);
     }
 
-    bool Wav2Vec2Model::is_linear_weight(const std::string& variable_name) const {
+    bool Wav2Vec2BertModel::is_linear_weight(const std::string& variable_name) const {
       return is_quantizable(variable_name) && variable_name.find("embeddings") == std::string::npos;
     }
 
-    std::unique_ptr<Model> Wav2Vec2Model::clone() const {
-      return std::make_unique<Wav2Vec2Model>(*this);
+    std::unique_ptr<Model> Wav2Vec2BertModel::clone() const {
+      return std::make_unique<Wav2Vec2BertModel>(*this);
     }
 
 
-    std::unique_ptr<Wav2Vec2Replica> Wav2Vec2Replica::create_from_model(const Model& model) {
-      if (!dynamic_cast<const Wav2Vec2Model*>(&model))
-        throw std::invalid_argument("The model is not a Wav2Vec2 model");
+    std::unique_ptr<Wav2Vec2BertReplica> Wav2Vec2BertReplica::create_from_model(const Model& model) {
+      if (!dynamic_cast<const Wav2Vec2BertModel*>(&model))
+        throw std::invalid_argument("The model is not a Wav2Vec2Bert model");
 
       const auto scoped_device_setter = model.get_scoped_device_setter();
       const auto model_ptr = model.shared_from_this();
-      const auto concrete_model = std::static_pointer_cast<const Wav2Vec2Model>(model_ptr);
-      return std::make_unique<Wav2Vec2Replica>(concrete_model);
+      const auto concrete_model = std::static_pointer_cast<const Wav2Vec2BertModel>(model_ptr);
+      return std::make_unique<Wav2Vec2BertReplica>(concrete_model);
     }
 
-    Wav2Vec2Replica::Wav2Vec2Replica(const std::shared_ptr<const Wav2Vec2Model>& model)
+    Wav2Vec2BertReplica::Wav2Vec2BertReplica(const std::shared_ptr<const Wav2Vec2BertModel>& model)
       : ModelReplica(model)
       , _model(model)
-      , _encoder(std::make_unique<layers::Wav2Vec2Encoder>(*model, "encoder"))
+      , _encoder(std::make_unique<layers::Wav2Vec2BertEncoder>(*model, "encoder"))
     {
     }
 
 
-    StorageView Wav2Vec2Replica::encode(StorageView features, const bool to_cpu) {
-      PROFILE("Wav2Vec2Replica::encode");
+    StorageView Wav2Vec2BertReplica::encode(StorageView features, const bool to_cpu) {
+      PROFILE("Wav2Vec2BertReplica::encode");
 
 #ifdef CT2_WITH_CUDA
       const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(false);
@@ -77,13 +77,7 @@ namespace ctranslate2 {
       const DataType dtype = _encoder->output_type();
       features.move_to(device, dtype);
 
-      StorageView encoder_output(dtype, device);
-      if (_encoder->_upgraded_model) {
-        encoder_output = maybe_encode(std::move(features));
-      }
-      else {
-        (*_encoder)(features, encoder_output);
-      }
+      StorageView encoder_output = maybe_encode(std::move(features));
 
       if (to_cpu) {
         if (device != Device::CPU)
@@ -98,7 +92,7 @@ namespace ctranslate2 {
       return encoder_output;
     }
 
-    StorageView Wav2Vec2Replica::maybe_encode(StorageView features) {
+    StorageView Wav2Vec2BertReplica::maybe_encode(StorageView features) {
       const Device device = _model->device();
       const DataType dtype = _encoder->output_type();
 
@@ -112,9 +106,9 @@ namespace ctranslate2 {
       return encoder_output;
     }
 
-    std::future<StorageView> Wav2Vec2::encode(const StorageView& features, const bool to_cpu) {
+    std::future<StorageView> Wav2Vec2Bert::encode(const StorageView& features, const bool to_cpu) {
       return post<StorageView>(
-        [features = features.sync_copy(), to_cpu](Wav2Vec2Replica& replica) mutable {
+        [features = features.sync_copy(), to_cpu](Wav2Vec2BertReplica& replica) mutable {
           return replica.encode(std::move(features), to_cpu);
         });
     }

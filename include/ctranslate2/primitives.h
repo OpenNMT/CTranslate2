@@ -181,6 +181,8 @@ namespace ctranslate2 {
     template <typename T>
     static void gelu_sigmoid(const T* x, T* y, dim_t size);
     template <typename T>
+    static void sigmoid(const T* x, T* y, dim_t size);
+    template <typename T>
     static void swish(const T* x, T* y, dim_t size);
 
     static void compute_u8_compensation(const int8_t* b,
