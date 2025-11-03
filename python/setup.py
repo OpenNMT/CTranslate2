@@ -67,7 +67,6 @@ ParallelCompile("CMAKE_BUILD_PARALLEL_LEVEL").install()
 setup(
     name="ctranslate2",
     version=_get_project_version(),
-    license="MIT",
     description="Fast inference engine for Transformer models",
     long_description=_get_long_description(),
     long_description_content_type="text/markdown",
