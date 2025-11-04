@@ -35,7 +35,7 @@ else
         libnccl-devel-2.20.5-1+cuda12.4
     ln -s cuda-12.4 /usr/local/cuda
 
-    ONEAPI_VERSION=2023.2.0
+    ONEAPI_VERSION=2024.0.0
     yum-config-manager --add-repo https://yum.repos.intel.com/oneapi
     rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
     yum install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION
