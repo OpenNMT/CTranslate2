@@ -67,7 +67,6 @@ ParallelCompile("CMAKE_BUILD_PARALLEL_LEVEL").install()
 setup(
     name="ctranslate2",
     version=_get_project_version(),
-    license="MIT",
     description="Fast inference engine for Transformer models",
     long_description=_get_long_description(),
     long_description_content_type="text/markdown",
@@ -75,9 +74,7 @@ setup(
     url="https://opennmt.net",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
-        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.0",
-        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.1",
-        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.2",
+        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.4",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
         "License :: OSI Approved :: MIT License",
@@ -88,6 +85,7 @@ setup(
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     project_urls={
