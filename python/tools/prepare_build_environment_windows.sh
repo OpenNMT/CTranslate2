@@ -54,5 +54,5 @@ rm -r build
 
 cp README.md python/
 cp $CTRANSLATE2_ROOT/bin/ctranslate2.dll python/ctranslate2/
-cp ":/Program Files (x86)/Intel/oneAPI/2025.3/bin/libiomp5md.dll" python/ctranslate2/
+cp "C:/Program Files (x86)/Intel/oneAPI/2025.3/bin/libiomp5md.dll" python/ctranslate2/
 cp "$CUDA_ROOT/bin/cudnn64_9.dll" python/ctranslate2/
