@@ -11,7 +11,7 @@ RUN apt-get update && \
 
 WORKDIR /root
 
-ENV ONEAPI_VERSION=2023.0.0
+ENV ONEAPI_VERSION=2025.3.0
 RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB && \
     apt-key add *.PUB && \
     rm *.PUB && \
