@@ -16,9 +16,8 @@ RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PROD
     apt-key add *.PUB && \
     rm *.PUB && \
     echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list && \
-    apt-get update 
-RUN apt-cache search intel-oneapi-mkl
-RUN    apt-get install -y --no-install-recommends \
+    apt-get update && \
+    apt-get install -y --no-install-recommends \
         intel-oneapi-mkl-devel-$ONEAPI_VERSION \
         && \
     apt-get clean && \
