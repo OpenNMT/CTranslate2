@@ -52,6 +52,7 @@ cmake --build . --config Release --target install --parallel 6 --verbose
 cd ..
 rm -r build
 
+ls -l "C:/Program Files (x86)/Intel/oneAPI/"*
 cp README.md python/
 cp $CTRANSLATE2_ROOT/bin/ctranslate2.dll python/ctranslate2/
 cp "C:/Program Files (x86)/Intel/oneAPI/compiler/2024.0/bin/libiomp5md.dll" python/ctranslate2/
