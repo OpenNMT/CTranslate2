@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - "**"
     tags:
       - v*
   pull_request:
@@ -137,9 +137,9 @@ jobs:
         include:
         - os: ubuntu-22.04
           arch: aarch64
-        - os: macos-13
+        - os: macos-15
           arch: arm64
-        - os: macos-13
+        - os: macos-15-intel
           arch: x86_64
 
     steps:
