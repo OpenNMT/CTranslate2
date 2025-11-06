@@ -54,7 +54,7 @@ else
           -DOpenMP_omp_LIBRARY="${OpenMP_omp_LIBRARY}" \
           -DCMAKE_C_FLAGS="${CPPFLAGS}" \
           -DCMAKE_CXX_FLAGS="${CPPFLAGS}" .
-    make -j$(sysctl -n hw.physicalcpu_max) install
+    sudo make -j$(sysctl -n hw.physicalcpu_max) install
     cd ..
     rm -r oneDNN-*
 
@@ -71,7 +71,7 @@ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
       -DOpenMP_omp_LIBRARY="${OpenMP_omp_LIBRARY}" \
       $CMAKE_EXTRA_OPTIONS ..
 
-VERBOSE=1 make -j$(sysctl -n hw.physicalcpu_max) install
+sudo VERBOSE=1 make -j$(sysctl -n hw.physicalcpu_max) install
 cd ..
 rm -r build-release
 
