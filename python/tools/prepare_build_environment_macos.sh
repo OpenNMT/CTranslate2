@@ -14,9 +14,9 @@ export CPPFLAGS="-I${LIBOMP_PREFIX}/include"
 export CMAKE_PREFIX_PATH="${LIBOMP_PREFIX}"
 
 # Critical: Set OpenMP flags explicitly for CMake
-export OpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include"
+export OpenMP_C_FLAGS="-Xpreprocessor;-fopenmp;-I${LIBOMP_PREFIX}/include"
 export OpenMP_C_LIB_NAMES="omp"
-export OpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include"
+export OpenMP_CXX_FLAGS="-Xpreprocessor;-fopenmp;-I${LIBOMP_PREFIX}/include"
 export OpenMP_CXX_LIB_NAMES="omp"
 export OpenMP_omp_LIBRARY="${LIBOMP_PREFIX}/lib/libomp.dylib"
 
