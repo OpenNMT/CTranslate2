@@ -24,6 +24,8 @@ option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
 option(GOOGLE_ADDRESS_SANITIZER "ASAN" OFF)
 
+MESSAGE(STATUS "Compiler Id: ${CMAKE_CXX_COMPILER_ID}")
+MESSAGE(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
