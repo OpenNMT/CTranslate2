@@ -2,7 +2,7 @@
 set -e
 set -x
 
-pip install "cmake==3.18.4"
+#pip install "cmake==3.18.4"
 brew install libomp
 
 # Get the actual libomp path
