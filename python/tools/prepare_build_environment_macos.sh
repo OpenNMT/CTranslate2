@@ -1,9 +1,24 @@
-#! /bin/bash
-
+#!/bin/bash
 set -e
 set -x
 
 pip install "cmake==3.18.4"
+brew install libomp
+
+# Get the actual libomp path
+LIBOMP_PREFIX=$(brew --prefix libomp)
+
+# Set environment variables
+export LDFLAGS="-L${LIBOMP_PREFIX}/lib"
+export CPPFLAGS="-I${LIBOMP_PREFIX}/include"
+export CMAKE_PREFIX_PATH="${LIBOMP_PREFIX}"
+
+# Critical: Set OpenMP flags explicitly for CMake
+export OpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include"
+export OpenMP_C_LIB_NAMES="omp"
+export OpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include"
+export OpenMP_CXX_LIB_NAMES="omp"
+export OpenMP_omp_LIBRARY="${LIBOMP_PREFIX}/lib/libomp.dylib"
 
 mkdir build-release && cd build-release
 
@@ -26,7 +41,19 @@ else
     wget -q https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz
     tar xf *.tar.gz && rm *.tar.gz
     cd oneDNN-*
-    cmake -DCMAKE_BUILD_TYPE=Release -DONEDNN_LIBRARY_TYPE=STATIC -DONEDNN_BUILD_EXAMPLES=OFF -DONEDNN_BUILD_TESTS=OFF -DONEDNN_ENABLE_WORKLOAD=INFERENCE -DONEDNN_ENABLE_PRIMITIVE="CONVOLUTION;REORDER" -DONEDNN_BUILD_GRAPH=OFF .
+    cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+          -DCMAKE_BUILD_TYPE=Release \
+          -DONEDNN_LIBRARY_TYPE=STATIC \
+          -DONEDNN_BUILD_EXAMPLES=OFF \
+          -DONEDNN_BUILD_TESTS=OFF \
+          -DONEDNN_ENABLE_WORKLOAD=INFERENCE \
+          -DONEDNN_ENABLE_PRIMITIVE="CONVOLUTION;REORDER" \
+          -DONEDNN_BUILD_GRAPH=OFF \
+          -DOpenMP_C_FLAGS="${OpenMP_C_FLAGS}" \
+          -DOpenMP_CXX_FLAGS="${OpenMP_CXX_FLAGS}" \
+          -DOpenMP_omp_LIBRARY="${OpenMP_omp_LIBRARY}" \
+          -DCMAKE_C_FLAGS="${CPPFLAGS}" \
+          -DCMAKE_CXX_FLAGS="${CPPFLAGS}" .
     make -j$(sysctl -n hw.physicalcpu_max) install
     cd ..
     rm -r oneDNN-*
@@ -35,7 +62,15 @@ else
 
 fi
 
-cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_CLI=OFF -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON $CMAKE_EXTRA_OPTIONS ..
+cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+      -DCMAKE_BUILD_TYPE=Release \
+      -DBUILD_CLI=OFF \
+      -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+      -DOpenMP_C_FLAGS="${OpenMP_C_FLAGS}" \
+      -DOpenMP_CXX_FLAGS="${OpenMP_CXX_FLAGS}" \
+      -DOpenMP_omp_LIBRARY="${OpenMP_omp_LIBRARY}" \
+      $CMAKE_EXTRA_OPTIONS ..
+
 VERBOSE=1 make -j$(sysctl -n hw.physicalcpu_max) install
 cd ..
 rm -r build-release
