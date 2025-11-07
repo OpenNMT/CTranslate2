@@ -52,6 +52,7 @@ namespace ctranslate2 {
                                              const bool multi_query = false);
 
     protected:
+      bool _is_low_rank;
       const bool _tensor_parallel;
       const dim_t _num_heads;
       const bool _self_attention;

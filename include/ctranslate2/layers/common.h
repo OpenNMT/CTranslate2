@@ -135,7 +135,9 @@ namespace ctranslate2 {
       void select_weights(const StorageView* index, const StorageView* extra_bias = nullptr);
     private:
       bool _packed_weight;
+      bool _is_low_rank;
       const StorageView& _weight;
+      const StorageView* _weight2;
       const StorageView* _bias;
       const StorageView* _qscale;
       const StorageView* _qzero;

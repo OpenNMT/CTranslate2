@@ -3,6 +3,7 @@ import argparse
 import gc
 import itertools
 import os
+import re
 
 from typing import List, Optional
 
@@ -96,6 +97,13 @@ class TransformersConverter(Converter):
           trust_remote_code: Allow converting models using custom code.
         """
         self._model_name_or_path = model_name_or_path
+        self._model_processor_name = model_name_or_path
+        if model_name_or_path.startswith('efficient-speech/lite-whisper'):
+            # If this is a lite-whisper model, use openai's 
+            # corresponding preprocessor.
+            regex = r'whisper-[a-z0-9-]+?(?=-(?:fast|acc)|$)'
+            regex_result = re.search(regex, model_name_or_path)
+            self._model_processor_name = f"openai/{regex_result.group()}"
         self._activation_scales = activation_scales
         self._copy_files = copy_files
         self._load_as_float16 = load_as_float16
@@ -119,7 +127,6 @@ class TransformersConverter(Converter):
                     % (config_name, ", ".join(sorted(_MODEL_LOADERS.keys())))
                 )
 
-            model_class = getattr(transformers, loader.architecture_name)
             tokenizer_class = transformers.AutoTokenizer
 
             kwargs = {
@@ -137,14 +144,21 @@ class TransformersConverter(Converter):
             if self._trust_remote_code:
                 kwargs["trust_remote_code"] = self._trust_remote_code
 
-            model = self.load_model(model_class, self._model_name_or_path, **kwargs)
+            if hasattr(transformers, loader.architecture_name):
+                model_class = getattr(transformers, loader.architecture_name)
+                model = self.load_model(model_class, self._model_name_or_path, **kwargs)
+            elif self._model_name_or_path.startswith('efficient-speech/lite-whisper'):
+                model = transformers.AutoModel.from_pretrained(self._model_name_or_path, **kwargs)
+            else:
+                raise ValueError(
+                    "The model %s is not supported by the converter. " % self._model_name_or_path)
 
             tokenizer_kwargs = {}
             if self._trust_remote_code:
                 tokenizer_kwargs["trust_remote_code"] = self._trust_remote_code
 
             tokenizer = self.load_tokenizer(
-                tokenizer_class, self._model_name_or_path, **tokenizer_kwargs
+                tokenizer_class, self._model_processor_name, **tokenizer_kwargs
             )
 
             spec = loader(model, tokenizer)
@@ -235,6 +249,19 @@ class ModelLoader(abc.ABC):
 
         if isinstance(module, transformers.Conv1D):
             spec.weight = spec.weight.transpose(0, 1)
+        if module.bias is not None:
+            spec.bias = module.bias
+    
+    def set_low_rank_linear(self, spec, module, quant_type=common_spec.Quantization.CT2):
+        if quant_type == common_spec.Quantization.CT2:
+            spec.low_rank_weight_1 = module.weight1
+            spec.low_rank_weight_2 = module.weight2
+        else:
+            spec.low_rank_weight_1 = module.qweight1
+            spec.low_rank_weight_2 = module.qweight2
+            spec.weight_scale = module.scales
+            spec.weight_zero = module.qzeros
+
         if module.bias is not None:
             spec.bias = module.bias
 
@@ -996,6 +1023,71 @@ class WhisperLoader(BartLoader):
         spec.weight = module.weight
         spec.bias = module.bias
 
+@register_loader("LiteWhisperConfig")
+class LiteWhisperLoader(WhisperLoader):
+    @property
+    def architecture_name(self):
+        return "LiteWhisperForConditionalGeneration"
+
+    def get_model_spec(self, model):
+        spec = whisper_spec.WhisperSpec(
+            model.config.encoder_layers,
+            model.config.encoder_attention_heads,
+            model.config.decoder_layers,
+            model.config.decoder_attention_heads,
+            low_rank=True,
+        )
+
+        self.set_encoder(spec.encoder, model.model.encoder)
+        self.set_decoder(spec.decoder, model.model.decoder)
+        self.set_linear(spec.decoder.projection, model.proj_out)
+
+        return spec
+
+    def set_encoder(self, spec, encoder):
+        self.set_conv1d(spec.conv1, encoder.conv1)
+        self.set_conv1d(spec.conv2, encoder.conv2)
+
+        self.set_common_layers(spec, encoder)
+
+        for layer_spec, layer in zip(spec.layer, encoder.layers):
+            self.set_low_rank_attention(
+                layer_spec.self_attention,
+                layer.self_attn,
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm,
+                layer.self_attn_layer_norm,
+            )
+
+            # Double check if these are low rank or not because of potential
+            # fall backs to full precision.
+            if hasattr(layer.fc1, 'weight1'):
+                self.set_low_rank_linear(layer_spec.ffn.linear_0, layer.fc1)
+            else:
+                layer_spec.ffn.linear_0 = common_spec.LinearSpec()
+                self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
+
+            if hasattr(layer.fc2, 'weight1'):
+                self.set_low_rank_linear(layer_spec.ffn.linear_1, layer.fc2)
+            else:
+                layer_spec.ffn.linear_1 = common_spec.LinearSpec()
+                self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
+
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
+
+    def set_low_rank_or_linear_router(self, spec, module, i):
+        if hasattr(module, "weight1"):
+            self.set_low_rank_linear(spec.linear[i], module)
+        else:
+            spec.linear[i] = common_spec.LinearSpec()
+            self.set_linear(spec.linear[i], module)
+    
+    def set_low_rank_attention(self, spec, attention):
+        self.set_low_rank_or_linear_router(spec, attention.q_proj, 0)
+        self.set_low_rank_or_linear_router(spec, attention.k_proj, 1)
+        self.set_low_rank_or_linear_router(spec, attention.v_proj, 2)
+        self.set_low_rank_or_linear_router(spec, attention.out_proj, 3)
 
 @register_loader("Wav2Vec2Config")
 class Wav2Vec2Loader(BartLoader):

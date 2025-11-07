@@ -51,10 +51,25 @@ namespace ctranslate2 {
       return alibi;
     }
 
+    static bool set_low_rank(const models::Model& model, const std::string& scope) {
+      const StorageView* low_rank_weight = model.get_variable_if_exists(scope + "/linear_0/low_rank_weight_1");
+      if (low_rank_weight) {
+        return true;
+      }
+      return false;
+    }
+
     static std::vector<Dense> make_linear_layers(const models::Model& model,
                                                  const std::string& scope,
-                                                 bool self_attention) {
-      const dim_t num_linear_layers = self_attention ? 2 : 3;
+                                                 bool self_attention,
+                                                 bool _is_low_rank) {
+      dim_t num_linear_layers;
+      if (!_is_low_rank) {
+        num_linear_layers = self_attention ? 2 : 3;
+      } else {
+        num_linear_layers = 4;
+      }
+
       std::vector<Dense> layers;
       layers.reserve(num_linear_layers);
       for (dim_t i = 0; i < num_linear_layers; ++i)
@@ -117,11 +132,12 @@ namespace ctranslate2 {
                                            bool is_decoder,
                                            Alibi* alibi,
                                            bool is_flash_attn)
-      : _tensor_parallel(model.tensor_parallel())
+      : _is_low_rank(set_low_rank(model, scope))
+      , _tensor_parallel(model.tensor_parallel())
       , _num_heads(_tensor_parallel ? SAFE_DIVIDE(num_heads, ScopedMPISetter::getNRanks()) : num_heads)
       , _self_attention(self_attention)
       , _is_decoder(is_decoder)
-      , _linear(make_linear_layers(model, scope, self_attention))
+      , _linear(make_linear_layers(model, scope, self_attention, _is_low_rank))
       , _d_model(_tensor_parallel ? SAFE_DIVIDE(_linear.back().output_size(),  ScopedMPISetter::getNRanks()) : _linear.back().output_size())
       , _d_head(model.get_attribute_with_default<int32_t >(scope + "/head_dim", _d_model / _num_heads))
       , _pre_norm(pre_norm)
