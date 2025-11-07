@@ -13,7 +13,7 @@ def get_data_dir():
     )
 
     # Verify that downloaded files are present.
-    translit_model = os.path.join(data_dir, "models", "transliteration-aren-all")
+    translit_model = os.path.join(data_dir, "models", "v1", "aren-transliteration")
     if not os.path.isdir(translit_model):
         pytest.skip("Data files are not available")
 
