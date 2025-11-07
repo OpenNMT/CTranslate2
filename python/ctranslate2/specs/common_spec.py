@@ -64,3 +64,15 @@ class EmbeddingsSpec(model_spec.LayerSpec):
         self.weight = None
         self.weight_scale = model_spec.OPTIONAL
         self.multiply_by_sqrt_depth = model_spec.OPTIONAL
+
+
+class LinearLowRankSpec(model_spec.LayerSpec):
+    def __init__(self):
+        self.low_rank_weight_1 = None
+        self.low_rank_weight_2 = None
+        self.weight_scale = model_spec.OPTIONAL
+        self.weight_zero = model_spec.OPTIONAL
+        self.bias = model_spec.OPTIONAL
+
+    def has_bias(self):
+        return not isinstance(self.bias, str)
