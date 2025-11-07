@@ -137,9 +137,9 @@ jobs:
         include:
         - os: ubuntu-22.04
           arch: aarch64
-        - os: macos-13
+        - os: macos-15
           arch: arm64
-        - os: macos-13
+        - os: macos-15-intel
           arch: x86_64
 
     steps:
@@ -159,7 +159,7 @@ jobs:
         env:
           CIBW_ENVIRONMENT_PASS_LINUX: CIBW_ARCHS
           CIBW_ENVIRONMENT_WINDOWS: CTRANSLATE2_ROOT='${{ github.workspace }}\install'
-          CIBW_ENVIRONMENT_MACOS: "CTRANSLATE2_ROOT='/usr/local' MACOSX_DEPLOYMENT_TARGET=10.13"
+          CIBW_ENVIRONMENT_MACOS: "CTRANSLATE2_ROOT='/usr/local' MACOSX_DEPLOYMENT_TARGET=11.00"
           CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux.sh
           CIBW_BEFORE_ALL_MACOS: python/tools/prepare_build_environment_macos.sh
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows.sh
