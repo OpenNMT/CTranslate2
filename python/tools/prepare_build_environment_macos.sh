@@ -2,7 +2,6 @@
 set -e
 set -x
 
-pip install "cmake==3.18.4"
 brew install libomp
 
 # Get the actual libomp path
@@ -14,9 +13,9 @@ export CPPFLAGS="-I${LIBOMP_PREFIX}/include"
 export CMAKE_PREFIX_PATH="${LIBOMP_PREFIX}"
 
 # Critical: Set OpenMP flags explicitly for CMake
-export OpenMP_C_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include"
+export OpenMP_C_FLAGS="-Xpreprocessor;-fopenmp;-I${LIBOMP_PREFIX}/include"
 export OpenMP_C_LIB_NAMES="omp"
-export OpenMP_CXX_FLAGS="-Xpreprocessor -fopenmp -I${LIBOMP_PREFIX}/include"
+export OpenMP_CXX_FLAGS="-Xpreprocessor;-fopenmp;-I${LIBOMP_PREFIX}/include"
 export OpenMP_CXX_LIB_NAMES="omp"
 export OpenMP_omp_LIBRARY="${LIBOMP_PREFIX}/lib/libomp.dylib"
 
@@ -54,7 +53,7 @@ else
           -DOpenMP_omp_LIBRARY="${OpenMP_omp_LIBRARY}" \
           -DCMAKE_C_FLAGS="${CPPFLAGS}" \
           -DCMAKE_CXX_FLAGS="${CPPFLAGS}" .
-    make -j$(sysctl -n hw.physicalcpu_max) install
+    sudo make -j$(sysctl -n hw.physicalcpu_max) install
     cd ..
     rm -r oneDNN-*
 
@@ -71,7 +70,7 @@ cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
       -DOpenMP_omp_LIBRARY="${OpenMP_omp_LIBRARY}" \
       $CMAKE_EXTRA_OPTIONS ..
 
-VERBOSE=1 make -j$(sysctl -n hw.physicalcpu_max) install
+sudo VERBOSE=1 make -j$(sysctl -n hw.physicalcpu_max) install
 cd ..
 rm -r build-release
 
