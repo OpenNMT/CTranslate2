@@ -4,6 +4,14 @@
 
 ### Fixes and improvements
 
+## [v4.6.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.1) (2025-10-07)
+
+### New features
+
+* Python 3.14 support (#1926)
+* Support for Cuda 12.4 (#1925)
+* Update Intel oneAPI to version 2025.3 (#1931)
+
 ## [v4.6.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.0) (2025-04-08)
 Note: The Ctranslate2 Python package now supports python 3.13, drop the support for python 3.8.
 
