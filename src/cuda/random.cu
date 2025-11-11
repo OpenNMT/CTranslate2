@@ -48,11 +48,16 @@ namespace ctranslate2 {
       curandState* _states;
     };
 
+    static thread_local std::unique_ptr<ScopedCurandStates<curandStatePhilox4_32_10_t>> states;
+
     curandStatePhilox4_32_10_t* get_curand_states(size_t num_states) {
-      static thread_local std::unique_ptr<ScopedCurandStates<curandStatePhilox4_32_10_t>> states;
       if (!states || num_states > states->num_states())
         states = std::make_unique<ScopedCurandStates<curandStatePhilox4_32_10_t>>(num_states);
       return states->states();
+    }
+
+    void free_curand_states() {
+      states.reset();
     }
 
   }
