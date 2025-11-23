@@ -73,23 +73,22 @@ jobs:
           tests/ctranslate2_test tests/data
 
 
-  build-and-test-cpp-aarch64:
-    runs-on: ubuntu-22.04
+  build-and-test-cpp-arm64:
+    runs-on: ${{ matrix.os }}
     env:
       CT2_VERBOSE: 1
     strategy:
       matrix:
-        backend: [openblas]
 
+        include:
+          - os: ubuntu-22.04-arm
+            backend: openblas
+          - os: macos-15
+            backend: ruy
     steps:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Install cross compiler and emulator
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y g++-aarch64-linux-gnu gfortran-aarch64-linux-gnu qemu-user-static
 
       - name: Build with OpenBLAS and Ruy
         if: matrix.backend == 'openblas'
@@ -97,16 +96,11 @@ jobs:
           wget https://github.com/xianyi/OpenBLAS/archive/v0.3.13.tar.gz
           tar xzvf v0.3.13.tar.gz
           cd OpenBLAS-0.3.13
-          make TARGET=ARMV8 CC=aarch64-linux-gnu-gcc FC=aarch64-linux-gnu-gfortran HOSTCC=gcc NO_LAPACK=1 -j $(nproc)
-          sudo make PREFIX=/usr/aarch64-linux-gnu install
+          make TARGET=ARMV8 NO_LAPACK=1 -j $(nproc)
+          sudo make PREFIX=/usr/local install
           cd ..
-
+          export OpenBLAS_HOME=/usr/local
           cmake \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-            -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
             -DOPENMP_RUNTIME=COMP \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DWITH_MKL=OFF \
@@ -115,7 +109,19 @@ jobs:
             -DBUILD_TESTS=ON \
             .
           make -j $(nproc) install
-
+            
+      - name: Build Ruy
+        if: matrix.backend == 'ruy'
+        run: |
+          CMAKE_EXTRA_OPTIONS='-DCMAKE_OSX_ARCHITECTURES=arm64 -DWITH_ACCELERATE=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=NONE -DWITH_RUY=ON'
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+            -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DBUILD_TESTS=ON \
+            $CMAKE_EXTRA_OPTIONS \
+            .
+          make -j $(nproc) install
+ 
       - name: Download test data
         run: |
           wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
@@ -124,9 +130,6 @@ jobs:
       - name: Test
         run: |
           tests/ctranslate2_test tests/data
-        env:
-          QEMU_LD_PREFIX: /usr/aarch64-linux-gnu
-
 
   build-python-wheels:
     runs-on: ${{ matrix.os }}
@@ -183,7 +186,22 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, windows-2022]
+        include:
+          - os: ubuntu-22.04
+            artifact_pattern: python-wheels-Linux-auto64
+            wheel_pattern: "*cp310*manylinux*x86_64.whl"
+
+          - os: ubuntu-22.04-arm
+            artifact_pattern: python-wheels-Linux-aarch64
+            wheel_pattern: "*cp310*manylinux*_aarch64.whl"
+
+          #- os: windows-2022
+          #  artifact_pattern: python-wheels-Windows-auto64
+          #  wheel_pattern: "*cp310*win*.whl"
+
+          - os: macos-15
+            artifact_pattern: python-wheels-macOS-arm64
+            wheel_pattern: "*cp310*macosx*arm64.whl"
 
     steps:
       - name: Set up Python 3.10.11
@@ -201,23 +219,18 @@ jobs:
       - name: Download Python wheels
         uses: actions/download-artifact@v4
         with:
-          pattern: python-wheels-${{ runner.os }}-*
+          pattern: ${{ matrix.artifact_pattern }}
           merge-multiple: true
           path: .
 
       - name: Install wheel
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          pip install *cp310*manylinux*x86_64.whl
-
-      - name: Install wheel
-        if: startsWith(matrix.os, 'windows')
         shell: bash
         run: |
-          pip install *cp310*win*.whl
-
-      - name: Run tests
-        shell: bash
+          ls -l
+          find .
+          pip install ${{ matrix.wheel_pattern }}
+                
+      - name: Test Python wheel
         run: |
           pytest -v python/tests/ --ignore=python/tests/test_opennmt_tf.py
 
@@ -256,7 +269,7 @@ jobs:
 
   publish-python-wheels-on-pypi:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-    needs: [build-and-test-cpp-x86_64, build-python-wheels, test-python-wheels, check-python-style]
+    needs: [build-and-test-cpp-x86_64, build-and-test-cpp-arm64, build-python-wheels, test-python-wheels, check-python-style]
     runs-on: ubuntu-22.04
 
     steps:
