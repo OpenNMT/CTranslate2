@@ -343,7 +343,7 @@ def _to_numpy(storage, device):
     )
 
 
-@test_utils.only_on_linux
+@test_utils.only_on_linux_and_intel
 def test_transformers_gptbigcode(clear_transformers_cache, tmp_dir):
     import transformers
 
@@ -410,7 +410,7 @@ class TestGeneration:
         assert not output.tokens
         assert not output.log_probs
 
-    @test_utils.only_on_linux
+    @test_utils.only_on_linux_and_intel
     @test_utils.on_available_devices
     @pytest.mark.parametrize("return_log_probs", [True, False])
     @pytest.mark.parametrize("tensor_input", [True, False])
