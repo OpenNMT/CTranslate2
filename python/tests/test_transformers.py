@@ -343,7 +343,7 @@ def _to_numpy(storage, device):
     )
 
 
-@test_utils.only_on_linux_and_intel
+@test_utils.only_on_linux
 def test_transformers_gptbigcode(clear_transformers_cache, tmp_dir):
     import transformers
 
@@ -410,7 +410,7 @@ class TestGeneration:
         assert not output.tokens
         assert not output.log_probs
 
-    @test_utils.only_on_linux_and_intel
+    @test_utils.only_on_linux
     @test_utils.on_available_devices
     @pytest.mark.parametrize("return_log_probs", [True, False])
     @pytest.mark.parametrize("tensor_input", [True, False])
@@ -987,13 +987,13 @@ class TestWav2Vec2:
         )
 
         device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
-        cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        # cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
         model = ctranslate2.models.Wav2Vec2(
             output_dir,
             device=device,
             device_index=[0],
             compute_type="int8",
-            intra_threads=cpu_threads,
+            intra_threads=1,
             inter_threads=1,
         )
 
