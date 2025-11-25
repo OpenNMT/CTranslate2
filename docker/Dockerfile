@@ -1,4 +1,4 @@
-FROM nvidia/cuda:12.2.2-cudnn8-devel-ubuntu22.04 as builder
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu22.04 as builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -77,21 +77,21 @@ RUN cd python && \
     python3 -m pip --no-cache-dir install -r install_requirements.txt && \
     python3 setup.py bdist_wheel --dist-dir $CTRANSLATE2_ROOT
 
-FROM nvidia/cuda:12.2.2-base-ubuntu22.04
+FROM nvidia/cuda:12.8.1-base-ubuntu22.04
 
 # We remove the cuda-compat package because it conflicts with the CUDA Enhanced Compatibility.
 # See e.g. https://github.com/NVIDIA/nvidia-docker/issues/1515
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libcublas-12-2 \
-        libcudnn8=8.9.7.29-1+cuda12.2 \
-        libnccl2=2.19.3-1+cuda12.2 \
+        libcublas-12-8=12.8.4.1-1 \
+        libcudnn9-cuda-12=9.10.2.21-1 \
+        libnccl=2.26.2-1+cuda12.8 \
         libopenmpi3=4.1.2-2ubuntu1 \
         openmpi-bin \
         libgomp1 \
         python3-pip \
         && \
-    apt-get purge -y cuda-compat-12-2 && \
+    apt-get purge -y cuda-compat-12-8 && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
