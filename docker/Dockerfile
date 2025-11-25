@@ -85,7 +85,7 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends \
         libcublas-12-8=12.8.4.1-1 \
         libcudnn9-cuda-12=9.10.2.21-1 \
-        libnccl=2.26.2-1+cuda12.8 \
+        libnccl2=2.26.2-1+cuda12.8 \
         libopenmpi3=4.1.2-2ubuntu1 \
         openmpi-bin \
         libgomp1 \
