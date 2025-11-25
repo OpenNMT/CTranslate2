@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - master
+      - cuda12.8-linux/win
     tags:
       - v*
   pull_request:
