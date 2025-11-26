@@ -32,6 +32,7 @@ class WhisperSpec(model_spec.LanguageModelSpec):
         num_encoder_heads,
         num_decoder_layers,
         num_decoder_heads,
+        low_rank=False,
     ):
         """Initializes the model specification.
 
@@ -40,9 +41,10 @@ class WhisperSpec(model_spec.LanguageModelSpec):
           num_encoder_heads: The number of encoder attention heads.
           num_decoder_layers: The number of decoder layers.
           num_decoder_heads: The number of decoder attention heads.
+          low_rank: Whether to use lite whisper model or not.
         """
         super().__init__()
-        self.encoder = WhisperEncoderSpec(num_encoder_layers, num_encoder_heads)
+        self.encoder = WhisperEncoderSpec(num_encoder_layers, num_encoder_heads, low_rank=low_rank)
         self.decoder = transformer_spec.TransformerDecoderSpec(
             num_decoder_layers,
             num_decoder_heads,
@@ -66,12 +68,12 @@ class WhisperSpec(model_spec.LanguageModelSpec):
 
 
 class WhisperEncoderSpec(model_spec.LayerSpec):
-    def __init__(self, num_layers, num_heads):
+    def __init__(self, num_layers, num_heads, low_rank=False):
         self.num_heads = np.dtype("int16").type(num_heads)
         self.conv1 = common_spec.Conv1DSpec()
         self.conv2 = common_spec.Conv1DSpec()
         self.position_encodings = transformer_spec.PositionEncoderSpec()
         self.layer_norm = common_spec.LayerNormSpec()
         self.layer = [
-            transformer_spec.TransformerEncoderLayerSpec() for _ in range(num_layers)
+            transformer_spec.TransformerEncoderLayerSpec(low_rank=low_rank) for _ in range(num_layers)
         ]

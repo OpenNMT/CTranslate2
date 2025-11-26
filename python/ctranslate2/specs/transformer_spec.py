@@ -253,6 +253,7 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
         rms_norm=False,
         num_heads_kv=None,
         sliding_window=None,
+        low_rank=False,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
@@ -261,8 +262,9 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
             rms_norm=rms_norm,
             num_heads_kv=num_heads_kv,
             sliding_window=sliding_window,
+            low_rank=low_rank,
         )
-        self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
+        self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm, low_rank=low_rank)
 
 
 class TransformerDecoderLayerSpec(model_spec.LayerSpec):
@@ -340,10 +342,11 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
 
 
 class FeedForwardSpec(model_spec.LayerSpec):
-    def __init__(self, glu=False, rms_norm=False):
+    def __init__(self, glu=False, rms_norm=False, low_rank=False):
         self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
-        self.linear_0 = common_spec.LinearSpec()
-        self.linear_1 = common_spec.LinearSpec()
+        linear_cls = common_spec.LinearLowRankSpec if low_rank else common_spec.LinearSpec
+        self.linear_0 = linear_cls()
+        self.linear_1 = linear_cls()
         if glu:
             self.linear_0_noact = common_spec.LinearSpec()
 

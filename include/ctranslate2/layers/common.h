@@ -135,7 +135,9 @@ namespace ctranslate2 {
       void select_weights(const StorageView* index, const StorageView* extra_bias = nullptr);
     private:
       bool _packed_weight;
+      bool _is_low_rank;
       const StorageView& _weight;
+      const StorageView* _weight2;
       const StorageView* _bias;
       const StorageView* _qscale;
       const StorageView* _qzero;
@@ -148,6 +150,7 @@ namespace ctranslate2 {
       const models::QUANTIZATION_TYPE _quant_method;
       const bool _quantized_gemm;
       const ops::Gemm _gemm_op;
+      const ops::Gemm _gemm_op_low_rank;
       const ops::Quantize _quantize_op;
       const ops::Dequantize _dequantize_op;
       const ops::ActivationType* _activation_type;
