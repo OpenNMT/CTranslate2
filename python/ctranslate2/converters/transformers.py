@@ -1919,20 +1919,17 @@ class Gemma3Loader(ModelLoader):
         spec.register_vocabulary(tokens)
 
     def set_config(self, config, model, tokenizer):
-        token = "<end_of_turn>"
-        token_id = tokenizer.convert_tokens_to_ids(token)
-        if token_id:
-            config.eos_token = "<end_of_turn>"  # Token ID 106
+        config.bos_token = tokenizer.bos_token
+        config.unk_token = tokenizer.unk_token
+
+        if (
+            hasattr(tokenizer, "chat_template")
+            and isinstance(tokenizer.chat_template, str)
+            and tokenizer.chat_template.strip()
+        ):
+            config.eos_token = "<end_of_turn>"
         else:
             config.eos_token = tokenizer.eos_token
-
-        print(f"config.eos_token: {config.eos_token}")
-
-        config.bos_token = tokenizer.bos_token
-        config.unk_token = (
-            tokenizer.unk_token if tokenizer.unk_token is not None else ""
-        )
-        config.layer_norm_epsilon = model.config.rms_norm_eps
 
     def set_layer_norm(self, spec, layer_norm):
         spec.gamma = layer_norm.weight + 1.0

@@ -188,12 +188,23 @@ print(output)
 ## Gemma 3 (text only)
 
 
-[Gemma 3](https://ai.google.dev/gemma/docs/core) is Google's latest family of lightweight, open-weight AI models, built on the same tech as Gemini.
+[Gemma 3](https://ai.google.dev/gemma/docs/core) is Google's latest family of lightweight, open-weight AI models, built on the same technology as Gemini.
 
+Gemma models come in two flavors: instruction tuned (it) models and base models.
+
+Instruction tuned expect a specific [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) which you should use.
+
+When converting an instruction-tuned model, CTranslate sets `<end_of_turn>` as the default end-of-sequence token.
+
+
+To convert a model:
 
 ```bash
 ct2-transformers-converter --model google/gemma-3-1b-it --output_dir gemma-3-1b-it
 ```
+
+Gemma 3 usage sample:
+
 
 ```python
 
@@ -206,7 +217,7 @@ gen = ctranslate2.Generator("gemma-3-1b-it")
 prompt = "<start_of_turn>user\nGenerate a 200 word text talking about George Orwell.<end_of_turn>\n<start_of_turn>model\n"
 tokens = tok.convert_ids_to_tokens(tok.encode(prompt))
 
-res = gen.generate_batch([tokens], max_length=2048, sampling_temperature=0.1, sampling_topk=1, sampling_topp=0.1, include_prompt_in_result=False)
+res = gen.generate_batch([tokens], max_length=2048, sampling_temperature=0.1, include_prompt_in_result=False)
 print(tok.convert_tokens_to_string(res[0].sequences[0]))
 ```
 
