@@ -192,7 +192,7 @@ print(output)
 
 Gemma models come in two flavors: instruction tuned (it) models and base models.
 
-Instruction tuned expect a specific [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) which you should use.
+Instruction tuned models expect a specific [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) which you should use.
 
 When converting an instruction-tuned model, CTranslate sets `<end_of_turn>` as the default end-of-sequence token.
 
