@@ -109,7 +109,7 @@ jobs:
             -DBUILD_TESTS=ON \
             .
           make -j $(nproc) install
-            
+
       - name: Build Ruy
         if: matrix.backend == 'ruy'
         run: |
@@ -121,7 +121,7 @@ jobs:
             $CMAKE_EXTRA_OPTIONS \
             .
           make -j $(nproc) install
- 
+
       - name: Download test data
         run: |
           wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
@@ -229,7 +229,7 @@ jobs:
           ls -l
           find .
           pip install ${{ matrix.wheel_pattern }}
-                
+
       - name: Test Python wheel
         run: |
           pytest -v python/tests/ --ignore=python/tests/test_opennmt_tf.py
@@ -294,6 +294,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Show disk and docker usage (before cleanup)
+        run: |
+          df -h
+          echo " -= Docker System =-"
+          docker system df || true
+
+      - name: Free disk space (cleanup heavy preinstalled directories + docker prune)
+        run: |
+          echo " -= Removing big preinstalled directories (shouldn't remove the needed tools) =-"
+          sudo rm -rf /opt/hostedtoolcache || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/lib/jvm || true
+          sudo rm -rf /usr/local/lib/android || true
+          echo " -= Running docker prune =-"
+          docker system prune -af --volumes || true
+          docker builder prune -af || true
+
+      - name: Show disk and docker usage (after cleanup)
+        run: |
+          df -h
+          echo " -= Docker System =-"
+          docker system df || true
 
       - name: Build Docker images
         run: |
