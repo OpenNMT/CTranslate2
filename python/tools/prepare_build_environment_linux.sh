@@ -7,7 +7,7 @@ pip install "cmake==3.22.*"
 
 if [ "$CIBW_ARCHS" == "aarch64" ]; then
 
-    OPENBLAS_VERSION=0.3.21
+    OPENBLAS_VERSION=0.3.26
     curl -L -O https://github.com/xianyi/OpenBLAS/releases/download/v${OPENBLAS_VERSION}/OpenBLAS-${OPENBLAS_VERSION}.tar.gz
     tar xf *.tar.gz && rm *.tar.gz
     cd OpenBLAS-*
@@ -19,26 +19,27 @@ if [ "$CIBW_ARCHS" == "aarch64" ]; then
     rm -r OpenBLAS-*
 
 else
-    # Install CUDA 12.4:
-    yum-config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
+    dnf install -y dnf-plugins-core
+    # Install CUDA 12.8:
+    dnf config-manager --add-repo https://developer.download.nvidia.com/compute/cuda/repos/rhel8/x86_64/cuda-rhel8.repo
     # error mirrorlist.centos.org doesn't exists anymore.
     sed -i s/mirror.centos.org/vault.centos.org/g /etc/yum.repos.d/*.repo
     sed -i s/^#.*baseurl=http/baseurl=http/g /etc/yum.repos.d/*.repo
     sed -i s/^mirrorlist=http/#mirrorlist=http/g /etc/yum.repos.d/*.repo
-    yum install --setopt=obsoletes=0 -y \
-        cuda-nvcc-12-4-12.4.99-1 \
-        cuda-cudart-devel-12-4-12.4.99-1 \
-        libcurand-devel-12-4-10.3.5.119-1 \
-        libcudnn9-devel-cuda-12-9.1.0.70-1 \
-        libcublas-devel-12-4-12.4.2.65-1 \
-        libnccl-2.20.5-1+cuda12.4 \
-        libnccl-devel-2.20.5-1+cuda12.4
-    ln -s cuda-12.4 /usr/local/cuda
+    dnf install --setopt=obsoletes=0 -y \
+        cuda-nvcc-12-8-12.8.93-1 \
+        cuda-cudart-devel-12-8-12.8.90-1 \
+        libcurand-devel-12-8-10.3.9.90-1 \
+        libcudnn9-devel-cuda-12-9.10.2.21-1 \
+        libcublas-devel-12-8-12.8.4.1-1 \
+        libnccl-2.26.2-1+cuda12.8 \
+        libnccl-devel-2.26.2-1+cuda12.8
+    ln -s cuda-12.8 /usr/local/cuda
 
     ONEAPI_VERSION=2025.3.0
-    yum-config-manager --add-repo https://yum.repos.intel.com/oneapi
+    dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
     rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-    yum install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION
+    dnf install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION
 
     ONEDNN_VERSION=3.1.1
     curl -L -O https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz
