@@ -8,6 +8,8 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * CodeGen
 * DistilBERT
 * Falcon
+* Gemma 2
+* Gemma 3 (text only)
 * Llama
 * M2M100
 * MarianMT
@@ -80,7 +82,7 @@ print(tokenizer.decode(tokenizer.convert_tokens_to_ids(target), skip_special_tok
 
 ## BERT
 
-[BERT](https://huggingface.co/docs/transformers/model_doc/bert) is pretrained model on English language using a masked language modeling objective.
+[BERT](https://huggingface.co/docs/transformers/model_doc/bert) is a pretrained model on English language using a masked language modeling objective.
 
 CTranslate2 only implements the `BertModel` class from Transformers which includes the Transformer encoder and the pooling layer. Task-specific layers should be run with PyTorch as shown in the example below.
 
@@ -182,6 +184,43 @@ output = tokenizer.decode(results[0].sequences_ids[0])
 
 print(output)
 ```
+
+## Gemma 3 (text only)
+
+
+[Gemma 3](https://ai.google.dev/gemma/docs/core) is Google's latest family of lightweight, open-weight AI models, built on the same technology as Gemini.
+
+Gemma models come in two flavors: instruction tuned (it) models and base models.
+
+Instruction tuned models expect a specific [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) which you should use.
+
+When converting an instruction-tuned model, CTranslate sets `<end_of_turn>` as the default end-of-sequence token.
+
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model google/gemma-3-1b-it --output_dir gemma-3-1b-it
+```
+
+Gemma 3 usage sample:
+
+
+```python
+
+from transformers import AutoTokenizer
+import ctranslate2
+
+tok = AutoTokenizer.from_pretrained("google/gemma-3-1b-it")
+gen = ctranslate2.Generator("gemma-3-1b-it")
+
+prompt = "<start_of_turn>user\nGenerate a 200 word text talking about George Orwell.<end_of_turn>\n<start_of_turn>model\n"
+tokens = tok.convert_ids_to_tokens(tok.encode(prompt))
+
+res = gen.generate_batch([tokens], max_length=2048, sampling_temperature=0.1, include_prompt_in_result=False)
+print(tok.convert_tokens_to_string(res[0].sequences[0]))
+```
+
 
 ## Llama 2
 
