@@ -22,6 +22,8 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * GPT-NeoX
 * OPT
 * Pegasus
+* Qwen 2.5
+* Qwen 3
 * T5
 * Whisper
 * XLM-RoBERTa
@@ -483,6 +485,44 @@ results = generator.generate_batch([start_tokens], max_length=30)
 
 output = tokenizer.decode(results[0].sequences_ids[0])
 print(output)
+```
+
+## Qwen 3
+
+[Qwen 3](https://github.com/QwenLM/Qwen3) are a collection of large language models developed by the Alibaba Group. A key feature is allows switching between "thinking mode" for complex reasoning and a "non-thinking mode" for efficient general chat.
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model Qwen/Qwen3-4B --quantization float16 --output_dir qwen3-4b-ct2
+```
+
+Usage Sample
+
+You can use the converted model for text generation with ctranslate2.Generator. For Qwen 3 instruction-tuned models, you should use the Hugging Face tokenizer's apply_chat_template method to correctly format your prompts, especially when dealing with the optional "thinking mode". Currently MoE models variants are not supported.
+
+```python
+import ctranslate2
+import transformers
+
+generator = ctranslate2.Generator("qwen3-4b-ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("Qwen/Qwen3-4B")
+
+def generate(prompt):
+    tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(prompt, add_special_tokens=False))
+    results = generator.generate_batch([tokens], max_length=2048, sampling_temperature=0.7, include_prompt_in_result=False)
+    return tokenizer.decode(results[0].sequences_ids[0])
+
+prompt_base = """<|im_start|>user
+A train leaves Station A at 60 mph heading towards Station B, 300 miles away. At the same time, another train leaves Station B at 40 mph heading towards Station A. When will they meet and how far from Station A?
+<|im_end|>
+<|im_start|>assistant"""
+
+print("Non-thinking:\n" + "-"*60)
+print(generate(prompt_base + "\n<think></think>\n"))
+
+print("\nThinking:\n" + "="*60)
+print(generate(prompt_base))
 ```
 
 ## T5
