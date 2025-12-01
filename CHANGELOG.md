@@ -9,7 +9,7 @@
 ### New features
 
 * Qwen 3 support (#1943) by [@jordimas](https://github.com/jordimas)
-* Gemma 3 textt support (#1936) by [@jordimas](https://github.com/jordimas)
+* Gemma 3 text support (#1936) by [@jordimas](https://github.com/jordimas)
 
 ### Fixes and improvements
 
