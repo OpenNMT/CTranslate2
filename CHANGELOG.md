@@ -8,13 +8,13 @@
 
 ### New features
 
-* Qwen 3 support (#1943) by @jordimas
-* Gemma 3 textt support (#1936) by @jordimas
+* Qwen 3 support (#1943) by [@jordimas](https://github.com/jordimas)
+* Gemma 3 textt support (#1936) by [@jordimas](https://github.com/jordimas)
 
 ### Fixes and improvements
 
-* Fixed pkg_resources Deprecated Warning (#1911) by @thawancomt
-* Disable INT8 for sm120 - Blackwell GPUs (#1937) by @Purfview
+* Fixed pkg_resources Deprecated Warning (#1911) by [@thawancomt](https://github.com/thawancomt)
+* Disable INT8 for sm120 - Blackwell GPUs (#1937) by [@Purfview](https://github.com/Purfview)
 
 ## [v4.6.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.1) (2025-11-07)
 
