@@ -2,6 +2,7 @@
 
 #include "ctranslate2/layers/attention_layer.h"
 #include "ctranslate2/padder.h"
+#include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
   namespace layers {
@@ -65,6 +66,8 @@ namespace ctranslate2 {
       dim_t _relative_right_max_position;
       const bool _merge_time_and_head_dims;
       const dim_t _cache_time_dim;
+      std::unique_ptr<const LayerNorm> _q_norm;  // Query normalization
+      std::unique_ptr<const LayerNorm> _k_norm;  // Key normalization
     };
   }
 }

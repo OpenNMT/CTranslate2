@@ -109,6 +109,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         quant_type: Optional[common_spec.Quantization] = None,
         quant_group_size: Optional[int] = None,
         quant_bits: Optional[int] = None,
+        qk_norm: Optional[bool] = False,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -222,6 +223,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 num_heads_kv=num_heads_kv,
                 head_dim=head_dim,
                 sliding_window=sliding_window,
+                qk_norm=qk_norm,
             )
             for _ in range(num_layers)
         ]
@@ -286,6 +288,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         num_heads_kv=None,
         head_dim=None,
         sliding_window=None,
+        qk_norm=False,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
@@ -302,6 +305,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             num_heads_kv=num_heads_kv,
             head_dim=head_dim,
             sliding_window=sliding_window,
+            qk_norm=qk_norm,
         )
 
         if with_encoder_attention:
@@ -309,6 +313,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
                 rms_norm=rms_norm,
                 num_heads_kv=num_heads_kv,
                 sliding_window=sliding_window,
+                qk_norm=qk_norm,
             )
 
         self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
@@ -557,6 +562,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         quant_type: Optional[common_spec.Quantization] = None,
         quant_group_size: Optional[int] = None,
         quant_bits: Optional[int] = None,
+        qk_norm: Optional[bool] = False,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -631,6 +637,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             quant_type=quant_type,
             quant_group_size=quant_group_size,
             quant_bits=quant_bits,
+            qk_norm=qk_norm,
         )
 
         return cls(decoder)
