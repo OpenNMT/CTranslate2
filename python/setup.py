@@ -53,7 +53,7 @@ elif sys.platform == "win32":
     package_data["ctranslate2"] = ["*.dll"]
 elif sys.platform == "linux":
     cflags.append("-fPIC")
-    ldflags.append("-Wl,-rpath,-Wl,-rpath,/usr/local/lib64")
+    ldflags.append("-Wl,-rpath,/usr/local/lib64:/usr/local/lib")
 
 ctranslate2_module = Extension(
     "ctranslate2._ext",
