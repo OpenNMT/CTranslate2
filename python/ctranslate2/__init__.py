@@ -5,10 +5,18 @@ if sys.platform == "win32":
     import glob
     import os
 
-    import pkg_resources
-
     module_name = sys.modules[__name__].__name__
-    package_dir = pkg_resources.resource_filename(module_name, "")
+
+    # Adressing python 3.9 < version
+    try:
+        from importlib.resources import files
+
+        # Fixed the pkg_resources depreciation
+        package_dir = str(files(module_name))
+    except ImportError:
+        import pkg_resources
+
+        package_dir = pkg_resources.resource_filename(module_name, "")
 
     add_dll_directory = getattr(os, "add_dll_directory", None)
     if add_dll_directory is not None:
