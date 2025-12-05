@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 4.6.1 documentation</title>
+  <title>Transformers &mdash; CTranslate2 4.6.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -80,6 +80,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#bloom">BLOOM</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#distilbert">DistilBERT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#falcon">Falcon</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gemma-3-text-only">Gemma 3 (text only)</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#llama-2">Llama 2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#marianmt">MarianMT</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#m2m-100">M2M-100</a></li>
@@ -90,6 +91,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#gpt-j">GPT-J</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#gpt-neox">GPT-NeoX</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#opt">OPT</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#qwen-3">Qwen 3</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#t5">T5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#whisper">Whisper</a></li>
 </ul>
@@ -139,6 +141,8 @@
 <li><p>CodeGen</p></li>
 <li><p>DistilBERT</p></li>
 <li><p>Falcon</p></li>
+<li><p>Gemma 2</p></li>
+<li><p>Gemma 3 (text only)</p></li>
 <li><p>Llama</p></li>
 <li><p>M2M100</p></li>
 <li><p>MarianMT</p></li>
@@ -151,6 +155,8 @@
 <li><p>GPT-NeoX</p></li>
 <li><p>OPT</p></li>
 <li><p>Pegasus</p></li>
+<li><p>Qwen 2.5</p></li>
+<li><p>Qwen 3</p></li>
 <li><p>T5</p></li>
 <li><p>Whisper</p></li>
 <li><p>XLM-RoBERTa</p></li>
@@ -205,7 +211,7 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 </section>
 <section id="bert">
 <h2>BERT<a class="headerlink" href="#bert" title="Permalink to this heading"></a></h2>
-<p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/bert">BERT</a> is pretrained model on English language using a masked language modeling objective.</p>
+<p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/bert">BERT</a> is a pretrained model on English language using a masked language modeling objective.</p>
 <p>CTranslate2 only implements the <code class="docutils literal notranslate"><span class="pre">BertModel</span></code> class from Transformers which includes the Transformer encoder and the pooling layer. Task-specific layers should be run with PyTorch as shown in the example below.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>textattack/bert-base-uncased-yelp-polarity<span class="w"> </span>--output_dir<span class="w"> </span>bert-base-uncased-yelp-polarity
 </pre></div>
@@ -295,6 +301,32 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 <span class="n">output</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="gemma-3-text-only">
+<h2>Gemma 3 (text only)<a class="headerlink" href="#gemma-3-text-only" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://ai.google.dev/gemma/docs/core">Gemma 3</a> is Google’s latest family of lightweight, open-weight AI models, built on the same technology as Gemini.</p>
+<p>Gemma models come in two flavors: instruction tuned (it) models and base models.</p>
+<p>Instruction tuned models expect a specific <a class="reference external" href="https://ai.google.dev/gemma/docs/core/prompt-structure">prompt template format</a> which you should use.</p>
+<p>When converting an instruction-tuned model, CTranslate sets <code class="docutils literal notranslate"><span class="pre">&lt;end_of_turn&gt;</span></code> as the default end-of-sequence token.</p>
+<p>To convert a model:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>google/gemma-3-1b-it<span class="w"> </span>--output_dir<span class="w"> </span>gemma-3-1b-it
+</pre></div>
+</div>
+<p>Gemma 3 usage sample:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoTokenizer</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+
+<span class="n">tok</span> <span class="o">=</span> <span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;google/gemma-3-1b-it&quot;</span><span class="p">)</span>
+<span class="n">gen</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;gemma-3-1b-it&quot;</span><span class="p">)</span>
+
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;&lt;start_of_turn&gt;user</span><span class="se">\n</span><span class="s2">Generate a 200 word text talking about George Orwell.&lt;end_of_turn&gt;</span><span class="se">\n</span><span class="s2">&lt;start_of_turn&gt;model</span><span class="se">\n</span><span class="s2">&quot;</span>
+<span class="n">tokens</span> <span class="o">=</span> <span class="n">tok</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tok</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>
+
+<span class="n">res</span> <span class="o">=</span> <span class="n">gen</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span> <span class="n">sampling_temperature</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">include_prompt_in_result</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">tok</span><span class="o">.</span><span class="n">convert_tokens_to_string</span><span class="p">(</span><span class="n">res</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
 </pre></div>
 </div>
 </section>
@@ -537,6 +569,39 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 
 <span class="n">output</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">output</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="qwen-3">
+<h2>Qwen 3<a class="headerlink" href="#qwen-3" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://github.com/QwenLM/Qwen3">Qwen 3</a> are a collection of large language models developed by the Alibaba Group. A key feature is allows switching between “thinking mode” for complex reasoning and a “non-thinking mode” for efficient general chat.</p>
+<p>To convert a model:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>Qwen/Qwen3-4B<span class="w"> </span>--quantization<span class="w"> </span>float16<span class="w"> </span>--output_dir<span class="w"> </span>qwen3-4b-ct2
+</pre></div>
+</div>
+<p>Usage Sample</p>
+<p>You can use the converted model for text generation with ctranslate2.Generator. For Qwen 3 instruction-tuned models, you should use the Hugging Face tokenizer’s apply_chat_template method to correctly format your prompts, especially when dealing with the optional “thinking mode”. Currently MoE models variants are not supported.</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">transformers</span>
+
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;qwen3-4b-ct2&quot;</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;Qwen/Qwen3-4B&quot;</span><span class="p">)</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">generate</span><span class="p">(</span><span class="n">prompt</span><span class="p">):</span>
+    <span class="n">tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">add_special_tokens</span><span class="o">=</span><span class="kc">False</span><span class="p">))</span>
+    <span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([</span><span class="n">tokens</span><span class="p">],</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">2048</span><span class="p">,</span> <span class="n">sampling_temperature</span><span class="o">=</span><span class="mf">0.7</span><span class="p">,</span> <span class="n">include_prompt_in_result</span><span class="o">=</span><span class="kc">False</span><span class="p">)</span>
+    <span class="k">return</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences_ids</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
+
+<span class="n">prompt_base</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;&lt;|im_start|&gt;user</span>
+<span class="s2">A train leaves Station A at 60 mph heading towards Station B, 300 miles away. At the same time, another train leaves Station B at 40 mph heading towards Station A. When will they meet and how far from Station A?</span>
+<span class="s2">&lt;|im_end|&gt;</span>
+<span class="s2">&lt;|im_start|&gt;assistant&quot;&quot;&quot;</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;Non-thinking:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;-&quot;</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">generate</span><span class="p">(</span><span class="n">prompt_base</span> <span class="o">+</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&lt;think&gt;&lt;/think&gt;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Thinking:</span><span class="se">\n</span><span class="s2">&quot;</span> <span class="o">+</span> <span class="s2">&quot;=&quot;</span><span class="o">*</span><span class="mi">60</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">generate</span><span class="p">(</span><span class="n">prompt_base</span><span class="p">))</span>
 </pre></div>
 </div>
 </section>
