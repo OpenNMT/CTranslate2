@@ -56,7 +56,8 @@ namespace ctranslate2 {
 
     std::vector<Example>
     get_next(const size_t max_batch_size,
-             const BatchType batch_type = BatchType::Examples);
+             const BatchType batch_type = BatchType::Examples,
+             const bool batch_size_increment_is_fixed = false);
 
     // Consumes and returns the next example.
     virtual Example get_next_example() = 0;

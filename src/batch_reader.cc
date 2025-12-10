@@ -2,6 +2,7 @@
 
 #include <algorithm>
 #include <numeric>
+#include <optional>
 
 #include "ctranslate2/utils.h"
 
@@ -37,7 +38,8 @@ namespace ctranslate2 {
 
   std::vector<Example>
   BatchReader::get_next(const size_t max_batch_size,
-                        const BatchType batch_type) {
+                        const BatchType batch_type,
+                        const bool batch_size_increment_is_fixed) {
     if (max_batch_size == 0)
       throw std::invalid_argument("BatchReader: max_batch_size must be > 0");
 
@@ -54,10 +56,18 @@ namespace ctranslate2 {
 
     size_t batch_size = 0;
 
+    std::optional<size_t> fixed_increment;
+    if (batch_size_increment_is_fixed)
+      fixed_increment = get_batch_size_increment(_next, batch_type);
+
     while (!_next.empty()) {
-      const size_t batch_size_increment = get_batch_size_increment(_next, batch_type);
+      const size_t batch_size_increment = fixed_increment.has_value()
+        ? *fixed_increment
+        : get_batch_size_increment(_next, batch_type);
+
       if (batch_size > 0 && batch_size + batch_size_increment > max_batch_size)
         break;
+
       batch.emplace_back(std::move(_next));
       batch_size += batch_size_increment;
       _next = get_next_example();
@@ -170,7 +180,7 @@ namespace ctranslate2 {
     VectorReader batch_reader(index_vector(examples, example_index));
 
     for (size_t offset = 0;;) {
-      auto examples_part = batch_reader.get_next(max_batch_size, batch_type);
+      auto examples_part = batch_reader.get_next(max_batch_size, batch_type, true);
       if (examples_part.empty())
         break;
 
