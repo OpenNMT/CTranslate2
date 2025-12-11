@@ -180,6 +180,7 @@ namespace ctranslate2 {
     VectorReader batch_reader(index_vector(examples, example_index));
 
     for (size_t offset = 0;;) {
+      // the batch size increment per example is always fixed because padding is required
       auto examples_part = batch_reader.get_next(max_batch_size, batch_type, true);
       if (examples_part.empty())
         break;
