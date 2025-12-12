@@ -68,6 +68,12 @@ namespace ctranslate2 {
     }
 
   private:
+    std::vector<Example> fill_batch_with_fixed_increment(const size_t max_batch_size,
+                                                          const BatchType batch_type);
+
+    std::vector<Example> fill_batch_with_variable_increment(const size_t max_batch_size,
+                                                             const BatchType batch_type);
+
     bool _initialized = false;
     Example _next;
   };
