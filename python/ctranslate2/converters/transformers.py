@@ -2182,6 +2182,28 @@ class Qwen2Loader(ModelLoader):
             rotary_scaling_type = None
             rotary_scaling_factor = 1
 
+        # Check for AWQ quantization config
+        quantization_config = getattr(model.config, "quantization_config", None)
+        if quantization_config:
+            quant_type = None
+            if quantization_config.quant_method == "awq":
+                quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
+            if quant_type is None:
+                raise NotImplementedError(
+                    "Quantization type '%s' is not yet implemented. "
+                    "The following Quantization types are currently supported: %s"
+                    % (
+                        quantization_config.quant_method,
+                        ", ".join(_SUPPORTED_QUANTIZATION.keys()),
+                    )
+                )
+            quant_group_size = quantization_config.group_size
+            quant_bits = quantization_config.bits
+        else:
+            quant_type = common_spec.Quantization.CT2
+            quant_group_size = None
+            quant_bits = None
+
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
             num_layers,
             num_heads,
@@ -2195,9 +2217,12 @@ class Qwen2Loader(ModelLoader):
             rotary_scaling_factor=rotary_scaling_factor,
             rotary_base=getattr(model.config, "rope_theta", 10000),
             num_heads_kv=num_heads_kv,
+            quant_type=quant_type,
+            quant_group_size=quant_group_size,
+            quant_bits=quant_bits,
         )
 
-        self.set_decoder(spec.decoder, model.model)
+        self.set_decoder(spec.decoder, model.model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
         return spec
 
@@ -2227,7 +2252,7 @@ class Qwen2Loader(ModelLoader):
     def set_layer_norm(self, spec, layer_norm):
         spec.gamma = layer_norm.weight
 
-    def set_decoder(self, spec, module):
+    def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
         spec.scale_embeddings = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)
         self.set_layer_norm(spec.layer_norm, module.norm)
@@ -2241,19 +2266,39 @@ class Qwen2Loader(ModelLoader):
             )
 
             split_layers = [common_spec.LinearSpec() for _ in range(3)]
-            self.set_linear(split_layers[0], layer.self_attn.q_proj)
-            self.set_linear(split_layers[1], layer.self_attn.k_proj)
-            self.set_linear(split_layers[2], layer.self_attn.v_proj)
+            self.set_linear(
+                split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
 
-            utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+            if quant_type == common_spec.Quantization.CT2:
+                utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+            else:
+                cc_dim = 1 if quant_type == common_spec.Quantization.AWQ_GEMM else 0
+                utils.fuse_linear_prequant(
+                    layer_spec.self_attention.linear[0], split_layers, cc_dim
+                )
+
             self.set_linear(
                 layer_spec.self_attention.linear[1],
                 layer.self_attn.o_proj,
+                quant_type=quant_type,
             )
 
-            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj)
-            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj)
-            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
 
             delattr(layer, "self_attn")
             delattr(layer, "mlp")
