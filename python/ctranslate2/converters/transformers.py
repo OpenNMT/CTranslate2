@@ -2514,6 +2514,28 @@ class Phi3Loader(ModelLoader):
             rotary_scaling_type = None
             rotary_scaling_factor = 1
 
+        # Check for AWQ quantization config
+        quantization_config = getattr(model.config, "quantization_config", None)
+        if quantization_config:
+            quant_type = None
+            if quantization_config.quant_method == "awq":
+                quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
+            if quant_type is None:
+                raise NotImplementedError(
+                    "Quantization type '%s' is not yet implemented. "
+                    "The following Quantization types are currently supported: %s"
+                    % (
+                        quantization_config.quant_method,
+                        ", ".join(_SUPPORTED_QUANTIZATION.keys()),
+                    )
+                )
+            quant_group_size = quantization_config.group_size
+            quant_bits = quantization_config.bits
+        else:
+            quant_type = common_spec.Quantization.CT2
+            quant_group_size = None
+            quant_bits = None
+
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
             num_layers,
             num_heads,
@@ -2529,9 +2551,12 @@ class Phi3Loader(ModelLoader):
             original_max_position_embeddings=original_max_position_embeddings,
             max_position_embeddings=max_position_embeddings,
             num_heads_kv=num_heads_kv,
+            quant_type=quant_type,
+            quant_group_size=quant_group_size,
+            quant_bits=quant_bits,
         )
 
-        self.set_decoder(spec.decoder, model.model)
+        self.set_decoder(spec.decoder, model.model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
         return spec
 
@@ -2565,7 +2590,7 @@ class Phi3Loader(ModelLoader):
             rotary_scaling_short_factor, dtype=torch.float32
         )
 
-    def set_decoder(self, spec, module):
+    def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
         spec.scale_embeddings = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)
         self.set_layer_norm(spec.layer_norm, module.norm)
@@ -2579,9 +2604,15 @@ class Phi3Loader(ModelLoader):
             )
 
             self.set_linear(
-                layer_spec.self_attention.linear[0], layer.self_attn.qkv_proj
+                layer_spec.self_attention.linear[0],
+                layer.self_attn.qkv_proj,
+                quant_type=quant_type,
             )
-            self.set_linear(layer_spec.self_attention.linear[1], layer.self_attn.o_proj)
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
             if (
                 layer.self_attn.rotary_emb.long_factor is not None
                 and layer.self_attn.rotary_emb.short_factor is not None
@@ -2592,10 +2623,28 @@ class Phi3Loader(ModelLoader):
                     layer.self_attn.rotary_emb.short_factor,
                 )
 
-            gate_proj, up_proj = layer.mlp.gate_up_proj.weight.chunk(2, dim=0)
-            layer_spec.ffn.linear_0.weight = gate_proj
-            layer_spec.ffn.linear_0_noact.weight = up_proj
-            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
+            # Handle gate_up_proj differently for AWQ vs regular models
+            if quant_type == common_spec.Quantization.CT2:
+                gate_proj, up_proj = layer.mlp.gate_up_proj.weight.chunk(2, dim=0)
+                layer_spec.ffn.linear_0.weight = gate_proj
+                layer_spec.ffn.linear_0_noact.weight = up_proj
+            else:
+                # AWQ: chunk qweight, scales, and qzeros
+                gate_qweight, up_qweight = layer.mlp.gate_up_proj.qweight.chunk(2, dim=1)
+                gate_scales, up_scales = layer.mlp.gate_up_proj.scales.chunk(2, dim=1)
+                gate_qzeros, up_qzeros = layer.mlp.gate_up_proj.qzeros.chunk(2, dim=1)
+                
+                layer_spec.ffn.linear_0.weight = gate_qweight
+                layer_spec.ffn.linear_0.weight_scale = gate_scales
+                layer_spec.ffn.linear_0.weight_zero = gate_qzeros
+                
+                layer_spec.ffn.linear_0_noact.weight = up_qweight
+                layer_spec.ffn.linear_0_noact.weight_scale = up_scales
+                layer_spec.ffn.linear_0_noact.weight_zero = up_qzeros
+
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
 
             delattr(layer, "self_attn")
             delattr(layer, "mlp")
