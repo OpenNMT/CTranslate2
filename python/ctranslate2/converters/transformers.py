@@ -2633,11 +2633,11 @@ class Phi3Loader(ModelLoader):
                 gate_qweight, up_qweight = layer.mlp.gate_up_proj.qweight.chunk(2, dim=1)
                 gate_scales, up_scales = layer.mlp.gate_up_proj.scales.chunk(2, dim=1)
                 gate_qzeros, up_qzeros = layer.mlp.gate_up_proj.qzeros.chunk(2, dim=1)
-                
+
                 layer_spec.ffn.linear_0.weight = gate_qweight
                 layer_spec.ffn.linear_0.weight_scale = gate_scales
                 layer_spec.ffn.linear_0.weight_zero = gate_qzeros
-                
+
                 layer_spec.ffn.linear_0_noact.weight = up_qweight
                 layer_spec.ffn.linear_0_noact.weight_scale = up_scales
                 layer_spec.ffn.linear_0_noact.weight_zero = up_qzeros
