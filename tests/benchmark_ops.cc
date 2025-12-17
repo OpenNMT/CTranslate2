@@ -116,6 +116,15 @@ void benchmark_conv1d(Device device) {
   BENCHMARK(conv_op(x, weight, bias, y), 100);
 }
 
+void benchmark_median_filter(Device device) {
+  const dim_t width = 5;
+  std::vector<float> x_ = rand_vector(100 * 512);
+  StorageView x({100, 512}, x_, device);
+  StorageView y(device);
+  const ops::MedianFilter median_filter_op(width);
+  BENCHMARK(median_filter_op(x, y), 10000);
+}
+
 int main(int argc, char* argv[]) {
   if (argc < 3) {
     std::cerr << "usage: " << argv[0] << " op device [dtype]" << std::endl;
@@ -153,6 +162,8 @@ int main(int argc, char* argv[]) {
     benchmark_dequantize(device);
   else if (op == "conv1d")
     benchmark_conv1d(device);
+  else if (op == "median_filter")
+    benchmark_median_filter(device);
 
   return 0;
 }
