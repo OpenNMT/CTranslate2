@@ -4,7 +4,20 @@
 
 ### Fixes and improvements
 
-## [v4.6.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.1) (2025-10-07)
+## [v4.6.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.2) (2025-12-05)
+
+### New features
+
+* Qwen 3 support (#1943) by [@jordimas](https://github.com/jordimas)
+* Gemma 3 text support (#1936) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Fixed pkg_resources Deprecated Warning (#1911) by [@thawancomt](https://github.com/thawancomt)
+* Disable INT8 for sm120 - Blackwell GPUs (#1937) by [@Purfview](https://github.com/Purfview)
+* FIX: package libctranslate2.so in wheel to avoid build fail (#1920) by [@yzewei](https://github.com/yzewei)
+
+## [v4.6.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.1) (2025-11-07)
 
 ### New features
 
