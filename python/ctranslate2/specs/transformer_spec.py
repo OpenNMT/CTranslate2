@@ -23,6 +23,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
         ffn_glu: bool = False,
         rms_norm: bool = False,
         multi_query_attention: bool = False,
+        pre_post_layer_norm: bool = False,
     ):
         """Initializes a Transformer encoder specification.
 
@@ -44,6 +45,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
             https://arxiv.org/abs/2002.05202.
           rms_norm: Use the root mean square layer normalization.
           multi_query_attention: Use multi-query attention.
+          pre_post_layer_norm: Add post layer norm for each pre norm layer.
         """
         self.multi_query_attention = multi_query_attention
         self.num_heads = np.dtype("int16").type(num_heads)
@@ -67,6 +69,7 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
                 num_heads_kv=1 if multi_query_attention else None,
+                pre_post_layer_norm=pre_post_layer_norm,
             )
             for _ in range(num_layers)
         ]
@@ -255,6 +258,7 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
         rms_norm=False,
         num_heads_kv=None,
         sliding_window=None,
+        pre_post_layer_norm=False,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
@@ -265,6 +269,21 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
             sliding_window=sliding_window,
         )
         self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
+
+        if pre_post_layer_norm:
+            self.input_layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
+            self.post_attention_layer_norm = common_spec.LayerNormSpec(
+                rms_norm=rms_norm
+            )
+            self.pre_feedforward_layer_norm = common_spec.LayerNormSpec(
+                rms_norm=rms_norm
+            )
+            self.post_feedforward_layer_norm = common_spec.LayerNormSpec(
+                rms_norm=rms_norm
+            )
+
+            delattr(self.self_attention, "layer_norm")
+            delattr(self.ffn, "layer_norm")
 
 
 class TransformerDecoderLayerSpec(model_spec.LayerSpec):
@@ -333,6 +352,10 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             self.post_attention_layer_norm = common_spec.LayerNormSpec(
                 rms_norm=rms_norm
             )
+            if with_encoder_attention:
+                self.post_cross_attention_layer_norm = common_spec.LayerNormSpec(
+                    rms_norm=rms_norm
+                )
             self.pre_feedforward_layer_norm = common_spec.LayerNormSpec(
                 rms_norm=rms_norm
             )
@@ -417,6 +440,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         ffn_glu: bool = False,
         rms_norm: bool = False,
         multi_query_attention: bool = False,
+        pre_post_layer_norm: bool = False,
     ):
         """Creates a Transformer model specification.
 
@@ -441,6 +465,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             https://arxiv.org/abs/2002.05202.
           rms_norm: Use the root mean square layer normalization.
           multi_query_attention: Use multi-query attention.
+          pre_post_layer_norm: Add post layer norm for each pre norm layer.
         """
         if isinstance(num_layers, (list, tuple)):
             num_encoder_layers, num_decoder_layers = num_layers
@@ -461,6 +486,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             ffn_glu=ffn_glu,
             rms_norm=rms_norm,
             multi_query_attention=multi_query_attention,
+            pre_post_layer_norm=pre_post_layer_norm,
         )
 
         decoder = TransformerDecoderSpec(
@@ -477,6 +503,7 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             ffn_glu=ffn_glu,
             rms_norm=rms_norm,
             multi_query_attention=multi_query_attention,
+            pre_post_layer_norm=pre_post_layer_norm,
         )
 
         return cls(encoder, decoder)
