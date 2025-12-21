@@ -82,7 +82,7 @@ namespace ctranslate2 {
   std::vector<Example>
   BatchReader::get_next(const size_t max_batch_size,
                         const BatchType batch_type,
-                        const bool batch_size_increment_is_fixed) {
+                        const bool consider_padding) {
     if (max_batch_size == 0)
       throw std::invalid_argument("BatchReader: max_batch_size must be > 0");
 
@@ -94,7 +94,7 @@ namespace ctranslate2 {
     if (_next.empty())
       return {};
 
-    auto batch = batch_size_increment_is_fixed
+    auto batch = consider_padding
       ? fill_batch_with_fixed_increment(max_batch_size, batch_type)
       : fill_batch_with_variable_increment(max_batch_size, batch_type);
 
