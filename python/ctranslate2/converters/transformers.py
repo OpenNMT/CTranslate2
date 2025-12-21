@@ -2721,7 +2721,9 @@ class Phi3Loader(ModelLoader):
                 layer_spec.ffn.linear_0_noact.weight = up_proj
             else:
                 # AWQ: chunk qweight, scales, and qzeros
-                gate_qweight, up_qweight = layer.mlp.gate_up_proj.qweight.chunk(2, dim=1)
+                gate_qweight, up_qweight = layer.mlp.gate_up_proj.qweight.chunk(
+                    2, dim=1
+                )
                 gate_scales, up_scales = layer.mlp.gate_up_proj.scales.chunk(2, dim=1)
                 gate_qzeros, up_qzeros = layer.mlp.gate_up_proj.qzeros.chunk(2, dim=1)
 
