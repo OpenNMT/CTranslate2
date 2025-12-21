@@ -259,7 +259,7 @@ class VectorStore:
 
 def main():
     model_repo = "CTranslate2HQ/all-MiniLM-L12-v2-ct2-float32"
-    file_path = Path(r"[ENTER RAW STRING PATH TO A PDF FILE HERE]")
+    file_path = Path(r"[ENTER RAW STRING PATH TO A PDF FILE HERE]") # ENTER PATH TO PDF HERE
     chunk_size = 900
     overlap = 300
     top_k = 4
