@@ -170,6 +170,8 @@ set(SOURCES
   src/ops/mean.cc
   src/ops/mean_cpu.cc
   src/ops/median_filter.cc
+  src/ops/median_filter_cpu.cc
+  src/ops/median_filter_gpu.cu
   src/ops/min_max.cc
   src/ops/mul.cc
   src/ops/multinomial.cc
