@@ -114,7 +114,7 @@ jobs:
           wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
           tar xf transliteration-aren-all.tar.gz
 
-      - name: Test MKL
+      - name: Test AddressSanitizer 
         if: matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
