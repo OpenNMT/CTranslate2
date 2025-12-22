@@ -18,7 +18,7 @@ jobs:
     strategy:
       matrix:
         os: [ubuntu-22.04]
-        backend: [mkl, dnnl, asan]
+        backend: [mkl, dnnl]
 
     steps:
       - uses: actions/checkout@v4
@@ -50,15 +50,6 @@ jobs:
           sudo apt-get install -y intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
 
-      - name: Configure with ASAN
-        if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'asan'
-        env:
-          DNNL_VERSION: 2023.0.0-25399
-        run: |
-          sudo apt-get install -y llvm libomp-dev intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON \
-            -DGOOGLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ .
-
       - name: Build
         run: |
           make install
@@ -80,11 +71,56 @@ jobs:
         if: matrix.backend == 'dnnl'
         run: |
           tests/ctranslate2_test tests/data
-      - name: Test ASAN
-        if: matrix.backend == 'asan'
-        run: |
-          ASAN_OPTIONS=detect_leaks=1:print_stats=1  tests/ctranslate2_test tests/data
+          
+  build-and-test-cpp-x86_64-sanitizers:
+    runs-on: ${{ matrix.os }}
+    env:
+      CT2_VERBOSE: 1
+    strategy:
+      matrix:
+        os: [ubuntu-22.04]
+        backend: [mkl]
 
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Intel oneAPI
+        if: startsWith(matrix.os, 'ubuntu')
+        run: |
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add *.PUB
+          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
+          sudo apt-get update
+
+      - name: Configure with MKL
+        if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
+        env:
+          CT2_USE_MKL: 1
+          MKL_VERSION: 2023.0.0
+        run: |
+          sudo apt-get install -y intel-oneapi-mkl-devel-$MKL_VERSION
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DGOOGLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+
+      - name: Build
+        run: |
+          make install
+
+      - name: Download test data
+        working-directory: tests/data/models
+        run: |
+          wget https://opennmt-models.s3.amazonaws.com/pi_lm_step_5000.pt
+          wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
+          tar xf transliteration-aren-all.tar.gz
+
+      - name: Test MKL
+        if: matrix.backend == 'mkl'
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          ASAN_OPTIONS=detect_leaks=1:print_stats=1 tests/ctranslate2_test tests/data
+          
   build-and-test-cpp-arm64:
     runs-on: ${{ matrix.os }}
     env:
