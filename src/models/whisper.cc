@@ -389,10 +389,9 @@ namespace ctranslate2 {
       const ops::MedianFilter median_filter_op(median_filter_width);
       const dim_t batch_size = attention_probs.dim(0);
 
+      ops::LayerNorm(-2, 0)(attention_probs);
       // The remaining operations are not implemented on GPU, so move back to CPU.
       attention_probs.move_to(Device::CPU, DataType::FLOAT32);
-
-      ops::LayerNorm(-2, 0)(attention_probs);
 
       StorageView median_filter;
       median_filter_op(attention_probs, median_filter);
