@@ -117,6 +117,14 @@ def get_prompt_tokens(tokenizer: AutoTokenizer, dialog: List[Dict[str, str]]) ->
 
 
 def trim_dialog(dialog: List[Dict[str, str]], has_system: bool) -> List[Dict[str, str]]:
+    """
+    This script manages conversational memory by storing messages in an in-memory list
+    formatted for Hugging Face chat templates, with the dialog growing as the conversation
+    progresses. To prevent context overflow, it enforces a maximum prompt length based on
+    the model's context window, using a sliding-window strategy that preserves system
+    messages while pruning the oldest exchanges first. This keeps recent context prioritized
+    without needing external storage or summarization.
+    """
     if has_system:
         return [dialog[0]] + dialog[3:]
     else:
@@ -124,6 +132,12 @@ def trim_dialog(dialog: List[Dict[str, str]], has_system: bool) -> List[Dict[str
 
 
 def generate_streaming(
+    """The chat loop processes user input synchronously by appending messages to a dialog,
+    converting it to a prompt via the tokenizer's chat template, trimming for context limits,
+    and streaming tokens in real time before saving the assistant's response back to the dialog.
+    Generation stops on end-of-sequence or custom tokens, and the session continues until the
+    user exits, at which point GPU memory and objects are cleaned up.
+    """
     tokens: List[str],
     generator: ctranslate2.Generator,
     tokenizer: AutoTokenizer,
