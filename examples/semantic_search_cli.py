@@ -59,8 +59,13 @@ import torch
 from transformers import AutoTokenizer
 from huggingface_hub import snapshot_download
 
-
 def load_pdf(filepath: Path) -> str:
+    """
+    It loads a PDF from disk and extracts all readable text into a single plain-text
+    string suitable for chunking and embedding. The function iterates through pages
+    with PyMuPDF, keeps only non-empty text, and concatenates those pages using
+    double newlines to preserve coarse page boundaries.
+    """
     try:
         import fitz
     except ImportError:
@@ -88,6 +93,13 @@ def load_pdf(filepath: Path) -> str:
 
 
 def chunk_text(text: str, chunk_size: int, overlap: int) -> List[Dict[str, Any]]:
+    """
+    First normalizes text by cleaning whitespace, newlines, and blank lines, then splits it
+    into sentence- or paragraph-based segments while preserving original character offsets.
+    It greedily assembles these segments into size-limited chunks with sentence-aligned overlaps
+    for contextual continuity. Extremely long sentences are handled separately by splitting
+    them into fixed-size, overlapping sub-chunks that still map back to the original text offsets.
+    """
     text = re.sub(r"[ \t]+", " ", text)
     text = re.sub(r"\r\n?", "\n", text)
     text = re.sub(r"\n{3,}", "\n\n", text).strip()
@@ -183,6 +195,12 @@ def chunk_text(text: str, chunk_size: int, overlap: int) -> List[Dict[str, Any]]
 
 
 class EmbeddingEngine:
+    """
+    It loads a tokenizer and encoder once, batches and tokenizes inputs, then produces
+    embeddings via a pooler output or a masked mean over hidden states when needed.
+    The outputs are converted to CUDA torch tensors, normalized for numerical stability,
+    and returned as a 2D tensor with one embedding per input.
+    """
     def __init__(self, model_path: str, max_batch_size: int = 32, max_length: int = 512):
         self.model_path = model_path
         self.max_batch_size = max_batch_size
@@ -239,6 +257,12 @@ class VectorStore:
         self._chunks.extend(chunks)
 
     def search(self, query_embedding: torch.Tensor, top_k: int = 3) -> List[Dict[str, Any]]:
+        """
+        This module performs in-memory semantic search by comparing a normalized query embedding
+        against stored chunk embeddings using dot-product similarity, effectively approximating
+        cosine similarity. It ranks chunks by similarity, returns the top-K results with scores
+        and metadata, and safely handles empty indexes or size limits.
+        """
         if not self._chunks:
             return []
 
