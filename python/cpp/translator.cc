@@ -372,10 +372,10 @@ namespace ctranslate2 {
                  Arguments:
                    source: Batch of source tokens.
                    target_prefix: Optional batch of target prefix tokens.
-                   max_batch_size: The maximum batch size. If the number of inputs is greater than
-                     :obj:`max_batch_size`, the inputs are sorted by length and split by chunks of
-                     :obj:`max_batch_size` examples so that the number of padding positions is
-                     minimized.
+                   max_batch_size: The maximum batch size. If the number of inputs is greater than :obj:`max_batch_size`,
+                     the inputs are sorted by length and split by chunks of :obj:`max_batch_size` examples
+                     (or tokens when :obj:`batch_type`="tokens") so that the number of padding positions
+                     is minimized.
                    batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
                    asynchronous: Run the translation asynchronously.
                    beam_size: Beam size (1 for greedy search).

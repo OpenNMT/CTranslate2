@@ -234,10 +234,10 @@ namespace ctranslate2 {
                  Arguments:
                    start_tokens: Batch of start tokens. If the decoder starts from a special
                      start token like ``<s>``, this token should be added to this input.
-                   max_batch_size: The maximum batch size. If the number of inputs is greater than
-                     :obj:`max_batch_size`, the inputs are sorted by length and split by chunks of
-                     :obj:`max_batch_size` examples so that the number of padding positions is
-                     minimized.
+                   max_batch_size: The maximum batch size. If the number of inputs is greater than :obj:`max_batch_size`,
+                     the inputs are sorted by length and split by chunks of :obj:`max_batch_size` examples
+                     (or tokens when :obj:`batch_type`="tokens") so that the number of padding positions
+                     is minimized.
                    batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
                    asynchronous: Run the generation asynchronously.
                    beam_size: Beam size (1 for greedy search).
