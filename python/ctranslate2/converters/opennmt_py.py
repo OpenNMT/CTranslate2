@@ -24,6 +24,8 @@ def check_opt(opt, num_source_embeddings):
     activation_fn = getattr(opt, "pos_ffn_activation_fn", "relu")
     feat_merge = getattr(opt, "feat_merge", "concat")
     self_attn_type = getattr(opt, "self_attn_type", "scaled-dot")
+    if self_attn_type == "scaled-dot-flash":
+        self_attn_type = "scaled-dot"
 
     check = utils.ConfigurationChecker()
     check(
@@ -60,8 +62,20 @@ def _get_model_spec_seq2seq(
 ):
     """Creates a model specification from the model options."""
     with_relative_position = getattr(opt, "max_relative_positions", 0) > 0
+    with_rotary = getattr(opt, "max_relative_positions", 0) == -1
+    with_alibi = getattr(opt, "max_relative_positions", 0) == -2
     activation_fn = getattr(opt, "pos_ffn_activation_fn", "relu")
+    num_heads = getattr(opt, "heads", 8)
+    num_kv = getattr(opt, "num_kv", 0)
+    if num_kv == num_heads or num_kv == 0:
+        num_kv = None
+    rotary_dim = 0 if with_rotary else None
+    rotary_interleave = getattr(opt, "rotary_interleave", True)
+    ffn_glu = (activation_fn == "silu") or (activation_fn == "gated-gelu")
+    sliding_window = getattr(opt, "sliding_window", 0)
+
     feat_merge = getattr(opt, "feat_merge", "concat")
+    layer_norm = getattr(opt, "layer_norm", "standard")
 
     # Return the first head of the last layer unless the model was trained with alignments.
     if getattr(opt, "lambda_align", 0) == 0:
@@ -71,20 +85,26 @@ def _get_model_spec_seq2seq(
         alignment_layer = opt.alignment_layer
         alignment_heads = opt.alignment_heads
 
-    num_heads = getattr(opt, "heads", 8)
-
     model_spec = transformer_spec.TransformerSpec.from_config(
         (opt.enc_layers, opt.dec_layers),
         num_heads,
-        with_relative_position=with_relative_position,
         activation=_SUPPORTED_ACTIVATIONS[activation_fn],
+        ffn_glu=ffn_glu,
+        with_relative_position=with_relative_position,
+        alibi=with_alibi,
+        rms_norm=layer_norm == "rms",
+        rotary_dim=rotary_dim,
+        rotary_interleave=rotary_interleave,
+        multi_query_attention=getattr(opt, "multiquery", False),
+        num_heads_kv=num_kv,
+        sliding_window=sliding_window,
         alignment_layer=alignment_layer,
         alignment_heads=alignment_heads,
         num_source_embeddings=num_source_embeddings,
         embeddings_merge=_SUPPORTED_FEATURES_MERGE[feat_merge],
-        multi_query_attention=getattr(opt, "multiquery", False),
     )
 
+    model_spec.config.layer_norm_epsilon = getattr(opt, "norm_eps", 1e-6)
     model_spec.config.decoder_start_token = getattr(opt, "decoder_start_token", "<s>")
 
     set_transformer_spec(model_spec, variables)

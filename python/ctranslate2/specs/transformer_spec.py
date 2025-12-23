@@ -22,7 +22,20 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
         relative_attention_bias: bool = False,
         ffn_glu: bool = False,
         rms_norm: bool = False,
+        alibi: bool = False,
+        alibi_use_positive_positions: bool = False,
+        scale_alibi: bool = False,
+        rotary_dim: Optional[int] = None,
+        rotary_interleave: bool = True,
+        rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
+        rotary_scaling_factor: float = 1,
+        rotary_base: float = 10000,
+        parallel_residual: bool = False,
+        shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
+        num_heads_kv: Optional[int] = None,
+        head_dim: Optional[int] = None,
+        sliding_window: Optional[int] = None,
     ):
         """Initializes a Transformer encoder specification.
 
@@ -43,9 +56,30 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
           ffn_glu: Use gated linear units in the FFN layers as described in
             https://arxiv.org/abs/2002.05202.
           rms_norm: Use the root mean square layer normalization.
-          multi_query_attention: Use multi-query attention.
+          alibi: Use attention with linear biases.
+          alibi_use_positive_positions: Use positive positions in the ALiBi definition.
+          scale_alibi: Apply the dot product scale factor to ALiBi.
+          rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
+            embeddings are applied to all dimensions.
+          rotary_interleave: Interleave the head dimensions when rotary embeddings are applied.
+            Otherwise the head dimensions are sliced in half.
+          rotary_scaling_type: Type of RoPE scaling.
+          rotary_scaling_factor: Factor used in the RoPE scaling.
+          rotary_base: The base period of the rotary embeddings.
+          parallel_residual: Use parallel residual connections in each layer block, as used
+            by the GPT-J and GPT-NeoX models.
+          shared_layer_norm: When using parallel residual, share the input and post
+            attention layer norms.
+          multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
+          num_heads_kv: Number of attention heads for the key and value.
+          sliding_window: Max sequence length to retain in KV Cache.
         """
-        self.multi_query_attention = multi_query_attention
+        if multi_query_attention:
+            if num_heads_kv is not None and num_heads_kv != 1:
+                raise ValueError(
+                    "Enabling multi_query_attention implies num_heads_kv=1"
+                )
+            num_heads_kv = 1
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
         self.activation = np.dtype("int8").type(activation)
@@ -54,7 +88,17 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
             common_spec.EmbeddingsSpec() for _ in range(num_source_embeddings)
         ]
         self.scale_embeddings = True
-        if not relative_position and not relative_attention_bias:
+        self.alibi = alibi
+        self.alibi_use_positive_positions = alibi_use_positive_positions
+        self.scale_alibi = scale_alibi
+        if sliding_window is not None:
+            self.sliding_window = np.dtype("int32").type(sliding_window)
+        if (
+            not relative_position
+            and not relative_attention_bias
+            and not alibi
+            and rotary_dim is None
+        ):
             self.position_encodings = PositionEncoderSpec()
         if pre_norm and not no_final_norm:
             self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
@@ -66,10 +110,22 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
                 relative_attention_bias=relative_attention_bias,
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
-                num_heads_kv=1 if multi_query_attention else None,
+                rotary_dim=rotary_dim,
+                rotary_interleave=rotary_interleave,
+                rotary_scaling_type=rotary_scaling_type,
+                rotary_scaling_factor=rotary_scaling_factor,
+                rotary_base=rotary_base,
+                parallel_residual=parallel_residual,
+                shared_layer_norm=shared_layer_norm,
+                num_heads_kv=num_heads_kv,
+                head_dim=head_dim,
+                sliding_window=sliding_window,
             )
             for _ in range(num_layers)
         ]
+        self.multi_query_attention = multi_query_attention or (
+            num_heads_kv != num_heads
+        )
 
 
 class TransformerDecoderSpec(model_spec.LayerSpec):
@@ -253,7 +309,15 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
         relative_attention_bias=False,
         ffn_glu=False,
         rms_norm=False,
+        rotary_dim=None,
+        rotary_interleave=True,
+        rotary_scaling_type=None,
+        rotary_scaling_factor=1,
+        rotary_base=10000,
+        parallel_residual=False,
+        shared_layer_norm=False,
         num_heads_kv=None,
+        head_dim=None,
         sliding_window=None,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
@@ -261,7 +325,13 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
             relative_position=relative_position,
             relative_attention_bias=relative_attention_bias,
             rms_norm=rms_norm,
+            rotary_dim=rotary_dim,
+            rotary_interleave=rotary_interleave,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=rotary_base,
             num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
             sliding_window=sliding_window,
         )
         self.ffn = FeedForwardSpec(glu=ffn_glu, rms_norm=rms_norm)
@@ -416,7 +486,20 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
         relative_attention_bias: bool = False,
         ffn_glu: bool = False,
         rms_norm: bool = False,
+        alibi: bool = False,
+        alibi_use_positive_positions: bool = False,
+        scale_alibi: bool = False,
+        rotary_dim: Optional[int] = None,
+        rotary_interleave: bool = True,
+        rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
+        rotary_scaling_factor: float = 1,
+        rotary_base: float = 10000,
+        parallel_residual: bool = False,
+        shared_layer_norm: bool = False,
         multi_query_attention: bool = False,
+        num_heads_kv: Optional[int] = None,
+        head_dim: Optional[int] = None,
+        sliding_window: Optional[int] = None,
     ):
         """Creates a Transformer model specification.
 
@@ -460,7 +543,20 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             relative_attention_bias=relative_attention_bias,
             ffn_glu=ffn_glu,
             rms_norm=rms_norm,
+            alibi=alibi,
+            alibi_use_positive_positions=alibi_use_positive_positions,
+            scale_alibi=scale_alibi,
+            rotary_dim=rotary_dim,
+            rotary_interleave=rotary_interleave,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=rotary_base,
+            parallel_residual=parallel_residual,
+            shared_layer_norm=shared_layer_norm,
             multi_query_attention=multi_query_attention,
+            num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
+            sliding_window=sliding_window,
         )
 
         decoder = TransformerDecoderSpec(
@@ -476,7 +572,20 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
             alignment_heads=alignment_heads,
             ffn_glu=ffn_glu,
             rms_norm=rms_norm,
+            alibi=alibi,
+            alibi_use_positive_positions=alibi_use_positive_positions,
+            scale_alibi=scale_alibi,
+            rotary_dim=rotary_dim,
+            rotary_interleave=rotary_interleave,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=rotary_base,
+            parallel_residual=parallel_residual,
+            shared_layer_norm=shared_layer_norm,
             multi_query_attention=multi_query_attention,
+            num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
+            sliding_window=sliding_window,
         )
 
         return cls(encoder, decoder)
