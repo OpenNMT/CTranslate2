@@ -98,7 +98,7 @@ The list is ordered on 5. from the largest to smallest time.
 
 #### `StorageView` class
 
-CTranslate2 uses [row-major](https://en.wikipedia.org/wiki/Row-_and_column-major_order) storages, usually encapsulated in the `StorageView` class. This class acts like a tensor representation but without the mathematical semantics. It is convenience wrapper to view a buffer of data in a particular shape, and provides methods to resize, reshape, and copy data. The underlying storage has a type (e.g. `float`) and a location (e.g. GPU #1) which are both resolved at runtime.
+CTranslate2 uses [row-major](https://en.wikipedia.org/wiki/Row-_and_column-major_order) storages, usually encapsulated in the `StorageView` class. This class acts like a tensor representation but without the mathematical semantics. It is a convenience wrapper to view a buffer of data in a particular shape, and provides methods to resize, reshape, and copy data. The underlying storage has a type (e.g. `float`) and a location (e.g. GPU #1) which are both resolved at runtime.
 
 To maximize performance, the implementation avoid new allocations when possible:
 
@@ -157,7 +157,7 @@ To limit the size of the packages pushed to PyPI, some libraries are not include
 
 One of the benefits of this dynamic loading is that multiple versions of cuBLAS and cuDNN are supported by the same binary. In particular, users can install any CUDA 12.x version as long as it provides `libcublas.so.12`.
 
-The Python library only support CUDA 12.x. C++ source code is always compatible with CUDA 11, possible to use CUDA 11 libraries during compilation to create CUDA 11.x support wheel.
+The Python library only supports CUDA 12.x. C++ source code is always compatible with CUDA 11, possible to use CUDA 11 libraries during compilation to create CUDA 11.x support wheel.
 
 ### Updating other dependencies
 
