@@ -174,7 +174,7 @@ If a dependency needs an update, it is particularly important that it is updated
 
 ### Managing PyPI project size limit
 
-Projects on PyPI have a size limit. The default limit is 10GB. Currenty CTranslate2 project [has 50GB](https://github.com/pypi/support/issues/8119) of storage limit.
+Projects on PyPI have a size limit. The default limit is 10GB. Currently the CTranslate2 project [has 50GB](https://github.com/pypi/support/issues/8119) of storage limit.
 
 So older releases need to be regularly deleted on PyPI to make room for new releases. **However, make sure to keep the latest release of each major version.**
 
