@@ -29,7 +29,7 @@ CTranslate2 is a low-level, performance-critical codebase. A single misplaced po
 
 To maintain code integrity and manage maintainer workload, we apply the following policy:
 
-* Use of AI tools for brainstorming or minor assistance is acceptable, but contributors must explicitly disclose how AI was used and remain fully responsible for correctness, performance, and design. Submissions that appear generated without deep understanding will be declined.  Verifying AI output for correctness and performance is more time-consuming than writing code manually.
+* Use of AI tools for brainstorming or minor assistance is acceptable, but contributors must explicitly disclose how AI was used and remain fully responsible for correctness, performance, and design. Submissions that appear generated without deep understanding will be declined. Verifying AI output for correctness and performance is more time-consuming than writing code manually.
 
 * Mandatory Deep Understanding: Contributors must fully understand their code and be prepared to justify the purpose of part of the code base.
 
