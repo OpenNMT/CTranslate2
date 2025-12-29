@@ -235,7 +235,7 @@ class ModelLoader(abc.ABC):
 
         if isinstance(module, transformers.Conv1D):
             spec.weight = spec.weight.transpose(0, 1)
-        if module.bias is not None:
+        if hasattr(module, "bias") and module.bias is not None:
             spec.bias = module.bias
 
     def set_embeddings(self, spec, module):
@@ -3467,3 +3467,270 @@ _WHISPER_ALIGNMENT_HEADS = {
         (25, 6),
     ],
 }
+
+
+# Paper: https://arxiv.org/pdf/2504.06225
+@register_loader("T5GemmaConfig")
+class T5GemmaLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "T5GemmaForConditionalGeneration"
+
+    def set_layer_norm(self, spec, layer_norm):
+        spec.gamma = layer_norm.weight.data + 1.0
+
+    def get_model_spec(self, model):
+        encoder_config = model.config.encoder
+        decoder_config = model.config.decoder
+
+        sliding_window = getattr(model.config, "sliding_window", 4096)
+
+        encoder = transformer_spec.TransformerEncoderSpec(
+            encoder_config.num_hidden_layers,
+            encoder_config.num_attention_heads,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[encoder_config.hidden_activation],
+            ffn_glu=True,
+            rms_norm=True,
+            rotary_dim=encoder_config.head_dim,
+            rotary_interleave=False,
+            rotary_base=10_000,
+            sliding_window=sliding_window,
+            pre_post_layer_norm=True,
+        )
+
+        decoder = transformer_spec.TransformerDecoderSpec(
+            decoder_config.num_hidden_layers,
+            decoder_config.num_attention_heads,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[decoder_config.hidden_activation],
+            ffn_glu=True,
+            rms_norm=True,
+            with_encoder_attention=True,
+            rotary_dim=decoder_config.head_dim,
+            rotary_interleave=False,
+            rotary_base=10_000,
+            sliding_window=sliding_window,
+            pre_post_layer_norm=True,
+            external_pre_post_encoder_layers=True,
+        )
+
+        spec = transformer_spec.TransformerSpec(encoder, decoder)
+
+        self.set_encoder(spec.encoder, model.model.encoder, encoder_config)
+
+        self.set_decoder(
+            spec.decoder,
+            model.model.decoder,
+            decoder_config,
+            common_spec.Quantization.CT2,
+        )
+
+        # Check config for tie_word_embeddings
+        tie_embeddings = getattr(model.config, "tie_word_embeddings", False)
+
+        if tie_embeddings or not hasattr(model.lm_head, "weight"):
+            print("Using tied embeddings for LM head")
+            self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
+        else:
+            print("Using separate LM head")
+            self.set_linear(spec.decoder.projection, model.lm_head.out_proj)
+
+        spec.decoder.embeddings.multiply_by_sqrt_depth = (
+            decoder_config.hidden_size**0.5
+        )
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+
+        extra_ids = model.config.vocab_size - len(tokens)
+        if extra_ids > 0:
+            print(f"\nAdding {extra_ids} extra tokens to vocabulary")
+            for i in range(extra_ids):
+                tokens.append("<extra_id_%d>" % i)
+
+        print(f"Final vocabulary size: {len(tokens)}")
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_source_vocabulary(tokens)
+        spec.register_target_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = tokenizer.bos_token
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = tokenizer.unk_token
+        print(f"config.bos_token: {config.bos_token}")
+        print(f"config.eos_token: {config.eos_token}")
+        print(f"config.unk_token: {config.unk_token}")
+
+        if hasattr(model.config, "encoder"):
+            config.layer_norm_epsilon = model.config.encoder.rms_norm_eps
+        elif hasattr(model.config, "rms_norm_eps"):
+            config.layer_norm_epsilon = model.config.rms_norm_eps
+        else:
+            config.layer_norm_epsilon = 1e-6
+
+        config.decoder_start_token = tokenizer.bos_token
+
+    def set_encoder(
+        self, spec, encoder, encoder_config, quant_type=common_spec.Quantization.CT2
+    ):
+        spec.scale_embeddings = True
+
+        encoder_emb_spec = (
+            spec.embeddings[0] if isinstance(spec.embeddings, list) else spec.embeddings
+        )
+
+        self.set_embeddings(encoder_emb_spec, encoder.embed_tokens)
+        encoder_emb_spec.multiply_by_sqrt_depth = encoder_config.hidden_size**0.5
+        self.set_layer_norm(spec.layer_norm, encoder.norm)
+
+        module = encoder
+        for i, (layer_spec, layer) in enumerate(zip(spec.layer, module.layers)):
+            self.set_layer_norm(
+                layer_spec.input_layer_norm, layer.pre_self_attn_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_attention_layer_norm, layer.post_self_attn_layernorm
+            )
+
+            # T5GemmaSelfAttention(L4)
+            qkv_split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(
+                qkv_split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
+            utils.fuse_linear(layer_spec.self_attention.linear[0], qkv_split_layers)
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            # T5GemmaRMSNorm
+            self.set_layer_norm(
+                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
+            )
+            # T5GemmaRMSNorm
+            self.set_layer_norm(
+                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
+            )
+
+            # T5GemmaMLP
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
+
+            # Clean up
+            delattr(layer, "self_attn")
+            delattr(layer, "mlp")
+            gc.collect()
+
+    def set_decoder(
+        self, spec, module, decoder_config, quant_type=common_spec.Quantization.CT2
+    ):
+        spec.scale_embeddings = True
+        spec.start_from_zero_embedding = False
+
+        self.set_embeddings(spec.embeddings, module.embed_tokens)
+        self.set_layer_norm(spec.layer_norm, module.norm)
+
+        for i, (layer_spec, layer) in enumerate(zip(spec.layer, module.layers)):
+            # === Self-attention block ===
+            self.set_layer_norm(
+                layer_spec.input_layer_norm, layer.pre_self_attn_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_attention_layer_norm, layer.post_self_attn_layernorm
+            )
+
+            # T5GemmaSelfAttention - QKV projections
+            qkv_split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(
+                qkv_split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
+            utils.fuse_linear(layer_spec.self_attention.linear[0], qkv_split_layers)
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            # === Cross-attention block ===
+            # Pre cross-attention layer norm
+            self.set_layer_norm(
+                layer_spec.external_pre_encoder_attention_layer_norm,
+                layer.pre_cross_attn_layernorm,
+            )
+
+            # POST
+            self.set_layer_norm(
+                layer_spec.external_post_encoder_attention_layer_norm,
+                layer.post_cross_attn_layernorm,
+            )
+
+            # Cross-attention Q projection
+            self.set_linear(
+                layer_spec.attention.linear[0],
+                layer.cross_attn.q_proj,
+                quant_type=quant_type,
+            )
+
+            # Cross-attention K+V fused
+            kv_split_layers = [common_spec.LinearSpec() for _ in range(2)]
+            self.set_linear(
+                kv_split_layers[0],
+                layer.cross_attn.k_proj,
+                quant_type=quant_type,
+            )
+            self.set_linear(
+                kv_split_layers[1],
+                layer.cross_attn.v_proj,
+                quant_type=quant_type,
+            )
+            utils.fuse_linear(layer_spec.attention.linear[1], kv_split_layers)
+
+            # Cross-attention output projection
+            self.set_linear(
+                layer_spec.attention.linear[2],
+                layer.cross_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            # === Feed-forward block ===
+            self.set_layer_norm(
+                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
+            )
+
+            # T5GemmaMLP
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj)
+            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
+
+            # Clean up
+            delattr(layer, "self_attn")
+            delattr(layer, "cross_attn")
+            delattr(layer, "mlp")
+            gc.collect()
