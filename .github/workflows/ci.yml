@@ -170,7 +170,7 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
           CIBW_ARCHS: ${{ matrix.arch }}
-          CIBW_SKIP: pp* *-musllinux_*
+          CIBW_SKIP: "*-musllinux_*"
 
       - name: Upload Python wheels
         uses: actions/upload-artifact@v4
@@ -194,10 +194,6 @@ jobs:
           - os: ubuntu-22.04-arm
             artifact_pattern: python-wheels-Linux-aarch64
             wheel_pattern: "*cp310*manylinux*_aarch64.whl"
-
-          #- os: windows-2022
-          #  artifact_pattern: python-wheels-Windows-auto64
-          #  wheel_pattern: "*cp310*win*.whl"
 
           - os: macos-15
             artifact_pattern: python-wheels-macOS-arm64
@@ -226,8 +222,6 @@ jobs:
       - name: Install wheel
         shell: bash
         run: |
-          ls -l
-          find .
           pip install ${{ matrix.wheel_pattern }}
 
       - name: Test Python wheel
