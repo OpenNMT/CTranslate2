@@ -1,6 +1,6 @@
-transformers==4.41.*;platform_system=='Linux'
-fairseq==0.12.2;platform_system=='Linux' or platform_system=='Darwin'
-OpenNMT-py==2.2.*;platform_system=='Linux' or platform_system=='Darwin'
+transformers==4.57.*;platform_system=='Linux'
+git+https://github.com/facebookresearch/fairseq.git@main; sys_platform == 'linux' or sys_platform == 'darwin'
+OpenNMT-py==2.2.*;sys_platform=='linux' or sys_platform=='darwin'
 pytest
-wurlitzer==3.0.*;platform_system=='Linux'
-torch==2.4.1
+wurlitzer==3.0.*;sys_platform=='linux'
+torch==2.6

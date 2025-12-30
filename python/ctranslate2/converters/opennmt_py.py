@@ -174,7 +174,9 @@ class OpenNMTPyConverter(Converter):
     def _load(self):
         import torch
 
-        checkpoint = torch.load(self._model_path, map_location="cpu")
+        checkpoint = torch.load(
+            self._model_path, map_location="cpu", weights_only=False
+        )
 
         src_vocabs, tgt_vocabs = get_vocabs(checkpoint["vocab"])
 
