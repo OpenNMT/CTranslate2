@@ -208,6 +208,7 @@ set(SOURCES
   src/ops/awq/gemv.cc
   src/ops/awq/gemv_cpu.cc
   src/ops/sum.cc
+  src/ops/int4gemm_cpu.cc
   src/padder.cc
   src/profiler.cc
   src/random.cc
@@ -334,7 +335,7 @@ if(WITH_MKL)
   endif()
 
   # Find MKL libraries.
-  find_library(MKL_CORE_LIBRARY NAMES mkl_core HINTS ${MKL_ROOT}/lib ${MKL_ROOT}/lib/intel64)
+  find_library(MKL_CORE_LIBRARY NAMES mkl_core PATHS ${MKL_ROOT}/lib ${MKL_ROOT}/lib/intel64)
   if(MKL_CORE_LIBRARY)
     get_filename_component(MKL_LIBRARY_DIR ${MKL_CORE_LIBRARY} DIRECTORY)
     message(STATUS "Found MKL library directory: ${MKL_LIBRARY_DIR}")
@@ -657,6 +658,7 @@ if (WITH_CUDA)
     src/ops/awq/gemm_gpu.cu
     src/ops/awq/gemv_gpu.cu
     src/ops/awq/dequantize_gpu.cu
+    src/ops/int4gemm_gpu.cu
   )
 
 
