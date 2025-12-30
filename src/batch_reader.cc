@@ -36,8 +36,53 @@ namespace ctranslate2 {
   }
 
   std::vector<Example>
+  BatchReader::fill_batch_with_fixed_increment(const size_t max_batch_size,
+                                                const BatchType batch_type) {
+    std::vector<Example> batch;
+    batch.reserve(max_batch_size);
+
+    size_t max_increment = 0;
+
+    while (!_next.empty()) {
+      const size_t cur_increment = get_batch_size_increment(_next, batch_type);
+      max_increment = std::max(max_increment, cur_increment);
+      const size_t new_batch_size = (batch.size() + 1) * max_increment;
+
+      if (!batch.empty() && new_batch_size > max_batch_size)
+        break;
+
+      batch.emplace_back(std::move(_next));
+      _next = get_next_example();
+    }
+    return batch;
+  }
+
+  std::vector<Example>
+  BatchReader::fill_batch_with_variable_increment(const size_t max_batch_size,
+                                                   const BatchType batch_type) {
+    std::vector<Example> batch;
+    batch.reserve(max_batch_size);
+
+    size_t total_increment = 0;
+
+    while (!_next.empty()) {
+      const size_t cur_increment = get_batch_size_increment(_next, batch_type);
+      const size_t new_batch_size = total_increment + cur_increment;
+
+      if (!batch.empty() && new_batch_size > max_batch_size)
+        break;
+
+      batch.emplace_back(std::move(_next));
+      total_increment += cur_increment;
+      _next = get_next_example();
+    }
+    return batch;
+  }
+
+  std::vector<Example>
   BatchReader::get_next(const size_t max_batch_size,
-                        const BatchType batch_type) {
+                        const BatchType batch_type,
+                        const bool consider_padding) {
     if (max_batch_size == 0)
       throw std::invalid_argument("BatchReader: max_batch_size must be > 0");
 
@@ -46,23 +91,14 @@ namespace ctranslate2 {
       _initialized = true;
     }
 
-    std::vector<Example> batch;
     if (_next.empty())
-      return batch;
+      return {};
 
-    batch.reserve(max_batch_size);
+    auto batch = consider_padding
+      ? fill_batch_with_fixed_increment(max_batch_size, batch_type)
+      : fill_batch_with_variable_increment(max_batch_size, batch_type);
 
-    size_t batch_size = 0;
-
-    while (!_next.empty()) {
-      const size_t batch_size_increment = get_batch_size_increment(_next, batch_type);
-      if (batch_size > 0 && batch_size + batch_size_increment > max_batch_size)
-        break;
-      batch.emplace_back(std::move(_next));
-      batch_size += batch_size_increment;
-      _next = get_next_example();
-    }
-
+    batch.shrink_to_fit();
     return batch;
   }
 
@@ -170,7 +206,8 @@ namespace ctranslate2 {
     VectorReader batch_reader(index_vector(examples, example_index));
 
     for (size_t offset = 0;;) {
-      auto examples_part = batch_reader.get_next(max_batch_size, batch_type);
+      // the batch size increment per example is always fixed because padding is required
+      auto examples_part = batch_reader.get_next(max_batch_size, batch_type, true);
       if (examples_part.empty())
         break;
 
