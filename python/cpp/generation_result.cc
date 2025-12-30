@@ -21,8 +21,10 @@ namespace ctranslate2 {
                       "Index of the hypothesis in the batch.")
         .def_readonly("token", &GenerationStepResult::token,
                       "String value of the generated token.")
-        .def_readonly("log_prob", &GenerationStepResult::log_prob,
+        .def_readonly("log_prob", &GenerationStepResult::score,
                       "Log probability of the token (``None`` if :obj:`return_log_prob` was disabled).")
+        .def_readonly("logits", &GenerationStepResult::logits,
+                      "Log probability on the vocab of all tokens.")
         .def_readonly("is_last", &GenerationStepResult::is_last,
                       "Whether this step is the last decoding step for this batch.")
 
@@ -32,7 +34,8 @@ namespace ctranslate2 {
             + ", token_id=" + std::string(py::repr(py::cast(result.token_id)))
             + ", hypothesis_id=" + std::string(py::repr(py::cast(result.hypothesis_id)))
             + ", token=" + std::string(py::repr(py::cast(result.token)))
-            + ", log_prob=" + std::string(py::repr(py::cast(result.log_prob)))
+            + ", log_prob=" + std::string(py::repr(py::cast(result.score)))
+            + ", logits=" + std::string(py::repr(py::cast(result.logits)))
             + ", is_last=" + std::string(py::repr(py::cast(result.is_last)))
             + ")";
         })
@@ -46,11 +49,14 @@ namespace ctranslate2 {
                       "Generated sequences of token IDs.")
         .def_readonly("scores", &GenerationResult::scores,
                       "Score of each sequence (empty if :obj:`return_scores` was disabled).")
+        .def_readonly("logits", &GenerationResult::logits,
+                      "Logits of each sequence (empty if :obj:`return_logits_vocab` was disabled).")
 
         .def("__repr__", [](const GenerationResult& result) {
           return "GenerationResult(sequences=" + std::string(py::repr(py::cast(result.sequences)))
             + ", sequences_ids=" + std::string(py::repr(py::cast(result.sequences_ids)))
             + ", scores=" + std::string(py::repr(py::cast(result.scores)))
+            + ", logits=" + std::string(py::repr(py::cast(result.logits)))
             + ")";
         })
         ;

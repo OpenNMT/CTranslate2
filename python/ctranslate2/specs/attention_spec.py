@@ -11,6 +11,7 @@ class RotaryScalingType(enum.IntEnum):
 
     Linear = 0
     Su = 1
+    Llama3 = 2
 
 
 class MultiHeadAttentionSpec(model_spec.LayerSpec):
@@ -18,6 +19,7 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         self,
         self_attention=False,
         relative_position=False,
+        relative_asymmetric_position=False,
         relative_attention_bias=False,
         rms_norm=False,
         rotary_dim=None,
@@ -30,6 +32,8 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         num_heads_kv=None,
         head_dim=None,
         sliding_window=None,
+        qk_norm=False,
+        qk_norm_rms=True,
     ):
         self.queries_scale = model_spec.OPTIONAL
 
@@ -38,6 +42,10 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
             common_spec.LinearSpec() for _ in range(2 if self_attention else 3)
         ]
 
+        if qk_norm:
+            self.q_norm = common_spec.LayerNormSpec(rms_norm=qk_norm_rms)
+            self.k_norm = common_spec.LayerNormSpec(rms_norm=qk_norm_rms)
+
         if relative_position:
             self.relative_position_keys = None
             self.relative_position_values = None
@@ -45,6 +53,11 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         if relative_attention_bias:
             self.relative_attention_bias = None
             self.relative_attention_max_distance = None
+
+        if relative_asymmetric_position:
+            self.relative_asymmetric_position_keys = None
+            self.relative_left_max_position = None
+            self.relative_right_max_position = None
 
         if original_max_position_embeddings != 0:
             self.original_max_position_embeddings = np.dtype("int32").type(
@@ -69,6 +82,9 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
             elif rotary_scaling_type is RotaryScalingType.Su:
                 self.rotary_scaling_long_factor = None
                 self.rotary_scaling_short_factor = None
+            elif rotary_scaling_type is RotaryScalingType.Llama3:
+                self.rotary_low_freq_factor = None
+                self.rotary_high_freq_factor = None
 
         if num_heads_kv is not None:
             self.num_heads_kv = np.dtype("int32").type(num_heads_kv)

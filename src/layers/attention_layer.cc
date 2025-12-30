@@ -7,7 +7,6 @@
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
-#include <iostream>
 
 namespace ctranslate2 {
   namespace layers {
@@ -90,6 +89,10 @@ namespace ctranslate2 {
       const auto max_position_embeddings   = model.get_attribute_with_default<int32_t>(
         scope + "/max_position_embeddings", 0);
 
+      const auto rotary_high_freq_factor = model.get_attribute_with_default<float>(scope +
+                                                                        "/rotary_high_freq_factor", 4.0);
+      const auto rotary_low_freq_factor = model.get_attribute_with_default<float>(scope +
+                                                                        "/rotary_low_freq_factor", 1.0);
       return std::make_unique<RotaryEmbeddings>(rotary_dim,
                                                 interleave,
                                                 scaling_type,
@@ -98,6 +101,8 @@ namespace ctranslate2 {
                                                 /*num_initial_positions*/2048,
                                                 rotary_long_factor,
                                                 rotary_short_factor,
+                                                rotary_low_freq_factor,
+                                                rotary_high_freq_factor,
                                                 original_max_position_embeddings,
                                                 max_position_embeddings,
                                                 transpose);
@@ -177,6 +182,8 @@ namespace ctranslate2 {
                                        const dim_t num_initial_positions,
                                        const StorageView* long_scaling_factor,
                                        const StorageView* short_scaling_factor,
+                                       const float low_freq_factor,
+                                       const float high_freq_factor,
                                        const dim_t original_max_position_embeddings,
                                        const dim_t max_position_embeddings,
                                        const bool transpose)
@@ -190,6 +197,8 @@ namespace ctranslate2 {
                                     std::make_unique<StorageView>(*long_scaling_factor) : nullptr)
       , _rotary_scaling_short_factor(short_scaling_factor ?
                                     std::make_unique<StorageView>(*short_scaling_factor) : nullptr)
+      , _rotary_low_freq_factor(low_freq_factor)
+      , _rotary_high_freq_factor(high_freq_factor)
       , _original_max_position_embeddings(original_max_position_embeddings)
       , _max_position_embeddings(max_position_embeddings)
       , _rotary_op(dim, interleave)
@@ -259,6 +268,30 @@ namespace ctranslate2 {
       else {
         for (dim_t i = 0; i < inv_freq.size(); ++i)
           inv_freq.at<float>(i) = 1.f / std::pow(_base, float(i * 2) / float(dim));
+        if (_scaling_type == RotaryScalingType::Llama3) {
+          StorageView new_freqs = inv_freq.sync_copy();
+
+          const auto factor = _scaling_factor;
+          const float low_freq_factor = _rotary_low_freq_factor;
+          const float high_freq_factor = _rotary_high_freq_factor;
+          const auto old_context_len = static_cast< float >(_original_max_position_embeddings);
+
+          float low_freq_wavelen = old_context_len / low_freq_factor;
+          float high_freq_wavelen = old_context_len / high_freq_factor;
+          for (dim_t i = 0; i < inv_freq.size(); ++i) {
+            float wavelen = 2.0f * M_PI / inv_freq.at<float>(i);
+            if (wavelen < high_freq_wavelen) {
+              // do nothing as we copied from inv_freq already.
+            } else if (wavelen > low_freq_wavelen) {
+              new_freqs.at<float>(i) /= factor;
+            } else {
+              float smooth = (old_context_len / wavelen - low_freq_factor) / (high_freq_factor - low_freq_factor);
+              auto freq = inv_freq.at<float>(i);
+              new_freqs.at<float>(i) = ((1 - smooth) * freq / factor + smooth * freq);
+            }
+          }
+          inv_freq = std::move(new_freqs);
+        }
       }
       if (inv_freq.device() != device)
         inv_freq = inv_freq.to(device);
@@ -296,7 +329,7 @@ namespace ctranslate2 {
       else
         _cos = cos.to(dtype);
 
-      if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0) {
+      if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0 && _scaling_type != RotaryScalingType::Llama3) {
         StorageView scaling_factor;
         float scale = _max_position_embeddings / _original_max_position_embeddings;
         if (scale <= 1)

@@ -67,6 +67,8 @@ namespace ctranslate2 {
     bool return_scores = false;
     // Store attention vectors in the TranslationResult class.
     bool return_attention = false;
+    // Store log probs matrix in the TranslationResult class.
+    bool return_logits_vocab = false;
 
     // Return alternatives at the first unconstrained decoding position. This is typically
     // used with a target prefix to provide alternatives at a specifc location in the
@@ -87,6 +89,7 @@ namespace ctranslate2 {
     std::vector<std::vector<std::string>> hypotheses;
     std::vector<float> scores;
     std::vector<std::vector<std::vector<float>>> attention;
+    std::vector<std::vector<StorageView>> logits;
 
     TranslationResult(std::vector<std::vector<std::string>> hypotheses_)
       : hypotheses(std::move(hypotheses_))
@@ -95,10 +98,12 @@ namespace ctranslate2 {
 
     TranslationResult(std::vector<std::vector<std::string>> hypotheses_,
                       std::vector<float> scores_,
-                      std::vector<std::vector<std::vector<float>>> attention_)
+                      std::vector<std::vector<std::vector<float>>> attention_,
+                      std::vector<std::vector<StorageView>> logits_)
       : hypotheses(std::move(hypotheses_))
       , scores(std::move(scores_))
       , attention(std::move(attention_))
+      , logits(std::move(logits_))
     {
     }
 

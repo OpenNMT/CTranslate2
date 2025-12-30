@@ -22,6 +22,7 @@
 #include "split.h"
 #include "squeeze.h"
 #include "sub.h"
+#include "sigmoid.h"
 #include "swish.h"
 #include "tile.h"
 #include "topk.h"

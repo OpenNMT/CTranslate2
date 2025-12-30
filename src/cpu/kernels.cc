@@ -184,6 +184,13 @@ namespace ctranslate2 {
       }
     };
 
+    struct sigmoid_func {
+      vec_type<float, TARGET_ISA> operator()(vec_type<float, TARGET_ISA> v) const {
+        using VecType = Vec<float, TARGET_ISA>;
+        return VecType::div(VecType::load(1.f), VecType::add(VecType::load(1.f), VecType::exp(VecType::neg(v))));
+      }
+    };
+
     struct swish_func {
       vec_type<float, TARGET_ISA> operator()(vec_type<float, TARGET_ISA> v) const {
         using VecType = Vec<float, TARGET_ISA>;
@@ -242,6 +249,11 @@ namespace ctranslate2 {
     template<>
     void gelu_sigmoid<TARGET_ISA>(const float* x, float* y, dim_t size) {
       vectorized_unary_transform<TARGET_ISA>(x, y, size, gelu_sigmoid_func());
+    }
+
+    template<>
+    void sigmoid<TARGET_ISA>(const float* x, float* y, dim_t size) {
+      vectorized_unary_transform<TARGET_ISA>(x, y, size, sigmoid_func());
     }
 
     template<>
@@ -695,6 +707,9 @@ namespace ctranslate2 {
           break;
         case ops::ActivationType::GELUSigmoid:
           dequantize_gemm_output_row<with_bias>(c, a_scale, b_scale, bias, m, y, gelu_sigmoid_func());
+          break;
+        case ops::ActivationType::Sigmoid:
+          dequantize_gemm_output_row<with_bias>(c, a_scale, b_scale, bias, m, y, sigmoid_func());
           break;
         case ops::ActivationType::Swish:
           dequantize_gemm_output_row<with_bias>(c, a_scale, b_scale, bias, m, y, swish_func());

@@ -220,6 +220,12 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CUDA>::sigmoid(const T* x, T* y, dim_t size) {
+    cuda::unary_transform(x, y, size, cuda::sigmoid_func<cuda::device_type<T>>());
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CUDA>::swish(const T* x, T* y, dim_t size) {
     cuda::unary_transform(x, y, size, cuda::swish_func<cuda::device_type<T>>());
   }
@@ -497,7 +503,7 @@ namespace ctranslate2 {
                               beta_ptr,
                               c, CUDA_R_16F, ldc,
                               compute_type,
-                              CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+                              CUBLAS_GEMM_DEFAULT));
   }
 
   template<>
@@ -522,7 +528,7 @@ namespace ctranslate2 {
                               &beta,
                               c, CUDA_R_16BF, ldc,
                               CUDA_R_32F,
-                              CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+                              CUBLAS_GEMM_DEFAULT));
   }
 
   template<>
@@ -550,7 +556,7 @@ namespace ctranslate2 {
                               &beta_i,
                               c, CUDA_R_32I, ldc,
                               CUDA_R_32I,
-                              CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+                              CUBLAS_GEMM_DEFAULT));
   }
 
   template<>
@@ -611,7 +617,7 @@ namespace ctranslate2 {
                                             c, CUDA_R_16F, ldc, stridec,
                                             batch_size,
                                             compute_type,
-                                            CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+                                            CUBLAS_GEMM_DEFAULT));
   }
 
   template<>
@@ -636,7 +642,7 @@ namespace ctranslate2 {
                                             c, CUDA_R_16BF, ldc, stridec,
                                             batch_size,
                                             CUDA_R_32F,
-                                            CUBLAS_GEMM_DEFAULT_TENSOR_OP));
+                                            CUBLAS_GEMM_DEFAULT));
   }
 
   template <typename T>
@@ -789,6 +795,7 @@ namespace ctranslate2 {
   template void primitives<Device::CUDA>::gelu(const T*, T*, dim_t);    \
   template void primitives<Device::CUDA>::gelu_tanh(const T*, T*, dim_t); \
   template void primitives<Device::CUDA>::gelu_sigmoid(const T*, T*, dim_t); \
+  template void primitives<Device::CUDA>::sigmoid(const T*, T*, dim_t);   \
   template void primitives<Device::CUDA>::swish(const T*, T*, dim_t);   \
   template float primitives<Device::CUDA>::logsumexp(const T*, dim_t);  \
   template void primitives<Device::CUDA>::sin(const T*, T*, dim_t);     \

@@ -4,6 +4,72 @@
 
 ### Fixes and improvements
 
+## [v4.6.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.2) (2025-12-05)
+
+### New features
+
+* Qwen 3 support (#1943) by [@jordimas](https://github.com/jordimas)
+* Gemma 3 text support (#1936) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Fixed pkg_resources Deprecated Warning (#1911) by [@thawancomt](https://github.com/thawancomt)
+* Disable INT8 for sm120 - Blackwell GPUs (#1937) by [@Purfview](https://github.com/Purfview)
+* FIX: package libctranslate2.so in wheel to avoid build fail (#1920) by [@yzewei](https://github.com/yzewei)
+
+## [v4.6.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.1) (2025-11-07)
+
+### New features
+
+* Python 3.14 support (#1926)
+* Support for Cuda 12.4 (#1925)
+* Update Intel oneAPI to version 2025.3 (#1931)
+
+## [v4.6.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.0) (2025-04-08)
+Note: The Ctranslate2 Python package now supports python 3.13, drop the support for python 3.8.
+
+### New features
+* Pyhton 3.13 support (#1858)
+* Support returning hidden vector in Wav2Vec2 and Wav2Vec2Bert Models (#1867)
+* Add noexecstack linker flags (#1852 + #1861)
+* Support Qwen2 (#1820)
+* Eoleconv (#1832)
+* Add support RobertModel (#1864)
+
+### Fixes and improvements
+* Fix github action (#1871)
+* Prevent double library def (#1818)
+
+## [v4.5.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.5.0) (2024-10-22)
+Note: The Ctranslate2 Python package now supports CUDNN 9 and is no longer compatible with CUDNN 8.
+
+### New features
+* Support Phi3 (#1800)
+* Support Mistral Nemo (#1785)
+* Support Wav2Vec2Bert ASR (#1778)
+
+### Fixes and improvements
+* Upgrade to CUDNN9 (#1803)
+* Fix logits vocab (#1786 + #1791)
+* Update doc AWQ (#1795)
+
+## [v4.4.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.4.0) (2024-09-09)
+**Removed**: Flash Attention support in the Python package due to significant package size increase with minimal performance gain.
+Note: Flash Attention remains supported in the C++ package with the `WITH_FLASH_ATTN` option.
+Flash Attention may be re-added in the future if substantial improvements are made.
+
+### New features
+* Support Llama3 (#1751)
+* Support Gemma2 (1772)
+* Add log probs for all tokens in vocab (#1755)
+* Grouped conv1d (#1749 + #1758)
+
+### Fixes and improvements
+* Fix pipeline (#1723 + #1747)
+* Some improvements in flash attention (#1732)
+* Fix crash when using return_alternative on CUDA (#1733)
+* Quantization AWQ GEMM + GEMV (#1727)
+
 ## [v4.3.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.3.1) (2024-06-10)
 Note: Because of exceeding project's size on Pypi (> 20 GB), the release v4.3.0 was pushed unsuccessfully.
 

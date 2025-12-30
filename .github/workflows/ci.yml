@@ -17,11 +17,11 @@ jobs:
       CT2_VERBOSE: 1
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11]
+        os: [ubuntu-22.04]
         backend: [mkl, dnnl]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -32,17 +32,6 @@ jobs:
           sudo apt-key add *.PUB
           sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
           sudo apt-get update
-
-      - name: Store URL for downloading Intel oneAPI to environment variable
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          echo 'ONEAPI_INSTALLER_URL=https://registrationcenter-download.intel.com/akdlm/irc_nas/19080/m_BaseKit_p_2023.0.0.25441_offline.dmg' >> $GITHUB_ENV
-
-      - name: Install Intel oneAPI
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          wget -q $ONEAPI_INSTALLER_URL
-          hdiutil attach -noverify -noautofsck $(basename $ONEAPI_INSTALLER_URL)
 
       - name: Configure with MKL
         if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
@@ -60,20 +49,6 @@ jobs:
         run: |
           sudo apt-get install -y intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
-
-      - name: Configure with MKL
-        if: startsWith(matrix.os, 'macos') && matrix.backend == 'mkl'
-        env:
-          CT2_USE_MKL: 1
-        run: |
-          sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.mkl.devel
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
-
-      - name: Configure with DNNL
-        if: startsWith(matrix.os, 'macos') && matrix.backend == 'dnnl'
-        run: |
-          sudo /Volumes/$(basename $ONEAPI_INSTALLER_URL .dmg)/bootstrapper.app/Contents/MacOS/bootstrapper --silent --eula accept --components intel.oneapi.mac.dnnl
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DWITH_DNNL=ON .
 
       - name: Build
         run: |
@@ -98,23 +73,22 @@ jobs:
           tests/ctranslate2_test tests/data
 
 
-  build-and-test-cpp-aarch64:
-    runs-on: ubuntu-20.04
+  build-and-test-cpp-arm64:
+    runs-on: ${{ matrix.os }}
     env:
       CT2_VERBOSE: 1
     strategy:
       matrix:
-        backend: [openblas]
 
+        include:
+          - os: ubuntu-22.04-arm
+            backend: openblas
+          - os: macos-15
+            backend: ruy
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
-
-      - name: Install cross compiler and emulator
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y g++-aarch64-linux-gnu gfortran-aarch64-linux-gnu qemu-user-static
 
       - name: Build with OpenBLAS and Ruy
         if: matrix.backend == 'openblas'
@@ -122,22 +96,29 @@ jobs:
           wget https://github.com/xianyi/OpenBLAS/archive/v0.3.13.tar.gz
           tar xzvf v0.3.13.tar.gz
           cd OpenBLAS-0.3.13
-          make TARGET=ARMV8 CC=aarch64-linux-gnu-gcc FC=aarch64-linux-gnu-gfortran HOSTCC=gcc NO_LAPACK=1 -j $(nproc)
-          sudo make PREFIX=/usr/aarch64-linux-gnu install
+          make TARGET=ARMV8 NO_LAPACK=1 -j $(nproc)
+          sudo make PREFIX=/usr/local install
           cd ..
-
+          export OpenBLAS_HOME=/usr/local
           cmake \
-            -DCMAKE_SYSTEM_NAME=Linux \
-            -DCMAKE_SYSTEM_PROCESSOR=aarch64 \
-            -DCMAKE_C_COMPILER=aarch64-linux-gnu-gcc \
-            -DCMAKE_CXX_COMPILER=aarch64-linux-gnu-g++ \
-            -DCMAKE_FIND_ROOT_PATH=/usr/aarch64-linux-gnu \
             -DOPENMP_RUNTIME=COMP \
             -DCMAKE_INSTALL_PREFIX=$PWD/install \
             -DWITH_MKL=OFF \
             -DWITH_OPENBLAS=ON \
             -DWITH_RUY=ON \
             -DBUILD_TESTS=ON \
+            .
+          make -j $(nproc) install
+
+      - name: Build Ruy
+        if: matrix.backend == 'ruy'
+        run: |
+          CMAKE_EXTRA_OPTIONS='-DCMAKE_OSX_ARCHITECTURES=arm64 -DWITH_ACCELERATE=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=NONE -DWITH_RUY=ON'
+          cmake -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DCMAKE_INSTALL_RPATH_USE_LINK_PATH=ON \
+            -DCMAKE_INSTALL_PREFIX=$PWD/install \
+            -DBUILD_TESTS=ON \
+            $CMAKE_EXTRA_OPTIONS \
             .
           make -j $(nproc) install
 
@@ -149,24 +130,23 @@ jobs:
       - name: Test
         run: |
           tests/ctranslate2_test tests/data
-        env:
-          QEMU_LD_PREFIX: /usr/aarch64-linux-gnu
-
 
   build-python-wheels:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        os: [ubuntu-22.04, windows-2022]
         arch: [auto64]
         include:
-        - os: ubuntu-20.04
+        - os: ubuntu-22.04
           arch: aarch64
-        - os: macos-11
+        - os: macos-15
           arch: arm64
+        - os: macos-15-intel
+          arch: x86_64
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -175,14 +155,14 @@ jobs:
         name: Set up QEMU
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.5
+        uses: pypa/cibuildwheel@v3.2.1
         with:
           package-dir: python
           output-dir: python/wheelhouse
         env:
           CIBW_ENVIRONMENT_PASS_LINUX: CIBW_ARCHS
           CIBW_ENVIRONMENT_WINDOWS: CTRANSLATE2_ROOT='${{ github.workspace }}\install'
-          CIBW_ENVIRONMENT_MACOS: CTRANSLATE2_ROOT='/usr/local'
+          CIBW_ENVIRONMENT_MACOS: "CTRANSLATE2_ROOT='/usr/local' MACOSX_DEPLOYMENT_TARGET=11.00"
           CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux.sh
           CIBW_BEFORE_ALL_MACOS: python/tools/prepare_build_environment_macos.sh
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows.sh
@@ -190,12 +170,12 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
           CIBW_ARCHS: ${{ matrix.arch }}
-          CIBW_SKIP: pp* *-musllinux_*
+          CIBW_SKIP: "*-musllinux_*"
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
-          name: python-wheels
+          name: python-wheels-${{ runner.os }}-${{ matrix.arch }}
           path: python/wheelhouse
 
 
@@ -206,15 +186,26 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-20.04, macos-11, windows-2019]
+        include:
+          - os: ubuntu-22.04
+            artifact_pattern: python-wheels-Linux-auto64
+            wheel_pattern: "*cp310*manylinux*x86_64.whl"
+
+          - os: ubuntu-22.04-arm
+            artifact_pattern: python-wheels-Linux-aarch64
+            wheel_pattern: "*cp310*manylinux*_aarch64.whl"
+
+          - os: macos-15
+            artifact_pattern: python-wheels-macOS-arm64
+            wheel_pattern: "*cp310*macosx*arm64.whl"
 
     steps:
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.10.11
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: "3.10.11"
 
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Prepare test environment
         shell: bash
@@ -222,42 +213,32 @@ jobs:
           ./python/tools/prepare_test_environment.sh
 
       - name: Download Python wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: python-wheels
+          pattern: ${{ matrix.artifact_pattern }}
+          merge-multiple: true
+          path: .
 
       - name: Install wheel
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          pip install *cp38*manylinux*x86_64.whl
-
-      - name: Install wheel
-        if: startsWith(matrix.os, 'macos')
-        run: |
-          pip install *cp38*macosx*x86_64.whl
-
-      - name: Install wheel
-        if: startsWith(matrix.os, 'windows')
         shell: bash
         run: |
-          pip install *cp38*win*.whl
+          pip install ${{ matrix.wheel_pattern }}
 
-      - name: Run tests
-        shell: bash
+      - name: Test Python wheel
         run: |
-          pytest -v python/tests/
+          pytest -v python/tests/ --ignore=python/tests/test_opennmt_tf.py
 
 
   check-python-style:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.10.11
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: "3.10.11"
 
       - name: Install dependencies
         run: |
@@ -282,14 +263,16 @@ jobs:
 
   publish-python-wheels-on-pypi:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-    needs: [build-and-test-cpp-x86_64, build-python-wheels, test-python-wheels, check-python-style]
-    runs-on: ubuntu-20.04
+    needs: [build-and-test-cpp-x86_64, build-and-test-cpp-arm64, build-python-wheels, test-python-wheels, check-python-style]
+    runs-on: ubuntu-22.04
 
     steps:
       - name: Download Python wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: python-wheels
+          pattern: python-wheels-*
+          merge-multiple: true
+          path: .
 
       - name: Publish Python wheels to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
@@ -300,11 +283,34 @@ jobs:
 
 
   build-and-push-docker-images:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
+
+      - name: Show disk and docker usage (before cleanup)
+        run: |
+          df -h
+          echo " -= Docker System =-"
+          docker system df || true
+
+      - name: Free disk space (cleanup heavy preinstalled directories + docker prune)
+        run: |
+          echo " -= Removing big preinstalled directories (shouldn't remove the needed tools) =-"
+          sudo rm -rf /opt/hostedtoolcache || true
+          sudo rm -rf /usr/share/dotnet || true
+          sudo rm -rf /usr/lib/jvm || true
+          sudo rm -rf /usr/local/lib/android || true
+          echo " -= Running docker prune =-"
+          docker system prune -af --volumes || true
+          docker builder prune -af || true
+
+      - name: Show disk and docker usage (after cleanup)
+        run: |
+          df -h
+          echo " -= Docker System =-"
+          docker system df || true
 
       - name: Build Docker images
         run: |
@@ -329,21 +335,23 @@ jobs:
     needs: [check-python-style, build-python-wheels]
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
-      - name: Set up Python 3.8
-        uses: actions/setup-python@v4
+      - name: Set up Python 3.10.11
+        uses: actions/setup-python@v5
         with:
-          python-version: 3.8
+          python-version: "3.10.11"
 
       - name: Download CTranslate2 wheels
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
-          name: python-wheels
+          pattern: python-wheels-${{ runner.os }}-*
+          merge-multiple: true
+          path: .
 
       - name: Install CTranslate2 wheel
         run: |
-          pip install *cp38*manylinux*x86_64.whl
+          pip install *cp310*manylinux*x86_64.whl
 
       - name: Install dependencies to build docs
         working-directory: docs

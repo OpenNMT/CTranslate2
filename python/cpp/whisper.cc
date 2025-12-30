@@ -40,6 +40,7 @@ namespace ctranslate2 {
                size_t no_repeat_ngram_size,
                size_t max_length,
                bool return_scores,
+               bool return_logits_vocab,
                bool return_no_speech_prob,
                size_t max_initial_timestamp_index,
                bool suppress_blank,
@@ -59,6 +60,7 @@ namespace ctranslate2 {
         options.max_length = max_length;
         options.num_hypotheses = num_hypotheses;
         options.return_scores = return_scores;
+        options.return_logits_vocab = return_logits_vocab;
         options.return_no_speech_prob = return_no_speech_prob;
         options.max_initial_timestamp_index = max_initial_timestamp_index;
         options.suppress_blank = suppress_blank;
@@ -122,6 +124,8 @@ namespace ctranslate2 {
                       "Generated sequences of token IDs.")
         .def_readonly("scores", &models::WhisperGenerationResult::scores,
                       "Score of each sequence (empty if :obj:`return_scores` was disabled).")
+        .def_readonly("logits", &models::WhisperGenerationResult::logits,
+                      "logits in each sequence (empty if :obj:`return_logits_vocab` was disabled).")
         .def_readonly("no_speech_prob", &models::WhisperGenerationResult::no_speech_prob,
                       "Probability of the no speech token (0 if :obj:`return_no_speech_prob` was disabled).")
 
@@ -129,6 +133,7 @@ namespace ctranslate2 {
           return "WhisperGenerationResult(sequences=" + std::string(py::repr(py::cast(result.sequences)))
             + ", sequences_ids=" + std::string(py::repr(py::cast(result.sequences_ids)))
             + ", scores=" + std::string(py::repr(py::cast(result.scores)))
+            + ", logits=" + std::string(py::repr(py::cast(result.logits)))
             + ", no_speech_prob=" + std::string(py::repr(py::cast(result.no_speech_prob)))
             + ")";
         })
@@ -247,6 +252,7 @@ namespace ctranslate2 {
              py::arg("no_repeat_ngram_size")=0,
              py::arg("max_length")=448,
              py::arg("return_scores")=false,
+             py::arg("return_logits_vocab")=false,
              py::arg("return_no_speech_prob")=false,
              py::arg("max_initial_timestamp_index")=50,
              py::arg("suppress_blank")=true,
@@ -276,6 +282,7 @@ namespace ctranslate2 {
                      (set 0 to disable).
                    max_length: Maximum generation length.
                    return_scores: Include the scores in the output.
+                   return_logits_vocab: Include the log probs in the output
                    return_no_speech_prob: Include the probability of the no speech token in the
                      result.
                    max_initial_timestamp_index: Maximum index of the first predicted timestamp.

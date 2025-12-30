@@ -9,7 +9,7 @@ The project implements a custom runtime that applies many performance optimizati
 The following model types are currently supported:
 
 * Encoder-decoder models: Transformer base/big, M2M-100, NLLB, BART, mBART, Pegasus, T5, Whisper
-* Decoder-only models: GPT-2, GPT-J, GPT-NeoX, OPT, BLOOM, MPT, Llama, Mistral, Gemma, CodeGen, GPTBigCode, Falcon
+* Decoder-only models: GPT-2, GPT-J, GPT-NeoX, OPT, BLOOM, MPT, Llama, Mistral, Gemma, CodeGen, GPTBigCode, Falcon, Qwen2
 * Encoder-only models: BERT, DistilBERT, XLM-RoBERTa
 
 Compatible models should be first converted into an optimized model format. The library includes converters for multiple frameworks:
@@ -118,6 +118,16 @@ Executed with 4 threads on a [*c5.2xlarge*](https://aws.amazon.com/ec2/instance-
 | - int8 + float16 | 8362.7 | 813MB | 766MB | 27.90 |
 
 Executed with CUDA 11 on a [*g5.xlarge*](https://aws.amazon.com/ec2/instance-types/g5/) Amazon EC2 instance equipped with a NVIDIA A10G GPU (driver version: 510.47.03).
+
+## Contributing
+
+CTranslate2 is a community-driven project. We welcome contributions of all kinds:
+* **New Model Support:** Help us implement more Transformer architectures.
+* **Performance:** Propose optimizations for CPU or GPU kernels.
+* **Bug Reports:** Open an issue if you find something not working as expected.
+* **Documentation:** Improve our guides or add new examples.
+
+Check out our [Contributing Guide](CONTRIBUTING.md) to learn how to set up your development environment.
 
 ## Additional resources
 

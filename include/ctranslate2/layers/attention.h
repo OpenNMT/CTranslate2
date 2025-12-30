@@ -2,6 +2,7 @@
 
 #include "ctranslate2/layers/attention_layer.h"
 #include "ctranslate2/padder.h"
+#include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
   namespace layers {
@@ -9,6 +10,11 @@ namespace ctranslate2 {
     StorageView make_relative_positions(dim_t queries_length,
                                         dim_t keys_length,
                                         dim_t max_position);
+
+    StorageView make_asymmetric_relative_positions(dim_t queries_length,
+                                                   dim_t keys_length,
+                                                   dim_t left_max_position,
+                                                   dim_t right_max_position);
 
     class RotaryEmbeddings;
     class Alibi;
@@ -53,10 +59,15 @@ namespace ctranslate2 {
                                  dim_t beam_size = 1);
       const StorageView* _relative_attention_bias;
       const StorageView* _relative_position_keys;
+      const StorageView* _relative_asymmetric_position_keys;
       const StorageView* _relative_position_values;
       dim_t _maximum_relative_position;
+      dim_t _relative_left_max_position;
+      dim_t _relative_right_max_position;
       const bool _merge_time_and_head_dims;
       const dim_t _cache_time_dim;
+      std::unique_ptr<const LayerNorm> _q_norm;  // Query normalization
+      std::unique_ptr<const LayerNorm> _k_norm;  // Key normalization
     };
   }
 }

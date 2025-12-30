@@ -141,6 +141,7 @@ namespace ctranslate2 {
                       size_t min_decoding_length,
                       bool use_vmap,
                       bool return_scores,
+                      bool return_logits_vocab,
                       bool return_attention,
                       bool return_alternatives,
                       float min_alternative_expansion_prob,
@@ -172,6 +173,7 @@ namespace ctranslate2 {
         options.use_vmap = use_vmap;
         options.return_end_token = return_end_token;
         options.return_scores = return_scores;
+        options.return_logits_vocab = return_logits_vocab;
         options.return_attention = return_attention;
         options.return_alternatives = return_alternatives;
         options.min_alternative_expansion_prob = min_alternative_expansion_prob;
@@ -354,6 +356,7 @@ namespace ctranslate2 {
              py::arg("min_decoding_length")=1,
              py::arg("use_vmap")=false,
              py::arg("return_scores")=false,
+             py::arg("return_logits_vocab")=false,
              py::arg("return_attention")=false,
              py::arg("return_alternatives")=false,
              py::arg("min_alternative_expansion_prob")=0,
@@ -369,10 +372,10 @@ namespace ctranslate2 {
                  Arguments:
                    source: Batch of source tokens.
                    target_prefix: Optional batch of target prefix tokens.
-                   max_batch_size: The maximum batch size. If the number of inputs is greater than
-                     :obj:`max_batch_size`, the inputs are sorted by length and split by chunks of
-                     :obj:`max_batch_size` examples so that the number of padding positions is
-                     minimized.
+                   max_batch_size: The maximum batch size. If the number of inputs is greater than :obj:`max_batch_size`,
+                     the inputs are sorted by length and split by chunks of :obj:`max_batch_size` examples
+                     (or tokens when :obj:`batch_type`="tokens") so that the number of padding positions
+                     is minimized.
                    batch_type: Whether :obj:`max_batch_size` is the number of "examples" or "tokens".
                    asynchronous: Run the translation asynchronously.
                    beam_size: Beam size (1 for greedy search).
@@ -396,6 +399,7 @@ namespace ctranslate2 {
                    min_decoding_length: Minimum prediction length.
                    use_vmap: Use the vocabulary mapping file saved in this model
                    return_scores: Include the scores in the output.
+                   return_logits_vocab: Include the log probs of each token in the output
                    return_attention: Include the attention vectors in the output.
                    return_alternatives: Return alternatives at the first unconstrained decoding position.
                    min_alternative_expansion_prob: Minimum initial probability to expand an alternative.

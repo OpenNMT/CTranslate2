@@ -256,6 +256,14 @@ namespace ctranslate2 {
     };
 
     template <typename T>
+    struct sigmoid_func {
+      // Implicitly promote half to float in this function.
+      __device__ float operator()(float x) const {
+        return 1.f / (1.f + expf(-x));
+      }
+    };
+
+    template <typename T>
     struct swish_func {
       // Implicitly promote half to float in this function.
       __device__ float operator()(float x) const {
