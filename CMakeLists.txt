@@ -547,8 +547,9 @@ if (WITH_CUDA)
     list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${CUDNN_INCLUDE_DIR})
     list(APPEND LIBRARIES ${CUDNN_LIBRARIES})
     add_definitions(-DCT2_WITH_CUDNN)
+    list(APPEND SOURCES src/ops/conv1d_cudnn_gpu.cu)
   else()
-    message(WARNING "cuDNN library is not enabled: convolution layers will not be supported on GPU")
+    list(APPEND SOURCES src/ops/conv1d_gpu.cu)
   endif()
 
   if(CUDA_DYNAMIC_LOADING)
@@ -638,7 +639,6 @@ if (WITH_CUDA)
     src/ops/alibi_add_gpu.cu
     src/ops/bias_add_gpu.cu
     src/ops/concat_split_slide_gpu.cu
-    src/ops/conv1d_gpu.cu
     src/ops/dequantize_gpu.cu
     src/ops/flash_attention_gpu.cu
     src/ops/gather_gpu.cu
