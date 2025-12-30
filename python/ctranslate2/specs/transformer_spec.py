@@ -109,7 +109,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         quant_type: Optional[common_spec.Quantization] = None,
         quant_group_size: Optional[int] = None,
         quant_bits: Optional[int] = None,
-        qk_norm: Optional[bool] = False,
+        qk_norm: bool = False,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -562,7 +562,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         quant_type: Optional[common_spec.Quantization] = None,
         quant_group_size: Optional[int] = None,
         quant_bits: Optional[int] = None,
-        qk_norm: Optional[bool] = False,
+        qk_norm: bool = False,
     ):
         """Creates a Transformer decoder model specification.
 
