@@ -51,6 +51,9 @@ if sys.platform == "darwin":
 elif sys.platform == "win32":
     cflags = ["/std:c++17", "/d2FH4-"]
     package_data["ctranslate2"] = ["*.dll"]
+elif sys.platform == "linux":
+    cflags.append("-fPIC")
+    ldflags.append("-Wl,-rpath,/usr/local/lib64:/usr/local/lib")
 
 ctranslate2_module = Extension(
     "ctranslate2._ext",
@@ -67,6 +70,7 @@ ParallelCompile("CMAKE_BUILD_PARALLEL_LEVEL").install()
 setup(
     name="ctranslate2",
     version=_get_project_version(),
+    license="MIT",
     description="Fast inference engine for Transformer models",
     long_description=_get_long_description(),
     long_description_content_type="text/markdown",
@@ -77,7 +81,6 @@ setup(
         "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.4",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
         "Programming Language :: Python :: 3.9",

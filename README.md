@@ -119,6 +119,16 @@ Executed with 4 threads on a [*c5.2xlarge*](https://aws.amazon.com/ec2/instance-
 
 Executed with CUDA 11 on a [*g5.xlarge*](https://aws.amazon.com/ec2/instance-types/g5/) Amazon EC2 instance equipped with a NVIDIA A10G GPU (driver version: 510.47.03).
 
+## Contributing
+
+CTranslate2 is a community-driven project. We welcome contributions of all kinds:
+* **New Model Support:** Help us implement more Transformer architectures.
+* **Performance:** Propose optimizations for CPU or GPU kernels.
+* **Bug Reports:** Open an issue if you find something not working as expected.
+* **Documentation:** Improve our guides or add new examples.
+
+Check out our [Contributing Guide](CONTRIBUTING.md) to learn how to set up your development environment.
+
 ## Additional resources
 
 * [Documentation](https://opennmt.net/CTranslate2)
