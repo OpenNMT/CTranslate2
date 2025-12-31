@@ -38,6 +38,8 @@ namespace ctranslate2 {
     DisableTokens(StorageView& logits,
                   const float disable_value = std::numeric_limits<float>::lowest());
 
+    void reserve(dim_t additional);
+
     void add(dim_t batch_id, dim_t token_id) {
       const auto flat_index = batch_id * _vocabulary_size + token_id;
 
@@ -46,10 +48,8 @@ namespace ctranslate2 {
         _logits_data[flat_index] = _disable_value;
 
       } else {
-        // On GPU we prepare a list of unique index to disable.
-        const auto it = std::lower_bound(_flat_indices.begin(), _flat_indices.end(), flat_index);
-        if (it == _flat_indices.end() || *it != flat_index)
-          _flat_indices.insert(it, flat_index);
+        // On GPU we collect indices that will be processed in a single kernel.
+        _flat_indices.push_back(static_cast<int32_t>(flat_index));
       }
     }
 
