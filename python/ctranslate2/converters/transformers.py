@@ -89,7 +89,7 @@ class TransformersConverter(Converter):
           copy_files: List of filenames to copy from the Hugging Face model to the
             converted model directory.
           load_as_float16: Load the model weights as float16. More precisely, the model
-            will be loaded with ``from_pretrained(..., torch_dtype=torch.float16)``.
+            will be loaded with ``from_pretrained(..., dtype=torch.float16)``.
           revision: Revision of the model to download from the Hugging Face Hub.
           low_cpu_mem_usage: Enable the flag ``low_cpu_mem_usage`` when loading the model
             with ``from_pretrained``.
@@ -123,10 +123,10 @@ class TransformersConverter(Converter):
             tokenizer_class = transformers.AutoTokenizer
 
             kwargs = {
-                "torch_dtype": (
+                "dtype": (
                     torch.float16
                     if self._load_as_float16
-                    else getattr(config, "torch_dtype", None)
+                    else getattr(config, "dtype", None)
                 )
             }
 
