@@ -3526,15 +3526,8 @@ class T5GemmaLoader(ModelLoader):
             common_spec.Quantization.CT2,
         )
 
-        # Check config for tie_word_embeddings
-        tie_embeddings = getattr(model.config, "tie_word_embeddings", False)
-
-        if tie_embeddings or not hasattr(model.lm_head, "weight"):
-            print("Using tied embeddings for LM head")
-            self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
-        else:
-            print("Using separate LM head")
-            self.set_linear(spec.decoder.projection, model.lm_head.out_proj)
+        # Tie_word_embeddings
+        self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
 
         spec.decoder.embeddings.multiply_by_sqrt_depth = (
             decoder_config.hidden_size**0.5
@@ -3545,12 +3538,6 @@ class T5GemmaLoader(ModelLoader):
         tokens = super().get_vocabulary(model, tokenizer)
 
         extra_ids = model.config.vocab_size - len(tokens)
-        if extra_ids > 0:
-            print(f"\nAdding {extra_ids} extra tokens to vocabulary")
-            for i in range(extra_ids):
-                tokens.append("<extra_id_%d>" % i)
-
-        print(f"Final vocabulary size: {len(tokens)}")
         return tokens
 
     def set_vocabulary(self, spec, tokens):
@@ -3561,9 +3548,6 @@ class T5GemmaLoader(ModelLoader):
         config.bos_token = tokenizer.bos_token
         config.eos_token = tokenizer.eos_token
         config.unk_token = tokenizer.unk_token
-        print(f"config.bos_token: {config.bos_token}")
-        print(f"config.eos_token: {config.eos_token}")
-        print(f"config.unk_token: {config.unk_token}")
 
         if hasattr(model.config, "encoder"):
             config.layer_norm_epsilon = model.config.encoder.rms_norm_eps
