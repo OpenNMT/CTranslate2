@@ -3534,12 +3534,6 @@ class T5GemmaLoader(ModelLoader):
         )
         return spec
 
-    def get_vocabulary(self, model, tokenizer):
-        tokens = super().get_vocabulary(model, tokenizer)
-
-        extra_ids = model.config.vocab_size - len(tokens)
-        return tokens
-
     def set_vocabulary(self, spec, tokens):
         spec.register_source_vocabulary(tokens)
         spec.register_target_vocabulary(tokens)
