@@ -3482,8 +3482,14 @@ class T5GemmaLoader(ModelLoader):
     def get_model_spec(self, model):
         encoder_config = model.config.encoder
         decoder_config = model.config.decoder
-
         sliding_window = getattr(model.config, "sliding_window", 4096)
+
+        encoder_num_heads = encoder_config.num_attention_heads
+        encoder_num_heads_kv = getattr(
+            encoder_config, "num_key_value_heads", encoder_num_heads
+        )
+        if encoder_num_heads_kv == encoder_num_heads:
+            encoder_num_heads_kv = None
 
         encoder = transformer_spec.TransformerEncoderSpec(
             encoder_config.num_hidden_layers,
@@ -3494,10 +3500,19 @@ class T5GemmaLoader(ModelLoader):
             rms_norm=True,
             rotary_dim=encoder_config.head_dim,
             rotary_interleave=False,
-            rotary_base=10_000,
+            rotary_base=getattr(encoder_config, "rope_theta", 10000),
             sliding_window=sliding_window,
             pre_post_layer_norm=True,
+            num_heads_kv=encoder_num_heads_kv,
+            head_dim=encoder_config.head_dim,
         )
+
+        decoder_num_heads = decoder_config.num_attention_heads
+        decoder_num_heads_kv = getattr(
+            decoder_config, "num_key_value_heads", decoder_num_heads
+        )
+        if decoder_num_heads_kv == decoder_num_heads:
+            decoder_num_heads_kv = None
 
         decoder = transformer_spec.TransformerDecoderSpec(
             decoder_config.num_hidden_layers,
@@ -3509,10 +3524,12 @@ class T5GemmaLoader(ModelLoader):
             with_encoder_attention=True,
             rotary_dim=decoder_config.head_dim,
             rotary_interleave=False,
-            rotary_base=10_000,
+            rotary_base=getattr(decoder_config, "rope_theta", 10000),
             sliding_window=sliding_window,
             pre_post_layer_norm=True,
             external_pre_post_encoder_layers=True,
+            num_heads_kv=decoder_num_heads_kv,
+            head_dim=decoder_config.head_dim,
         )
 
         spec = transformer_spec.TransformerSpec(encoder, decoder)
@@ -3574,7 +3591,7 @@ class T5GemmaLoader(ModelLoader):
                 layer_spec.post_attention_layer_norm, layer.post_self_attn_layernorm
             )
 
-            # T5GemmaSelfAttention(L4)
+            # T5GemmaSelfAttention
             qkv_split_layers = [common_spec.LinearSpec() for _ in range(3)]
             self.set_linear(
                 qkv_split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
@@ -3627,7 +3644,7 @@ class T5GemmaLoader(ModelLoader):
         self.set_layer_norm(spec.layer_norm, module.norm)
 
         for i, (layer_spec, layer) in enumerate(zip(spec.layer, module.layers)):
-            # === Self-attention block ===
+            # Self-attention block
             self.set_layer_norm(
                 layer_spec.input_layer_norm, layer.pre_self_attn_layernorm
             )
@@ -3653,14 +3670,12 @@ class T5GemmaLoader(ModelLoader):
                 quant_type=quant_type,
             )
 
-            # === Cross-attention block ===
-            # Pre cross-attention layer norm
+            # Pre and post cross-attention layer norm
             self.set_layer_norm(
                 layer_spec.external_pre_encoder_attention_layer_norm,
                 layer.pre_cross_attn_layernorm,
             )
 
-            # POST
             self.set_layer_norm(
                 layer_spec.external_post_encoder_attention_layer_norm,
                 layer.post_cross_attn_layernorm,
@@ -3694,7 +3709,7 @@ class T5GemmaLoader(ModelLoader):
                 quant_type=quant_type,
             )
 
-            # === Feed-forward block ===
+            # Feed-forward block
             self.set_layer_norm(
                 layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
             )
@@ -3703,9 +3718,15 @@ class T5GemmaLoader(ModelLoader):
             )
 
             # T5GemmaMLP
-            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj)
-            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj)
-            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
 
             # Clean up
             delattr(layer, "self_attn")

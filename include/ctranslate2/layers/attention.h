@@ -57,6 +57,10 @@ namespace ctranslate2 {
                                  dim_t num_heads,
                                  const Padder* padder = nullptr,
                                  dim_t beam_size = 1);
+
+      void apply_qk_norm(StorageView& queries_proj,
+                          StorageView& keys_proj) const;
+
       const StorageView* _relative_attention_bias;
       const StorageView* _relative_position_keys;
       const StorageView* _relative_asymmetric_position_keys;

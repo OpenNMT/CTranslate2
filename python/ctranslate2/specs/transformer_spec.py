@@ -23,6 +23,8 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
         ffn_glu: bool = False,
         rms_norm: bool = False,
         multi_query_attention: bool = False,
+        num_heads_kv: Optional[int] = None,
+        head_dim: Optional[int] = None,
         rotary_dim: Optional[int] = None,
         rotary_interleave: bool = True,
         rotary_scaling_type: Optional[attention_spec.RotaryScalingType] = None,
@@ -51,8 +53,28 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
           ffn_glu: Use gated linear units in the FFN layers as described in
             https://arxiv.org/abs/2002.05202.
           rms_norm: Use the root mean square layer normalization.
-          multi_query_attention: Use multi-query attention.
+          multi_query_attention: Use multi-query attention (alias for num_heads_kv=1).
+          num_heads_kv: Number of attention heads for the key and value.
+          head_dim: Number of dimensions per attention head.
+          rotary_dim: Apply rotary embeddings to these first N dimensions. If 0, rotary
+            embeddings are applied to all dimensions.
+          rotary_interleave: Interleave the head dimensions when rotary embeddings are applied.
+            Otherwise the head dimensions are sliced in half.
+          rotary_scaling_type: Type of RoPE scaling.
+          rotary_scaling_factor: Factor used in the RoPE scaling.
+          rotary_base: The base period of the rotary embeddings.
+          sliding_window: Max sequence length to retain in KV Cache.
+          qk_norm: Apply layer normalization to the query and key projections.
+          pre_post_layer_norm: Add post layer norm for each pre norm layer.
         """
+
+        if multi_query_attention:
+            if num_heads_kv is not None and num_heads_kv != 1:
+                raise ValueError(
+                    "Enabling multi_query_attention implies num_heads_kv=1"
+                )
+            num_heads_kv = 1
+
         self.multi_query_attention = multi_query_attention
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
@@ -77,7 +99,8 @@ class TransformerEncoderSpec(model_spec.LayerSpec):
                 relative_attention_bias=relative_attention_bias,
                 ffn_glu=ffn_glu,
                 rms_norm=rms_norm,
-                num_heads_kv=1 if multi_query_attention else None,
+                num_heads_kv=num_heads_kv,
+                head_dim=head_dim,
                 rotary_dim=rotary_dim,
                 rotary_interleave=rotary_interleave,
                 rotary_scaling_type=rotary_scaling_type,
@@ -175,6 +198,8 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
           quant_type: quantization type used (like awq... for lower bit quantization)
           quant_group_size: group size of the lower bit quantization
           quant_bits: number of bit of the quantization (ex: 4bit)
+          external_pre_post_encoder_layers: if the encoder attention pre and processing
+            is done outside the attention.
         """
 
         self._config = dict()
@@ -190,12 +215,6 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                     "Enabling multi_query_attention implies num_heads_kv=1"
                 )
             num_heads_kv = 1
-
-        if with_encoder_attention and num_heads_kv not in (None, 1, num_heads):
-            raise ValueError(
-                "num_heads_kv=%d is not supported in the cross-attention layers"
-                % num_heads_kv
-            )
 
         self.num_heads = np.dtype("int16").type(num_heads)
         self.pre_norm = pre_norm
@@ -274,6 +293,7 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
         ffn_glu=False,
         rms_norm=False,
         num_heads_kv=None,
+        head_dim=None,
         sliding_window=None,
         rotary_dim: Optional[int] = None,
         rotary_interleave: bool = True,
@@ -289,6 +309,7 @@ class TransformerEncoderLayerSpec(model_spec.LayerSpec):
             relative_attention_bias=relative_attention_bias,
             rms_norm=rms_norm,
             num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
             sliding_window=sliding_window,
             rotary_dim=rotary_dim,
             rotary_interleave=rotary_interleave,
@@ -361,6 +382,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             self.attention = attention_spec.MultiHeadAttentionSpec(
                 rms_norm=rms_norm,
                 num_heads_kv=num_heads_kv,
+                head_dim=head_dim,
                 sliding_window=sliding_window,
                 qk_norm=qk_norm,
                 has_norm=external_pre_post_encoder_layers is False,

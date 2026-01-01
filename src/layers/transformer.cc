@@ -223,7 +223,7 @@ namespace ctranslate2 {
           (*_self_attention)(hidden,
                              hidden,
                              input_length,
-                             context,//output
+                             context,
                              cached_self_attn_keys,
                              cached_self_attn_values,
                              nullptr,
