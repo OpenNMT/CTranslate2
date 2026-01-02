@@ -3546,10 +3546,6 @@ class T5GemmaLoader(ModelLoader):
 
         # Tie_word_embeddings
         self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
-
-        spec.decoder.embeddings.multiply_by_sqrt_depth = (
-            decoder_config.hidden_size**0.5
-        )
         return spec
 
     def set_vocabulary(self, spec, tokens):
@@ -3642,6 +3638,7 @@ class T5GemmaLoader(ModelLoader):
         spec.start_from_zero_embedding = False
 
         self.set_embeddings(spec.embeddings, module.embed_tokens)
+        spec.embeddings.multiply_by_sqrt_depth = decoder_config.hidden_size**0.5
         self.set_layer_norm(spec.layer_norm, module.norm)
 
         for i, (layer_spec, layer) in enumerate(zip(spec.layer, module.layers)):
