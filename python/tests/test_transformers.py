@@ -1116,7 +1116,10 @@ class TestWavLM:
 
         hg_output = hf_model(input_values.unsqueeze(0))
 
-        similarity = torch.nn.functional.cosine_similarity(last_hidden_state, hg_output.last_hidden_state.flatten(0, -1), dim=0)
+        similarity = torch.nn.functional.cosine_similarity(
+            last_hidden_state,
+            hg_output.last_hidden_state.flatten(0, -1),
+            dim=0)
 
         assert similarity == 1.0
 

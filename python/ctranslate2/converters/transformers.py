@@ -148,7 +148,7 @@ class TransformersConverter(Converter):
                 tokenizer = self.load_tokenizer(
                     tokenizer_class, self._model_name_or_path, **tokenizer_kwargs
                 )
-            except:
+            except Exception:
                 tokenizer = None
                 print("Escape tokenizer, which does not exist.")
 
@@ -1081,7 +1081,6 @@ class Wav2Vec2Loader(BartLoader):
         self.set_layer_norm(spec.layer_norm, module.layer_norm)
 
 
-
 @register_loader("WavLMConfig")
 class WavLMLoader(BartLoader):
     @property
@@ -1119,7 +1118,7 @@ class WavLMLoader(BartLoader):
 
     def set_feature_extractor(self, spec, feature_extractor):
         spec.feat_layer0.conv.weight = feature_extractor.conv_layers[0].conv.weight
-        # spec.feat_layer0.conv.bias = feature_extractor.conv_layers[0].conv.bias // wavlm has no bias
+        # wavlm has no bias in conv
         self.set_layer_norm(
             spec.feat_layer0.layer_norm, feature_extractor.conv_layers[0].layer_norm
         )
@@ -1161,7 +1160,7 @@ class WavLMLoader(BartLoader):
                 layer_spec.self_attention,
                 layer.self_attn,
                 self_attention=True,
-                has_rel_attn_embed=(layer_index==0),
+                has_rel_attn_embed=(layer_index == 0),
             )
             self.set_layer_norm(
                 layer_spec.self_attention.layer_norm,
@@ -1187,7 +1186,8 @@ class WavLMLoader(BartLoader):
         self.set_linear(spec.linear[-1], attention.out_proj)
 
         self.set_linear(spec.gru_relative_position_linear, attention.gru_rel_pos_linear)
-        spec.gru_relative_position_const = attention.gru_rel_pos_const.data # is torch.nn.parameter.Parameter
+        # which is torch.nn.parameter.Parameter
+        spec.gru_relative_position_const = attention.gru_rel_pos_const.data
 
         if has_rel_attn_embed:
             spec.relative_attention_bias = attention.rel_attn_embed.weight

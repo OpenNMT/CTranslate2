@@ -65,8 +65,9 @@ class WavLMEncoderSpec(model_spec.LayerSpec):
         self.pos_conv_embed = WavLMPosEmbedConvLayer()
         self.layer_norm = common_spec.LayerNormSpec()
         self.layer = [
-            transformer_spec.TransformerEncoderLayerSpec(gated_relative_attention_bias=True,
-                                                         relative_attention_bias=(i == 0)) for i in range(num_layers)
+            transformer_spec.TransformerEncoderLayerSpec(
+                gated_relative_attention_bias=True,
+                relative_attention_bias=(i == 0)) for i in range(num_layers)
         ]
         # if not return_hidden:
         #     self.lm_head = common_spec.LinearSpec()
