@@ -127,6 +127,7 @@ class TransformersConverter(Converter):
                     torch.float16
                     if self._load_as_float16
                     else getattr(config, "dtype", None)
+                    or getattr(config, "torch_dtype", None)
                 )
             }
 
