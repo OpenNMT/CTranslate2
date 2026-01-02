@@ -23,6 +23,19 @@ Do you think a feature is missing or would be a great addition to the project? P
   * look for GitHub issues marked with the *help wanted* label: these are developments that we find particularly suited for community contributions.
 * If you are planning to make a large change to the existing code, consider asking first on [the forum](https://forum.opennmt.net/) to confirm that it is welcome.
 
+## Contribution rules
+
+CTranslate2 is a low-level, performance-critical codebase. A single misplaced pointer or inefficient memory allocation (which LLMs often get wrong) can take hours to debug.
+
+To maintain code integrity and manage maintainer workload, we apply the following policy:
+
+* Use of AI tools for brainstorming or minor assistance is acceptable, but contributors must explicitly disclose how AI was used and remain fully responsible for correctness, performance, and design. Submissions that appear generated without deep understanding will be declined. Verifying AI output for correctness and performance is more time-consuming than writing code manually.
+
+* Mandatory Deep Understanding: Contributors must fully understand their code and be prepared to justify the purpose of part of the code base.
+
+* Please contribute within your area of expertise. If you are not familiar with the core codebase, consider contributing to documentation, examples, or Hugging Face integrations.
+
+
 ### Building the sources
 
 See [Install from sources](https://opennmt.net/CTranslate2/installation.html#install-from-sources).
@@ -85,7 +98,7 @@ The list is ordered on 5. from the largest to smallest time.
 
 #### `StorageView` class
 
-CTranslate2 uses [row-major](https://en.wikipedia.org/wiki/Row-_and_column-major_order) storages, usually encapsulated in the `StorageView` class. This class acts like a tensor representation but without the mathematical semantics. It is convenience wrapper to view a buffer of data in a particular shape, and provides methods to resize, reshape, and copy data. The underlying storage has a type (e.g. `float`) and a location (e.g. GPU #1) which are both resolved at runtime.
+CTranslate2 uses [row-major](https://en.wikipedia.org/wiki/Row-_and_column-major_order) storages, usually encapsulated in the `StorageView` class. This class acts like a tensor representation but without the mathematical semantics. It is a convenience wrapper to view a buffer of data in a particular shape, and provides methods to resize, reshape, and copy data. The underlying storage has a type (e.g. `float`) and a location (e.g. GPU #1) which are both resolved at runtime.
 
 To maximize performance, the implementation avoid new allocations when possible:
 
@@ -144,7 +157,7 @@ To limit the size of the packages pushed to PyPI, some libraries are not include
 
 One of the benefits of this dynamic loading is that multiple versions of cuBLAS and cuDNN are supported by the same binary. In particular, users can install any CUDA 12.x version as long as it provides `libcublas.so.12`.
 
-The Python library only support CUDA 12.x. C++ source code is always compatible with CUDA 11, possible to use CUDA 11 libraries during compilation to create CUDA 11.x support wheel.
+The Python library only supports CUDA 12.x. C++ source code is always compatible with CUDA 11, possible to use CUDA 11 libraries during compilation to create CUDA 11.x support wheel.
 
 ### Updating other dependencies
 
@@ -161,7 +174,7 @@ If a dependency needs an update, it is particularly important that it is updated
 
 ### Managing PyPI project size limit
 
-Projects on PyPI have a size limit. The default limit is 10GB and [we already requested](https://github.com/pypi/support/issues/1480) an increase to 20GB in the past. Because increase requests can take several months to be accepted, we now try to work with this 20GB limit.
+Projects on PyPI have a size limit. The default limit is 10GB. Currently the CTranslate2 project [has 50GB](https://github.com/pypi/support/issues/8119) of storage limit.
 
 So older releases need to be regularly deleted on PyPI to make room for new releases. **However, make sure to keep the latest release of each major version.**
 
