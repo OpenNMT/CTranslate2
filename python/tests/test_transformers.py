@@ -109,6 +109,13 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "▁Was ▁ist ▁Lama ▁glam a ?",
         dict(),
     ),
+    (
+        "jordimas/t5gemma-s-s-ul2",
+        ["Question : ▁Why ▁is ▁the ▁sky ▁blue ? ▁Answer :"],
+        "",
+        "\n\n Answer : \n\n The ▁sky ▁is ▁blue .",
+        dict(),
+    ),
 ]
 
 
@@ -1002,13 +1009,13 @@ class TestWav2Vec2:
         )
 
         device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
-        cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        # cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
         model = ctranslate2.models.Wav2Vec2(
             output_dir,
             device=device,
             device_index=[0],
             compute_type="int8",
-            intra_threads=cpu_threads,
+            intra_threads=1,
             inter_threads=1,
         )
 
@@ -1038,6 +1045,87 @@ class TestWav2Vec2:
         transcription = transcription[0].replace(processor.tokenizer.unk_token, "")
 
         assert transcription == expected_transcription[0]
+
+
+class TestWavLM:
+    @classmethod
+    def teardown_class(cls):
+        clear_transformers_cache_in_ci()
+
+    @test_utils.only_on_linux
+    @test_utils.on_available_devices
+    @pytest.mark.parametrize(
+        "model_name,expected_transcription",
+        [
+            (
+                "microsoft/wavlm-large",
+                [
+                    "MISTER QUILTER IS THE APOSSEL OF THE MIDDLE CLASSES AND"
+                    " WE ARE GLAD TO WELCOME HIS GOSPEL",
+                ],
+            ),
+        ],
+    )
+    def test_transformers_wavlm(
+        self,
+        tmp_dir,
+        device,
+        model_name,
+        expected_transcription,
+    ):
+        import torch
+        import transformers
+
+        converter = ctranslate2.converters.TransformersConverter(
+            model_name, load_as_float16="int8"
+        )
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+
+        wavlm_processor = transformers.WavLMProcessor.from_pretrained(model_name)
+        wavlm_processor.save_pretrained(output_dir + "/wavlm_processor")
+        processor = transformers.AutoProcessor.from_pretrained(
+            output_dir + "/wavlm_processor"
+        )
+
+        device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
+        cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        model = ctranslate2.models.WavLM(
+            output_dir,
+            device=device,
+            device_index=[0],
+            compute_type="int8",
+            intra_threads=cpu_threads,
+            inter_threads=1,
+        )
+        hf_model = transformers.WavLMModel.from_pretrained(model_name)
+
+        speech_array = np.load(
+            os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
+        )
+        input_values = processor(
+            speech_array,
+            padding=True,
+            return_tensors="pt",
+            sampling_rate=16000,
+        ).input_values
+
+        hidden_states = np.ascontiguousarray(input_values.unsqueeze(0))
+        hidden_states = ctranslate2.StorageView.from_array(hidden_states)
+        to_cpu = model.device == "cuda" and len(model.device_index) > 1
+        output = model.encode(hidden_states, to_cpu=to_cpu)
+        if model.device == "cuda":
+            last_hidden_state = torch.as_tensor(output, device=model.device)[0]
+        else:
+            last_hidden_state = torch.as_tensor(
+                np.array(output), dtype=torch.float32, device=model.device
+            )[0]
+
+        hg_output = hf_model(input_values.unsqueeze(0))
+
+        similarity = torch.nn.functional.cosine_similarity(last_hidden_state, hg_output.last_hidden_state.flatten(0, -1), dim=0)
+
+        assert similarity == 1.0
 
 
 class TestWav2Vec2Bert:

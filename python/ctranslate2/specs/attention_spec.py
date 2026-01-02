@@ -21,6 +21,7 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         relative_position=False,
         relative_asymmetric_position=False,
         relative_attention_bias=False,
+        gated_relative_attention_bias=False,
         rms_norm=False,
         rotary_dim=None,
         rotary_interleave=True,
@@ -34,10 +35,12 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         sliding_window=None,
         qk_norm=False,
         qk_norm_rms=True,
+        has_norm=True,
     ):
         self.queries_scale = model_spec.OPTIONAL
 
-        self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
+        if has_norm:
+            self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
         self.linear = [
             common_spec.LinearSpec() for _ in range(2 if self_attention else 3)
         ]
@@ -58,6 +61,10 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
             self.relative_asymmetric_position_keys = None
             self.relative_left_max_position = None
             self.relative_right_max_position = None
+
+        if gated_relative_attention_bias:
+            self.gru_relative_position_const = None
+            self.gru_relative_position_linear = common_spec.LinearSpec()
 
         if original_max_position_embeddings != 0:
             self.original_max_position_embeddings = np.dtype("int32").type(

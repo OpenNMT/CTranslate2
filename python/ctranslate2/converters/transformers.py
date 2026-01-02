@@ -22,6 +22,7 @@ from ctranslate2.specs import (
     common_spec,
     model_spec,
     transformer_spec,
+    wavlm_spec,
     wav2vec2_spec,
     wav2vec2bert_spec,
     whisper_spec,
@@ -89,7 +90,7 @@ class TransformersConverter(Converter):
           copy_files: List of filenames to copy from the Hugging Face model to the
             converted model directory.
           load_as_float16: Load the model weights as float16. More precisely, the model
-            will be loaded with ``from_pretrained(..., torch_dtype=torch.float16)``.
+            will be loaded with ``from_pretrained(..., dtype=torch.float16)``.
           revision: Revision of the model to download from the Hugging Face Hub.
           low_cpu_mem_usage: Enable the flag ``low_cpu_mem_usage`` when loading the model
             with ``from_pretrained``.
@@ -123,10 +124,11 @@ class TransformersConverter(Converter):
             tokenizer_class = transformers.AutoTokenizer
 
             kwargs = {
-                "torch_dtype": (
+                "dtype": (
                     torch.float16
                     if self._load_as_float16
-                    else getattr(config, "torch_dtype", None)
+                    else getattr(config, "dtype", None)
+                    or getattr(config, "torch_dtype", None)
                 )
             }
 
@@ -143,9 +145,13 @@ class TransformersConverter(Converter):
             if self._trust_remote_code:
                 tokenizer_kwargs["trust_remote_code"] = self._trust_remote_code
 
-            tokenizer = self.load_tokenizer(
-                tokenizer_class, self._model_name_or_path, **tokenizer_kwargs
-            )
+            try:
+                tokenizer = self.load_tokenizer(
+                    tokenizer_class, self._model_name_or_path, **tokenizer_kwargs
+                )
+            except:
+                tokenizer = None
+                print("Escape tokenizer, which does not exist.")
 
             spec = loader(model, tokenizer)
 
@@ -235,7 +241,7 @@ class ModelLoader(abc.ABC):
 
         if isinstance(module, transformers.Conv1D):
             spec.weight = spec.weight.transpose(0, 1)
-        if module.bias is not None:
+        if hasattr(module, "bias") and module.bias is not None:
             spec.bias = module.bias
 
     def set_embeddings(self, spec, module):
@@ -1071,6 +1077,122 @@ class Wav2Vec2Loader(BartLoader):
         return_hidden = getattr(model.wav2vec2.config, "return_hidden", False)
         if not return_hidden:
             self.set_linear(spec.lm_head, model.lm_head)
+
+    def set_common_layers(self, spec, module):
+        self.set_layer_norm(spec.layer_norm, module.layer_norm)
+
+
+
+@register_loader("WavLMConfig")
+class WavLMLoader(BartLoader):
+    @property
+    def architecture_name(self):
+        return "WavLMModel"
+
+    def get_model_spec(self, model):
+        return_hidden = getattr(model.config, "return_hidden", False)
+        spec = wavlm_spec.WavLMSpec(
+            model.config.num_feat_extract_layers,
+            model.encoder.config.num_hidden_layers,
+            model.encoder.config.num_attention_heads,
+            return_hidden,
+        )
+
+        # layer component name matching (no duplications saving)
+        for layer in model.encoder.layers:
+            layer.self_attn = layer.attention
+            layer.self_attn_layer_norm = layer.layer_norm
+            layer.activation_fn = layer.feed_forward.intermediate_act_fn
+            layer.fc1 = layer.feed_forward.intermediate_dense
+            layer.fc2 = layer.feed_forward.output_dense
+
+        self.set_encoder(spec.encoder, model, model.config)
+        return spec
+
+    def set_config(self, config, model, tokenizer):
+        config.layer_norm_epsilon = model.config.layer_norm_eps
+
+    def get_vocabulary(self, model, tokenizer):
+        return
+
+    def set_vocabulary(self, spec, tokens):
+        return
+
+    def set_feature_extractor(self, spec, feature_extractor):
+        spec.feat_layer0.conv.weight = feature_extractor.conv_layers[0].conv.weight
+        # spec.feat_layer0.conv.bias = feature_extractor.conv_layers[0].conv.bias // wavlm has no bias
+        self.set_layer_norm(
+            spec.feat_layer0.layer_norm, feature_extractor.conv_layers[0].layer_norm
+        )
+        for spec_layer, module_layer in zip(
+            spec.feat_layer, feature_extractor.conv_layers[1:]
+        ):
+            spec_layer.conv.weight = module_layer.conv.weight
+            # spec_layer.conv.bias = module_layer.conv.bias // wavlm has no bias
+            self.set_layer_norm(spec_layer.layer_norm, module_layer.layer_norm)
+
+    def set_feature_projection(self, spec, feature_projection):
+        self.set_layer_norm(spec.fp_layer_norm, feature_projection.layer_norm)
+        self.set_linear(spec.fp_projection, feature_projection.projection)
+
+    def set_pos_conv_embed(self, spec, encoder, config):
+        # forcing parameters to be set because some transformers version initializes garbage numbers
+        # conv parameters are float16 so force float32 for the loading
+        encoder.pos_conv_embed.conv.weight.data = (
+            encoder.pos_conv_embed.conv.weight.data.float()
+        )
+        encoder.pos_conv_embed.conv.bias.data = encoder.pos_conv_embed.conv.bias.float()
+        for param in encoder.pos_conv_embed.parameters():
+            param.data = param.data.float()
+        encoder.pos_conv_embed(torch.randn((1, 1, config.hidden_size)))
+        spec.pos_conv_embed.conv.weight = encoder.pos_conv_embed.conv.weight
+        spec.pos_conv_embed.conv.bias = encoder.pos_conv_embed.conv.bias
+
+    def set_encoder(self, spec, model, config):
+        self.set_feature_extractor(spec, model.feature_extractor)
+        self.set_feature_projection(spec, model.feature_projection)
+        self.set_pos_conv_embed(spec, model.encoder, config)
+        self.set_wavlm_encoder_layer(spec, model.encoder)
+
+    def set_wavlm_encoder_layer(self, spec, encoder):
+        self.set_common_layers(spec, encoder)
+
+        for layer_index, (layer_spec, layer) in enumerate(zip(spec.layer, encoder.layers)):
+            self.set_attention(
+                layer_spec.self_attention,
+                layer.self_attn,
+                self_attention=True,
+                has_rel_attn_embed=(layer_index==0),
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm,
+                layer.self_attn_layer_norm,
+            )
+
+            self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
+            self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
+
+    def set_attention(self, spec, attention, self_attention=False, has_rel_attn_embed=False):
+        split_layers = [common_spec.LinearSpec() for _ in range(3)]
+        self.set_linear(split_layers[0], attention.q_proj)
+        self.set_linear(split_layers[1], attention.k_proj)
+        self.set_linear(split_layers[2], attention.v_proj)
+
+        if self_attention:
+            utils.fuse_linear(spec.linear[0], split_layers)
+        else:
+            utils.fuse_linear(spec.linear[0], split_layers[:1])
+            utils.fuse_linear(spec.linear[1], split_layers[1:])
+
+        self.set_linear(spec.linear[-1], attention.out_proj)
+
+        self.set_linear(spec.gru_relative_position_linear, attention.gru_rel_pos_linear)
+        spec.gru_relative_position_const = attention.gru_rel_pos_const.data # is torch.nn.parameter.Parameter
+
+        if has_rel_attn_embed:
+            spec.relative_attention_bias = attention.rel_attn_embed.weight
+            spec.relative_attention_max_distance = np.int32(attention.max_distance)
 
     def set_common_layers(self, spec, module):
         self.set_layer_norm(spec.layer_norm, module.layer_norm)
@@ -3467,3 +3589,266 @@ _WHISPER_ALIGNMENT_HEADS = {
         (25, 6),
     ],
 }
+
+
+# Paper: https://arxiv.org/pdf/2504.06225
+@register_loader("T5GemmaConfig")
+class T5GemmaLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "T5GemmaForConditionalGeneration"
+
+    def set_layer_norm(self, spec, layer_norm):
+        spec.gamma = layer_norm.weight.data + 1.0
+
+    def get_model_spec(self, model):
+        encoder_config = model.config.encoder
+        decoder_config = model.config.decoder
+        sliding_window = getattr(model.config, "sliding_window", 4096)
+
+        encoder_num_heads = encoder_config.num_attention_heads
+        encoder_num_heads_kv = getattr(
+            encoder_config, "num_key_value_heads", encoder_num_heads
+        )
+        if encoder_num_heads_kv == encoder_num_heads:
+            encoder_num_heads_kv = None
+
+        encoder = transformer_spec.TransformerEncoderSpec(
+            encoder_config.num_hidden_layers,
+            encoder_config.num_attention_heads,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[encoder_config.hidden_activation],
+            ffn_glu=True,
+            rms_norm=True,
+            rotary_dim=encoder_config.head_dim,
+            rotary_interleave=False,
+            rotary_base=getattr(encoder_config, "rope_theta", 10000),
+            sliding_window=sliding_window,
+            pre_post_layer_norm=True,
+            num_heads_kv=encoder_num_heads_kv,
+            head_dim=encoder_config.head_dim,
+        )
+
+        decoder_num_heads = decoder_config.num_attention_heads
+        decoder_num_heads_kv = getattr(
+            decoder_config, "num_key_value_heads", decoder_num_heads
+        )
+        if decoder_num_heads_kv == decoder_num_heads:
+            decoder_num_heads_kv = None
+
+        decoder = transformer_spec.TransformerDecoderSpec(
+            decoder_config.num_hidden_layers,
+            decoder_config.num_attention_heads,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[decoder_config.hidden_activation],
+            ffn_glu=True,
+            rms_norm=True,
+            with_encoder_attention=True,
+            rotary_dim=decoder_config.head_dim,
+            rotary_interleave=False,
+            rotary_base=getattr(decoder_config, "rope_theta", 10000),
+            sliding_window=sliding_window,
+            pre_post_layer_norm=True,
+            external_pre_post_encoder_layers=True,
+            num_heads_kv=decoder_num_heads_kv,
+            head_dim=decoder_config.head_dim,
+        )
+
+        spec = transformer_spec.TransformerSpec(encoder, decoder)
+
+        self.set_encoder(spec.encoder, model.model.encoder, encoder_config)
+
+        self.set_decoder(
+            spec.decoder,
+            model.model.decoder,
+            decoder_config,
+            common_spec.Quantization.CT2,
+        )
+
+        # Tie_word_embeddings
+        self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
+        return spec
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_source_vocabulary(tokens)
+        spec.register_target_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = tokenizer.bos_token
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = tokenizer.unk_token
+
+        if hasattr(model.config, "encoder"):
+            config.layer_norm_epsilon = model.config.encoder.rms_norm_eps
+        elif hasattr(model.config, "rms_norm_eps"):
+            config.layer_norm_epsilon = model.config.rms_norm_eps
+        else:
+            config.layer_norm_epsilon = 1e-6
+
+        config.decoder_start_token = tokenizer.bos_token
+
+    def set_encoder(
+        self, spec, encoder, encoder_config, quant_type=common_spec.Quantization.CT2
+    ):
+        spec.scale_embeddings = True
+
+        encoder_emb_spec = (
+            spec.embeddings[0] if isinstance(spec.embeddings, list) else spec.embeddings
+        )
+
+        self.set_embeddings(encoder_emb_spec, encoder.embed_tokens)
+        encoder_emb_spec.multiply_by_sqrt_depth = encoder_config.hidden_size**0.5
+        self.set_layer_norm(spec.layer_norm, encoder.norm)
+
+        module = encoder
+        for i, (layer_spec, layer) in enumerate(zip(spec.layer, module.layers)):
+            self.set_layer_norm(
+                layer_spec.input_layer_norm, layer.pre_self_attn_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_attention_layer_norm, layer.post_self_attn_layernorm
+            )
+
+            # T5GemmaSelfAttention
+            qkv_split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(
+                qkv_split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
+            utils.fuse_linear(layer_spec.self_attention.linear[0], qkv_split_layers)
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            # T5GemmaRMSNorm
+            self.set_layer_norm(
+                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
+            )
+            # T5GemmaRMSNorm
+            self.set_layer_norm(
+                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
+            )
+
+            # T5GemmaMLP
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
+
+            # Clean up
+            delattr(layer, "self_attn")
+            delattr(layer, "mlp")
+            gc.collect()
+
+    def set_decoder(
+        self, spec, module, decoder_config, quant_type=common_spec.Quantization.CT2
+    ):
+        spec.scale_embeddings = True
+        spec.start_from_zero_embedding = False
+
+        self.set_embeddings(spec.embeddings, module.embed_tokens)
+        spec.embeddings.multiply_by_sqrt_depth = decoder_config.hidden_size**0.5
+        self.set_layer_norm(spec.layer_norm, module.norm)
+
+        for i, (layer_spec, layer) in enumerate(zip(spec.layer, module.layers)):
+            # Self-attention block
+            self.set_layer_norm(
+                layer_spec.input_layer_norm, layer.pre_self_attn_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_attention_layer_norm, layer.post_self_attn_layernorm
+            )
+
+            # T5GemmaSelfAttention - QKV projections
+            qkv_split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(
+                qkv_split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                qkv_split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
+            utils.fuse_linear(layer_spec.self_attention.linear[0], qkv_split_layers)
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            # Pre and post cross-attention layer norm
+            self.set_layer_norm(
+                layer_spec.external_pre_encoder_attention_layer_norm,
+                layer.pre_cross_attn_layernorm,
+            )
+
+            self.set_layer_norm(
+                layer_spec.external_post_encoder_attention_layer_norm,
+                layer.post_cross_attn_layernorm,
+            )
+
+            # Cross-attention Q projection
+            self.set_linear(
+                layer_spec.attention.linear[0],
+                layer.cross_attn.q_proj,
+                quant_type=quant_type,
+            )
+
+            # Cross-attention K+V fused
+            kv_split_layers = [common_spec.LinearSpec() for _ in range(2)]
+            self.set_linear(
+                kv_split_layers[0],
+                layer.cross_attn.k_proj,
+                quant_type=quant_type,
+            )
+            self.set_linear(
+                kv_split_layers[1],
+                layer.cross_attn.v_proj,
+                quant_type=quant_type,
+            )
+            utils.fuse_linear(layer_spec.attention.linear[1], kv_split_layers)
+
+            # Cross-attention output projection
+            self.set_linear(
+                layer_spec.attention.linear[2],
+                layer.cross_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            # Feed-forward block
+            self.set_layer_norm(
+                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
+            )
+
+            # T5GemmaMLP
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
+
+            # Clean up
+            delattr(layer, "self_attn")
+            delattr(layer, "cross_attn")
+            delattr(layer, "mlp")
+            gc.collect()

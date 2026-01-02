@@ -6,9 +6,9 @@
 namespace ctranslate2 {
   namespace layers {
 
-    class Wav2Vec2LayerNormConvLayer : public Layer {
+    class WavLMLayerNormConvLayer : public Layer {
     public:
-      Wav2Vec2LayerNormConvLayer(const models::Model& model,
+      WavLMLayerNormConvLayer(const models::Model& model,
                                  const std::string& scope,
                                  dim_t stride,
                                  dim_t padding);
@@ -27,14 +27,14 @@ namespace ctranslate2 {
       dim_t _stride;
       dim_t _padding;
       const Conv1D _conv;
-      const ops::Transpose _transpose;
       const LayerNorm _output_norm;
+      const ops::Transpose _transpose;
       const ops::GELU _gelu;
     };
 
-    class Wav2Vec2PosConvLayer : public Layer {
+    class WavLMPosConvLayer : public Layer {
     public:
-      Wav2Vec2PosConvLayer(const models::Model& model, const std::string& scope);
+      WavLMPosConvLayer(const models::Model& model, const std::string& scope);
 
       void operator()(const StorageView& input, StorageView& output) const;
 
@@ -52,9 +52,9 @@ namespace ctranslate2 {
       const ops::GELU _gelu;
     };
 
-    class Wav2Vec2Encoder : public Layer {
+    class WavLMEncoder : public Layer {
     public:
-      Wav2Vec2Encoder(const models::Model& model, const std::string& scope);
+      WavLMEncoder(const models::Model& model, const std::string& scope);
 
       void operator()(const StorageView& features, StorageView& output);
 
@@ -80,26 +80,15 @@ namespace ctranslate2 {
         return 1024;
       }
 
-      bool is_encoded(const StorageView& features) const {
-        // Input features shape: [batch_size, input_size, input_time]
-        // Encoder output shape: [batch_size, input_time // 2, output_size]
-        //
-        // input_time is variable so we check that dimension 1 is different than its original value.
-
-        return (features.rank() == 3
-                && features.dim(2) == output_size()
-                && features.dim(1) != input_size());
-      }
-
       const StorageView* _upgraded_model;
 
     private:
       const StorageView* _return_logits;
-      std::optional<Wav2Vec2LayerNormConvLayer> _feat_layer0;
-      std::optional<std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>>> _feat_layers;
+      std::optional<WavLMLayerNormConvLayer> _feat_layer0;
+      std::optional<std::vector<std::unique_ptr<const WavLMLayerNormConvLayer>>> _feat_layers;
       std::optional<LayerNorm> _fp_norm;
       std::optional<Dense> _fp_ff;
-      std::optional<Wav2Vec2PosConvLayer> _pos_conv_embed;
+      std::optional<WavLMPosConvLayer> _pos_conv_embed;
       const ops::Transpose _transpose;
       const ops::GELU _gelu;
       const dim_t _num_heads;
