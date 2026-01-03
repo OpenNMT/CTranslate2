@@ -61,6 +61,7 @@ namespace ctranslate2 {
       const StorageView* _relative_position_keys;
       const StorageView* _relative_asymmetric_position_keys;
       const StorageView* _relative_position_values;
+      const StorageView* _gru_relative_position_const;
       dim_t _maximum_relative_position;
       dim_t _relative_left_max_position;
       dim_t _relative_right_max_position;
@@ -68,6 +69,8 @@ namespace ctranslate2 {
       const dim_t _cache_time_dim;
       std::unique_ptr<const LayerNorm> _q_norm;  // Query normalization
       std::unique_ptr<const LayerNorm> _k_norm;  // Key normalization
+    protected:
+      const std::unique_ptr<const Dense> _gru_relative_position_linear;
     };
   }
 }

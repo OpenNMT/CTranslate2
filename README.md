@@ -10,7 +10,7 @@ The following model types are currently supported:
 
 * Encoder-decoder models: Transformer base/big, M2M-100, NLLB, BART, mBART, Pegasus, T5, Whisper
 * Decoder-only models: GPT-2, GPT-J, GPT-NeoX, OPT, BLOOM, MPT, Llama, Mistral, Gemma, CodeGen, GPTBigCode, Falcon, Qwen2
-* Encoder-only models: BERT, DistilBERT, XLM-RoBERTa
+* Encoder-only models: BERT, DistilBERT, XLM-RoBERTa, Wav2vec 2.0, HuBERT, WavLM, Wav2vec2-BERT
 
 Compatible models should be first converted into an optimized model format. The library includes converters for multiple frameworks:
 

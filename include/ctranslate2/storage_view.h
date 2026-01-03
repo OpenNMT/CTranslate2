@@ -230,6 +230,7 @@ namespace ctranslate2 {
     template <typename T>
     StorageView& fill(T value);
     StorageView& zero();
+    StorageView& one();
 
     StorageView& copy_from(const StorageView& other, bool synchronous = false);
 
