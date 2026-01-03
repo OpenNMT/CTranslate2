@@ -61,6 +61,18 @@ namespace ctranslate2 {
       void apply_qk_norm(StorageView& queries_proj,
                           StorageView& keys_proj) const;
 
+      void process_cross_attention(const StorageView& queries,
+                                    const StorageView& values,
+                                    StorageView& fused_proj,
+                                    StorageView& queries_proj,
+                                    StorageView& keys_proj,
+                                    StorageView& values_proj,
+                                    StorageView* cached_keys,
+                                    StorageView* cached_values,
+                                    const Padder* queries_padder,
+                                    const Padder* values_padder,
+                                    dim_t& beam_size) const;
+
       const StorageView* _relative_attention_bias;
       const StorageView* _relative_position_keys;
       const StorageView* _relative_asymmetric_position_keys;
