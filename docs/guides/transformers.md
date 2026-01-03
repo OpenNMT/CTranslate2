@@ -25,6 +25,7 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * Qwen 2.5
 * Qwen 3
 * T5
+* T5Gemma
 * Whisper
 * XLM-RoBERTa
 
@@ -556,6 +557,46 @@ output_text = tokenizer.decode(tokenizer.convert_tokens_to_ids(output_tokens))
 
 print(output_text)
 ```
+
+## T5Gemma
+
+[T5Gemma](https://deepmind.google/models/gemma/t5gemma/) is collection of Google encoder-decoder models that provide a strong quality-inference efficiency tradeoff.
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model google/t5gemma-b-b-prefixlm-it --output_dir t5gemma_b_b_prefixlm_it.ct2
+```
+
+Usage:
+
+```python
+import ctranslate2
+import transformers
+
+translator = ctranslate2.Translator("t5gemma_b_b_prefixlm_it.ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("google/t5gemma-b-b-prefixlm-it")
+
+sentences = ["Question: Why is the sky blue? Answer:"]
+
+# Tokenize each sentence
+tokenized_sentences = [
+    tokenizer.convert_ids_to_tokens(tokenizer.encode(sentence))
+    for sentence in sentences
+]
+
+translated_batches = translator.translate_batch(tokenized_sentences, beam_size=1, repetition_penalty=1.2, max_decoding_length=50)
+
+
+# Decode results
+translations = [
+    tokenizer.decode(tokenizer.convert_tokens_to_ids(t.hypotheses[0]))
+    for t in translated_batches
+]
+final_translation = " ".join(translations)
+print(final_translation)
+```
+
 
 ## Whisper
 
