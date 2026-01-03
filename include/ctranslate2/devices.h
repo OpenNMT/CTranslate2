@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <cstdint>
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <nccl.h>
 #endif
