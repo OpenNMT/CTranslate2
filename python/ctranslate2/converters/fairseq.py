@@ -146,7 +146,9 @@ class FairseqConverter(Converter):
             import_user_module(argparse.Namespace(user_dir=self._user_dir))
 
         with torch.no_grad():
-            checkpoint = checkpoint_utils.load_checkpoint_to_cpu(self._model_path)
+            checkpoint = torch.load(
+                self._model_path, map_location=torch.device("cpu"), weights_only=False
+            )
             args = checkpoint["args"] or checkpoint["cfg"]["model"]
 
             args.data = self._data_dir
