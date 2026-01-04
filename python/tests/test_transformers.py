@@ -109,6 +109,13 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "▁Was ▁ist ▁Lama ▁glam a ?",
         dict(),
     ),
+    (
+        "jordimas/t5gemma-s-s-ul2",
+        ["Question : ▁Why ▁is ▁the ▁sky ▁blue ? ▁Answer :"],
+        "",
+        "\n\n Answer : \n\n The ▁sky ▁is ▁blue .",
+        dict(),
+    ),
 ]
 
 
