@@ -16,7 +16,7 @@
 ### Fixes and improvements
 
 * Fix issue- tokens batch_type may exceed max_batch_size (#1948) by [@anterart](https://github.com/anterart)
-* Fixes AWQ support for Qwen 2.5/3 and Phi3 by (#1951, #1952, #1953) [@BBC-Esq](https://github.com/BBC-Esq)
+* Fixes AWQ support for Qwen 2.5/3 and Phi3 (#1951, #1952, #1953) by [@BBC-Esq](https://github.com/BBC-Esq)
 
 ## [v4.6.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.2) (2025-12-05)
 
