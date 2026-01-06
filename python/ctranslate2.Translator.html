@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Translator &mdash; CTranslate2 4.6.2 documentation</title>
+  <title>Translator &mdash; CTranslate2 4.6.3 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -354,10 +354,10 @@ following optimizations:</p>
 <dd class="field-odd"><ul class="simple">
 <li><p><strong>source</strong> – Batch of source tokens.</p></li>
 <li><p><strong>target_prefix</strong> – Optional batch of target prefix tokens.</p></li>
-<li><p><strong>max_batch_size</strong> – The maximum batch size. If the number of inputs is greater than
-<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code>, the inputs are sorted by length and split by chunks of
-<code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples so that the number of padding positions is
-minimized.</p></li>
+<li><p><strong>max_batch_size</strong> – The maximum batch size. If the number of inputs is greater than <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code>,
+the inputs are sorted by length and split by chunks of <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> examples
+(or tokens when :obj:<a href="#id1"><span class="problematic" id="id2">`</span></a>batch_type`=”tokens”) so that the number of padding positions
+is minimized.</p></li>
 <li><p><strong>batch_type</strong> – Whether <code class="xref py py-obj docutils literal notranslate"><span class="pre">max_batch_size</span></code> is the number of “examples” or “tokens”.</p></li>
 <li><p><strong>asynchronous</strong> – Run the translation asynchronously.</p></li>
 <li><p><strong>beam_size</strong> – Beam size (1 for greedy search).</p></li>
