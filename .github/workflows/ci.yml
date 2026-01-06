@@ -72,14 +72,10 @@ jobs:
         run: |
           tests/ctranslate2_test tests/data
           
-  build-and-test-cpp-x86_64-sanitizers:
-    runs-on: ${{ matrix.os }}
+  build-and-test-cpp-x86_64-sanitizer:
+    runs-on: ubuntu-22.04
     env:
       CT2_VERBOSE: 1
-    strategy:
-      matrix:
-        os: [ubuntu-22.04]
-        backend: [mkl]
 
     steps:
       - uses: actions/checkout@v4
@@ -87,7 +83,6 @@ jobs:
           submodules: recursive
 
       - name: Install Intel oneAPI
-        if: startsWith(matrix.os, 'ubuntu')
         run: |
           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           sudo apt-key add *.PUB
@@ -95,7 +90,6 @@ jobs:
           sudo apt-get update
 
       - name: Configure with MKL
-        if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
           MKL_VERSION: 2023.0.0
@@ -115,7 +109,6 @@ jobs:
           tar xf transliteration-aren-all.tar.gz
 
       - name: Test AddressSanitizer 
-        if: matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
         run: |
