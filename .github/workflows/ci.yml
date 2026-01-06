@@ -95,7 +95,7 @@ jobs:
           MKL_VERSION: 2023.0.0
         run: |
           sudo apt-get install -y intel-oneapi-mkl-devel-$MKL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DGOOGLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DENABLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
 
       - name: Build
         run: |
@@ -108,7 +108,7 @@ jobs:
           wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
           tar xf transliteration-aren-all.tar.gz
 
-      - name: Test AddressSanitizer 
+      - name: Test AddressSanitizer
         env:
           CT2_USE_MKL: 1
         run: |
