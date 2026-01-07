@@ -109,6 +109,13 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "▁Was ▁ist ▁Lama ▁glam a ?",
         dict(),
     ),
+    (
+        "jordimas/t5gemma-s-s-ul2",
+        ["Question : ▁Why ▁is ▁the ▁sky ▁blue ? ▁Answer :"],
+        "",
+        "\n\n Answer : \n\n The ▁sky ▁is ▁blue .",
+        dict(),
+    ),
 ]
 
 
@@ -1002,13 +1009,13 @@ class TestWav2Vec2:
         )
 
         device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
-        cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        # cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
         model = ctranslate2.models.Wav2Vec2(
             output_dir,
             device=device,
             device_index=[0],
             compute_type="int8",
-            intra_threads=cpu_threads,
+            intra_threads=1,
             inter_threads=1,
         )
 
