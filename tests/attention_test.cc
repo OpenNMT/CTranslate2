@@ -6,10 +6,10 @@ public:
   MockModel(dim_t num_heads, dim_t num_heads_kv) {
     const dim_t d_model = 64;
     const dim_t d_head = d_model / num_heads;
-    
+
     std::vector<float> linear_0_data(num_heads * d_head * d_model, 0.01f);
     std::vector<float> linear_1_data(2 * num_heads_kv * d_head * d_model, 0.01f);
-    
+
     register_variable("attn/linear_0/weight",
                       StorageView({num_heads * d_head, d_model}, linear_0_data));
     register_variable("attn/linear_1/weight",
@@ -20,9 +20,10 @@ public:
                       StorageView({d_head}, std::vector<float>(d_head, 1.0f)));
     register_variable("attn/k_norm/gamma",
                       StorageView({d_head}, std::vector<float>(d_head, 1.0f)));
-    
+    register_variable("attn/multi_query", StorageView(int8_t(num_heads_kv == 1)));
+    register_variable("attn/num_heads_kv", StorageView(int32_t(num_heads_kv)));
+
     set_compute_type(ComputeType::FLOAT32, Device::CPU, 0, false);
-    config["num_heads_kv"] = num_heads_kv;
   }
 protected:
   std::unique_ptr<Model> clone() const override { return nullptr; }
@@ -36,12 +37,12 @@ public:
 
 class CrossAttentionTest : public ::testing::Test {
 protected:
-  static constexpr dim_t NUM_HEADS = 8;
+  static constexpr dim_t NUM_HEADS = 4;
   static constexpr dim_t D_MODEL = 64;
   static constexpr dim_t D_HEAD = D_MODEL / NUM_HEADS;
   static constexpr dim_t BATCH = 2;
-  static constexpr dim_t Q_LEN = 4;
-  static constexpr dim_t V_LEN = 6;
+  static constexpr dim_t Q_LEN = 6;
+  static constexpr dim_t V_LEN = 8;
 
   float get_4d(const StorageView& view, dim_t b, dim_t h, dim_t t, dim_t d) {
     const auto& shape = view.shape();
@@ -73,16 +74,7 @@ TEST_F(CrossAttentionTest, MultiQueryAttention) {
   attention.process_cross_attention(queries, values, fused_proj, q_proj, k_proj, v_proj,
                                     &cached_keys, &cached_values, nullptr, nullptr, beam);
 
-  // Shape: [batch, num_heads, time, 1] - last dim is 1 for single KV head
-  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, NUM_HEADS, V_LEN, 1}));
-
-  // All heads share same K/V values
-  float k0 = get_4d(cached_keys, 0, 0, 0, 0);
-  float v0 = get_4d(cached_values, 0, 0, 0, 0);
-  for (dim_t h = 1; h < NUM_HEADS; ++h) {
-    EXPECT_EQ(get_4d(cached_keys, 0, h, 0, 0), k0);
-    EXPECT_EQ(get_4d(cached_values, 0, h, 0, 0), v0);
-  }
+  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, V_LEN, D_HEAD}));
 
   // Verify q_norm and k_norm are applied (RMSNorm normalizes to ~1.0 magnitude)
   float q_val = q_proj.data<float>()[0];
@@ -111,8 +103,7 @@ TEST_F(CrossAttentionTest, GroupedQueryAttention) {
   attention.process_cross_attention(queries, values, fused_proj, q_proj, k_proj, v_proj,
                                     &cached_keys, &cached_values, nullptr, nullptr, beam);
 
-  // Shape: [batch, num_heads, time, num_kv_heads]
-  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, NUM_HEADS, V_LEN, NUM_KV_HEADS}));
+  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, NUM_HEADS, V_LEN, D_HEAD}));
 
   // Heads in same group share K/V
   for (dim_t group = 0; group < NUM_KV_HEADS; ++group) {
@@ -141,7 +132,7 @@ TEST_F(CrossAttentionTest, StandardMultiHeadAttention) {
   attention.process_cross_attention(queries, values, fused_proj, q_proj, k_proj, v_proj,
                                     &cached_keys, &cached_values, nullptr, nullptr, beam);
 
-  // Shape: [batch, num_heads, time, num_heads] - each head has own K/V
-  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, NUM_HEADS, V_LEN, NUM_HEADS}));
+  // Shape: [batch, num_heads, time, d_head] - each head has own K/V
+  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, NUM_HEADS, V_LEN, D_HEAD}));
   ASSERT_EQ(cached_values.shape(), cached_keys.shape());
 }
