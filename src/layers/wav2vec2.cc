@@ -11,8 +11,8 @@ namespace ctranslate2 {
       : _stride(stride)
       , _padding(padding)
       , _conv(model, scope + "/conv", _stride, _padding)
-      , _output_norm(model, scope + "/layer_norm") 
-      , _transpose({0, 2, 1}) {
+      , _transpose({0, 2, 1})
+      , _output_norm(model, scope + "/layer_norm") {
     }
 
     void Wav2Vec2LayerNormConvLayer::operator()(const StorageView& input, StorageView& output) const{
