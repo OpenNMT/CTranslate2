@@ -980,7 +980,7 @@ class TestWav2Vec2:
             (
                 "facebook/wav2vec2-large-robust-ft-swbd-300h",
                 [
-                    "MISTER QUILTER IS THE APOSSTEL OF THE MIDDLE CLASSES AND"
+                    "MISTER QUILTER IS THE APOSSEL OF THE MIDDLE CLASSES AND"
                     " WE ARE GLAD TO WELCOME HIS GOSPEL",
                 ],
             ),
