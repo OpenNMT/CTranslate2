@@ -1,6 +1,5 @@
 #include "ctranslate2/ops/median_filter.h"
 
-#include "type_dispatch.h"
 #include "cuda/helpers.h"
 
 namespace ctranslate2 {
