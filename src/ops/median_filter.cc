@@ -5,7 +5,7 @@
 namespace ctranslate2 {
   namespace ops {
 
-    MedianFilter::MedianFilter(dim_t width)
+    MedianFilter::MedianFilter(const dim_t width)
       : _width(width)
       {
       }
