@@ -74,6 +74,14 @@ namespace ctranslate2 {
     }
 
     template <typename T>
+    static void add_block_broadcast(const T* a, const T* b, T* c, dim_t block, dim_t a_size, dim_t b_size);
+
+    template <typename T>
+    static void add_block_broadcast(const T* x, T* y, dim_t block, dim_t x_size, dim_t y_size) {
+      add_block_broadcast(x, y, y, block, x_size, y_size);
+    }
+
+    template <typename T>
     static void sub(T a, const T* x, T* y, dim_t size) {
       T a_rev = -a;
       add(a_rev, x, y, size);
