@@ -51,17 +51,12 @@ protected:
                               h * shape[2] * shape[3] + t * shape[3] + d];
   }
 
-  float get_3d(const StorageView& view, dim_t b, dim_t t, dim_t d) {
-    const auto& shape = view.shape();
-    return view.data<float>()[b * shape[1] * shape[2] + t * shape[2] + d];
-  }
 };
 
 // MQA: All heads share same K/V
 TEST_F(CrossAttentionTest, MultiQueryAttention) {
   MockModel model(NUM_HEADS, /*num_heads_kv=*/1);
   TestableAttention attention(model, "attn", NUM_HEADS, false, false, true);
-
   // Use non-uniform values to verify normalization is applied
   std::vector<float> value_data(BATCH * V_LEN * D_MODEL);
   for (size_t i = 0; i < value_data.size(); ++i)
@@ -69,28 +64,23 @@ TEST_F(CrossAttentionTest, MultiQueryAttention) {
   std::vector<float> fused_data(BATCH * Q_LEN * NUM_HEADS * D_HEAD);
   for (size_t i = 0; i < fused_data.size(); ++i)
     fused_data[i] = static_cast<float>(i % 10 + 1);
-
   StorageView queries({BATCH, Q_LEN, D_MODEL}, DataType::FLOAT32);
   StorageView values({BATCH, V_LEN, D_MODEL}, value_data);
   StorageView fused_proj({BATCH, Q_LEN, NUM_HEADS * D_HEAD}, fused_data);
   StorageView q_proj(DataType::FLOAT32), k_proj(DataType::FLOAT32), v_proj(DataType::FLOAT32);
   StorageView cached_keys(DataType::FLOAT32), cached_values(DataType::FLOAT32);
   dim_t beam = 1;
-
   attention.process_cross_attention(queries, values, fused_proj, q_proj, k_proj, v_proj,
                                     &cached_keys, &cached_values, nullptr, nullptr, beam);
-
-  // MQA: K/V stay in 3D format [batch, time, d_head] - shared across all heads
-  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, V_LEN, D_HEAD}));
-  ASSERT_EQ(cached_values.shape(), (Shape{BATCH, V_LEN, D_HEAD}));
-
+  // MQA: K/V are replicated to 4D format [batch, num_heads, time, d_head]
+  ASSERT_EQ(cached_keys.shape(), (Shape{BATCH, NUM_HEADS, V_LEN, D_HEAD}));
+  ASSERT_EQ(cached_values.shape(), (Shape{BATCH, NUM_HEADS, V_LEN, D_HEAD}));
   // Verify K/V values are consistent across batch and time dimensions
   // (In MQA, there's only one set of K/V, so we just verify the tensor is valid)
-  float k0 = get_3d(cached_keys, 0, 0, 0);
-  float v0 = get_3d(cached_values, 0, 0, 0);
+  float k0 = get_4d(cached_keys, 0, 0, 0, 0);
+  float v0 = get_4d(cached_values, 0, 0, 0, 0);
   EXPECT_NE(k0, 0.0f) << "K values should be non-zero after projection";
   EXPECT_NE(v0, 0.0f) << "V values should be non-zero after projection";
-
   // Verify q_norm and k_norm are applied (RMSNorm normalizes to ~1.0 magnitude)
   float q_val = q_proj.data<float>()[0];
   float k_val = cached_keys.data<float>()[0];

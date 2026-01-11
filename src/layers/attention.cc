@@ -378,6 +378,10 @@ namespace ctranslate2 {
           ops::Split(2, {_d_head, _d_head})(fused_proj, keys_proj, values_proj);
 
           apply_k_norm(keys_proj);
+          keys_proj.expand_dims(1);
+          values_proj.expand_dims(1);
+          replicate_heads(keys_proj, _num_heads);
+          replicate_heads(values_proj, _num_heads);
 
         } else if (_num_heads_kv < _num_heads) { // GQA (Grouped-Query Attention)
           if (values_padder)
@@ -415,15 +419,7 @@ namespace ctranslate2 {
       if (queries_proj.dim(1) == 1 && cached_keys)
         beam_size = queries_proj.dim(0) / cached_keys->dim(0);
 
-      if (_num_heads_kv < _num_heads && _merge_time_and_head_dims) {
-        if (queries_padder)
-          queries_padder->add_padding(queries_proj);
-
-        // Reshape queries to merge time and head dims
-        queries_proj.reshape({queries_proj.dim(0) / beam_size, -1, _d_head});
-      } else {
-        split_heads(queries_proj, _num_heads, queries_padder, beam_size);
-      }
+      split_heads(queries_proj, _num_heads, queries_padder, beam_size);
     }
 
     void MultiHeadAttention::operator()(const StorageView& queries,
