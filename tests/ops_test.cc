@@ -125,8 +125,10 @@ class OpDeviceFPTest : public ::testing::TestWithParam<FloatType> {
 };
 
 
-TEST_P(OpDeviceTest, MedianFilter) {
-  Device device = GetParam();
+TEST_P(OpDeviceFPTest, MedianFilter) {
+  Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
   StorageView x({2, 8}, std::vector<float>{
       0.2556743323802948, 0.8028775453567505, 0.3514494299888611, 0.3542254865169525,
       0.5881291031837463, 0.1458204835653305, 0.6845740675926208, 0.543143630027771,
@@ -139,9 +141,9 @@ TEST_P(OpDeviceTest, MedianFilter) {
       0.9039326310157776, 0.4063926637172699, 0.7943458557128906, 0.4063926637172699,
       0.7943458557128906, 0.4063926637172699, 0.7943458557128906, 0.289182186126709},
       device);
-  StorageView y(device);
-  ops::MedianFilter(5)(x, y);
-  expect_storage_eq(y, expected);
+  StorageView y(dtype, device);
+  ops::MedianFilter(5)(x.to(dtype), y);
+  expect_storage_eq(y.to_float32(), expected, error);
 }
 
 TEST_P(OpDeviceTest, Add) {
