@@ -389,16 +389,17 @@ namespace ctranslate2 {
       const ops::MedianFilter median_filter_op(median_filter_width);
       const dim_t batch_size = attention_probs.dim(0);
 
-      // The remaining operations are not implemented on GPU, so move back to CPU.
-      attention_probs.move_to(Device::CPU, DataType::FLOAT32);
-
       ops::LayerNorm(-2, 0)(attention_probs);
 
-      StorageView median_filter;
+      StorageView median_filter(attention_probs.dtype(), attention_probs.device());
       median_filter_op(attention_probs, median_filter);
 
-      StorageView weights;
+      StorageView weights(median_filter.dtype(), median_filter.device());
       ops::Mean(1)(median_filter, weights);
+
+      // The remaining operations are not implemented on GPU, so move back to CPU.
+      synchronize_stream(weights.device());
+      weights.move_to(Device::CPU, DataType::FLOAT32);
 
       std::vector<std::vector<std::pair<dim_t, dim_t>>> alignments;
       alignments.reserve(batch_size);
