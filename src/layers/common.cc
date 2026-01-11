@@ -336,7 +336,7 @@ namespace ctranslate2 {
       }
     }
 
-    void Dense::operator()(const StorageView& input, StorageView& output) const {
+    void Dense::operator()(const StorageView& input, StorageView& output, const StorageView* residual) const {
       PROFILE("Dense");
       const StorageView* qscale = _partial_qscale.empty() ? _qscale : &_partial_qscale;
       const StorageView* weight = _partial_weight.empty() ? &_weight : &_partial_weight;
@@ -417,7 +417,7 @@ namespace ctranslate2 {
             } else {
               ops::GemmAwq gemm_awq_op(/*alpha=*/1, /*beta=*/0, /*trans_a=*/false, /*trans_b=*/false,
                 /*a_is_packed=*/false, /*b_is_packed=*/false, _activation_type);
-              gemm_awq_op(input, *weight, *qscale, *_qzero, output, bias, , residual);
+              gemm_awq_op(input, *weight, *qscale, *_qzero, output, bias, residual);
             }
             break;
           case models::QUANTIZATION_TYPE::AWQ_GEMV:

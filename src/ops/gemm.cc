@@ -73,7 +73,7 @@ namespace ctranslate2 {
         throw std::invalid_argument("Gemm: unsupported input type " + dtype_name(a.dtype()));
       }
 
-      apply_bias_and_activation(c, bias, _activation_type);
+      apply_bias_and_activation(c, bias, _activation_type, residual);
     }
 
     template <Device D, typename In, typename Out>
