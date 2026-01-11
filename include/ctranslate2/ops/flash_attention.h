@@ -6,7 +6,7 @@ namespace ctranslate2 {
   namespace ops {
     class FlashAttention : public Op {
     public:
-      FlashAttention(float queries_scale, dim_t sliding_window);
+      FlashAttention(float queries_scale, dim_t sliding_window, bool is_causal = true);
 
       void operator()(StorageView& queries,
                       StorageView& keys,
@@ -25,6 +25,7 @@ namespace ctranslate2 {
     private:
       const float _queries_scale;
       const dim_t _sliding_window;
+      const bool _is_causal;
       template <Device D>
       void compute(StorageView& queries,
                    StorageView& keys,
