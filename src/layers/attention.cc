@@ -597,7 +597,7 @@ namespace ctranslate2 {
         ops_reduce_all(output, tmp);
         output = std::move(tmp);
       }
-      if (!_pre_norm)
+      if (_layer_norm && !_pre_norm)
         (*_layer_norm)(output, output);
     }
 
