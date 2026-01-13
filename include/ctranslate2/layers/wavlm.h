@@ -80,17 +80,6 @@ namespace ctranslate2 {
         return 1024;
       }
 
-      bool is_encoded(const StorageView& features) const {
-        // Input features shape: [batch_size, input_size, input_time]
-        // Encoder output shape: [batch_size, input_time // 2, output_size]
-        //
-        // input_time is variable so we check that dimension 1 is different than its original value.
-
-        return (features.rank() == 3
-                && features.dim(2) == output_size()
-                && features.dim(1) != input_size());
-      }
-
       const StorageView* _upgraded_model;
 
     private:

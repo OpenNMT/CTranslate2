@@ -54,8 +54,6 @@ namespace ctranslate2 {
     private:
       const std::shared_ptr<const WavLMModel> _model;
       const std::unique_ptr<layers::WavLMEncoder> _encoder;
-
-      StorageView maybe_encode(StorageView features);
     };
 
     class WavLM : public ReplicaPool<WavLMReplica> {

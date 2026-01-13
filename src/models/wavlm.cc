@@ -77,12 +77,7 @@ namespace ctranslate2 {
       features.move_to(device, dtype);
 
       StorageView encoder_output(dtype, device);
-      if (_encoder->_upgraded_model) {
-        encoder_output = maybe_encode(std::move(features));
-      }
-      else {
-        (*_encoder)(features, encoder_output);
-      }
+      (*_encoder)(features, encoder_output);
 
       if (to_cpu) {
         if (device != Device::CPU)
@@ -94,20 +89,6 @@ namespace ctranslate2 {
       // Ensure all operations are finished before returning the output.
       synchronize_stream(device);
 
-      return encoder_output;
-    }
-
-    StorageView WavLMReplica::maybe_encode(StorageView features) {
-      const Device device = _model->device();
-      const DataType dtype = _encoder->output_type();
-
-      features.move_to(device, dtype);
-
-      if (_encoder->is_encoded(features))
-        return features;
-
-      StorageView encoder_output(dtype, device);
-      (*_encoder)(features, encoder_output);
       return encoder_output;
     }
 
