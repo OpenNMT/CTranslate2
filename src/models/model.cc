@@ -446,18 +446,10 @@ namespace ctranslate2 {
       size_t num = partitions_size.size();
       std::vector<StorageView*> p_outputs(num);
 
-      for (int i = 0; i < num; ++i) {
+      for (size_t i = 0; i < num; ++i) {
         p_outputs[i] = &outputs[i];
       }
       ops::Split(dim, partitions_size)(variable, p_outputs);
-    }
-
-    static bool replace(std::string& str, const std::string& from, const std::string& to) {
-      size_t start_pos = str.find(from);
-      if (start_pos == std::string::npos)
-        return false;
-      str.replace(start_pos, from.length(), to);
-      return true;
     }
 
     static void check_version(const size_t saved_version,
@@ -638,7 +630,6 @@ namespace ctranslate2 {
                        " the config.json could lead to error! Try using the latest version of converters");
       }
 
-      QUANTIZATION_TYPE quantization_type = QUANTIZATION_TYPE::CT2;
       if (model->config.contains("quantization_type"))
         model->set_quant_method(model->config["quantization_type"]);
 
@@ -741,7 +732,7 @@ namespace ctranslate2 {
                 split_variables(std::move(variable), outer_dim, partitions_size, outputs);
               }
             };
-            if (outputs.size() > current_index && !outputs[current_index].empty())
+            if (static_cast<int>(outputs.size()) > current_index && !outputs[current_index].empty())
               variable = std::move(outputs[current_index]);
           }
         }
@@ -844,15 +835,13 @@ namespace ctranslate2 {
                      " running independently a model in each device");
       }
 
-      bool is_sm8x = false;
-      bool is_sm90 = false;
+      bool supports_flash_attention = false;
       if (device == Device::CUDA) {
         int device_id = ctranslate2::get_device_index(ctranslate2::Device::CUDA);
         auto dprops = ctranslate2::cuda::get_device_properties(device_id);
-        is_sm8x = dprops.major == 8 && dprops.minor >= 0;
-        is_sm90 = dprops.major == 9 && dprops.minor == 0;
+        supports_flash_attention = dprops.major >= 8;
       }
-      if (use_flash_attention && (device != Device::CUDA || (!is_sm8x && !is_sm90))) {
+      if (use_flash_attention && !supports_flash_attention) {
         throw std::invalid_argument("FlashAttention only supports Ampere GPUs or newer.");
       }
 #endif

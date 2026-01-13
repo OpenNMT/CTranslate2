@@ -406,6 +406,110 @@ namespace ctranslate2 {
       return _d_model;
     }
 
+    void MultiHeadAttention::apply_qk_norm(StorageView& queries_proj, StorageView& keys_proj) const {
+      if (_q_norm) {
+        StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
+        (*_q_norm)(queries_proj, queries_normed);
+        queries_proj = std::move(queries_normed);
+      }
+
+      if (_k_norm) {
+        StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
+        (*_k_norm)(keys_proj, keys_normed);
+        keys_proj = std::move(keys_normed);
+      }
+    }
+
+    void MultiHeadAttention::process_cross_attention(
+        const StorageView& queries,
+        const StorageView& values,
+        StorageView& fused_proj,
+        StorageView& queries_proj,
+        StorageView& keys_proj,
+        StorageView& values_proj,
+        StorageView* cached_keys,
+        StorageView* cached_values,
+        const Padder* queries_padder,
+        const Padder* values_padder,
+        dim_t& beam_size) const {
+
+      queries_proj = std::move(fused_proj);
+
+      if (cached_keys == nullptr || cached_keys->empty()) {
+        _linear[1](values, fused_proj);
+
+        if (_num_heads_kv == 1) { // MQA (Multi-Query Attention)
+          if (values_padder)
+            values_padder->add_padding(fused_proj);
+          ops::Split(2, {_d_head, _d_head})(fused_proj, keys_proj, values_proj);
+        } else if (_num_heads_kv < _num_heads) { // GQA (Grouped-Query Attention)
+          if (values_padder)
+            values_padder->add_padding(fused_proj);
+
+          const ops::Split split_op(2, {_num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          split_op(fused_proj, keys_proj, values_proj);
+
+          if (_merge_time_and_head_dims) {
+            // Keep in merged format - just reshape, don't split heads
+            keys_proj.reshape({keys_proj.dim(0), -1, _d_head});
+            values_proj.reshape({values_proj.dim(0), -1, _d_head});
+            
+            if (_k_norm) {
+              StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
+              (*_k_norm)(keys_proj, keys_normed);
+              keys_proj = std::move(keys_normed);
+            }
+          } else {
+            // Use standard 4D format
+            split_heads(keys_proj, _num_heads_kv);
+            split_heads(values_proj, _num_heads_kv);
+
+            if (_k_norm) {
+              StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
+              (*_k_norm)(keys_proj, keys_normed);
+              keys_proj = std::move(keys_normed);
+            }
+
+            replicate_heads(keys_proj, _num_heads / _num_heads_kv);
+            replicate_heads(values_proj, _num_heads / _num_heads_kv);
+          }
+        } else {
+          split_heads(fused_proj, 2 * _num_heads, values_padder);
+          ops::Split(1)(fused_proj, keys_proj, values_proj);
+
+          if (_k_norm) {
+            StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
+            (*_k_norm)(keys_proj, keys_normed);
+            keys_proj = std::move(keys_normed);
+          }
+        }
+
+        if (cached_keys != nullptr) {
+          *cached_keys = std::move(keys_proj);
+          *cached_values = std::move(values_proj);
+        }
+      }
+
+      if (_q_norm) {
+        StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
+        (*_q_norm)(queries_proj, queries_normed);
+        queries_proj = std::move(queries_normed);
+      }
+
+      if (queries_proj.dim(1) == 1 && cached_keys)
+        beam_size = queries_proj.dim(0) / cached_keys->dim(0);
+
+      if (_num_heads_kv < _num_heads && _merge_time_and_head_dims) {
+        if (queries_padder)
+          queries_padder->add_padding(queries_proj);
+
+        // Reshape queries to merge time and head dims
+        queries_proj.reshape({queries_proj.dim(0) / beam_size, -1, _d_head});
+      } else {
+        split_heads(queries_proj, _num_heads, queries_padder, beam_size);
+      }
+    }
+
     void MultiHeadAttention::operator()(const StorageView& queries,
                                         const StorageView& values,
                                         const StorageView* values_lengths,
@@ -447,53 +551,13 @@ namespace ctranslate2 {
       bool prefilling = (_sliding_window > 0 && values_lengths);
 
       if (!_self_attention) {
-        queries_proj = std::move(fused_proj);
-
-        if (cached_keys == nullptr || cached_keys->empty()) {
-          _linear[1](values, fused_proj);
-
-          if (_multi_query) {
-            if (values_padder)
-              values_padder->add_padding(fused_proj);
-            ops::Split(2, {_d_head, _d_head})(fused_proj, keys_proj, values_proj);
-          } else {
-            split_heads(fused_proj, 2 * _num_heads, values_padder);
-            ops::Split(1)(fused_proj, keys_proj, values_proj);
-
-            if (_k_norm) {
-              StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
-              (*_k_norm)(keys_proj, keys_normed);
-              keys_proj = std::move(keys_normed);
-            }
-          }
-
-          if (cached_keys != nullptr) {
-            *cached_keys = std::move(keys_proj);
-            *cached_values = std::move(values_proj);
-          }
-        }
-
-        if (_q_norm) {
-          StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
-          (*_q_norm)(queries_proj, queries_normed);
-          queries_proj = std::move(queries_normed);
-        }
-
-
-        if (queries_proj.dim(1) == 1 && cached_keys)
-          beam_size = queries_proj.dim(0) / cached_keys->dim(0);
-
-        if (_multi_query) {
-          if (queries_padder)
-            queries_padder->add_padding(queries_proj);
-          queries_proj.reshape({queries_proj.dim(0) / beam_size, -1, _d_head});
-        } else {
-          split_heads(queries_proj, _num_heads, queries_padder, beam_size);
-        }
-
+      
+        process_cross_attention(queries, values, fused_proj, queries_proj, keys_proj,
+                                values_proj, cached_keys, cached_values,
+                                queries_padder, values_padder, beam_size);
       } else {
 
-        if (_num_heads_kv < _num_heads) {
+        if (_num_heads_kv < _num_heads) {// MQA or GQA: queries stay in merged time/head format
           if (queries_padder)
             queries_padder->add_padding(fused_proj);
 
@@ -502,35 +566,13 @@ namespace ctranslate2 {
 
           if (_merge_time_and_head_dims) {
             queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
-
-          if (_q_norm) {
-              StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
-              (*_q_norm)(queries_proj, queries_normed);
-              queries_proj = std::move(queries_normed);
-            }
-
-            if (_k_norm) {
-              StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
-              (*_k_norm)(keys_proj, keys_normed);
-              keys_proj = std::move(keys_normed);
-             }
-
+            apply_qk_norm(queries_proj, keys_proj);
           } else {
             split_heads(queries_proj, _num_heads);
             split_heads(keys_proj, _num_heads_kv);
             split_heads(values_proj, _num_heads_kv);
 
-            if (_q_norm) {
-              StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
-              (*_q_norm)(queries_proj, queries_normed);
-              queries_proj = std::move(queries_normed);
-            }
-
-            if (_k_norm) {
-              StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
-              (*_k_norm)(keys_proj, keys_normed);
-              keys_proj = std::move(keys_normed);
-             }
+            apply_qk_norm(queries_proj, keys_proj);
 
             replicate_heads(keys_proj, _num_heads / _num_heads_kv);
             replicate_heads(values_proj, _num_heads / _num_heads_kv);
@@ -540,17 +582,7 @@ namespace ctranslate2 {
           split_heads(fused_proj, 3 * _num_heads, queries_padder);
           ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
 
-          if (_q_norm) {
-            StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
-            (*_q_norm)(queries_proj, queries_normed);
-            queries_proj = std::move(queries_normed);
-          }
-
-          if (_k_norm) {
-            StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
-            (*_k_norm)(keys_proj, keys_normed);
-            keys_proj = std::move(keys_normed);
-          }
+          apply_qk_norm(queries_proj, keys_proj);
         }
 
         if (_rotary_embeddings) {

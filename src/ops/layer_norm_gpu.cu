@@ -15,6 +15,15 @@ namespace at {
                                                const T* beta,
                                                T* Y);
 
+    template <typename T, typename SizeT>
+    __global__ void LayerNormAxisForwardCUDAKernel(SizeT N,
+                                                   SizeT inner,
+                                                   float eps,
+                                                   const T* X,
+                                                   const T* gamma,
+                                                   const T* beta,
+                                                   T* Y);
+
   }
 }
 
@@ -30,19 +39,29 @@ namespace ctranslate2 {
                             const dim_t axis,
                             const dim_t outer_size,
                             const dim_t axis_size,
-                            const dim_t,
+                            const dim_t inner_size,
                             StorageView& output) const {
-      if (axis != input.rank() - 1 || !beta || !gamma)
-        throw std::invalid_argument("Generalized LayerNorm is currently not implemented on GPU");
-
-      at::native::LayerNormForwardCUDAKernel<cuda::device_type<T>, cuda::index_t>
-        <<<outer_size, CUDA_NUM_THREADS, 0, cuda::get_cuda_stream()>>>(
-          axis_size,
-          _epsilon,
-          cuda::device_cast(input.data<T>()),
-          cuda::device_cast(gamma->data<T>()),
-          cuda::device_cast(beta->data<T>()),
-          cuda::device_cast(output.data<T>()));
+      if (axis == input.rank() - 1) {
+        at::native::LayerNormForwardCUDAKernel<cuda::device_type<T>, cuda::index_t>
+          <<<outer_size, CUDA_NUM_THREADS, 0, cuda::get_cuda_stream()>>>(
+            axis_size,
+            _epsilon,
+            cuda::device_cast(input.data<T>()),
+            gamma ? cuda::device_cast(gamma->data<T>()) : nullptr,
+            beta ? cuda::device_cast(beta->data<T>()) : nullptr,
+            cuda::device_cast(output.data<T>()));
+      } else {
+        const dim_t blocks = std::min(outer_size * inner_size, cuda::max_blocks);
+        at::native::LayerNormAxisForwardCUDAKernel<cuda::device_type<T>, cuda::index_t>
+          <<<blocks, CUDA_NUM_THREADS, 0, cuda::get_cuda_stream()>>>(
+            axis_size,
+            inner_size,
+            _epsilon,
+            cuda::device_cast(input.data<T>()),
+            gamma ? cuda::device_cast(gamma->data<T>()) : nullptr,
+            beta ? cuda::device_cast(beta->data<T>()) : nullptr,
+            cuda::device_cast(output.data<T>()));
+      }
     }
 
 #define DECLARE_IMPL(T)                                                 \
@@ -181,7 +200,53 @@ namespace at {
 
       for (SizeT j = threadIdx.x; j < N; j += blockDim.x) {
         const SizeT index = i * N + j;
-        Y[index] = (float(X[index]) - s_mean) * s_variance * float(gamma[j]) + float(beta[j]);
+        const float gamma_v = gamma == nullptr ? float(1) : float(gamma[j]);
+        const float beta_v = beta == nullptr ? float(0) : float(beta[j]);
+        Y[index] = T((float(X[index]) - s_mean) * s_variance * gamma_v + beta_v);
+      }
+    }
+
+    template <typename T, typename SizeT>
+    __global__ void LayerNormAxisForwardCUDAKernel(SizeT N,
+                                                   SizeT inner_size,
+                                                   float eps,
+                                                   const T* X,
+                                                   const T* gamma,
+                                                   const T* beta,
+                                                   T* Y) {
+      typedef cub::BlockReduce<float, CUDA_NUM_THREADS> BlockReduce;
+      __shared__ typename BlockReduce::TempStorage m_temp_storage;
+      __shared__ typename BlockReduce::TempStorage v_temp_storage;
+      __shared__ float s_mean;
+      __shared__ float s_variance;
+
+      const SizeT i = blockIdx.x / inner_size;
+      const SizeT j = blockIdx.x % inner_size;
+
+      float sum1 = 0;
+      float sum2 = 0;
+      for (SizeT k = threadIdx.x; k < N; k += blockDim.x) {
+        const SizeT index = (i * N + k) * inner_size + j;
+        sum1 += float(X[index]);
+        sum2 += float(X[index]) * float(X[index]);
+      }
+      sum1 = BlockReduce(m_temp_storage).Sum(sum1);
+      sum2 = BlockReduce(v_temp_storage).Sum(sum2);
+      if (threadIdx.x == 0) {
+        const float scale = float(1) / float(N);
+        sum1 *= scale;
+        sum2 = fmaxf(sum2 * scale - sum1 * sum1, float(0));
+        s_mean = sum1;
+        s_variance = rsqrtf(sum2 + eps);
+      }
+
+      __syncthreads();
+
+      for (SizeT k = threadIdx.x; k < N; k += blockDim.x) {
+        const SizeT index = (i * N + k) * inner_size + j;
+        const float gamma_v = gamma == nullptr ? float(1) : float(gamma[j]);
+        const float beta_v = beta == nullptr ? float(0) : float(beta[j]);
+        Y[index] = T((float(X[index]) - s_mean) * s_variance * gamma_v + beta_v);
       }
     }
 

@@ -46,10 +46,10 @@ namespace ctranslate2 {
     }
 
     Wav2Vec2Encoder::Wav2Vec2Encoder(const models::Model& model, const std::string& scope)
-      : _return_logits(model.get_variable_if_exists(scope + "/lm_head/weight"))
-      , _upgraded_model(model.get_variable_if_exists(scope + "/fp_projection/weight"))
-      , _num_heads(model.get_attribute_with_default<int32_t>(scope + "/num_heads", 8))
+      : _upgraded_model(model.get_variable_if_exists(scope + "/fp_projection/weight"))
+      , _return_logits(model.get_variable_if_exists(scope + "/lm_head/weight"))
       , _transpose({0, 2, 1})
+      , _num_heads(model.get_attribute_with_default<int32_t>(scope + "/num_heads", 8))
       , _layers(build_layers_list<const TransformerEncoderLayer>(model,
                                                                  scope + "/layer",
                                                                  _num_heads,
@@ -87,7 +87,7 @@ namespace ctranslate2 {
         feat_buffer = std::move(features);
         (*_feat_layer0)(feat_buffer, output); //_feat_layer0(feat_buffer, output);
         feat_buffer = std::move(output);
-        for (dim_t l = 0; l < _feat_layers->size(); l++) {
+        for (size_t l = 0; l < _feat_layers->size(); l++) {
           (*_feat_layers.value()[l])(feat_buffer, output);
           if (l < _feat_layers->size() - 1 ) {
             feat_buffer = std::move(output);

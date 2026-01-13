@@ -27,8 +27,8 @@ namespace ctranslate2 {
       dim_t _stride;
       dim_t _padding;
       const Conv1D _conv;
-      const LayerNorm _output_norm;
       const ops::Transpose _transpose;
+      const LayerNorm _output_norm;
       const ops::GELU _gelu;
     };
 
