@@ -126,6 +126,22 @@ namespace ctranslate2 {
       }
     };
 
+    template <typename T>
+    class repeat_vec_block {
+    private:
+      T _block;
+      T _size;
+    public:
+      repeat_vec_block(T block, T size)
+        : _block(block)
+        , _size(size) {
+      }
+      __device__
+      T operator()(const T i) const {
+        return (i / _block) % _size;
+      }
+    };
+
     // Bind the right argument of a binary operator.
     template <template <typename> class BinaryFunctor, typename T>
     class bind_right {
