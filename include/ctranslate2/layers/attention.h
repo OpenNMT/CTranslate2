@@ -72,6 +72,8 @@ namespace ctranslate2 {
                                  const Padder* padder = nullptr,
                                  dim_t beam_size = 1);
 
+      void apply_k_norm(StorageView& keys_proj) const;
+
       void apply_qk_norm(StorageView& queries_proj,
                           StorageView& keys_proj) const;
 
