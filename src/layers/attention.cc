@@ -38,8 +38,6 @@ namespace ctranslate2 {
       StorageView positions({queries_length, keys_length}, DataType::INT32);
       auto* positions_data = positions.data<int32_t>();
 
-      const dim_t offset = keys_length - queries_length;
-
       for (dim_t i = 0; i < queries_length; ++i) {
         auto* row = positions_data + i * keys_length;
         for (dim_t j = 0; j < keys_length; ++j) {
@@ -590,7 +588,7 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-      _linear.back()(context, output);
+      _linear.back()(context, output, _layer_norm ? &queries : nullptr);
 
       if (_tensor_parallel) {
         Shape shape = output.shape();
@@ -599,12 +597,8 @@ namespace ctranslate2 {
         ops_reduce_all(output, tmp);
         output = std::move(tmp);
       }
-      if (_layer_norm) {
-        ops::Add()(queries, output, output);
-
-        if (!_pre_norm)
-          (*_layer_norm)(output, output);
-      }
+      if (_layer_norm && !_pre_norm)
+        (*_layer_norm)(output, output);
     }
 
     void MultiHeadAttention::split_heads(StorageView& x,

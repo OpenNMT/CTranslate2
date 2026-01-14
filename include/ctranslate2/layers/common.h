@@ -131,7 +131,7 @@ namespace ctranslate2 {
             const bool is_layer_out = false);
       DataType output_type() const override;
       dim_t output_size() const override;
-      void operator()(const StorageView& input, StorageView& output) const;
+      void operator()(const StorageView& input, StorageView& output, const StorageView* residual = nullptr) const;
       void select_weights(const StorageView* index, const StorageView* extra_bias = nullptr);
     private:
       bool _packed_weight;
