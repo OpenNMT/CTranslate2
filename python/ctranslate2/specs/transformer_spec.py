@@ -277,7 +277,9 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
 
         if quant_type is not None:
             self._config["quantization_type"] = quant_type
+        if quant_bits is not None:
             self._config["quantization_bits"] = quant_bits
+        if quant_group_size is not None:
             self._config["quantization_group_size"] = quant_group_size
 
     @property

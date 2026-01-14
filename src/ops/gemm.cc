@@ -31,7 +31,8 @@ namespace ctranslate2 {
                bool trans_b,
                bool a_is_packed,
                bool b_is_packed,
-               const ActivationType* activation_type)
+               const ActivationType* activation_type,
+               const int group_size)
       : _alpha(alpha)
       , _beta(beta)
       , _trans_a(trans_a)
@@ -39,6 +40,7 @@ namespace ctranslate2 {
       , _a_is_packed(a_is_packed)
       , _b_is_packed(b_is_packed)
       , _activation_type(activation_type)
+      , _group_size(group_size)
     {
     }
 
@@ -74,6 +76,24 @@ namespace ctranslate2 {
       }
 
       apply_bias_and_activation(c, bias, _activation_type, residual);
+    }
+
+    void Gemm::operator()(const StorageView& a,
+                          const StorageView& b,
+                          const StorageView& scaleAndZero,
+                          StorageView& c,
+                          const StorageView* bias) const {
+      PROFILE("Gemm");
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 800
+      dim_t batch_size = a.dim(0);
+      dim_t time = a.dim(1);
+      DEVICE_DISPATCH(a.device(), (compute<D, int32_t, bfloat16_t>(a, b, scaleAndZero, c)));
+      c.reshape({batch_size, time, -1});
+
+      apply_bias_and_activation(c, bias, _activation_type);
+#else
+      throw std::runtime_error("int4mm is supported only GPU Arch >= 800");
+#endif
     }
 
     template <Device D, typename In, typename Out>
@@ -185,5 +205,15 @@ namespace ctranslate2 {
       return compensation;
     }
 
+    StorageView Gemm::convert_to_int4pack(const StorageView& input,
+                                          int32_t innerKTiles) {
+      StorageView output(input.device(), input.dtype());
+#if !defined(__CUDA_ARCH__) || (__CUDA_ARCH__ >= 800)
+      DEVICE_DISPATCH(input.device(), (convert_weight_to_int4pack<D>(input, output, innerKTiles)));
+#else
+      throw std::runtime_error("convert weight to int4pack is supported only GPU Arch >= 800");
+#endif
+      return output;
+    }
   }
 }

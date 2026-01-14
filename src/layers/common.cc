@@ -290,7 +290,8 @@ namespace ctranslate2 {
                  /*trans_b=*/true,
                  /*a_is_packed=*/false,
                  _packed_weight,
-                 _quantized_gemm ? nullptr : activation_type)
+                 _quantized_gemm ? nullptr : activation_type,
+                 (model.get_config_if_exists<int>("quantization_group_size")))
       , _quantize_op(model.use_global_int16_scale()
                      ? ops::Quantize::ScaleType::GLOBAL
                      : ops::Quantize::ScaleType::PER_LAYER,
@@ -431,6 +432,8 @@ namespace ctranslate2 {
             throw std::invalid_argument("Dense forward: invalid quantized type,"
                                         "support only ct2 and awq quantization");
         }
+      } else if (_quant_method == models::QUANTIZATION_TYPE::HQQ_4BIT) {
+        _gemm_op(input, *weight, *qscale, output, bias);
       } else {
         _gemm_op(input, *weight, output, nullptr, bias, residual);
       }

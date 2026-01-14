@@ -20,7 +20,8 @@ namespace ctranslate2 {
            bool trans_b = false,
            bool a_is_packed = false,
            bool b_is_packed = false,
-           const ActivationType* activation_type = nullptr);
+           const ActivationType* activation_type = nullptr,
+           const int _group_size = 0);
 
       void operator()(const StorageView& a,
                       const StorageView& b,
@@ -28,6 +29,15 @@ namespace ctranslate2 {
                       const StorageView* a_shift_compensation = nullptr,
                       const StorageView* bias = nullptr,
                       const StorageView* residual = nullptr) const;
+
+      void operator()(const StorageView& a,
+                      const StorageView& b,
+                      const StorageView& scaleAndZero,
+                      StorageView& c,
+                      const StorageView* bias = nullptr) const;
+
+      StorageView convert_to_int4pack(const StorageView& input,
+                                             int32_t innerKTiles);
 
       // Return the packed representation of b, if implemented by the GEMM backend.
       static StorageView pack_b_input(const StorageView& b,
@@ -52,13 +62,26 @@ namespace ctranslate2 {
       bool _trans_b;
       bool _a_is_packed;
       bool _b_is_packed;
+      const int _group_size;
 
       template <Device D, typename In, typename Out>
       void compute(const StorageView& a,
                    const StorageView& b,
                    StorageView& c,
                    const StorageView* a_shift_compensation) const;
-    };
 
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 800
+      template <Device D, typename In, typename Out>
+      void compute(const StorageView& a,
+                   const StorageView& b,
+                   const StorageView& scaleAndZero,
+                   StorageView& c) const;
+
+      template <Device D>
+      void convert_weight_to_int4pack(const StorageView& a,
+                                            StorageView& b,
+                                            int32_t innerKTiles);
+#endif
+    };
   }
 }

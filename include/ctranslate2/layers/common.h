@@ -62,6 +62,7 @@ namespace ctranslate2 {
       const StorageView& _embeddings;
       const DataType _output_type;
       const StorageView* _qscale;
+      const StorageView* _qzero;
     };
 
     // This enum order should remain fixed.

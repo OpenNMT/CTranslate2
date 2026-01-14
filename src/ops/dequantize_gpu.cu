@@ -8,6 +8,10 @@ namespace ctranslate2 {
     template <typename InT, typename OutT>
     struct dequantize_func {
       __device__ __forceinline__
+      OutT operator()(float scale, InT x, float zero) const {
+        return __fdividef(__fsub_rn(static_cast<float>(x), zero) , scale);
+      }
+      __device__ __forceinline__
       OutT operator()(float scale, InT x) const {
         return __fdividef(static_cast<float>(x), scale);
       }
@@ -25,7 +29,6 @@ namespace ctranslate2 {
                              dequantize_func<InT, cuda::device_type<OutT>>(),
                              cuda::repeat_vec_depth<dim_t>(depth));
     }
-
 
     template <typename Epilogue, typename T>
     __global__ void dequantize_gemm_output_kernel(const int32_t* c,
