@@ -1,5 +1,6 @@
 #include "ctranslate2/ops/conv1d.h"
 #include "ctranslate2/ops/gemm.h"
+
 #include "cuda/utils.h"
 #include <cuda/helpers.h>
 
@@ -9,27 +10,28 @@ namespace ctranslate2 {
     // CUDA kernel for im2col transformation (transposed version)
     template<typename T>
     __global__ void im2col_transposed_kernel(
-        const T* input,
-        T* output,
+        const T* __restrict__ input,
+        T* __restrict__ output,
         const int batch_size,
         const int in_channels,
         const int input_length,
         const int kernel_size,
         const int stride,
         const int padding,
+        const int dilation,
         const int groups,
         const int output_length) {
-      
+
       const int in_channels_per_group = in_channels / groups;
       const int in_batch_stride = in_channels * input_length;
       const int in_group_stride = in_channels_per_group * input_length;
-      
+
       const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-      const int total_outputs = batch_size * groups * output_length * in_channels_per_group * kernel_size;
-      
-      if (idx >= total_outputs)
+      const int total = batch_size * groups * output_length * in_channels_per_group * kernel_size;
+
+      if (idx >= total)
         return;
-      
+
       // Decompose the linear index
       int temp = idx;
       const int k = temp % kernel_size;
@@ -40,40 +42,21 @@ namespace ctranslate2 {
       temp /= output_length;
       const int group_idx = temp % groups;
       const int batch_idx = temp / groups;
-      
+
       // Calculate input position
       const int ti = ti_idx * stride - padding;
-      const int window_i = k + ti;
-      
+      const int window_i = dilation * k + ti;
+
       // Calculate input offset
       const int batch_offset = batch_idx * in_batch_stride;
       const int group_offset = group_idx * in_group_stride;
       const int channel_offset = c_offset * input_length;
-      
+
       // Fill output
       if (window_i >= 0 && window_i < input_length) {
         output[idx] = input[batch_offset + group_offset + channel_offset + window_i];
       } else {
         output[idx] = T(0);
-      }
-    }
-
-    // Simple 1D bias kernel
-    template<typename T>
-    __global__ void add_bias_kernel_simple(
-        T* __restrict__ output,
-        const T* __restrict__ bias,
-        const int batch_size,
-        const int out_channels,
-        const int output_length) {
-      
-      const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-      const int total_elements = batch_size * out_channels * output_length;
-      
-      if (idx < total_elements) {
-        const int channel_idx = (idx / output_length) % out_channels;
-        cuda::plus<T> add_op;
-        output[idx] = add_op(output[idx], bias[channel_idx]);
       }
     }
 
@@ -84,10 +67,7 @@ namespace ctranslate2 {
         const StorageView& weight,
         const StorageView* bias,
         StorageView& output,
-        const StorageView* qscale) const {
-
-      if (_dilation != 1)
-        throw std::runtime_error("Dilation is not supported in this Conv1D implementation");
+        const StorageView*) const {
 
       using DevT = cuda::device_type<T>;
 
@@ -98,75 +78,45 @@ namespace ctranslate2 {
       const dim_t kernel_size = weight.dim(2);
       const dim_t output_length = output.dim(2);
       const dim_t in_channels_per_group = in_channels / _groups;
-
-      // Create im2col_output tensor
-      StorageView im2col_output(
-          {batch_size, _groups, output_length, in_channels_per_group * kernel_size},
-          T(0),
-          Device::CUDA);
-
-      // Launch im2col kernel
-      const int total_outputs = batch_size * _groups * output_length * in_channels_per_group * kernel_size;
-      const int block_size = 256;
-      const int grid_size = (total_outputs + block_size - 1) / block_size;
-      
-      im2col_transposed_kernel<<<grid_size, block_size, 0, cuda::get_cuda_stream()>>>(
-          cuda::device_cast(input.data<T>()),
-          cuda::device_cast(im2col_output.data<T>()),
-          batch_size,
-          in_channels,
-          input_length,
-          kernel_size,
-          _stride,
-          _padding,
-          _groups,
-          output_length);
-
-      // Perform GEMM operations
-      const dim_t m = out_channels / _groups;
-      const dim_t n = output_length;
+      const dim_t out_channels_per_group = out_channels / _groups;
       const dim_t k = in_channels_per_group * kernel_size;
-      const dim_t stridew = (out_channels / _groups) * in_channels_per_group * kernel_size * weight.item_size();
-      const dim_t strideb = k * output_length;
-      const dim_t stridec = m * output_length;
 
-      auto* w = static_cast<int8_t*>(const_cast<void*>(weight.buffer()));
-      auto* b = im2col_output.data<T>();
-      auto* c = output.data<T>();
+      StorageView buffer({batch_size, _groups, output_length, in_channels_per_group * kernel_size},
+                         T(0), Device::CUDA);
+      const T* x = input.data<T>();
+      const T* w = weight.data<T>();
+      T* o = output.data<T>();
+      T* p = buffer.data<T>();
 
-      const Gemm gemm(1.0, 0.0, false, true);
+      const int total = batch_size * _groups * output_length * in_channels_per_group * kernel_size;
+      const int threads = 256;
+      const int blocks = (total + threads - 1) / threads;
 
-      // Process each batch and group
-      for (dim_t i = 0; i < batch_size * _groups; ++i) {
-        auto group_index = i % _groups;
-        void* w_i = w + (group_index * stridew);
-        T* b_i = b + (i * strideb);
-        T* c_i = c + (i * stridec);
+      im2col_transposed_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
+          cuda::device_cast(x), cuda::device_cast(p),
+          batch_size, in_channels, input_length, kernel_size,
+          _stride, _padding, _dilation, _groups, output_length);
 
-        StorageView aa(weight.dtype(), Device::CUDA);
-        aa.view(w_i, {m, k});
-        StorageView bb({n, k}, b_i);
-        StorageView cc({m, n}, c_i);
+      const dim_t stridew = out_channels_per_group * in_channels_per_group * kernel_size;
+      const dim_t stridep = k * output_length;
+      const dim_t strideo = out_channels_per_group * output_length;
 
-        if (qscale) {
-          throw std::runtime_error("Scale is not supported");
-        } else {
-          gemm(aa, bb, cc);
-        }
+      for (dim_t g = 0; g < _groups; ++g) {
+        const T* w_g = w + g * stridew;
+        const T* p_g = p + g * stridep;
+        T* o_g = o + g * strideo;
+
+        primitives<Device::CUDA>::gemm_batch_strided(false, true, // transpose
+                                                     out_channels_per_group, output_length, k,
+                                                     1.0f, // alpha
+                                                     w_g, k, 0, // stridea
+                                                     p_g, k, _groups * stridep,
+                                                     0.0f, // beta
+                                                     o_g, output_length, _groups * strideo,
+                                                     batch_size);
       }
 
-      if (bias) {
-        cudaStream_t stream = cuda::get_cuda_stream();
-        DevT* output_ptr = cuda::device_cast(output.data<T>());
-        const DevT* bias_ptr = cuda::device_cast(bias->data<T>());
-        
-        const int total_elements = batch_size * out_channels * output_length;
-        const int block_size = 256;
-        const int grid_size = (total_elements + block_size - 1) / block_size;
-        
-        add_bias_kernel_simple<<<grid_size, block_size, 0, stream>>>(
-            output_ptr, bias_ptr, batch_size, out_channels, output_length);
-      }
+      apply_bias_and_activation(output, bias, _activation_type, /*residual=*/nullptr, /*axis=*/-2);
     }
 
     // Template instantiations
