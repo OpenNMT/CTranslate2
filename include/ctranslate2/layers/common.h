@@ -175,7 +175,8 @@ namespace ctranslate2 {
              dim_t stride = 1,
              dim_t padding = 0,
              dim_t dilation = 1,
-             dim_t groups = 1);
+             dim_t groups = 1,
+             const ops::ActivationType* activation_type = nullptr);
       DataType output_type() const override;
       dim_t output_size() const override;
       dim_t input_size() const;
