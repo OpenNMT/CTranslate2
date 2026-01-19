@@ -20,32 +20,26 @@ namespace ctranslate2 {
         const int padding,
         const int dilation,
         const int groups,
-        const int output_length) {
-
-      const int in_channels_per_group = in_channels / groups;
-      const int in_batch_stride = in_channels * input_length;
-      const int in_group_stride = in_channels_per_group * input_length;
+        const int output_length,
+        const int k,
+        const int in_batch_stride,
+        const int in_group_stride) {
 
       const int idx = blockIdx.x * blockDim.x + threadIdx.x;
-      const int total = batch_size * groups * output_length * in_channels_per_group * kernel_size;
-
-      if (idx >= total)
+      if (idx >= k)
         return;
 
       // Decompose the linear index
-      int temp = idx;
-      const int k = temp % kernel_size;
-      temp /= kernel_size;
-      const int c_offset = temp % in_channels_per_group;
-      temp /= in_channels_per_group;
-      const int ti_idx = temp % output_length;
-      temp /= output_length;
-      const int group_idx = temp % groups;
-      const int batch_idx = temp / groups;
+      const int c_offset = idx / kernel_size;
+      const int k_offset = idx - c_offset * kernel_size;
+      const int ti_idx = blockIdx.y;
+      const int batch_group = blockIdx.z;
+      const int batch_idx = batch_group / groups;
+      const int group_idx = batch_group - batch_idx * groups;
 
       // Calculate input position
       const int ti = ti_idx * stride - padding;
-      const int window_i = dilation * k + ti;
+      const int window_i = dilation * k_offset + ti;
 
       // Calculate input offset
       const int batch_offset = batch_idx * in_batch_stride;
@@ -53,11 +47,9 @@ namespace ctranslate2 {
       const int channel_offset = c_offset * input_length;
 
       // Fill output
-      if (window_i >= 0 && window_i < input_length) {
-        output[idx] = input[batch_offset + group_offset + channel_offset + window_i];
-      } else {
-        output[idx] = T(0);
-      }
+      const int input_idx = batch_offset + group_offset + channel_offset + window_i;
+      const int output_idx = (batch_group * output_length + ti_idx) * k + idx;
+      output[output_idx] = window_i >= 0 && window_i < input_length ? input[input_idx] : T(0);
     }
 
     // Generic template implementation
@@ -81,21 +73,24 @@ namespace ctranslate2 {
       const dim_t out_channels_per_group = out_channels / _groups;
       const dim_t k = in_channels_per_group * kernel_size;
 
-      StorageView buffer({batch_size, _groups, output_length, in_channels_per_group * kernel_size},
-                         T(0), Device::CUDA);
+      StorageView buffer({batch_size, _groups, output_length, k}, T(0), Device::CUDA);
       const T* x = input.data<T>();
       const T* w = weight.data<T>();
       T* o = output.data<T>();
       T* p = buffer.data<T>();
 
-      const int total = batch_size * _groups * output_length * in_channels_per_group * kernel_size;
+      const dim_t in_batch_stride = in_channels * input_length;
+      const dim_t in_group_stride = in_batch_stride / _groups;
       const int threads = 256;
-      const int blocks = (total + threads - 1) / threads;
+      const dim3 grid((k + threads - 1) / threads,
+                      output_length,
+                      batch_size * _groups);
 
-      im2col_transposed_kernel<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
+      im2col_transposed_kernel<<<grid, threads, 0, cuda::get_cuda_stream()>>>(
           cuda::device_cast(x), cuda::device_cast(p),
           batch_size, in_channels, input_length, kernel_size,
-          _stride, _padding, _dilation, _groups, output_length);
+          _stride, _padding, _dilation, _groups, output_length,
+          k, in_batch_stride, in_group_stride);
 
       const dim_t stridew = out_channels_per_group * in_channels_per_group * kernel_size;
       const dim_t stridep = k * output_length;
