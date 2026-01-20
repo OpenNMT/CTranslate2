@@ -1,6 +1,5 @@
 #include <ctranslate2/ops/awq/gemv.h>
 #include <ctranslate2/ops/sum.h>
-#include <iostream>
 
 #include "dispatch.h"
 
@@ -12,7 +11,8 @@ namespace ctranslate2 {
                           const StorageView& scale,
                           const StorageView& zero,
                           StorageView& c,
-                          const StorageView* bias) const {
+                          const StorageView* bias,
+                          const StorageView* residual) const {
       PROFILE("Gemv Awq");
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
       throw std::runtime_error("AWQ Gemv does not support for cuda arch < 7.5");
@@ -32,7 +32,7 @@ namespace ctranslate2 {
       else
         DEVICE_DISPATCH(a.device(), (compute_gemv<D, float16_t, int>(a, b, scale, zero, c)));
 
-      apply_bias_and_activation(c, bias, _activation_type);
+      apply_bias_and_activation(c, bias, _activation_type, residual);
 #endif
     }
   }

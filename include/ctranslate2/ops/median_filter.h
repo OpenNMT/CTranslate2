@@ -1,4 +1,5 @@
 #pragma once
+
 #include "op.h"
 
 namespace ctranslate2 {
@@ -6,7 +7,7 @@ namespace ctranslate2 {
 
     class MedianFilter : public Op {
     public:
-      explicit MedianFilter(dim_t width);
+      MedianFilter(const dim_t width);
       void operator()(const StorageView& input, StorageView& output) const;
 
     private:

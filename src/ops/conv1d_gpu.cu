@@ -1,157 +1,126 @@
 #include "ctranslate2/ops/conv1d.h"
+#include "ctranslate2/ops/gemm.h"
 
 #include "cuda/utils.h"
+#include <cuda/helpers.h>
 
 namespace ctranslate2 {
   namespace ops {
 
-    template <Device D, typename T>
-    void Conv1D::compute(const StorageView& input,
-                         const StorageView& weight,
-                         const StorageView* bias,
-                         StorageView& output,
-                         const StorageView* qscale) const {
-      if (qscale)
-        throw std::runtime_error("Quantization is not supported in this Conv1D implementation");
+    // CUDA kernel for im2col transformation (transposed version)
+    template<typename T>
+    __global__ void im2col_transposed_kernel(
+        const T* __restrict__ input,
+        T* __restrict__ output,
+        const int batch_size,
+        const int in_channels,
+        const int input_length,
+        const int kernel_size,
+        const int stride,
+        const int padding,
+        const int dilation,
+        const int groups,
+        const int output_length,
+        const int k,
+        const int in_batch_stride,
+        const int in_group_stride) {
 
-#ifndef CT2_WITH_CUDNN
-      (void)input;
-      (void)weight;
-      (void)bias;
-      (void)output;
-      throw std::runtime_error("Conv1D on GPU currently requires the cuDNN library "
-                               "which is not integrated in this build");
+      const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+      if (idx >= k)
+        return;
 
-#else
-      const int batch_size = input.dim(0);
-      const int in_channels = input.dim(1);
-      const int input_length = input.dim(2);
-      const int output_length = output.dim(2);
-      const int out_channels = weight.dim(0);
-      const int in_channels_per_group = weight.dim(1);
-      const int kernel_size = weight.dim(2);
+      // Decompose the linear index
+      const int c_offset = idx / kernel_size;
+      const int k_offset = idx - c_offset * kernel_size;
+      const int ti_idx = blockIdx.y;
+      const int batch_group = blockIdx.z;
+      const int batch_idx = batch_group / groups;
+      const int group_idx = batch_group - batch_idx * groups;
 
-      cudnnDataType_t data_type = cuda::get_cudnn_data_type(input.dtype());
+      // Calculate input position
+      const int ti = ti_idx * stride - padding;
+      const int window_i = dilation * k_offset + ti;
 
-      cudnnTensorDescriptor_t input_desc;
-      CUDNN_CHECK(cudnnCreateTensorDescriptor(&input_desc));
-      CUDNN_CHECK(cudnnSetTensor4dDescriptor(input_desc, CUDNN_TENSOR_NCHW, data_type,
-                                             batch_size, in_channels, 1, input_length));
+      // Calculate input offset
+      const int batch_offset = batch_idx * in_batch_stride;
+      const int group_offset = group_idx * in_group_stride;
+      const int channel_offset = c_offset * input_length;
 
-      cudnnTensorDescriptor_t output_desc;
-      CUDNN_CHECK(cudnnCreateTensorDescriptor(&output_desc));
-      CUDNN_CHECK(cudnnSetTensor4dDescriptor(output_desc, CUDNN_TENSOR_NCHW, data_type,
-                                             batch_size, out_channels, 1, output_length));
-
-      cudnnFilterDescriptor_t weight_desc;
-      CUDNN_CHECK(cudnnCreateFilterDescriptor(&weight_desc));
-      CUDNN_CHECK(cudnnSetFilter4dDescriptor(weight_desc, data_type, CUDNN_TENSOR_NCHW,
-                                             out_channels, in_channels_per_group, 1, kernel_size));
-
-      cudnnConvolutionDescriptor_t conv_desc;
-      CUDNN_CHECK(cudnnCreateConvolutionDescriptor(&conv_desc));
-      CUDNN_CHECK(cudnnSetConvolution2dDescriptor(conv_desc,
-                                                  /*pad_h=*/0, /*pad_w=*/_padding,
-                                                  /*stride_h=*/1, /*stride_w=*/_stride,
-                                                  /*dilation_h=*/1, /*dilation_w=*/_dilation,
-                                                  CUDNN_CROSS_CORRELATION,
-                                                  CUDNN_DATA_FLOAT));
-
-      CUDNN_CHECK(cudnnSetConvolutionMathType(conv_desc, CUDNN_DEFAULT_MATH));
-      if (_groups > 1)
-        CUDNN_CHECK(cudnnSetConvolutionGroupCount(conv_desc, _groups));
-      if (data_type == CUDNN_DATA_HALF)
-        CUDNN_CHECK(cudnnSetConvolutionMathType(conv_desc, CUDNN_TENSOR_OP_MATH));
-
-      cudnnHandle_t handle = cuda::get_cudnn_handle();
-
-      cudnnConvolutionFwdAlgo_t algo = (bias
-                                        ? CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_PRECOMP_GEMM
-                                        : CUDNN_CONVOLUTION_FWD_ALGO_IMPLICIT_GEMM);
-
-      size_t workspace_size = 0;
-      void* workspace = nullptr;
-      CUDNN_CHECK(cudnnGetConvolutionForwardWorkspaceSize(handle,
-                                                          input_desc,
-                                                          weight_desc,
-                                                          conv_desc,
-                                                          output_desc,
-                                                          algo,
-                                                          &workspace_size));
-
-      if (workspace_size > 0)
-        workspace = get_allocator<Device::CUDA>().allocate(workspace_size);
-
-      float alpha = 1;
-      float beta = 0;
-
-      if (bias) {
-        cudnnTensorDescriptor_t bias_desc;
-        CUDNN_CHECK(cudnnCreateTensorDescriptor(&bias_desc));
-        CUDNN_CHECK(cudnnSetTensor4dDescriptor(bias_desc, CUDNN_TENSOR_NCHW, data_type,
-                                               1, out_channels, 1, 1));
-
-        cudnnActivationDescriptor_t activation_desc;
-        CUDNN_CHECK(cudnnCreateActivationDescriptor(&activation_desc));
-        CUDNN_CHECK(cudnnSetActivationDescriptor(activation_desc,
-                                                 CUDNN_ACTIVATION_IDENTITY,
-                                                 CUDNN_NOT_PROPAGATE_NAN,
-                                                 /*coef=*/0));
-
-        CUDNN_CHECK(cudnnConvolutionBiasActivationForward(handle,
-                                                          &alpha,
-                                                          input_desc,
-                                                          input.buffer(),
-                                                          weight_desc,
-                                                          weight.buffer(),
-                                                          conv_desc,
-                                                          algo,
-                                                          workspace,
-                                                          workspace_size,
-                                                          &beta,
-                                                          output_desc,
-                                                          output.buffer(),
-                                                          bias_desc,
-                                                          bias->buffer(),
-                                                          activation_desc,
-                                                          output_desc,
-                                                          output.buffer()));
-
-        CUDNN_CHECK(cudnnDestroyActivationDescriptor(activation_desc));
-        CUDNN_CHECK(cudnnDestroyTensorDescriptor(bias_desc));
-
-      } else {
-        CUDNN_CHECK(cudnnConvolutionForward(handle,
-                                            &alpha,
-                                            input_desc,
-                                            input.buffer(),
-                                            weight_desc,
-                                            weight.buffer(),
-                                            conv_desc,
-                                            algo,
-                                            workspace,
-                                            workspace_size,
-                                            &beta,
-                                            output_desc,
-                                            output.buffer()));
-      }
-
-      if (workspace)
-        get_allocator<Device::CUDA>().free(workspace);
-
-      CUDNN_CHECK(cudnnDestroyConvolutionDescriptor(conv_desc));
-      CUDNN_CHECK(cudnnDestroyFilterDescriptor(weight_desc));
-      CUDNN_CHECK(cudnnDestroyTensorDescriptor(input_desc));
-      CUDNN_CHECK(cudnnDestroyTensorDescriptor(output_desc));
-#endif
+      // Fill output
+      const int input_idx = batch_offset + group_offset + channel_offset + window_i;
+      const int output_idx = (batch_group * output_length + ti_idx) * k + idx;
+      output[output_idx] = window_i >= 0 && window_i < input_length ? input[input_idx] : T(0);
     }
 
-#define DECLARE_IMPL(T)                                                 \
-    template void                                                       \
-    Conv1D::compute<Device::CUDA, T>(const StorageView& input,          \
-                                     const StorageView& weight,         \
-                                     const StorageView* bias,           \
-                                     StorageView& output,               \
+    // Generic template implementation
+    template <Device D, typename T>
+    void Conv1D::compute(
+        const StorageView& input,
+        const StorageView& weight,
+        const StorageView* bias,
+        StorageView& output,
+        const StorageView*) const {
+
+      using DevT = cuda::device_type<T>;
+
+      const dim_t batch_size = input.dim(0);
+      const dim_t in_channels = input.dim(1);
+      const dim_t input_length = input.dim(2);
+      const dim_t out_channels = weight.dim(0);
+      const dim_t kernel_size = weight.dim(2);
+      const dim_t output_length = output.dim(2);
+      const dim_t in_channels_per_group = in_channels / _groups;
+      const dim_t out_channels_per_group = out_channels / _groups;
+      const dim_t k = in_channels_per_group * kernel_size;
+
+      StorageView buffer({batch_size, _groups, output_length, k}, T(0), Device::CUDA);
+      const T* x = input.data<T>();
+      const T* w = weight.data<T>();
+      T* o = output.data<T>();
+      T* p = buffer.data<T>();
+
+      const dim_t in_batch_stride = in_channels * input_length;
+      const dim_t in_group_stride = in_batch_stride / _groups;
+      const int threads = 256;
+      const dim3 grid((k + threads - 1) / threads,
+                      output_length,
+                      batch_size * _groups);
+
+      im2col_transposed_kernel<<<grid, threads, 0, cuda::get_cuda_stream()>>>(
+          cuda::device_cast(x), cuda::device_cast(p),
+          batch_size, in_channels, input_length, kernel_size,
+          _stride, _padding, _dilation, _groups, output_length,
+          k, in_batch_stride, in_group_stride);
+
+      const dim_t stridew = out_channels_per_group * in_channels_per_group * kernel_size;
+      const dim_t stridep = k * output_length;
+      const dim_t strideo = out_channels_per_group * output_length;
+
+      for (dim_t g = 0; g < _groups; ++g) {
+        const T* w_g = w + g * stridew;
+        const T* p_g = p + g * stridep;
+        T* o_g = o + g * strideo;
+
+        primitives<Device::CUDA>::gemm_batch_strided(false, true, // transpose
+                                                     out_channels_per_group, output_length, k,
+                                                     1.0f, // alpha
+                                                     w_g, k, 0, // stridea
+                                                     p_g, k, _groups * stridep,
+                                                     0.0f, // beta
+                                                     o_g, output_length, _groups * strideo,
+                                                     batch_size);
+      }
+
+      apply_bias_and_activation(output, bias, _activation_type, /*residual=*/nullptr, /*axis=*/-2);
+    }
+
+    // Template instantiations
+    #define DECLARE_IMPL(T)                                                 \
+    template void                                                           \
+    Conv1D::compute<Device::CUDA, T>(const StorageView& input,              \
+                                     const StorageView& weight,             \
+                                     const StorageView* bias,               \
+                                     StorageView& output,                   \
                                      const StorageView* qscale) const;
 
     DECLARE_IMPL(float)

@@ -21,7 +21,7 @@ def clear_transformers_cache_in_ci():
     import transformers
 
     if os.environ.get("CI") == "true":
-        shutil.rmtree(transformers.utils.default_cache_path)
+        shutil.rmtree(transformers.utils.default_cache_path, ignore_errors=True)
 
 
 _TRANSFORMERS_TRANSLATION_TESTS = [
@@ -109,6 +109,13 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "▁Was ▁ist ▁Lama ▁glam a ?",
         dict(),
     ),
+    (
+        "jordimas/t5gemma-s-s-ul2",
+        ["Question : ▁Why ▁is ▁the ▁sky ▁blue ? ▁Answer :"],
+        "",
+        "\n\n Answer : \n\n The ▁sky ▁is ▁blue .",
+        dict(),
+    ),
 ]
 
 
@@ -193,6 +200,21 @@ _TRANSFORMERS_GENERATION_TESTS = [
         20,
         "Hello , ĠI Ġam Ġa Ġnew bie Ġin Ġthe Ġworld Ġof Ġweb Ġdesign Ġand ĠI Ġam "
         "Ġlooking Ġfor Ġa Ġweb Ġdeveloper",
+    ),
+    (
+        "jordimas/gemma-3-1b-it",
+        "<bos> Which ▁city ▁hosted ▁the ▁Olympic ▁Games ▁in ▁ 1 9 9 2 ?",
+        50,
+        "Which ▁city ▁hosted ▁the ▁Olympic ▁Games ▁in ▁ 1 9 9 2 ? \n\n"
+        " The ▁answer ▁is ▁** Barcelona **. \n",
+    ),
+    (
+        "Qwen/Qwen3-0.6B",
+        "<|im_start|> user Ċ What Ġis Ġthe Ġcapital Ġof ĠPortugal ? Ġ/ no _th ink Ċ <|im_end|> Ċ "
+        "<|im_start|> assistant Ċ",
+        50,
+        "<|im_start|> user Ċ What Ġis Ġthe Ġcapital Ġof ĠPortugal ? Ġ/ no _th ink Ċ <|im_end|> Ċ "
+        "<|im_start|> assistant Ċ <think> ĊĊ </think> ĊĊ The Ġcapital Ġof ĠPortugal Ġis ĠLisbon .",
     ),
 ]
 
@@ -987,13 +1009,13 @@ class TestWav2Vec2:
         )
 
         device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
-        cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        # cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
         model = ctranslate2.models.Wav2Vec2(
             output_dir,
             device=device,
             device_index=[0],
             compute_type="int8",
-            intra_threads=cpu_threads,
+            intra_threads=1,
             inter_threads=1,
         )
 

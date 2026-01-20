@@ -142,6 +142,15 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CUDA>::add_block_broadcast(const T* a, const T* b, T* c,
+                                                     dim_t block, dim_t a_size, dim_t b_size) {
+    cuda::binary_transform(a, b, c, b_size,
+                           cuda::plus<cuda::device_type<T>>(),
+                           cuda::repeat_vec_block<cuda::index_t>(block, a_size));
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CUDA>::sub(const T* a, const T* b, T* c, dim_t size) {
     cuda::binary_transform(a, b, c, size, cuda::minus<cuda::device_type<T>>());
   }
@@ -743,6 +752,9 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CUDA>::add_depth_broadcast(const T* a, const T* b, \
                                                 T* c, dim_t a_size, dim_t b_size); \
+  template void                                                         \
+  primitives<Device::CUDA>::add_block_broadcast(const T* a, const T* b, \
+                                                T* c, dim_t block, dim_t a_size, dim_t b_size); \
   template void                                                         \
   primitives<Device::CUDA>::sub(const T* a, const T* b, T* c, dim_t size); \
   template void                                                         \
