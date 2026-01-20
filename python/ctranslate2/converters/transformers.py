@@ -2469,6 +2469,178 @@ class Qwen3Loader(ModelLoader):
             gc.collect()
 
 
+@register_loader("Qwen3VLConfig")
+class Qwen3VLLoader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "Qwen3VLForConditionalGeneration"
+
+    def get_model_spec(self, model):
+        # Config is nested under text_config for VL models
+        text_config = model.config.text_config
+
+        num_layers = text_config.num_hidden_layers
+        num_heads = text_config.num_attention_heads
+        num_heads_kv = getattr(text_config, "num_key_value_heads", num_heads)
+        head_dim = getattr(
+            text_config, "head_dim", text_config.hidden_size // num_heads
+        )
+
+        if num_heads_kv == num_heads:
+            num_heads_kv = None
+
+        rope_scaling = getattr(text_config, "rope_scaling", None)
+        if rope_scaling:
+            rope_type = rope_scaling.get("type") or rope_scaling.get("rope_type")
+            if rope_type == "default":
+                rotary_scaling_type = None
+                rotary_scaling_factor = 1
+            else:
+                rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
+                rotary_scaling_factor = rope_scaling.get("factor", 1)
+                if rotary_scaling_type is None:
+                    raise NotImplementedError(
+                        "RoPE scaling type '%s' is not yet implemented. "
+                        "The following RoPE scaling types are currently supported: %s"
+                        % (rope_type, ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
+                    )
+        else:
+            rotary_scaling_type = None
+            rotary_scaling_factor = 1
+
+        quantization_config = getattr(text_config, "quantization_config", None)
+        if quantization_config:
+            quant_type = None
+            if quantization_config.quant_method == "awq":
+                quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
+            if quant_type is None:
+                raise NotImplementedError(
+                    "Quantization type '%s' is not yet implemented. "
+                    "The following Quantization types are currently supported: %s"
+                    % (
+                        quantization_config.quant_method,
+                        ", ".join(_SUPPORTED_QUANTIZATION.keys()),
+                    )
+                )
+            quant_group_size = quantization_config.group_size
+            quant_bits = quantization_config.bits
+        else:
+            quant_type = common_spec.Quantization.CT2
+            quant_group_size = None
+            quant_bits = None
+
+        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
+            num_layers,
+            num_heads,
+            activation=common_spec.Activation.SWISH,
+            pre_norm=True,
+            ffn_glu=True,
+            rms_norm=True,
+            rotary_dim=head_dim,
+            rotary_interleave=False,
+            rotary_scaling_type=rotary_scaling_type,
+            rotary_scaling_factor=rotary_scaling_factor,
+            rotary_base=getattr(text_config, "rope_theta", 1000000),
+            num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
+            qk_norm=True,
+            quant_type=quant_type,
+            quant_group_size=quant_group_size,
+            quant_bits=quant_bits,
+        )
+
+        # Weights are under model.language_model instead of model directly
+        self.set_decoder(spec.decoder, model.model.language_model, quant_type)
+        self.set_linear(spec.decoder.projection, model.lm_head)
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+        # Vocab size is in text_config
+        extra_ids = model.config.text_config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = (
+            tokenizer.bos_token
+            if tokenizer.bos_token is not None
+            else tokenizer.pad_token
+        )
+        config.eos_token = tokenizer.eos_token
+        config.unk_token = (
+            tokenizer.unk_token if tokenizer.unk_token is not None else ""
+        )
+        # rms_norm_eps is in text_config
+        config.layer_norm_epsilon = model.config.text_config.rms_norm_eps
+
+    def set_layer_norm(self, spec, layer_norm):
+        spec.gamma = layer_norm.weight
+
+    def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
+        spec.scale_embeddings = False
+        self.set_embeddings(spec.embeddings, module.embed_tokens)
+        self.set_layer_norm(spec.layer_norm, module.norm)
+
+        for layer_spec, layer in zip(spec.layer, module.layers):
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm, layer.input_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.ffn.layer_norm, layer.post_attention_layernorm
+            )
+
+            self.set_layer_norm(
+                layer_spec.self_attention.q_norm, layer.self_attn.q_norm
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.k_norm, layer.self_attn.k_norm
+            )
+
+            split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(
+                split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+            )
+
+            if quant_type == common_spec.Quantization.CT2:
+                utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+            else:
+                cc_dim = 1 if quant_type == common_spec.Quantization.AWQ_GEMM else 0
+                utils.fuse_linear_prequant(
+                    layer_spec.self_attention.linear[0], split_layers, cc_dim
+                )
+
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
+
+            delattr(layer, "self_attn")
+            delattr(layer, "mlp")
+            gc.collect()
+
+
 @register_loader("MixFormerSequentialConfig")
 class MixFormerSequentialLoader(ModelLoader):
     @property
