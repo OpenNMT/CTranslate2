@@ -182,9 +182,6 @@ namespace ctranslate2 {
 
     bool gpu_supports_int8(int device) {
       const cudaDeviceProp& device_prop = get_device_properties(device);
-      // Disable INT8 for sm120: https://github.com/OpenNMT/CTranslate2/issues/1865
-      if (device_prop.major == 12 && device_prop.minor == 0)
-        return false;
       return device_prop.major > 6 || (device_prop.major == 6 && device_prop.minor == 1);
     }
 
