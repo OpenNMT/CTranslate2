@@ -137,7 +137,7 @@ jobs:
           MKL_VERSION: 2023.0.0
         run: |
           sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DENABLE_THREAD_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DOPENMP_RUNTIME=NONE -DBUILD_TESTS=ON -DENABLE_THREAD_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
 
       - name: Build
         run: |
