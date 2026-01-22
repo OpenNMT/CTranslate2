@@ -154,7 +154,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          tests/ctranslate2_test tests/data
+          TSAN_OPTIONS=halt_on_error=1 tests/ctranslate2_test tests/data
 
   build-and-test-cpp-arm64:
     runs-on: ${{ matrix.os }}
