@@ -1859,8 +1859,12 @@ class Gemma3Loader(ModelLoader):
                     "Quantization type '%s' is not yet implemented."
                     % quantization_config.quant_method
                 )
+            quant_group_size = quantization_config.group_size
+            quant_bits = quantization_config.bits
         else:
             quant_type = common_spec.Quantization.CT2
+            quant_group_size = None
+            quant_bits = None
 
         # Create base spec using from_config
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
@@ -1881,6 +1885,9 @@ class Gemma3Loader(ModelLoader):
             head_dim=head_dim,
             sliding_window=sliding_window,  # Default to local sliding window
             pre_post_layer_norm=True,
+            quant_type=quant_type,
+            quant_group_size=quant_group_size,
+            quant_bits=quant_bits,
             qk_norm=True,
         )
 
@@ -1933,7 +1940,8 @@ class Gemma3Loader(ModelLoader):
             config.eos_token = tokenizer.eos_token
 
     def set_layer_norm(self, spec, layer_norm):
-        spec.gamma = layer_norm.weight + 1.0
+        spec.gamma = layer_norm.weight
+        spec.layer_norm_use_residual = True
 
     def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
         spec.scale_embeddings = True
