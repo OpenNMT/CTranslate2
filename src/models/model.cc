@@ -839,10 +839,18 @@ namespace ctranslate2 {
       if (device == Device::CUDA) {
         int device_id = ctranslate2::get_device_index(ctranslate2::Device::CUDA);
         auto dprops = ctranslate2::cuda::get_device_properties(device_id);
+#ifdef CT2_USE_HIP
+        supports_flash_attention = false;
+#else
         supports_flash_attention = dprops.major >= 8;
+#endif
       }
       if (use_flash_attention && !supports_flash_attention) {
+#ifdef CT2_USE_HIP
+        throw std::invalid_argument("FlashAttention not supported on ROCm.");
+#else
         throw std::invalid_argument("FlashAttention only supports Ampere GPUs or newer.");
+#endif
       }
 #endif
 

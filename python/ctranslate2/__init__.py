@@ -21,6 +21,7 @@ if sys.platform == "win32":
     add_dll_directory = getattr(os, "add_dll_directory", None)
     if add_dll_directory is not None:
         add_dll_directory(package_dir)
+        add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
         ctypes.CDLL(library)

@@ -7,8 +7,24 @@
 #include "cuda/utils.h"
 #include "env.h"
 
+#ifdef CT2_USE_HIP
+#include <hip/hip_runtime.h>
+#include <hipcub/util_allocator.hpp>
+#define cub hipcub
+#define cudaGetDevice hipGetDevice
+#define cudaSetDevice hipSetDevice
+#define cudaFreeAsync hipFreeAsync
+#define cudaMallocAsync hipMallocAsync
+#define cudaDeviceGetAttribute hipDeviceGetAttribute
+#define cudaDevAttrMemoryPoolsSupported hipDeviceAttributeMemoryPoolsSupported
+// Async allocactor has crashing issues on Windows
+// https://github.com/OpenNMT/CTranslate2/issues/1072#issuecomment-3418768140
+#define CT2_USE_ASYNC_ALLOC !_WIN32
+#else
 #include <cuda.h>
 #include <cub/util_allocator.cuh>
+#define CT2_USE_ASYNC_ALLOC CUDA_VERSION >= 11020
+#endif
 #include <spdlog/spdlog.h>
 
 namespace ctranslate2 {
@@ -63,7 +79,7 @@ namespace ctranslate2 {
     class CudaAsyncAllocator : public Allocator {
     public:
       void* allocate(size_t size, int device_index) override {
-#if CUDA_VERSION >= 11020
+#if CT2_USE_ASYNC_ALLOC
         int prev_device_index = -1;
         if (device_index >= 0) {
           CUDA_CHECK(cudaGetDevice(&prev_device_index));
@@ -86,7 +102,7 @@ namespace ctranslate2 {
       }
 
       void free(void* ptr, int device_index) override {
-#if CUDA_VERSION >= 11020
+#if CT2_USE_ASYNC_ALLOC
         int prev_device_index = -1;
         if (device_index >= 0) {
           CUDA_CHECK(cudaGetDevice(&prev_device_index));
@@ -107,7 +123,7 @@ namespace ctranslate2 {
     };
 
     static bool support_cuda_malloc_async() {
-#if CUDA_VERSION < 11020
+#if !CT2_USE_ASYNC_ALLOC
       return false;
 #else
       for (int i = 0; i < get_gpu_count(); ++i) {
