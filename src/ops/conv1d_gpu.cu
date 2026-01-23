@@ -1,8 +1,8 @@
 #include "ctranslate2/ops/conv1d.h"
 #include "ctranslate2/ops/gemm.h"
 
-#include "cuda/utils.h"
-#include <cuda/helpers.h>
+#include "cuda/helpers.h"
+#include "type_dispatch.h"
 
 namespace ctranslate2 {
   namespace ops {
@@ -73,7 +73,7 @@ namespace ctranslate2 {
       const dim_t out_channels_per_group = out_channels / _groups;
       const dim_t k = in_channels_per_group * kernel_size;
 
-      StorageView buffer({batch_size, _groups, output_length, k}, T(0), Device::CUDA);
+      StorageView buffer({batch_size, _groups, output_length, k}, DataTypeToEnum<T>::value, D);
       const T* x = input.data<T>();
       const T* w = weight.data<T>();
       T* o = output.data<T>();
