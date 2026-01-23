@@ -505,6 +505,7 @@ namespace ctranslate2 {
       const dim_t cur_batch_size = is_expanded ? logits.dim(0) / _beam_size : logits.dim(0);
 
       DisableTokens disable_tokens(logits);
+      BiasTokens bias_tokens(logits);
 
       // Prevent the generation of end_ids until the minimum length is reached.
       apply_min_length(step,
@@ -519,12 +520,14 @@ namespace ctranslate2 {
         if (alive_seq)
           merge_batch_beam(alive_seq);
         for (const auto& logits_processor : logits_processors)
-          logits_processor->apply(step, logits, disable_tokens, alive_seq, batch_offset, prefix_ids);
+          logits_processor->apply(step, logits, disable_tokens, bias_tokens, alive_seq, batch_offset, prefix_ids);
         if (alive_seq)
           split_batch_beam(alive_seq, _beam_size);
       }
 
       disable_tokens.apply();
+      bias_tokens.apply();
+      
       std::vector<StorageView> logits_vec;
       if (return_logits_vocab) {
         if (is_expanded)
@@ -850,6 +853,7 @@ namespace ctranslate2 {
               gather_attention ? &attention_step_device : nullptr);
 
       DisableTokens disable_tokens(logits);
+      BiasTokens bias_tokens(logits);
 
       // Prevent the generation of end_id until the minimum length is reached.
       apply_min_length(step,
@@ -861,9 +865,10 @@ namespace ctranslate2 {
                        prefix_ids);
 
       for (const auto& logits_processor : logits_processors)
-        logits_processor->apply(step, logits, disable_tokens, alive_seq, batch_offset, prefix_ids);
+        logits_processor->apply(step, logits, disable_tokens, bias_tokens, alive_seq, batch_offset, prefix_ids);
 
       disable_tokens.apply();
+      bias_tokens.apply();
 
       std::vector<StorageView> logits_vec;
       StorageView logits_orig(dtype, device);
@@ -1110,6 +1115,9 @@ namespace ctranslate2 {
 
     if (!options.disable_sequences.empty())
       processors.emplace_back(std::make_shared<SuppressSequences>(options.disable_sequences));
+
+    if (!options.sequence_bias.empty())
+      processors.emplace_back(std::make_shared<BiasSequences>(options.sequence_bias));
 
     for (const auto& processor : options.logits_processors) {
       if (!processor->apply_first())
