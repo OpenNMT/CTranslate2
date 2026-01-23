@@ -275,7 +275,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
             self.project_in = common_spec.LinearSpec()
             self.project_out = common_spec.LinearSpec()
 
-        if quant_type is not None:
+        if quant_type:
             self._config["quantization_type"] = quant_type
             self._config["quantization_bits"] = quant_bits
             self._config["quantization_group_size"] = quant_group_size
