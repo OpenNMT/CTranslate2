@@ -109,6 +109,8 @@ namespace ctranslate2 {
       }
 
       engine_stream.wait();
+      if (_activation_type)
+        get_activation_op(*_activation_type)(output, output);
     }
 
   }
@@ -133,24 +135,7 @@ namespace ctranslate2 {
 
       compute_with_gemm(input, weight, output, qscale);
       // Add bias
-      if (bias) {
-        // Need to broadcast along dims 0 and 2, because output shape is:
-        // batch_size, out_channels, output_length
-        const auto batch_size = output.dim(0);
-        const auto out_channels = output.dim(1);
-        const auto output_length = output.dim(2);
-        const auto a = bias->data<float>();
-        const auto b = output.data<float>();
-        cpu::parallel_for(0, batch_size * out_channels, 1, [&](dim_t begin, dim_t end){
-          for (dim_t i = begin; i < end; ++i) {
-            // Add bias element a_i to output_length elements at once
-            // adjust index of `a` for items in the batch by calculating modulo
-            const auto a_i = a[i % out_channels];
-            const auto b_i = b + i * output_length;
-            primitives<>::add(a_i, b_i, b_i, output_length);
-          }
-        });
-      }
+      apply_bias_and_activation(output, bias, _activation_type, /*residual=*/nullptr, /*axis=*/-2);
     }
 
     void Conv1D::compute_with_gemm(const StorageView &input, const StorageView &weight, StorageView &output,

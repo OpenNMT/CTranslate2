@@ -8,7 +8,9 @@ namespace ctranslate2 {
 
     void apply_bias_and_activation(StorageView& x,
                                    const StorageView* bias,
-                                   const ActivationType* activation_type);
+                                   const ActivationType* activation_type,
+                                   const StorageView* residual = nullptr,
+                                   const dim_t axis = -1);
 
     class Gemm : public Op {
     public:
@@ -24,7 +26,8 @@ namespace ctranslate2 {
                       const StorageView& b,
                       StorageView& c,
                       const StorageView* a_shift_compensation = nullptr,
-                      const StorageView* bias = nullptr) const;
+                      const StorageView* bias = nullptr,
+                      const StorageView* residual = nullptr) const;
 
       // Return the packed representation of b, if implemented by the GEMM backend.
       static StorageView pack_b_input(const StorageView& b,

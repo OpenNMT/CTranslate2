@@ -47,6 +47,20 @@ namespace ctranslate2 {
       virtual bool has_positional_embeddings() const override {
             return _relative_position_keys || _relative_attention_bias || _rotary_embeddings || _alibi;
       }
+
+    protected:
+      void process_cross_attention(const StorageView& queries,
+                                const StorageView& values,
+                                StorageView& fused_proj,
+                                StorageView& queries_proj,
+                                StorageView& keys_proj,
+                                StorageView& values_proj,
+                                StorageView* cached_keys,
+                                StorageView* cached_values,
+                                const Padder* queries_padder,
+                                const Padder* values_padder,
+                                dim_t& beam_size) const;
+
     private:
       static void split_heads(StorageView& x,
                                dim_t num_heads,
@@ -57,6 +71,12 @@ namespace ctranslate2 {
                                  dim_t num_heads,
                                  const Padder* padder = nullptr,
                                  dim_t beam_size = 1);
+
+      void apply_k_norm(StorageView& keys_proj) const;
+
+      void apply_qk_norm(StorageView& queries_proj,
+                          StorageView& keys_proj) const;
+
       const StorageView* _relative_attention_bias;
       const StorageView* _relative_position_keys;
       const StorageView* _relative_asymmetric_position_keys;

@@ -27,8 +27,8 @@ namespace ctranslate2 {
       dim_t _stride;
       dim_t _padding;
       const Conv1D _conv;
-      const LayerNorm _output_norm;
       const ops::Transpose _transpose;
+      const LayerNorm _output_norm;
       const ops::GELU _gelu;
     };
 
@@ -78,17 +78,6 @@ namespace ctranslate2 {
 
       dim_t input_size() const {
         return 1024;
-      }
-
-      bool is_encoded(const StorageView& features) const {
-        // Input features shape: [batch_size, input_size, input_time]
-        // Encoder output shape: [batch_size, input_time // 2, output_size]
-        //
-        // input_time is variable so we check that dimension 1 is different than its original value.
-
-        return (features.rank() == 3
-                && features.dim(2) == output_size()
-                && features.dim(1) != input_size());
       }
 
       const StorageView* _upgraded_model;

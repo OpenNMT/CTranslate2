@@ -56,8 +56,6 @@ namespace ctranslate2 {
     private:
       const std::shared_ptr<const Wav2Vec2Model> _model;
       const std::unique_ptr<layers::Wav2Vec2Encoder> _encoder;
-
-      StorageView maybe_encode(StorageView features);
     };
 
     class Wav2Vec2 : public ReplicaPool<Wav2Vec2Replica> {

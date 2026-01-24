@@ -22,6 +22,10 @@ option(BUILD_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
+option(ENABLE_ADDRESS_SANITIZER "ASAN" OFF)
+
+MESSAGE(STATUS "Compiler Id: ${CMAKE_CXX_COMPILER_ID}")
+MESSAGE(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
 
 if(ENABLE_PROFILING)
   message(STATUS "Enable profiling support")
@@ -80,6 +84,12 @@ string(REPLACE "." ";" CTRANSLATE2_VERSION_LIST ${CTRANSLATE2_VERSION})
 list(GET CTRANSLATE2_VERSION_LIST 0 CTRANSLATE2_MAJOR_VERSION)
 
 if(MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /d2FH4-")
+else()
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
+endif()
+
+if(WIN32)
   add_compile_definitions(_USE_MATH_DEFINES) # required for M_PI
   if(BUILD_SHARED_LIBS)
     set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
@@ -89,12 +99,8 @@ if(MSVC)
     endif()
     set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
   endif()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /d2FH4-")
-else()
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-  if(NOT APPLE AND NOT WIN32)
-    set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,noexecstack")
-  endif()
+elseif(NOT APPLE)
+  set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} -Wl,-z,noexecstack")
 endif()
 
 find_package(Threads)
@@ -171,7 +177,6 @@ set(SOURCES
   src/ops/mean_cpu.cc
   src/ops/median_filter.cc
   src/ops/median_filter_cpu.cc
-  src/ops/median_filter_gpu.cu
   src/ops/min_max.cc
   src/ops/mul.cc
   src/ops/multinomial.cc
@@ -221,6 +226,35 @@ set(SOURCES
   src/vocabulary.cc
   src/vocabulary_map.cc
 )
+set(CUDA_SOURCES
+  src/cuda/allocator.cc
+  src/cuda/primitives.cu
+  src/cuda/random.cu
+  src/cuda/utils.cc
+  src/ops/alibi_add_gpu.cu
+  src/ops/bias_add_gpu.cu
+  src/ops/concat_split_slide_gpu.cu
+  src/ops/conv1d_gpu.cu
+  src/ops/dequantize_gpu.cu
+  src/ops/flash_attention_gpu.cu
+  src/ops/gather_gpu.cu
+  src/ops/gumbel_max_gpu.cu
+  src/ops/layer_norm_gpu.cu
+  src/ops/mean_gpu.cu
+  src/ops/median_filter_gpu.cu
+  src/ops/multinomial_gpu.cu
+  src/ops/rms_norm_gpu.cu
+  src/ops/rotary_gpu.cu
+  src/ops/softmax_gpu.cu
+  src/ops/tile_gpu.cu
+  src/ops/topk_gpu.cu
+  src/ops/topp_mask_gpu.cu
+  src/ops/quantize_gpu.cu
+  src/ops/nccl_ops_gpu.cu
+  src/ops/awq/gemm_gpu.cu
+  src/ops/awq/gemv_gpu.cu
+  src/ops/awq/dequantize_gpu.cu
+)
 set(LIBRARIES
   ${CMAKE_THREAD_LIBS_INIT}
   spdlog::spdlog_header_only
@@ -260,7 +294,7 @@ if(ENABLE_CPU_DISPATCH)
   message(STATUS "Compiling for multiple CPU ISA and enabling runtime dispatch")
   add_definitions(-DCT2_WITH_CPU_DISPATCH)
   if(CT2_BUILD_ARCH STREQUAL "x86_64")
-    if(WIN32)
+    if(MSVC)
       ct2_compile_kernels_for_isa(avx "/arch:AVX")
       ct2_compile_kernels_for_isa(avx2 "/arch:AVX2")
       ct2_compile_kernels_for_isa(avx512 "/arch:AVX512")
@@ -275,7 +309,7 @@ if(ENABLE_CPU_DISPATCH)
 endif()
 
 if(NOT OPENMP_RUNTIME STREQUAL "NONE")
-  if(WIN32)
+  if(MSVC)
     add_compile_options("/openmp")
   else()
     find_package(OpenMP)
@@ -301,7 +335,7 @@ if(NOT OPENMP_RUNTIME STREQUAL "NONE")
     else()
       message(FATAL_ERROR "Intel OpenMP runtime libiomp5 not found")
     endif()
-    if(WIN32)
+    if(MSVC)
       set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} /nodefaultlib:vcomp")
       set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /nodefaultlib:vcomp")
     endif()
@@ -446,6 +480,16 @@ if (WITH_RUY)
   list(APPEND LIBRARIES ruy)
 endif()
 
+IF (ENABLE_ADDRESS_SANITIZER AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG"))
+  MESSAGE (STATUS "ENABLE_ADDRESS_SANITIZER: ENABLED")
+  set(ASAN_FLAGS " -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common")
+  string(APPEND CMAKE_C_FLAGS ${ASAN_FLAGS})
+  string(APPEND CMAKE_CXX_FLAGS ${ASAN_FLAGS})
+  add_link_options(-fsanitize=address)
+ELSEIF (ENABLE_ADDRESS_SANITIZER)
+  MESSAGE(FATAL_ERROR "SANITIZER requires Debug build type")
+ENDIF ()
+
 if (WITH_CUDA)
   find_package(CUDA 11.0 REQUIRED)
   list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
@@ -547,9 +591,8 @@ if (WITH_CUDA)
     list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${CUDNN_INCLUDE_DIR})
     list(APPEND LIBRARIES ${CUDNN_LIBRARIES})
     add_definitions(-DCT2_WITH_CUDNN)
-    list(APPEND SOURCES src/ops/conv1d_cudnn_gpu.cu)
-  else()
-    list(APPEND SOURCES src/ops/conv1d_gpu.cu)
+    list(APPEND CUDA_SOURCES src/ops/conv1d_cudnn_gpu.cu)
+    list(REMOVE_ITEM CUDA_SOURCES src/ops/conv1d_gpu.cu)
   endif()
 
   if(CUDA_DYNAMIC_LOADING)
@@ -632,31 +675,7 @@ if (WITH_CUDA)
   set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
   cuda_add_library(${PROJECT_NAME}
     ${SOURCES}
-    src/cuda/allocator.cc
-    src/cuda/primitives.cu
-    src/cuda/random.cu
-    src/cuda/utils.cc
-    src/ops/alibi_add_gpu.cu
-    src/ops/bias_add_gpu.cu
-    src/ops/concat_split_slide_gpu.cu
-    src/ops/dequantize_gpu.cu
-    src/ops/flash_attention_gpu.cu
-    src/ops/gather_gpu.cu
-    src/ops/gumbel_max_gpu.cu
-    src/ops/layer_norm_gpu.cu
-    src/ops/mean_gpu.cu
-    src/ops/multinomial_gpu.cu
-    src/ops/rms_norm_gpu.cu
-    src/ops/rotary_gpu.cu
-    src/ops/softmax_gpu.cu
-    src/ops/tile_gpu.cu
-    src/ops/topk_gpu.cu
-    src/ops/topp_mask_gpu.cu
-    src/ops/quantize_gpu.cu
-    src/ops/nccl_ops_gpu.cu
-    src/ops/awq/gemm_gpu.cu
-    src/ops/awq/gemv_gpu.cu
-    src/ops/awq/dequantize_gpu.cu
+    ${CUDA_SOURCES}
   )
 
 
