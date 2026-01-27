@@ -135,6 +135,7 @@ set(SOURCES
   src/layers/common.cc
   src/layers/decoder.cc
   src/layers/transformer.cc
+  src/layers/wavlm.cc
   src/layers/wav2vec2.cc
   src/layers/wav2vec2bert.cc
   src/layers/whisper.cc
@@ -145,6 +146,7 @@ set(SOURCES
   src/models/model_reader.cc
   src/models/sequence_to_sequence.cc
   src/models/transformer.cc
+  src/models/wavlm.cc
   src/models/wav2vec2.cc
   src/models/wav2vec2bert.cc
   src/models/whisper.cc
