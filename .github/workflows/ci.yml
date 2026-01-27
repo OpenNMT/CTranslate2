@@ -137,7 +137,7 @@ jobs:
           MKL_VERSION: 2023.0.0
         run: |
           sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DOPENMP_RUNTIME=NONE -DBUILD_TESTS=ON -DENABLE_THREAD_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DENABLE_THREAD_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
 
       - name: Build
         run: |
@@ -154,7 +154,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          TSAN_OPTIONS=halt_on_error=1 tests/ctranslate2_test tests/data
+          TSAN_OPTIONS="ignore_noninstrumented_modules=1:halt_on_error=1" tests/ctranslate2_test tests/data
 
   build-and-test-cpp-arm64:
     runs-on: ${{ matrix.os }}
