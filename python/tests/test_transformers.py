@@ -1095,7 +1095,7 @@ class TestWav2Vec2Bert:
             device=device,
             device_index=[0],
             compute_type="int8",
-            intra_threads=cpu,
+            intra_threads=cpu_threads,
             inter_threads=1,
         )
 
