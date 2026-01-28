@@ -13,8 +13,8 @@ if [ "$CIBW_ARCHS" == "aarch64" ]; then
     cd OpenBLAS-*
     # NUM_THREADS: maximum value for intra_threads
     # NUM_PARALLEL: maximum value for inter_threads
-    make TARGET=ARMV8 NO_SHARED=1 BUILD_SINGLE=1 NO_LAPACK=1 ONLY_CBLAS=1 USE_OPENMP=1 NUM_THREADS=32 NUM_PARALLEL=8
-    make install NO_SHARED=1
+    make -j$(nproc) TARGET=ARMV8 NO_SHARED=1 BUILD_SINGLE=1 NO_LAPACK=1 ONLY_CBLAS=1 USE_OPENMP=1
+    make -j$(nproc) install NO_SHARED=1
     cd ..
     rm -r OpenBLAS-*
 
