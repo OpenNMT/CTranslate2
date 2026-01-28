@@ -11,7 +11,13 @@ CTranslate2 supports some Transformer models trained with [Fairseq](https://gith
 The conversion minimally requires the PyTorch model path and the Fairseq data directory which contains the vocabulary files:
 
 ```bash
-pip install fairseq
+python3.10 -m venv venv
+source venv/bin/activate
+pip install --force pip==24.0
+pip install git+https://github.com/pytorch/fairseq
+pip uninstall torch torchaudio numpy
+pip install torch==1.13 numpy==1.26 ctranslate2
+
 ct2-fairseq-converter --model_path model.pt --data_dir data-bin/ --output_dir ct2_model
 ```
 
