@@ -854,6 +854,146 @@ class TestWhisper:
             transcription = processor.decode(token_ids)
             assert transcription == expected_transcription
 
+
+    @test_utils.only_on_linux
+    @test_utils.on_available_devices
+    @pytest.mark.parametrize(
+        "model_name,prompts,expected_transcriptions,expected_no_speech_probs",
+        [
+            (
+                "openai/whisper-tiny",
+                [
+                    [
+                        "<|startoftranscript|>",
+                        "<|en|>",
+                        "<|transcribe|>",
+                        "<|notimestamps|>",
+                    ],
+                    [
+                        "<|startoftranscript|>",
+                        "<|en|>",
+                        "<|transcribe|>",
+                        "<|notimestamps|>",
+                        "ĠAnd",
+                        "Ġthus",
+                        "Ġmy",
+                    ],
+                ],
+                [
+                    " Mr. Quiltre is the apostle of the middle classes and we are glad"
+                    " to welcome his gospel.",
+                    " And thus my fellow Americans ask not what your country can do for you,"
+                    " ask what you can do for your country.",
+                ],
+                [
+                    pytest.approx(0.0022832120303064585, abs=1e-4),
+                    pytest.approx(0.06885894387960434, abs=1e-3),
+                ],
+            ),
+            (
+                "openai/whisper-tiny",
+                [
+                    ["<|startoftranscript|>", "<|en|>", "<|transcribe|>"],
+                    ["<|startoftranscript|>", "<|en|>", "<|transcribe|>"],
+                ],
+                [
+                    " Mr. Quiltre is the apostle of the middle classes and we are glad"
+                    " to welcome his gospel.",
+                    " And so, my fellow Americans, ask not what your country can do for you,"
+                    " ask what you can do for your country.",
+                ],
+                [
+                    pytest.approx(0.0022832120303064585, abs=1e-4),
+                    pytest.approx(0.06885894387960434, abs=1e-3),
+                ],
+            )
+        ],
+    )
+    def test_transformers_contextually_biased_whisper(
+        self,
+        tmp_dir,
+        device,
+        model_name,
+        prompts,
+        expected_transcriptions,
+        expected_no_speech_probs,
+    ):
+        import transformers
+
+        converter = ctranslate2.converters.TransformersConverter(model_name)
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+        print(os.path.join(
+            os.path.dirname(os.path.realpath(__file__)), "..", "..", "tests", "data"
+        ))
+        audio_paths = [
+            os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy"),
+            os.path.join(test_utils.get_data_dir(), "audio", "jfk.npy"),
+        ]
+        audio = list(map(np.load, audio_paths))
+
+        processor = transformers.WhisperProcessor.from_pretrained(model_name)
+
+        def _get_features(audio):
+            # Pad after computing the log-Mel spectrogram to match the openai/whisper behavior.
+            inputs = processor(audio, padding=False, sampling_rate=16000)
+            features = inputs.input_features[0]
+            features = np.pad(features, [(0, 0), (0, 3000 - features.shape[-1])])
+            return features
+
+        features = np.stack(list(map(_get_features, audio)))
+        features = ctranslate2.StorageView.from_array(features)
+
+        model = ctranslate2.models.Whisper(output_dir, device=device)
+
+        assert model.is_multilingual == (not model_name.endswith(".en"))
+
+        if model.is_multilingual:
+            for result in model.detect_language(features):
+                best_lang, best_prob = result[0]
+                assert best_lang == "<|en|>"
+                assert best_prob > 0.9
+        else:
+            with pytest.raises(RuntimeError, match="multilingual"):
+                model.detect_language(features)
+
+        #bias the first two generated words into ("Mr. Quiltre")
+        results = model.generate(
+            features,
+            prompts,
+            beam_size=2,
+            num_hypotheses=2,
+            return_no_speech_prob=True,
+            sequence_bias=[([2221, 13, 2326, 2352, 265], 1.3), ([2221, 13, 2326, 2352], 1.3), ([2221, 13, 2326], 1.3)],
+        )
+
+        timestamp_begin = (
+            processor.tokenizer.convert_tokens_to_ids("<|notimestamps|>") + 1
+        )
+
+        for prompt, result, expected_transcription, expected_no_speech_prob in zip(
+            prompts, results, expected_transcriptions, expected_no_speech_probs
+        ):
+            assert len(result.sequences_ids) == 2
+            assert result.no_speech_prob == expected_no_speech_prob
+
+            for tokens in result.sequences_ids:
+                if "<|notimestamps|>" in prompt:
+                    assert all(token < timestamp_begin for token in tokens)
+                else:
+                    assert tokens[0] >= timestamp_begin
+                    assert tokens[-1] >= timestamp_begin
+                    assert tokens[-1] > tokens[0]
+
+            token_ids = list(
+                filter(lambda token: token < timestamp_begin, result.sequences_ids[0])
+            )
+
+            transcription = processor.decode(token_ids)
+            print(transcription)
+            print(expected_transcription)
+            assert transcription == expected_transcription
+
     @test_utils.only_on_linux
     @test_utils.on_available_devices
     @pytest.mark.parametrize(
@@ -1045,6 +1185,7 @@ class TestWav2Vec2:
         transcription = transcription[0].replace(processor.tokenizer.unk_token, "")
 
         assert transcription == expected_transcription[0]
+
 
 
 class TestWav2Vec2Bert:
