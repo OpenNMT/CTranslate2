@@ -13,6 +13,9 @@ namespace ctranslate2 {
                                                               int in_c,
                                                               int out_c)
      {
+#if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 530
+       assert(false);
+#else
        if (blockIdx.z > 0) {
          B = B + blockIdx.z * in_c * out_c / 8;
          scaling_factors = scaling_factors + blockIdx.z * in_c * out_c / G;
@@ -60,6 +63,7 @@ namespace ctranslate2 {
        for (int i=0; i<8; ++i) {
          *(C_ptr2 + i) = B_shared[i];
        }
+#endif
      }
 
      template <Device D, typename InT, typename OutT>

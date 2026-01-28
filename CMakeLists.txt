@@ -530,6 +530,8 @@ if (WITH_CUDA)
     # Keep deprecated but not yet dropped Compute Capabilities.
     if(CUDA_VERSION_MAJOR EQUAL 11)
       list(INSERT CUDA_ARCH_LIST 0 "3.5" "5.0")
+    elseif(CUDA_VERSION_MAJOR EQUAL 12)
+      list(INSERT CUDA_ARCH_LIST 0 "5.0")
     endif()
     list(REMOVE_DUPLICATES CUDA_ARCH_LIST)
   endif()
