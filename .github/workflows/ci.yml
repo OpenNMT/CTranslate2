@@ -94,8 +94,8 @@ jobs:
           CT2_USE_MKL: 1
           MKL_VERSION: 2023.0.0
         run: |
-          sudo apt-get install -y intel-oneapi-mkl-devel-$MKL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DENABLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+          sudo apt-get install -y clang intel-oneapi-mkl-devel-$MKL_VERSION
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DENABLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
 
       - name: Build
         run: |
