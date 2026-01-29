@@ -3,7 +3,7 @@ import argparse
 from eole.config.run import PredictConfig
 from eole.constants import PositionEncodingType
 from eole.inputters.inputter import vocabs_to_dict
-from eole.models.model import BaseModel
+from eole.models.model import get_model_class
 
 from ctranslate2.converters import utils
 from ctranslate2.converters.converter import Converter
@@ -164,7 +164,8 @@ class EoleConverter(Converter):
 
         config = PredictConfig(model_path=self._model_path, src="dummy")
 
-        vocabs, model, model_config = BaseModel.load_test_model(config)
+        model_class = get_model_class(config.model)
+        model, vocabs, model_config = model_class.for_inference(config)
         vocabs_dict = vocabs_to_dict(vocabs)
 
         config.model = model_config
