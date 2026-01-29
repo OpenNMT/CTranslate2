@@ -253,6 +253,30 @@ class ModelLoader(abc.ABC):
             "No activation smoothing logic is defined for this model"
         )
 
+    def get_rotary_params(self, config, default_rope_theta):
+        rope_scaling = getattr(config, "rope_scaling", None)
+        if rope_scaling:
+            rope_type = rope_scaling.get("type") or rope_scaling.get("rope_type")
+
+            if rope_type == "default":
+                rotary_scaling_type = None
+            else:
+                rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
+                if rotary_scaling_type is None:
+                    raise NotImplementedError(
+                        "RoPE scaling type '%s' is not yet implemented. "
+                        "The following RoPE scaling types are currently supported: %s"
+                        % (rope_type, ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
+                    )
+            rotary_scaling_factor = rope_scaling.get("factor", 1)
+            rope_theta = rope_scaling.get("rope_theta", default_rope_theta)
+        else:
+            rotary_scaling_type = None
+            rotary_scaling_factor = 1
+            rope_theta = getattr(config, "rope_theta", default_rope_theta)
+
+        return rotary_scaling_type, rotary_scaling_factor, rope_theta
+
 
 @register_loader("BartConfig")
 class BartLoader(ModelLoader):
@@ -463,7 +487,7 @@ class M2M100Loader(BartLoader):
         if tokens[-1] == tokenizer.unk_token:
             tokens.insert(tokenizer.unk_token_id, tokens.pop())
 
-        for token in tokenizer.additional_special_tokens:
+        for token in tokenizer.special_tokens_map.get("additional_special_tokens", []):
             if token not in tokens:
                 tokens.append(token)
 
@@ -488,7 +512,7 @@ class MBartLoader(BartLoader):
         config.unk_token = tokenizer.unk_token
 
         # MBart-25 passes the language code as the decoder start token.
-        if model.config.tokenizer_class in ("MBartTokenizer", None):
+        if getattr(model.config, "tokenizer_class", None) in ("MBartTokenizer", None):
             config.decoder_start_token = None
         else:
             config.decoder_start_token = tokenizer.eos_token
@@ -928,12 +952,14 @@ class WhisperLoader(BartLoader):
             "<|nocaptions|>",
             "<|notimestamps|>",
         ]
+
+        additional_tokens = getattr(tokenizer, "additional_special_tokens", [])
+        if not additional_tokens:
+            return []
+
         return [
-            token_id
-            for token_id, token in zip(
-                tokenizer.additional_special_tokens_ids,
-                tokenizer.additional_special_tokens,
-            )
+            tokenizer.convert_tokens_to_ids(token)
+            for token in additional_tokens
             if token not in non_lang_special_tokens
         ]
 
@@ -1674,21 +1700,9 @@ class LlamaLoader(ModelLoader):
         if num_heads_kv == num_heads:
             num_heads_kv = None
 
-        rope_scaling = getattr(model.config, "rope_scaling", None)
-        if rope_scaling:
-            rope_type = rope_scaling.get("type") or rope_scaling["rope_type"]
-            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
-            rotary_scaling_factor = rope_scaling["factor"]
-
-            if rotary_scaling_type is None:
-                raise NotImplementedError(
-                    "RoPE scaling type '%s' is not yet implemented. "
-                    "The following RoPE scaling types are currently supported: %s"
-                    % (rope_scaling["type"], ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
-                )
-        else:
-            rotary_scaling_type = None
-            rotary_scaling_factor = 1
+        rotary_scaling_type, rotary_scaling_factor, rope_theta = self.get_rotary_params(
+            model.config, 10_000
+        )
 
         quantization_config = getattr(model.config, "quantization_config", None)
         if quantization_config:
@@ -1722,7 +1736,7 @@ class LlamaLoader(ModelLoader):
             rotary_interleave=False,
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
-            rotary_base=getattr(model.config, "rope_theta", 10000),
+            rotary_base=rope_theta,
             num_heads_kv=num_heads_kv,
             quant_type=quant_type,
             quant_group_size=quant_group_size,
@@ -1733,6 +1747,7 @@ class LlamaLoader(ModelLoader):
         self.set_linear(spec.decoder.projection, model.lm_head)
 
         # set extra RoPE parameters for Llama-3.1
+        rope_scaling = getattr(model.config, "rope_scaling", None)
         if rotary_scaling_type == attention_spec.RotaryScalingType.Llama3:
             for layer in spec.decoder.layer:
                 layer.self_attention.rotary_low_freq_factor = rope_scaling[
@@ -2030,20 +2045,9 @@ class MistralLoader(ModelLoader):
 
         sliding_window = getattr(model.config, "sliding_window", 0)
 
-        rope_scaling = getattr(model.config, "rope_scaling", None)
-        if rope_scaling:
-            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_scaling["type"])
-            rotary_scaling_factor = rope_scaling["factor"]
-
-            if rotary_scaling_type is None:
-                raise NotImplementedError(
-                    "RoPE scaling type '%s' is not yet implemented. "
-                    "The following RoPE scaling types are currently supported: %s"
-                    % (rope_scaling["type"], ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
-                )
-        else:
-            rotary_scaling_type = None
-            rotary_scaling_factor = 1
+        rotary_scaling_type, rotary_scaling_factor, rope_theta = self.get_rotary_params(
+            model.config, 10_000
+        )
 
         quantization_config = getattr(model.config, "quantization_config", None)
         if quantization_config:
@@ -2076,7 +2080,7 @@ class MistralLoader(ModelLoader):
             rotary_interleave=False,
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
-            rotary_base=getattr(model.config, "rope_theta", 10000),
+            rotary_base=rope_theta,
             num_heads_kv=num_heads_kv,
             sliding_window=sliding_window,
             quant_type=quant_type,
@@ -2175,21 +2179,9 @@ class Qwen2Loader(ModelLoader):
         if num_heads_kv == num_heads:
             num_heads_kv = None
 
-        rope_scaling = getattr(model.config, "rope_scaling", None)
-        if rope_scaling:
-            rope_type = rope_scaling.get("type") or rope_scaling["rope_type"]
-            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
-            rotary_scaling_factor = rope_scaling["factor"]
-
-            if rotary_scaling_type is None:
-                raise NotImplementedError(
-                    "RoPE scaling type '%s' is not yet implemented. "
-                    "The following RoPE scaling types are currently supported: %s"
-                    % (rope_scaling["type"], ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
-                )
-        else:
-            rotary_scaling_type = None
-            rotary_scaling_factor = 1
+        rotary_scaling_type, rotary_scaling_factor, rope_theta = self.get_rotary_params(
+            model.config, 10_000
+        )
 
         # Check for AWQ quantization config
         quantization_config = getattr(model.config, "quantization_config", None)
@@ -2224,7 +2216,7 @@ class Qwen2Loader(ModelLoader):
             rotary_interleave=False,
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
-            rotary_base=getattr(model.config, "rope_theta", 10000),
+            rotary_base=rope_theta,
             num_heads_kv=num_heads_kv,
             quant_type=quant_type,
             quant_group_size=quant_group_size,
@@ -2331,21 +2323,9 @@ class Qwen3Loader(ModelLoader):
         if num_heads_kv == num_heads:
             num_heads_kv = None
 
-        rope_scaling = getattr(model.config, "rope_scaling", None)
-        if rope_scaling:
-            rope_type = rope_scaling.get("type") or rope_scaling["rope_type"]
-            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
-            rotary_scaling_factor = rope_scaling["factor"]
-            if rotary_scaling_type is None:
-                raise NotImplementedError(
-                    "RoPE scaling type '%s' is not yet implemented. "
-                    "The following RoPE scaling types are currently supported: %s"
-                    % (rope_scaling["type"], ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
-                )
-        else:
-            rotary_scaling_type = None
-            rotary_scaling_factor = 1
-
+        rotary_scaling_type, rotary_scaling_factor, rope_theta = self.get_rotary_params(
+            model.config, 1_000_000
+        )
         # Check for AWQ quantization config
         quantization_config = getattr(model.config, "quantization_config", None)
         if quantization_config:
@@ -2379,7 +2359,7 @@ class Qwen3Loader(ModelLoader):
             rotary_interleave=False,
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
-            rotary_base=getattr(model.config, "rope_theta", 10000),
+            rotary_base=rope_theta,
             num_heads_kv=num_heads_kv,
             head_dim=head_dim,
             qk_norm=True,
