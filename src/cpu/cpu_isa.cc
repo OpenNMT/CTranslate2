@@ -32,7 +32,7 @@ namespace ctranslate2 {
         return "AVX2";
       case CpuIsa::AVX512:
         return "AVX512";
-#elif defined(CT2_ARM64_BUILD)
+#elif defined(CT2_ARM_BUILD)
       case CpuIsa::NEON:
         return "NEON";
 #endif
@@ -51,7 +51,7 @@ namespace ctranslate2 {
           return try_isa(env_isa, CpuIsa::AVX2, cpu_supports_avx2());
         if (env_isa == "AVX")
           return try_isa(env_isa, CpuIsa::AVX, cpu_supports_avx());
-#elif defined(CT2_ARM64_BUILD)
+#elif defined(CT2_ARM_BUILD)
         if (env_isa == "NEON")
           return try_isa(env_isa, CpuIsa::NEON, cpu_supports_neon());
 #endif
@@ -68,7 +68,7 @@ namespace ctranslate2 {
         return CpuIsa::AVX2;
       if (cpu_supports_avx())
         return CpuIsa::AVX;
-#  elif defined(CT2_ARM64_BUILD)
+#  elif defined(CT2_ARM_BUILD)
       if (cpu_supports_neon())
         return CpuIsa::NEON;
 #  endif
