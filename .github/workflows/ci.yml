@@ -229,7 +229,11 @@ jobs:
           path: python/wheelhouse
 
   build-python-wheels-rocm:
-    runs-on: windows-2025
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+
     steps:
       - uses: actions/checkout@v6
         with:
@@ -241,10 +245,14 @@ jobs:
           package-dir: python
           output-dir: python/wheelhouse
         env:
+          CIBW_ENVIRONMENT_LINUX: ROCM_PATH=/opt/rocm LD_LIBRARY_PATH=/opt/rocm/lib/llvm/lib:$LD_LIBRARY_PATH
           CIBW_ENVIRONMENT_WINDOWS: CTRANSLATE2_ROOT='${{ github.workspace }}\install'
+          CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux_rocm.sh
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows_rocm.sh
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_ARCHS: auto64
+          CIBW_SKIP: "*-musllinux_*"
 
       - name: Upload Python wheels
         uses: actions/upload-artifact@v6
