@@ -52,7 +52,7 @@ jobs:
 
       - name: Build
         run: |
-          make install
+          make -j $(nproc) install
 
       - name: Download test data
         working-directory: tests/data/models
@@ -72,7 +72,7 @@ jobs:
         run: |
           tests/ctranslate2_test tests/data
           
-  build-and-test-cpp-x86_64-sanitizer:
+  build-and-test-cpp-x86_64-address_sanitizer:
     runs-on: ubuntu-22.04
     env:
       CT2_VERBOSE: 1
@@ -87,19 +87,28 @@ jobs:
           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           sudo apt-key add *.PUB
           sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
-          sudo apt-get update
+          sudo apt update
 
-      - name: Configure with MKL
+      - name: Install MKL
         env:
           CT2_USE_MKL: 1
           MKL_VERSION: 2023.0.0
         run: |
-          sudo apt-get install -y intel-oneapi-mkl-devel-$MKL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DENABLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+          sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
+
+      - name: Install Clang
+        run: |
+          sudo apt install -y clang  
+
+      - name: Configure with MKL and Clang
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DENABLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
 
       - name: Build
         run: |
-          make install
+          make -j $(nproc) install
 
       - name: Download test data
         working-directory: tests/data/models
@@ -138,7 +147,7 @@ jobs:
           tar xzvf v0.3.13.tar.gz
           cd OpenBLAS-0.3.13
           make TARGET=ARMV8 NO_LAPACK=1 -j $(nproc)
-          sudo make PREFIX=/usr/local install
+          sudo make PREFIX=/usr/local install -j $(nproc)
           cd ..
           export OpenBLAS_HOME=/usr/local
           cmake \

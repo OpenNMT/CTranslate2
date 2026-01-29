@@ -591,7 +591,7 @@ if (WITH_CUDA)
     endif()
 
     # libcudnn.so is a shim layer that dynamically loads the correct library at runtime,
-    # so we explictly link against it even with CUDA_DYNAMIC_LOADING.
+    # so we explicitly link against it even with CUDA_DYNAMIC_LOADING.
     list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${CUDNN_INCLUDE_DIR})
     list(APPEND LIBRARIES ${CUDNN_LIBRARIES})
     add_definitions(-DCT2_WITH_CUDNN)
