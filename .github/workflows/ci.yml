@@ -72,7 +72,7 @@ jobs:
         run: |
           tests/ctranslate2_test tests/data
           
-  build-and-test-cpp-x86_64-sanitizer:
+  build-and-test-cpp-x86_64-address_sanitizer:
     runs-on: ubuntu-22.04
     env:
       CT2_VERBOSE: 1
