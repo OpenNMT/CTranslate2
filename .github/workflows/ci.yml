@@ -253,6 +253,7 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_ARCHS: auto64
           CIBW_SKIP: "*-musllinux_*"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: 'auditwheel repair -w {dest_dir} --exclude "/opt/rocm/lib/*" {wheel}'
 
       - name: Upload Python wheels
         uses: actions/upload-artifact@v6
