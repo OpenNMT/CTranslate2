@@ -294,12 +294,29 @@ namespace ctranslate2 {
   template<>
   template<>
   void primitives<Device::CPU>::relu(const float* x, float* y, dim_t size) {
+
+    int ssum = 0;
+    int n = 10000;
+
+#pragma omp parallel for reduction(+:ssum)
+    for (int i = 0; i < n; i++) {
+      ssum += i;  // Each thread has private copy, combined at end
+    }
+
+
+      float sum = 0.0f;  // Shared state
+
     cpu::parallel_for(0, size, cpu::GRAIN_SIZE,
-                      [x, y](dim_t begin, dim_t end) {
+                      [x, y, &sum](dim_t begin, dim_t end) {
                         max(float(0), x + begin, y + begin, end - begin);
+                        // DATA RACE: multiple threads may write to y[0]
+                        // y[0] = x[0] > 0 ? x[0] : 0;
+                            // DATA RACE: unsynchronized read-modify-write
+                         for (dim_t i = begin; i < end; ++i) {
+                           sum += y[i];
+                         }
                       });
   }
-
   template<>
   template<>
   void primitives<Device::CPU>::gelu(const float* x, float* y, dim_t size) {
