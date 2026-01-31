@@ -21,7 +21,9 @@ def clear_transformers_cache_in_ci():
     import transformers
 
     if os.environ.get("CI") == "true":
-        shutil.rmtree(transformers.utils.default_cache_path, ignore_errors=True)
+        from huggingface_hub import constants
+
+        shutil.rmtree(constants.HF_HUB_CACHE, ignore_errors=True)
 
 
 _TRANSFORMERS_TRANSLATION_TESTS = [
