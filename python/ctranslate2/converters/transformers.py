@@ -22,6 +22,7 @@ from ctranslate2.specs import (
     common_spec,
     model_spec,
     transformer_spec,
+    wavlm_spec,
     wav2vec2_spec,
     wav2vec2bert_spec,
     whisper_spec,
@@ -144,9 +145,13 @@ class TransformersConverter(Converter):
             if self._trust_remote_code:
                 tokenizer_kwargs["trust_remote_code"] = self._trust_remote_code
 
-            tokenizer = self.load_tokenizer(
-                tokenizer_class, self._model_name_or_path, **tokenizer_kwargs
-            )
+            try:
+                tokenizer = self.load_tokenizer(
+                    tokenizer_class, self._model_name_or_path, **tokenizer_kwargs
+                )
+            except:
+                tokenizer = None
+                print("Escape tokenizer, which does not exist.")
 
             spec = loader(model, tokenizer)
 
@@ -1098,6 +1103,122 @@ class Wav2Vec2Loader(BartLoader):
         return_hidden = getattr(model.wav2vec2.config, "return_hidden", False)
         if not return_hidden:
             self.set_linear(spec.lm_head, model.lm_head)
+
+    def set_common_layers(self, spec, module):
+        self.set_layer_norm(spec.layer_norm, module.layer_norm)
+
+
+
+@register_loader("WavLMConfig")
+class WavLMLoader(BartLoader):
+    @property
+    def architecture_name(self):
+        return "WavLMModel"
+
+    def get_model_spec(self, model):
+        return_hidden = getattr(model.config, "return_hidden", False)
+        spec = wavlm_spec.WavLMSpec(
+            model.config.num_feat_extract_layers,
+            model.encoder.config.num_hidden_layers,
+            model.encoder.config.num_attention_heads,
+            return_hidden,
+        )
+
+        # layer component name matching (no duplications saving)
+        for layer in model.encoder.layers:
+            layer.self_attn = layer.attention
+            layer.self_attn_layer_norm = layer.layer_norm
+            layer.activation_fn = layer.feed_forward.intermediate_act_fn
+            layer.fc1 = layer.feed_forward.intermediate_dense
+            layer.fc2 = layer.feed_forward.output_dense
+
+        self.set_encoder(spec.encoder, model, model.config)
+        return spec
+
+    def set_config(self, config, model, tokenizer):
+        config.layer_norm_epsilon = model.config.layer_norm_eps
+
+    def get_vocabulary(self, model, tokenizer):
+        return
+
+    def set_vocabulary(self, spec, tokens):
+        return
+
+    def set_feature_extractor(self, spec, feature_extractor):
+        spec.feat_layer0.conv.weight = feature_extractor.conv_layers[0].conv.weight
+        # spec.feat_layer0.conv.bias = feature_extractor.conv_layers[0].conv.bias // wavlm has no bias
+        self.set_layer_norm(
+            spec.feat_layer0.layer_norm, feature_extractor.conv_layers[0].layer_norm
+        )
+        for spec_layer, module_layer in zip(
+            spec.feat_layer, feature_extractor.conv_layers[1:]
+        ):
+            spec_layer.conv.weight = module_layer.conv.weight
+            # spec_layer.conv.bias = module_layer.conv.bias // wavlm has no bias
+            self.set_layer_norm(spec_layer.layer_norm, module_layer.layer_norm)
+
+    def set_feature_projection(self, spec, feature_projection):
+        self.set_layer_norm(spec.fp_layer_norm, feature_projection.layer_norm)
+        self.set_linear(spec.fp_projection, feature_projection.projection)
+
+    def set_pos_conv_embed(self, spec, encoder, config):
+        # forcing parameters to be set because some transformers version initializes garbage numbers
+        # conv parameters are float16 so force float32 for the loading
+        encoder.pos_conv_embed.conv.weight.data = (
+            encoder.pos_conv_embed.conv.weight.data.float()
+        )
+        encoder.pos_conv_embed.conv.bias.data = encoder.pos_conv_embed.conv.bias.float()
+        for param in encoder.pos_conv_embed.parameters():
+            param.data = param.data.float()
+        encoder.pos_conv_embed(torch.randn((1, 1, config.hidden_size)))
+        spec.pos_conv_embed.conv.weight = encoder.pos_conv_embed.conv.weight
+        spec.pos_conv_embed.conv.bias = encoder.pos_conv_embed.conv.bias
+
+    def set_encoder(self, spec, model, config):
+        self.set_feature_extractor(spec, model.feature_extractor)
+        self.set_feature_projection(spec, model.feature_projection)
+        self.set_pos_conv_embed(spec, model.encoder, config)
+        self.set_wavlm_encoder_layer(spec, model.encoder)
+
+    def set_wavlm_encoder_layer(self, spec, encoder):
+        self.set_common_layers(spec, encoder)
+
+        for layer_index, (layer_spec, layer) in enumerate(zip(spec.layer, encoder.layers)):
+            self.set_attention(
+                layer_spec.self_attention,
+                layer.self_attn,
+                self_attention=True,
+                has_rel_attn_embed=(layer_index==0),
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.layer_norm,
+                layer.self_attn_layer_norm,
+            )
+
+            self.set_linear(layer_spec.ffn.linear_0, layer.fc1)
+            self.set_linear(layer_spec.ffn.linear_1, layer.fc2)
+            self.set_layer_norm(layer_spec.ffn.layer_norm, layer.final_layer_norm)
+
+    def set_attention(self, spec, attention, self_attention=False, has_rel_attn_embed=False):
+        split_layers = [common_spec.LinearSpec() for _ in range(3)]
+        self.set_linear(split_layers[0], attention.q_proj)
+        self.set_linear(split_layers[1], attention.k_proj)
+        self.set_linear(split_layers[2], attention.v_proj)
+
+        if self_attention:
+            utils.fuse_linear(spec.linear[0], split_layers)
+        else:
+            utils.fuse_linear(spec.linear[0], split_layers[:1])
+            utils.fuse_linear(spec.linear[1], split_layers[1:])
+
+        self.set_linear(spec.linear[-1], attention.out_proj)
+
+        self.set_linear(spec.gru_relative_position_linear, attention.gru_rel_pos_linear)
+        spec.gru_relative_position_const = attention.gru_rel_pos_const.data # is torch.nn.parameter.Parameter
+
+        if has_rel_attn_embed:
+            spec.relative_attention_bias = attention.rel_attn_embed.weight
+            spec.relative_attention_max_distance = np.int32(attention.max_distance)
 
     def set_common_layers(self, spec, module):
         self.set_layer_norm(spec.layer_norm, module.layer_norm)

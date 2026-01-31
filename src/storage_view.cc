@@ -405,6 +405,11 @@ namespace ctranslate2 {
     return *this;
   }
 
+  StorageView& StorageView::one() {
+    DEVICE_AND_TYPE_DISPATCH(_device, _dtype, primitives<D>::fill(data<T>(), T(1), _size));
+    return *this;
+  }
+
   template <typename T>
   StorageView& StorageView::copy_from(const T* data, dim_t size, Device device, bool synchronous) {
     if (size != _size)
