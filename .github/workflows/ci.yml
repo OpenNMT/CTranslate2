@@ -228,6 +228,39 @@ jobs:
           name: python-wheels-${{ runner.os }}-${{ matrix.arch }}
           path: python/wheelhouse
 
+  build-python-wheels-rocm:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.2.1
+        with:
+          package-dir: python
+          output-dir: python/wheelhouse
+        env:
+          CIBW_ENVIRONMENT_LINUX: ROCM_PATH=/opt/rocm LD_LIBRARY_PATH=/opt/rocm/lib/llvm/lib:$LD_LIBRARY_PATH
+          CIBW_ENVIRONMENT_WINDOWS: CTRANSLATE2_ROOT='${{ github.workspace }}\install'
+          CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux_rocm.sh
+          CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows_rocm.sh
+          CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_ARCHS: auto64
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: 'auditwheel repair -w {dest_dir} --exclude "/opt/rocm/lib/*" {wheel}'
+
+      - name: Upload Python wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: rocm-python-wheels-${{ runner.os }}
+          path: python/wheelhouse
+
 
   # We could test the Python wheels using cibuildwheel but we prefer to run the tests outside
   # the build environment to ensure wheels correctly embed all dependencies.
@@ -334,6 +367,10 @@ jobs:
 
   build-and-push-docker-images:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        gpu: [cuda, rocm]
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -364,7 +401,7 @@ jobs:
 
       - name: Build Docker images
         run: |
-          ./docker/build_all.sh
+          ./docker/build_all.sh latest 0 ${{ matrix.gpu }}
 
       - name: Login to DockerHub
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
@@ -377,7 +414,7 @@ jobs:
       - name: Push Docker images
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         run: |
-          ./docker/build_all.sh ${GITHUB_REF##*/v} 1
+          ./docker/build_all.sh ${GITHUB_REF##*/v} 1 ${{ matrix.gpu }}
 
 
   build-and-deploy-docs:
