@@ -1,5 +1,6 @@
 #include "ctranslate2/decoding_utils.h"
 
+#include <algorithm>
 #include <set>
 
 #include "ctranslate2/ops/ops.h"
@@ -16,7 +17,21 @@ namespace ctranslate2 {
   {
   }
 
+  void DisableTokens::reserve(dim_t additional) {
+    if (!_logits_data && additional > 0)
+      _flat_indices.reserve(_flat_indices.size() + static_cast<size_t>(additional));
+  }
+
   void DisableTokens::apply() {
+    if (_logits_data)
+      return;
+
+    if (_flat_indices.empty())
+      return;
+
+    std::sort(_flat_indices.begin(), _flat_indices.end());
+    _flat_indices.erase(std::unique(_flat_indices.begin(), _flat_indices.end()), _flat_indices.end());
+
     const dim_t num_indices = _flat_indices.size();
     if (num_indices == 0)
       return;
@@ -159,11 +174,17 @@ namespace ctranslate2 {
   }
 
   void SuppressTokens::apply(dim_t,
-                             StorageView&,
+                             StorageView& logits,
                              DisableTokens& disable_tokens,
                              const StorageView&,
                              const std::vector<dim_t>&,
                              const std::vector<std::vector<size_t>>*) {
+    if (_ids.empty())
+      return;
+
+    const dim_t batch_size = logits.dim(0);
+    disable_tokens.reserve(batch_size * static_cast<dim_t>(_ids.size()));
+
     for (const auto token_id : _ids)
       disable_tokens.add(token_id);
   }
@@ -181,6 +202,11 @@ namespace ctranslate2 {
                                   const std::vector<dim_t>& batch_offset,
                                   const std::vector<std::vector<size_t>>* prefix) {
     const dim_t batch_size = logits.dim(0);
+
+    if (_ids.empty())
+      return;
+
+    disable_tokens.reserve(batch_size * static_cast<dim_t>(_ids.size()));
 
     for (dim_t batch_id = 0; batch_id < batch_size; ++batch_id) {
       const dim_t sample_begin = get_sample_begin(batch_size, batch_id, batch_offset, prefix);
