@@ -4,7 +4,34 @@
 
 ### Fixes and improvements
 
-## [v4.6.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.3) (2026-01-XX)
+## [v4.7.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.3) (2026-02-02)
+
+### New features
+
+* Compatibility with Transformers v5 (#1999) by [@JordiMas](https://github.com/JordiMas)
+* Add causal flag to fa2 (#1976) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+
+## Fixes and improvements
+
+* Assume less about whisper vocab (#2000) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* Use LLVM ThreadSanitizer instead of Google   (#1993) by [@22544721+3manifold](https://github.com/22544721+3manifold)
+* Optimize all builds with parallel execution   (#1992) by [@22544721+3manifold](https://github.com/22544721+3manifold)
+* Remove unecessary zero init from conv1d (#1990) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* Integrate Clang AddressSanitizer in tests (#1903) by [@22544721+3manifold](https://github.com/22544721+3manifold)
+* Enable multiple of 16 padding for INT8 Tensor Cores (#1982) by [@69023953+Purfview](https://github.com/69023953+Purfview)
+* Add activation and dilation to conv1d (#1979) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* Minor refactor to CMakeLists.txt (#1980) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* Remove unnecessary check from wav2vec2 (#1977) by [@plan9better](https://github.com/plan9better)
+* Add optional residual add to gemm op (#1975) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* Implement cuda layernorm axis (#1971) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* fix conversion (#1998) by [@VincentNguyen](https://github.com/VincentNguyen)
+* Gemma 3 conversion improvements (#1991) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* Fixes cross attention tests and refactors code (#1974) by [@JordiMas](https://github.com/JordiMas)
+* Fix CUDA bf16 median filter (#1972) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+* Fix various compiler warnings (#1970) by [@193317444+sssshhhhhh](https://github.com/193317444+sssshhhhhh)
+
+
+## [v4.6.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.3) (2026-01-06)
 
 ### New features
 
