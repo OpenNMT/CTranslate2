@@ -8,13 +8,14 @@
 
 ### New features
 
+* Introduce AMD GPU support with ROCm HIP (#1989) [@sssshhhhhh](https://github.com/sssshhhhhh)
 * Compatibility with Transformers v5 (#1999) by [@jordimas](https://github.com/jordimas)
 
 ## Fixes and improvements
 
 * Assume less about whisper vocab (#2000) by [@sssshhhhhh](https://github.com/sssshhhhhh)
-* Use LLVM ThreadSanitizer instead of Google   (#1993) by [@3manifold](https://github.com/3manifold)
-* Optimize all builds with parallel execution   (#1992) by [@3manifold](https://github.com/3manifold)
+* Use LLVM ThreadSanitizer instead of Google (#1993) by [@3manifold](https://github.com/3manifold)
+* Optimize all builds with parallel execution (#1992) by [@3manifold](https://github.com/3manifold)
 * Remove unecessary zero init from conv1d (#1990) by [@sssshhhhhh](https://github.com/sssshhhhhh)
 * Integrate Clang AddressSanitizer in tests (#1903) by [@3manifold](https://github.com/3manifold)
 * Enable multiple of 16 padding for INT8 Tensor Cores (#1982) by [@6Purfview](https://github.com/Purfview)
