@@ -68,7 +68,6 @@ ENV HIP_FLAGS=${HIP_FLAGS:-"-O3 -Wno-deprecated-literal-operator"}
 ARG HIP_ARCHITECTURES
 ENV HIP_ARCHITECTURES=${HIP_ARCHITECTURES:-"gfx1030;gfx1100;gfx1101;gfx1102;gfx1150;gfx1151;gfx1200;gfx1201"}
 ENV CTRANSLATE2_ROOT=/opt/ctranslate2
-ARG LD_LIBRARY_PATH
 ENV LD_LIBRARY_PATH=/usr/local/lib/:${LD_LIBRARY_PATH}
 
 RUN mkdir build_tmp && \
@@ -101,8 +100,8 @@ RUN apt-get update && \
     rm -rf /var/lib/apt/lists/*
 
 ENV CTRANSLATE2_ROOT=/opt/ctranslate2
-ARG LD_LIBRARY_PATH
-ENV LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$CTRANSLATE2_ROOT/lib
+ENV ROCM_ROOT=/opt/rocm
+ENV LD_LIBRARY_PATH=$CTRANSLATE2_ROOT/lib:$ROCM_ROOT/lib/llvm/lib:$LD_LIBRARY_PATH
 
 COPY --from=builder $CTRANSLATE2_ROOT $CTRANSLATE2_ROOT
 RUN python3 -m pip --no-cache-dir install $CTRANSLATE2_ROOT/*.whl && \
