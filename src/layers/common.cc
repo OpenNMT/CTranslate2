@@ -400,6 +400,10 @@ namespace ctranslate2 {
         if (residual)
           ops::Add()(*residual, output, output);
       } else if (_qzero && _qscale) {
+#ifdef CT2_USE_HIP
+        (void)_activation_type;
+        throw std::invalid_argument("AWQ unsupported with ROCm");
+#else
         switch (_quant_method) {
           case models::QUANTIZATION_TYPE::AWQ_GEMM:
             if (input.dim(0) * input.dim(1) >= 1024) {
@@ -431,6 +435,7 @@ namespace ctranslate2 {
             throw std::invalid_argument("Dense forward: invalid quantized type,"
                                         "support only ct2 and awq quantization");
         }
+#endif
       } else {
         _gemm_op(input, *weight, output, nullptr, bias, residual);
       }
