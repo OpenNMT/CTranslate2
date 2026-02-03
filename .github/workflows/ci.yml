@@ -278,6 +278,10 @@ jobs:
             artifact_pattern: python-wheels-Linux-aarch64
             wheel_pattern: "*cp310*manylinux*_aarch64.whl"
 
+          - os: windows-2022
+            artifact_pattern: python-wheels-Windows-auto64
+            wheel_pattern: "*cp310*win*amd64.whl"
+
           - os: macos-15
             artifact_pattern: python-wheels-macOS-arm64
             wheel_pattern: "*cp310*macosx*arm64.whl"
