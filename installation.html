@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 4.6.3 documentation</title>
+  <title>Installation &mdash; CTranslate2 4.7.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -34,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.6
+                4.7
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -131,7 +131,7 @@
 <p>The Python wheels have the following requirements:</p>
 <ul class="simple">
 <li><p>OS: Linux (x86-64, AArch64), macOS (x86-64, ARM64), Windows (x86-64)</p></li>
-<li><p>Python version: &gt;= 3.7</p></li>
+<li><p>Python version: &gt;= 3.9</p></li>
 <li><p>pip version: &gt;= 19.3 to support <code class="docutils literal notranslate"><span class="pre">manylinux2014</span></code> wheels</p></li>
 </ul>
 <div class="admonition-gpu-support admonition">
@@ -147,7 +147,7 @@
 <section id="install-with-docker">
 <h2>Install with Docker<a class="headerlink" href="#install-with-docker" title="Permalink to this heading"></a></h2>
 <p>Docker images can be downloaded from the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/pkgs/container/ctranslate2">GitHub Container registry</a>:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda11.2
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>docker<span class="w"> </span>pull<span class="w"> </span>ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda12.8
 </pre></div>
 </div>
 <p>The images include:</p>
@@ -284,6 +284,10 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the Ruy backend</p></td>
 </tr>
+<tr class="row-odd"><td><p>WITH_HIP</p></td>
+<td><p><strong>OFF</strong>, ON</p></td>
+<td><p>Compiles with the AMD HIP GPU backend</p></td>
+</tr>
 </tbody>
 </table>
 <p>Some build options require additional dependencies. See their respective documentation for installation instructions.</p>
@@ -294,6 +298,7 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 3.0</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_ACCELERATE=ON</span></code> requires <a class="reference external" href="https://developer.apple.com/documentation/accelerate">Accelerate</a></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_OPENBLAS=ON</span></code> requires <a class="reference external" href="https://github.com/xianyi/OpenBLAS">OpenBLAS</a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_HIP=ON</span></code> requires <a class="reference external" href="https://rocm.docs.amd.com/en/latest/reference/api-libraries.html">ROCm libraries</a></p></li>
 </ul>
 <p>Multiple backends can be enabled for a single build, for example:</p>
 <ul class="simple">

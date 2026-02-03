@@ -81,7 +81,7 @@ It is a text file where each line has the following format:
 src_1 src_2 ... src_N<TAB>tgt_1 tgt_2 ... tgt_K
 ```
 
-If the source N-gram is empty (N = 0), the assiocated target tokens will always be included in the reduced vocabulary.
+If the source N-gram is empty (N = 0), the associated target tokens will always be included in the reduced vocabulary.
 
 ```{hint}
 See [here](https://github.com/OpenNMT/papers/tree/master/WNMT2018/vmap) for an example on how to generate this file.
