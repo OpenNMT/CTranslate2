@@ -58,7 +58,7 @@ generator.generate_batch(start_tokens)
 
 See the [documentation](https://opennmt.net/CTranslate2) for more information and examples.
 
-If you have an AMD ROCm GPU, we provide specific Python wheels and builds on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/).
+If you have an AMD ROCm GPU, we provide specific Python wheels on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/).
 
 ## Benchmarks
 
