@@ -4,6 +4,7 @@ if sys.platform == "win32":
     import ctypes
     import glob
     import os
+
     from importlib.resources import files
 
     module_name = sys.modules[__name__].__name__
