@@ -11,7 +11,7 @@ pip install ctranslate2
 The Python wheels have the following requirements:
 
 * OS: Linux (x86-64, AArch64), macOS (x86-64, ARM64), Windows (x86-64)
-* Python version: >= 3.7
+* Python version: >= 3.9
 * pip version: >= 19.3 to support `manylinux2014` wheels
 
 ```{admonition} GPU support
@@ -114,6 +114,7 @@ The following options can be set with `-DOPTION=VALUE` during the CMake configur
 | WITH_ACCELERATE | **OFF**, ON | Compiles with the Apple Accelerate backend |
 | WITH_OPENBLAS | **OFF**, ON | Compiles with the OpenBLAS backend |
 | WITH_RUY | **OFF**, ON | Compiles with the Ruy backend |
+| WITH_HIP | **OFF**, ON | Compiles with the AMD HIP GPU backend |
 
 Some build options require additional dependencies. See their respective documentation for installation instructions.
 
@@ -123,6 +124,7 @@ Some build options require additional dependencies. See their respective documen
 * `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) >= 3.0
 * `-DWITH_ACCELERATE=ON` requires [Accelerate](https://developer.apple.com/documentation/accelerate)
 * `-DWITH_OPENBLAS=ON` requires [OpenBLAS](https://github.com/xianyi/OpenBLAS)
+* `-DWITH_HIP=ON` requires [ROCm libraries](https://rocm.docs.amd.com/en/latest/reference/api-libraries.html)
 
 Multiple backends can be enabled for a single build, for example:
 
