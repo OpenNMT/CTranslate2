@@ -29,7 +29,7 @@ On Windows [the Visual C++ runtime](https://www.microsoft.com/en-US/download/det
 Docker images can be downloaded from the [GitHub Container registry](https://github.com/OpenNMT/CTranslate2/pkgs/container/ctranslate2):
 
 ```bash
-docker pull ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda11.2
+docker pull ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda12.8
 ```
 
 The images include:
