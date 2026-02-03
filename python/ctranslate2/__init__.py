@@ -14,7 +14,7 @@ if sys.platform == "win32":
         os.add_dll_directory(package_dir)
         os.add_dll_directory(f"{package_dir}/../_rocm_sdk_core/bin")
         os.add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
-    except FileNotFoundError | OSError:
+    except (FileNotFoundError, OSError):
         pass
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
