@@ -4,7 +4,7 @@
 
 ### Fixes and improvements
 
-## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-03)
+## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-04)
 
 * Fix Windows build (#2007) [@sssshhhhhh](https://github.com/sssshhhhhh)
 
