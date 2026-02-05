@@ -491,7 +491,7 @@ IF (ENABLE_ADDRESS_SANITIZER AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUI
   add_link_options(-fsanitize=address)
 ELSEIF (ENABLE_THREAD_SANITIZER AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG"))
   MESSAGE (STATUS "ENABLE_THREAD_SANITIZER: TRUE")
-  set(TSAN_FLAGS "    -g -fsanitize=thread")
+  set(TSAN_FLAGS " -fsanitize=thread")
   string(APPEND CMAKE_C_FLAGS ${TSAN_FLAGS})
   string(APPEND CMAKE_CXX_FLAGS ${TSAN_FLAGS})
   add_link_options(-fsanitize=thread)
