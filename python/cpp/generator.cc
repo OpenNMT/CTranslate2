@@ -11,6 +11,12 @@ namespace ctranslate2 {
     public:
       using ReplicaPoolHelper::ReplicaPoolHelper;
 
+      void set_alignment_heads(const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) {
+        _pool->for_each_replica([&](models::SequenceGeneratorReplica& replica) {
+          replica.set_alignment_heads(alignment_heads);
+        });
+      }
+
       std::variant<std::vector<GenerationResult>,
                    std::vector<AsyncResult<GenerationResult>>>
       generate_batch(const BatchTokens& tokens,
@@ -184,6 +190,23 @@ namespace ctranslate2 {
                                "Run model with tensor parallel mode.")
         .def_property_readonly("num_active_batches", &GeneratorWrapper::num_active_batches,
                                "Number of batches waiting to be processed or currently processed.")
+
+        .def("set_alignment_heads", &GeneratorWrapper::set_alignment_heads,
+             py::arg("alignment_heads"),
+             R"pbdoc(
+                 Configure which attention heads to collect when ``return_attention=True``.
+
+                 By default, only head 0 of the last layer is returned (averaged).
+                 Use this method to select specific (layer, head) pairs. The attention
+                 from the selected heads will be concatenated in the output.
+
+                 Arguments:
+                   alignment_heads: List of (layer_index, head_index) pairs to collect.
+
+                 Example:
+
+                     >>> generator.set_alignment_heads([(31, 0), (31, 3), (33, 7)])
+             )pbdoc")
 
         .def("generate_batch", &GeneratorWrapper::generate_batch,
              py::arg("start_tokens"),

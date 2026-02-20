@@ -110,6 +110,11 @@ namespace ctranslate2 {
     {
     }
 
+    void DecoderReplica::set_alignment_heads(
+        const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) {
+      _decoder->set_alignment_heads(alignment_heads);
+    }
+
     std::vector<ScoringResult>
     DecoderReplica::run_scoring(const std::vector<std::vector<std::string>>& tokens,
                                 const ScoringOptions& options) {

@@ -152,6 +152,15 @@ namespace ctranslate2 {
       return worker.replica();
     }
 
+    // Apply a function to each replica. Not thread-safe.
+    template <typename Func>
+    void for_each_replica(Func func) {
+      for (size_t i = 0; i < num_replicas(); ++i) {
+        auto& worker = static_cast<ReplicaWorker<Replica>&>(_thread_pool->get_worker(i));
+        func(worker.replica());
+      }
+    }
+
   protected:
     template <typename Result, typename Func>
     std::vector<std::future<Result>>

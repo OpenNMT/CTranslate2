@@ -185,7 +185,7 @@ namespace ctranslate2 {
                       StorageView* attention = nullptr) override;
 
       void set_alignment_heads(const dim_t layer, const dim_t num_heads_to_average);
-      void set_alignment_heads(const std::vector<std::pair<dim_t, dim_t>>& alignment_heads);
+      void set_alignment_heads(const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) override;
 
       std::unique_ptr<StorageView>
       get_layer_alignment_heads(const dim_t layer, const dim_t batch_size) const;

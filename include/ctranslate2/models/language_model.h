@@ -58,6 +58,12 @@ namespace ctranslate2 {
                           const StorageView& lengths,
                           const bool return_log_probs);
 
+      // Configure which attention heads to collect when return_attention is enabled.
+      // Each pair is (layer_index, head_index).
+      virtual void set_alignment_heads(const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) {
+        (void)alignment_heads;
+      }
+
     protected:
       virtual bool skip_scoring(const std::vector<std::string>& tokens,
                                 const ScoringOptions& options,
@@ -88,6 +94,8 @@ namespace ctranslate2 {
     public:
       DecoderReplica(const std::shared_ptr<const LanguageModel>& model,
                      std::unique_ptr<layers::Decoder> decoder);
+
+      void set_alignment_heads(const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) override;
 
     protected:
       bool skip_scoring(const std::vector<std::string>& tokens,
