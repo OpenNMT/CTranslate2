@@ -370,10 +370,14 @@ jobs:
 
 
   build-and-push-docker-images:
-    runs-on: ubuntu-22.04
+    runs-on: ${{ matrix.os }}
     strategy:
       matrix:
+        os: [ubuntu-22.04, ubuntu-22.04-arm]
         gpu: [cuda, rocm]
+        include:
+          - os: ubuntu-22.04-arm
+            suffix: -arm
 
     steps:
       - uses: actions/checkout@v4
@@ -405,7 +409,7 @@ jobs:
 
       - name: Build Docker images
         run: |
-          ./docker/build_all.sh latest 0 ${{ matrix.gpu }}
+          ./docker/build_all.sh latest 0 ${{ matrix.gpu }} ${{ matrix.suffix }}
 
       - name: Login to DockerHub
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
@@ -418,7 +422,7 @@ jobs:
       - name: Push Docker images
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         run: |
-          ./docker/build_all.sh ${GITHUB_REF##*/v} 1 ${{ matrix.gpu }}
+          ./docker/build_all.sh ${GITHUB_REF##*/v} 1 ${{ matrix.gpu }} ${{ matrix.suffix }}
 
 
   build-and-deploy-docs:

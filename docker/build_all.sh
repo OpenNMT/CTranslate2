@@ -21,6 +21,7 @@ cd $ROOT_DIR
 VERSION=${1:-latest}
 PUSH=${2:-0}
 GPU=${3:-cuda}
+SUFFIX=${4:}
 IMAGE=ghcr.io/opennmt/ctranslate2
 
 build()
@@ -29,8 +30,8 @@ build()
     IMAGE_NAME=$2
     BUILD_ARGS=${3:-}
 
-    LATEST=$IMAGE:latest-$IMAGE_NAME
-    TAGGED=$IMAGE:$VERSION-$IMAGE_NAME
+    LATEST=$IMAGE:latest-$IMAGE_NAME$SUFFIX
+    TAGGED=$IMAGE:$VERSION-$IMAGE_NAME$SUFFIX
     docker build --pull $BUILD_ARGS -t $LATEST -f docker/$DOCKERFILE .
     if [ $PUSH -eq 1 ]; then
         docker push $LATEST
