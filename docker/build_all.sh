@@ -22,7 +22,7 @@ VERSION=${1:-latest}
 PUSH=${2:-0}
 GPU=${3:-cuda}
 SUFFIX=${4:}
-IMAGE=ghcr.io/opennmt/ctranslate2
+IMAGE=ghcr.io/nicolasbfr/ctranslate2
 
 build()
 {
