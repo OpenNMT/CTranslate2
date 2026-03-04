@@ -378,6 +378,9 @@ jobs:
         include:
           - os: ubuntu-22.04-arm
             suffix: -arm
+        exclude:
+          - os: ubuntu-22.04-arm
+            gpu: rocm
 
     steps:
       - uses: actions/checkout@v4
