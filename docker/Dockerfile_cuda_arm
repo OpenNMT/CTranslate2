@@ -42,7 +42,6 @@ COPY python python
 COPY CMakeLists.txt .
 
 ARG CXX_FLAGS
-ENV CXX_FLAGS=${CXX_FLAGS:-"-msse4.1"}
 ARG CUDA_NVCC_FLAGS
 ENV CUDA_NVCC_FLAGS=${CUDA_NVCC_FLAGS:-"-Xfatbin=-compress-all"}
 ARG CUDA_ARCH_LIST
@@ -53,7 +52,7 @@ ENV LD_LIBRARY_PATH=/usr/local/lib/:${LD_LIBRARY_PATH}
 RUN mkdir build_tmp && \
     cd build_tmp && \
     cmake -DCMAKE_INSTALL_PREFIX=${CTRANSLATE2_ROOT} \
-          -DWITH_CUDA=ON -DWITH_CUDNN=ON -DWITH_MKL=ON -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP \
+          -DWITH_CUDA=ON -DWITH_CUDNN=ON -DWITH_MKL=OFF -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP \
           -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" \
           -DCUDA_NVCC_FLAGS="${CUDA_NVCC_FLAGS}" -DCUDA_ARCH_LIST="${CUDA_ARCH_LIST}" -DWITH_TENSOR_PARALLEL=ON .. && \
     VERBOSE=1 make -j$(nproc) install
@@ -71,15 +70,15 @@ FROM nvidia/cuda:12.8.1-base-ubuntu22.04
 # See e.g. https://github.com/NVIDIA/nvidia-docker/issues/1515
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
-        libcublas-12-8=12.8.4.1-1 \
-        libcudnn9-cuda-12=9.10.2.21-1 \
-        libnccl2=2.26.2-1+cuda12.8 \
-        libopenmpi3=4.1.2-2ubuntu1 \
+        libcublas-12-8 \
+        libcudnn9-cuda-12 \
+        libnccl2 \
+        libopenmpi3 \
         openmpi-bin \
         libgomp1 \
         python3-pip \
         && \
-    apt-get purge -y cuda-compat-12-8 && \
+    apt-get purge -y cuda-compat-12-8 || true && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
