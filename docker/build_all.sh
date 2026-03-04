@@ -46,6 +46,8 @@ build()
 
 if [ "$GPU" == "rocm" ]; then
     build Dockerfile_rocm ubuntu22.04-rocm7.2
+elif [ "$GPU" == "cudaarm" ]; then
+    build Dockerfile_openblas ubuntu22.04-openblas
 else
     build Dockerfile ubuntu22.04-cuda12.8
 fi

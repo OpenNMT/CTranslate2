@@ -379,7 +379,7 @@ jobs:
           - os: ubuntu-22.04
             gpu: rocm
           - os: ubuntu-22.04-arm
-            gpu: cuda
+            gpu: cudaarm
             suffix: -arm
 
     steps:
