@@ -14,7 +14,7 @@ WORKDIR /root
 RUN python3 -m pip --no-cache-dir install cmake==3.22.*
 
 ENV ONEDNN_VERSION=3.1.1
-RUN wget -q https://github.com/uxlffoundation/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz && \
+RUN wget -q https://github.com/uxlfoundation/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz && \
     tar xf *.tar.gz && \
     rm *.tar.gz && \
     cd oneDNN-* && \
