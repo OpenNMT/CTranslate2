@@ -373,14 +373,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, ubuntu-22.04-arm]
-        gpu: [cuda, rocm]
         include:
-          - os: ubuntu-22.04-arm
-            suffix: -arm
-        exclude:
-          - os: ubuntu-22.04-arm
+          - os: ubuntu-22.04
+            gpu: cuda
+          - os: ubuntu-22.04
             gpu: rocm
+          - os: ubuntu-22.04-arm
+            gpu: cuda
+            suffix: -arm
 
     steps:
       - uses: actions/checkout@v4
