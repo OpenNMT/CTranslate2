@@ -173,6 +173,39 @@ namespace ctranslate2 {
     return logits;
   }
 
+  static std::vector<StorageView> build_logits_for_beamsearch(StorageView& history,
+                                                              const dim_t batch,
+                                                              const dim_t beam) {
+    if (!history)
+      return {};
+
+    const dim_t beam_size = history.dim(1);
+    merge_batch_beam(history);
+
+    // get target beam logits
+    const dim_t flat_index = batch * beam_size + beam;
+    ops::Slide slide_axis0(0, flat_index, 1);
+    StorageView hyp_logits;
+    slide_axis0(history, hyp_logits);
+    hyp_logits.squeeze(0);
+
+    // save token logits to std::vector
+    const dim_t seq_len = hyp_logits.dim(0);
+    std::vector<StorageView> logits;
+    logits.reserve(seq_len);
+    for (dim_t t = 0; t < seq_len; ++t) {
+      ops::Slide slide(0, t, 1);
+      StorageView tmp(hyp_logits.dtype(), hyp_logits.device());
+      slide(hyp_logits, tmp);
+      logits.emplace_back(std::move(tmp.squeeze(0)));
+    }
+
+    // restore original shape
+    split_batch_beam(history, beam_size);
+
+    return logits;
+  }
+
   static float compute_coverage_penalty(const std::vector<std::vector<float>>& attention,
                                         const float beta) {
     float penalty = 0;
@@ -643,19 +676,8 @@ namespace ctranslate2 {
             result.hypotheses.emplace_back(build_hypothesis(alive_seq, i, k, start, end));
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
-            if (return_logits_vocab) {
-              if (is_expanded) {
-                const dim_t flat_index = i * _beam_size + k;
-                merge_batch_beam(alive_logits);
-                StorageView hyp_logits;
-                ops::Slide slide_axis0(0, flat_index, 1);
-                slide_axis0(alive_logits, hyp_logits);
-                result.logits_vocab.emplace_back(std::vector<StorageView>{std::move(hyp_logits.squeeze(0))});
-                split_batch_beam(alive_logits, _beam_size);
-              } else {
-                // TODO
-              }
-            }
+            if (return_logits_vocab)
+              result.logits_vocab.emplace_back(build_logits_for_beamsearch(alive_logits, i, k));
 
             // Move another active beam to this position.
             for (dim_t j = secondary_candidates_offset; j < num_candidates; ++j) {
