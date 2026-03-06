@@ -482,6 +482,7 @@ namespace ctranslate2 {
     }
     const bool use_hard_prefix = prefix_ids && !bias_towards_prefix;
 
+    StorageView alive_logits(dtype, device);
     StorageView logits(dtype, device);
     StorageView alive_seq(topk_ids.dtype());
     StorageView alive_attention;
@@ -531,6 +532,18 @@ namespace ctranslate2 {
           logits_vec = build_logits(logits, cur_batch_size * _beam_size);
         else
           logits_vec = build_logits(logits, cur_batch_size);
+
+        // Accumulate logits across time steps
+        StorageView logits_reshaped = logits;
+        if (is_expanded) {
+          logits_reshaped.reshape({cur_batch_size, _beam_size, 1, vocabulary_size});
+          const StorageView cur_alive_logits(std::move(alive_logits));
+          ops::Concat(2)({&cur_alive_logits, &logits_reshaped}, alive_logits);
+        }
+        else {
+          logits_reshaped.reshape({cur_batch_size, 1, 1, vocabulary_size});
+          ops::Tile(/*axis=*/1, _beam_size)(std::move(logits_reshaped), alive_logits);
+        }
       }
 
       StorageView log_probs(dtype, device);
@@ -631,7 +644,17 @@ namespace ctranslate2 {
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
             if (return_logits_vocab) {
-              result.logits_vocab.emplace_back(std::move(logits_vec[i * k]));
+              if (is_expanded) {
+                const dim_t flat_index = i * _beam_size + k;
+                merge_batch_beam(alive_logits);
+                StorageView hyp_logits;
+                ops::Slide slide_axis0(0, flat_index, 1);
+                slide_axis0(alive_logits, hyp_logits);
+                result.logits_vocab.emplace_back(std::vector<StorageView>{std::move(hyp_logits.squeeze(0))});
+                split_batch_beam(alive_logits, _beam_size);
+              } else {
+                // TODO
+              }
             }
 
             // Move another active beam to this position.
@@ -686,6 +709,8 @@ namespace ctranslate2 {
       gather_beam_flat(alive_seq, active_beams, _beam_size);
       if (alive_attention)
         gather_beam_flat(alive_attention, active_beams, _beam_size);
+      if (alive_logits)
+        gather_beam_flat(alive_logits, gather_indices, _beam_size);
 
       // If some sentences finished on this step, ignore them for the next step.
       std::unique_ptr<StorageView> keep_batches;
@@ -701,6 +726,9 @@ namespace ctranslate2 {
         gather(alive_seq, *keep_batches);
         if (alive_attention)
           gather(alive_attention, *keep_batches);
+        if (alive_logits)
+          // TODO double check whether this is correct
+          gather(alive_logits, *keep_batches);
         if (keep_batches->device() != device)
           *keep_batches = keep_batches->to(device);
       }
