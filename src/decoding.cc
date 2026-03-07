@@ -676,8 +676,11 @@ namespace ctranslate2 {
             result.hypotheses.emplace_back(build_hypothesis(alive_seq, i, k, start, end));
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
-            if (return_logits_vocab)
-              result.logits_vocab.emplace_back(build_logits_for_beamsearch(alive_logits, i, k));
+            if (return_logits_vocab) {
+              // map candidates to original beam
+              const dim_t logit_beam = gather_indices.at<int>(i * num_candidates + k);
+              result.logits_vocab.emplace_back(build_logits_for_beamsearch(alive_logits, i, logit_beam));
+            }
 
             // Move another active beam to this position.
             for (dim_t j = secondary_candidates_offset; j < num_candidates; ++j) {
