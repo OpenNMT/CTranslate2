@@ -562,14 +562,19 @@ namespace ctranslate2 {
       if (return_logits_vocab) {
         // Accumulate logits across time steps
         StorageView logits_reshaped = logits;
-        if (is_expanded) {
+        if (alive_logits) {
           logits_reshaped.reshape({cur_batch_size, _beam_size, 1, vocabulary_size});
           const StorageView cur_alive_logits(std::move(alive_logits));
           ops::Concat(2)({&cur_alive_logits, &logits_reshaped}, alive_logits);
         }
         else {
-          logits_reshaped.reshape({cur_batch_size, 1, 1, vocabulary_size});
-          ops::Tile(/*axis=*/1, _beam_size)(std::move(logits_reshaped), alive_logits);
+          if (is_expanded) {
+            logits_reshaped.reshape({cur_batch_size, _beam_size, 1, vocabulary_size});
+            alive_logits = std::move(logits_reshaped);
+          } else {
+            logits_reshaped.reshape({cur_batch_size, 1, 1, vocabulary_size});
+            ops::Tile(/*axis=*/1, _beam_size)(std::move(logits_reshaped), alive_logits);
+          }
         }
       }
 
