@@ -9,6 +9,7 @@
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
+#include "env.h"
 
 namespace ctranslate2 {
   namespace layers {
@@ -324,6 +325,14 @@ namespace ctranslate2 {
           scope + "/relative_attention_max_distance");
       else
         _maximum_relative_position = 0;
+
+      // RotorQuant KV-cache compression: enabled by CT2_ROTOR_QUANT_BITS=3|4.
+      const int rq_bits = read_int_from_env("CT2_ROTOR_QUANT_BITS", 0);
+      if (rq_bits == 3 || rq_bits == 4) {
+        ops::RotorQuantKV::Config rq_cfg;
+        rq_cfg.bits = rq_bits;
+        _rotor_quant = std::make_unique<ops::RotorQuantKV>(_d_head, rq_cfg);
+      }
     }
 
     DataType MultiHeadAttention::output_type() const {
@@ -503,32 +512,117 @@ namespace ctranslate2 {
         }
 
         if (cached_keys != nullptr) {
-          if (cached_keys->empty()) {
-            *cached_keys = std::move(keys_proj);
-            *cached_values = std::move(values_proj);
-          } else {
-            const ops::Concat concat_op(_cache_time_dim);
-            StorageView& tmp = fused_proj;  // Reuse storage.
-            tmp = std::move(*cached_keys);
-            concat_op({&tmp, &keys_proj}, *cached_keys);
-            tmp = std::move(*cached_values);
-            concat_op({&tmp, &values_proj}, *cached_values);
+          if (_rotor_quant && keys_proj.rank() == 4) {
+            // --- RotorQuant compressed path ---
+            // Only active for standard 4-D KV tensors [batch, heads, time, d_head].
+            // Falls back to standard path for merged-time-head-dims layouts.
+            // cached_keys / cached_values store INT8 packed buffers.
+            // Shape convention: [batch, heads, time, packed_stride].
+            if (cached_keys->empty()) {
+              // Prefill: encode the full keys_proj / values_proj.
+              // keys_proj shape: [batch, heads, time, d_head] (after split_heads)
+              _rotor_quant->encode(keys_proj,   *cached_keys);
+              _rotor_quant->encode(values_proj, *cached_values);
+              cached_keys->reshape(
+                {keys_proj.dim(0), keys_proj.dim(1),
+                 keys_proj.dim(2), _rotor_quant->packed_stride()});
+              cached_values->reshape(
+                {values_proj.dim(0), values_proj.dim(1),
+                 values_proj.dim(2), _rotor_quant->packed_stride()});
+            } else {
+              // Decode existing cache, concat with new tokens, re-encode.
+              // (Efficient incremental append will be added in Phase 2.)
+              StorageView& tmp = fused_proj;  // Reuse storage.
 
-            if (!prefilling && _sliding_window > 0 && cached_keys->shape()[2] > _sliding_window) {
-              // only for generation
-              const ops::Slide slide_op(2, 1, cached_keys->shape()[2] - 1);
-              slide_op(*cached_keys, tmp);
-              *cached_keys = std::move(tmp);
-              slide_op(*cached_values, tmp);
-              *cached_values = std::move(tmp);
+              // Decode existing packed buffers to float.
+              StorageView old_keys(dtype, device), old_vals(dtype, device);
+              const dim_t old_time = cached_keys->dim(2);
+              const dim_t batch    = cached_keys->dim(0);
+              const dim_t heads    = cached_keys->dim(1);
+              StorageView ck_flat(DataType::INT8, device), cv_flat(DataType::INT8, device);
+              ck_flat.shallow_copy(*cached_keys);
+              cv_flat.shallow_copy(*cached_values);
+              ck_flat.reshape({batch * heads * old_time, _rotor_quant->packed_stride()});
+              cv_flat.reshape({batch * heads * old_time, _rotor_quant->packed_stride()});
+              _rotor_quant->decode(ck_flat, old_keys, dtype, device);
+              _rotor_quant->decode(cv_flat, old_vals, dtype, device);
+              old_keys.reshape({batch, heads, old_time, _d_head});
+              old_vals.reshape({batch, heads, old_time, _d_head});
+
+              // Concat along time.
+              const ops::Concat concat_op(_cache_time_dim);
+              tmp = std::move(old_keys);
+              concat_op({&tmp, &keys_proj}, old_keys);
+              tmp = std::move(old_vals);
+              concat_op({&tmp, &values_proj}, old_vals);
+
+              // Apply sliding window if needed.
+              if (!prefilling && _sliding_window > 0
+                  && old_keys.shape()[2] > _sliding_window) {
+                const ops::Slide slide_op(2, 1, old_keys.shape()[2] - 1);
+                slide_op(old_keys, tmp);  old_keys  = std::move(tmp);
+                slide_op(old_vals, tmp);  old_vals  = std::move(tmp);
+              }
+
+              // Re-encode the merged tensor.
+              const dim_t new_time = old_keys.dim(2);
+              _rotor_quant->encode(old_keys, *cached_keys);
+              _rotor_quant->encode(old_vals, *cached_values);
+              cached_keys->reshape({batch, heads, new_time, _rotor_quant->packed_stride()});
+              cached_values->reshape({batch, heads, new_time, _rotor_quant->packed_stride()});
+
+              // keys_proj / values_proj for attention = merged float tensors.
+              keys_proj   = std::move(old_keys);
+              values_proj = std::move(old_vals);
+            }
+          } else {
+            // --- Standard (uncompressed) path ---
+            if (cached_keys->empty()) {
+              *cached_keys = std::move(keys_proj);
+              *cached_values = std::move(values_proj);
+            } else {
+              const ops::Concat concat_op(_cache_time_dim);
+              StorageView& tmp = fused_proj;  // Reuse storage.
+              tmp = std::move(*cached_keys);
+              concat_op({&tmp, &keys_proj}, *cached_keys);
+              tmp = std::move(*cached_values);
+              concat_op({&tmp, &values_proj}, *cached_values);
+
+              if (!prefilling && _sliding_window > 0 && cached_keys->shape()[2] > _sliding_window) {
+                const ops::Slide slide_op(2, 1, cached_keys->shape()[2] - 1);
+                slide_op(*cached_keys, tmp);
+                *cached_keys = std::move(tmp);
+                slide_op(*cached_values, tmp);
+                *cached_values = std::move(tmp);
+              }
             }
           }
         }
       }
 
       if (cached_keys) {
-        keys_proj.shallow_copy(*cached_keys);
-        values_proj.shallow_copy(*cached_values);
+        if (_rotor_quant && cached_keys->rank() == 4
+            && ops::RotorQuantKV::is_packed(*cached_keys)) {
+          // Decode the packed cache into float for attention computation.
+          // (keys_proj / values_proj may already be set in the concat branch above.)
+          if (keys_proj.empty() || keys_proj.dtype() != dtype) {
+            const dim_t batch = cached_keys->dim(0);
+            const dim_t heads = cached_keys->dim(1);
+            const dim_t time  = cached_keys->dim(2);
+            StorageView ck_flat(DataType::INT8, device), cv_flat(DataType::INT8, device);
+            ck_flat.shallow_copy(*cached_keys);
+            cv_flat.shallow_copy(*cached_values);
+            ck_flat.reshape({batch * heads * time, _rotor_quant->packed_stride()});
+            cv_flat.reshape({batch * heads * time, _rotor_quant->packed_stride()});
+            _rotor_quant->decode(ck_flat, keys_proj,   dtype, device);
+            _rotor_quant->decode(cv_flat, values_proj, dtype, device);
+            keys_proj.reshape({batch, heads, time, _d_head});
+            values_proj.reshape({batch, heads, time, _d_head});
+          }
+        } else {
+          keys_proj.shallow_copy(*cached_keys);
+          values_proj.shallow_copy(*cached_values);
+        }
       }
 
       StorageView& context = fused_proj;  // Reuse storage.

@@ -214,6 +214,10 @@ set(SOURCES
   src/ops/awq/gemv.cc
   src/ops/awq/gemv_cpu.cc
   src/ops/sum.cc
+  src/cpu/clifford_ops.cc
+  src/cpu/clifford_kernels.cc
+  src/ops/rotor_quant_kv.cc
+  src/ops/rotor_quant_kv_cpu.cc
   src/padder.cc
   src/profiler.cc
   src/random.cc
@@ -255,6 +259,9 @@ set(CUDA_SOURCES
   src/ops/awq/gemm_gpu.cu
   src/ops/awq/gemv_gpu.cu
   src/ops/awq/dequantize_gpu.cu
+  src/ops/rotor_quant_kv_gpu.cu
+  src/cuda/rotor_quant_kernel.cu
+  src/cuda/rotor_attention_kernel.cu
 )
 set(LIBRARIES
   ${CMAKE_THREAD_LIBS_INIT}

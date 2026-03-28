@@ -2,7 +2,8 @@
 
 #include <chrono>
 #include <future>
-#include <iostream>
+
+#include <spdlog/spdlog.h>
 
 #include "ctranslate2/utils.h"
 
@@ -127,7 +128,7 @@ namespace ctranslate2 {
 
     constexpr auto timeout = std::chrono::milliseconds(5000);
     if (join_future.wait_for(timeout) == std::future_status::timeout) {
-      std::cerr << "Worker thread did not finish within timeout; detaching." << std::endl;
+      spdlog::warn("Worker thread did not finish within timeout; detaching.");
       join_helper.detach();
       // shared_thread and shared_promise are kept alive by join_helper's closure.
     } else {

@@ -1,6 +1,9 @@
 #pragma once
 
+#include <memory>
+
 #include "ctranslate2/layers/attention_layer.h"
+#include "ctranslate2/ops/rotor_quant_kv.h"
 #include "ctranslate2/padder.h"
 #include "ctranslate2/layers/transformer.h"
 
@@ -88,6 +91,10 @@ namespace ctranslate2 {
       const dim_t _cache_time_dim;
       std::unique_ptr<const LayerNorm> _q_norm;  // Query normalization
       std::unique_ptr<const LayerNorm> _k_norm;  // Key normalization
+
+      // RotorQuant KV-cache compression (nullptr when disabled).
+      // Enabled by setting the environment variable CT2_ROTOR_QUANT_BITS=3 or =4.
+      std::unique_ptr<ops::RotorQuantKV> _rotor_quant;
     };
   }
 }

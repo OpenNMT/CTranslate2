@@ -46,3 +46,4 @@
 #include "awq/dequantize_awq.h"
 #endif
 #include "sum.h"
+#include "rotor_quant_kv.h"
