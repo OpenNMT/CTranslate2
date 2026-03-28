@@ -1,3 +1,49 @@
 [build-system]
 requires = ["setuptools", "wheel", "pybind11==2.11.1"]
 build-backend = "setuptools.build_meta"
+
+[project]
+name = "ctranslate2"
+version = "4.7.1"
+description = "Fast inference engine for Transformer models"
+license = "MIT"
+authors = [{ name = "OpenNMT" }]
+requires-python = ">=3.9"
+dependencies = [
+    "numpy",
+    "pyyaml>=5.3,<7",
+]
+classifiers = [
+    "Development Status :: 5 - Production/Stable",
+    "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.4",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+keywords = ["opennmt", "nmt", "neural machine translation", "cuda", "mkl", "inference", "quantization"]
+
+[project.urls]
+Documentation = "https://opennmt.net/CTranslate2"
+Forum = "https://forum.opennmt.net"
+Gitter = "https://gitter.im/OpenNMT/CTranslate2"
+Source = "https://github.com/OpenNMT/CTranslate2"
+
+[project.scripts]
+ct2-fairseq-converter = "ctranslate2.converters.fairseq:main"
+ct2-marian-converter = "ctranslate2.converters.marian:main"
+ct2-openai-gpt2-converter = "ctranslate2.converters.openai_gpt2:main"
+ct2-opennmt-py-converter = "ctranslate2.converters.opennmt_py:main"
+ct2-opennmt-tf-converter = "ctranslate2.converters.opennmt_tf:main"
+ct2-opus-mt-converter = "ctranslate2.converters.opus_mt:main"
+ct2-transformers-converter = "ctranslate2.converters.transformers:main"
+
+[tool.setuptools.packages.find]
+include = ["ctranslate2*"]
