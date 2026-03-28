@@ -61,6 +61,9 @@ namespace ctranslate2 {
     void start(JobQueue& job_queue, int thread_affinity = -1);
     void join();
 
+    // Called before the job queue is closed, to allow workers to prepare for shutdown.
+    virtual void prepare_shutdown() {}
+
   protected:
     // Called before the work loop.
     virtual void initialize() {}

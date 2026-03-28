@@ -1,5 +1,9 @@
 #include "ctranslate2/thread_pool.h"
 
+#include <chrono>
+#include <future>
+#include <iostream>
+
 #include "ctranslate2/utils.h"
 
 namespace ctranslate2 {
@@ -47,7 +51,7 @@ namespace ctranslate2 {
     std::unique_lock<std::mutex> lock(_mutex);
 
     if (!can_get_job()) {
-      if (before_wait)
+      if (before_wait && !_request_end)
         before_wait();
       _can_get_job.wait(lock, [this]{ return can_get_job(); });
     }
@@ -103,7 +107,32 @@ namespace ctranslate2 {
   }
 
   void Worker::join() {
-    _thread.join();
+    if (!_thread.joinable())
+      return;
+
+    // Move the thread out of Worker so the helper thread fully owns its lifetime,
+    // preventing UAF on 'this' and the TOCTOU race between detach() and join().
+    auto shared_thread = std::make_shared<std::thread>(std::move(_thread));
+
+    // Use shared_ptr for the promise so it outlives this function if we detach,
+    // preventing the dangling-reference UB from the original PR #2027 implementation.
+    auto shared_promise = std::make_shared<std::promise<void>>();
+    auto join_future = shared_promise->get_future();
+
+    std::thread join_helper([shared_thread, shared_promise]() mutable {
+      if (shared_thread->joinable())
+        shared_thread->join();
+      shared_promise->set_value();
+    });
+
+    constexpr auto timeout = std::chrono::milliseconds(5000);
+    if (join_future.wait_for(timeout) == std::future_status::timeout) {
+      std::cerr << "Worker thread did not finish within timeout; detaching." << std::endl;
+      join_helper.detach();
+      // shared_thread and shared_promise are kept alive by join_helper's closure.
+    } else {
+      join_helper.join();
+    }
   }
 
   void Worker::run(JobQueue& job_queue) {
@@ -146,6 +175,10 @@ namespace ctranslate2 {
   }
 
   ThreadPool::~ThreadPool() {
+    // Notify workers before closing the queue so they can stop blocking operations
+    // (e.g. synchronize_stream) that would cause a deadlock on Windows with CUDA.
+    for (auto& worker : _workers)
+      worker->prepare_shutdown();
     _queue.close();
     for (auto& worker : _workers)
       worker->join();

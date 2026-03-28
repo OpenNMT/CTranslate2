@@ -5,27 +5,10 @@ import sys
 import pybind11
 
 from pybind11.setup_helpers import ParallelCompile
-from setuptools import Extension, find_packages, setup
+from setuptools import Extension, setup
 
-base_dir = os.path.dirname(os.path.abspath(__file__))
 include_dirs = [pybind11.get_include()]
 library_dirs = []
-
-
-def _get_long_description():
-    readme_path = os.path.join(base_dir, "README.md")
-    if not os.path.exists(readme_path):
-        return ""
-    with open(readme_path, encoding="utf-8") as readme_file:
-        return readme_file.read()
-
-
-def _get_project_version():
-    version_path = os.path.join(base_dir, "ctranslate2", "version.py")
-    version = {}
-    with open(version_path, encoding="utf-8") as fp:
-        exec(fp.read(), version)
-    return version["__version__"]
 
 
 def _maybe_add_library_root(lib_name):
@@ -68,54 +51,6 @@ ctranslate2_module = Extension(
 ParallelCompile("CMAKE_BUILD_PARALLEL_LEVEL").install()
 
 setup(
-    name="ctranslate2",
-    version=_get_project_version(),
-    license="MIT",
-    description="Fast inference engine for Transformer models",
-    long_description=_get_long_description(),
-    long_description_content_type="text/markdown",
-    author="OpenNMT",
-    url="https://opennmt.net",
-    classifiers=[
-        "Development Status :: 5 - Production/Stable",
-        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.4",
-        "Intended Audience :: Developers",
-        "Intended Audience :: Science/Research",
-        "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.9",
-        "Programming Language :: Python :: 3.10",
-        "Programming Language :: Python :: 3.11",
-        "Programming Language :: Python :: 3.12",
-        "Programming Language :: Python :: 3.13",
-        "Programming Language :: Python :: 3.14",
-        "Topic :: Scientific/Engineering :: Artificial Intelligence",
-    ],
-    project_urls={
-        "Documentation": "https://opennmt.net/CTranslate2",
-        "Forum": "https://forum.opennmt.net",
-        "Gitter": "https://gitter.im/OpenNMT/CTranslate2",
-        "Source": "https://github.com/OpenNMT/CTranslate2",
-    },
-    keywords="opennmt nmt neural machine translation cuda mkl inference quantization",
-    packages=find_packages(exclude=["bin"]),
     package_data=package_data,
     ext_modules=[ctranslate2_module],
-    python_requires=">=3.9",
-    install_requires=[
-        "setuptools",
-        "numpy",
-        "pyyaml>=5.3,<7",
-    ],
-    entry_points={
-        "console_scripts": [
-            "ct2-fairseq-converter=ctranslate2.converters.fairseq:main",
-            "ct2-marian-converter=ctranslate2.converters.marian:main",
-            "ct2-openai-gpt2-converter=ctranslate2.converters.openai_gpt2:main",
-            "ct2-opennmt-py-converter=ctranslate2.converters.opennmt_py:main",
-            "ct2-opennmt-tf-converter=ctranslate2.converters.opennmt_tf:main",
-            "ct2-opus-mt-converter=ctranslate2.converters.opus_mt:main",
-            "ct2-transformers-converter=ctranslate2.converters.transformers:main",
-        ],
-    },
 )

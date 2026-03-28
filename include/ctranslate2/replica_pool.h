@@ -346,14 +346,31 @@ namespace ctranslate2 {
       _allocator = &get_allocator(_device);
     }
 
+    // #2027: Set the shutting-down flag before the queue closes so that idle()
+    // skips synchronize_stream() and avoids a deadlock on Windows with CUDA.
+    void prepare_shutdown() override {
+      _shutting_down.store(true, std::memory_order_release);
+    }
+
     void idle() override {
       // When no new jobs are immediately available, we synchronize the CUDA stream
       // so that the CudaAsyncAllocator can release some memory.
-      synchronize_stream(_device);
+      // #2027: Skip during shutdown to prevent blocking while the mutex is held,
+      // which would deadlock against ThreadPool::~ThreadPool() calling queue.close().
+      if (!_shutting_down.load(std::memory_order_acquire))
+        synchronize_stream(_device);
     }
 
     void finalize() override {
+      // #2027: Ensure the shutting-down flag is set before releasing the replica.
+      _shutting_down.store(true, std::memory_order_release);
+
       _replica.reset();
+
+      // #1912: Explicitly free thread-local CUDA resources (cuRAND states) before
+      // the thread is destroyed. Releasing them after thread exit crashes on Windows
+      // because the CUDA context is already invalid (stack buffer overrun 0xC0000409).
+      destroy_context(_device);
     }
 
   private:
@@ -362,6 +379,7 @@ namespace ctranslate2 {
     const size_t _num_threads;
     Allocator* _allocator;
     std::unique_ptr<Replica> _replica;
+    std::atomic<bool> _shutting_down{false};
   };
 
 }
