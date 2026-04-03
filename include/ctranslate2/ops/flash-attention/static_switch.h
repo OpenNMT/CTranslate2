@@ -78,31 +78,98 @@
     }                                        \
   }()
 
+// When FLASH_ATTN_HDIMS is restricted via cmake, only instantiate selected
+// head dimensions. Others throw at runtime instead of generating link-time
+// symbol references. CT2_FLASH_ATTN_HDIM_N is defined per compiled hdim.
+#define _HEADDIM_DISPATCH(DIM, ...)                           \
+    constexpr static int kHeadDim = DIM;                      \
+    return __VA_ARGS__();
+
+#define _HEADDIM_UNSUPPORTED(DIM)                             \
+    throw std::runtime_error(                                 \
+      "Flash attention head dim " #DIM " not compiled. "      \
+      "Rebuild CTranslate2 with FLASH_ATTN_HDIMS including " #DIM);
+
+#ifndef CT2_FLASH_ATTN_HDIM_32
+#define _HEADDIM_CASE_32(...) _HEADDIM_UNSUPPORTED(32)
+#else
+#define _HEADDIM_CASE_32(...) _HEADDIM_DISPATCH(32, __VA_ARGS__)
+#endif
+#ifndef CT2_FLASH_ATTN_HDIM_64
+#define _HEADDIM_CASE_64(...) _HEADDIM_UNSUPPORTED(64)
+#else
+#define _HEADDIM_CASE_64(...) _HEADDIM_DISPATCH(64, __VA_ARGS__)
+#endif
+#ifndef CT2_FLASH_ATTN_HDIM_96
+#define _HEADDIM_CASE_96(...) _HEADDIM_UNSUPPORTED(96)
+#else
+#define _HEADDIM_CASE_96(...) _HEADDIM_DISPATCH(96, __VA_ARGS__)
+#endif
+#ifndef CT2_FLASH_ATTN_HDIM_128
+#define _HEADDIM_CASE_128(...) _HEADDIM_UNSUPPORTED(128)
+#else
+#define _HEADDIM_CASE_128(...) _HEADDIM_DISPATCH(128, __VA_ARGS__)
+#endif
+#ifndef CT2_FLASH_ATTN_HDIM_160
+#define _HEADDIM_CASE_160(...) _HEADDIM_UNSUPPORTED(160)
+#else
+#define _HEADDIM_CASE_160(...) _HEADDIM_DISPATCH(160, __VA_ARGS__)
+#endif
+#ifndef CT2_FLASH_ATTN_HDIM_192
+#define _HEADDIM_CASE_192(...) _HEADDIM_UNSUPPORTED(192)
+#else
+#define _HEADDIM_CASE_192(...) _HEADDIM_DISPATCH(192, __VA_ARGS__)
+#endif
+#ifndef CT2_FLASH_ATTN_HDIM_224
+#define _HEADDIM_CASE_224(...) _HEADDIM_UNSUPPORTED(224)
+#else
+#define _HEADDIM_CASE_224(...) _HEADDIM_DISPATCH(224, __VA_ARGS__)
+#endif
+#ifndef CT2_FLASH_ATTN_HDIM_256
+#define _HEADDIM_CASE_256(...) _HEADDIM_UNSUPPORTED(256)
+#else
+#define _HEADDIM_CASE_256(...) _HEADDIM_DISPATCH(256, __VA_ARGS__)
+#endif
+
+// When all hdims are compiled (no FLASH_ATTN_HDIMS set), all CT2_FLASH_ATTN_HDIM_*
+// macros are undefined and _HEADDIM_CASE_* defaults to _HEADDIM_UNSUPPORTED.
+// Fix: when not restricted, define all as dispatching.
+#ifndef CT2_FLASH_ATTN_HDIMS_RESTRICTED
+#undef _HEADDIM_CASE_32
+#undef _HEADDIM_CASE_64
+#undef _HEADDIM_CASE_96
+#undef _HEADDIM_CASE_128
+#undef _HEADDIM_CASE_160
+#undef _HEADDIM_CASE_192
+#undef _HEADDIM_CASE_224
+#undef _HEADDIM_CASE_256
+#define _HEADDIM_CASE_32(...)  _HEADDIM_DISPATCH(32, __VA_ARGS__)
+#define _HEADDIM_CASE_64(...)  _HEADDIM_DISPATCH(64, __VA_ARGS__)
+#define _HEADDIM_CASE_96(...)  _HEADDIM_DISPATCH(96, __VA_ARGS__)
+#define _HEADDIM_CASE_128(...) _HEADDIM_DISPATCH(128, __VA_ARGS__)
+#define _HEADDIM_CASE_160(...) _HEADDIM_DISPATCH(160, __VA_ARGS__)
+#define _HEADDIM_CASE_192(...) _HEADDIM_DISPATCH(192, __VA_ARGS__)
+#define _HEADDIM_CASE_224(...) _HEADDIM_DISPATCH(224, __VA_ARGS__)
+#define _HEADDIM_CASE_256(...) _HEADDIM_DISPATCH(256, __VA_ARGS__)
+#endif
+
 #define HEADDIM_SWITCH(HEADDIM, ...)   \
   [&] {                                    \
     if (HEADDIM <= 32) {                   \
-      constexpr static int kHeadDim = 32;  \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_32(__VA_ARGS__)        \
     } else if (HEADDIM <= 64) {            \
-      constexpr static int kHeadDim = 64;  \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_64(__VA_ARGS__)        \
     } else if (HEADDIM <= 96) {            \
-      constexpr static int kHeadDim = 96;  \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_96(__VA_ARGS__)        \
     } else if (HEADDIM <= 128) {           \
-      constexpr static int kHeadDim = 128; \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_128(__VA_ARGS__)       \
     } else if (HEADDIM <= 160) {           \
-      constexpr static int kHeadDim = 160; \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_160(__VA_ARGS__)       \
     } else if (HEADDIM <= 192) {           \
-      constexpr static int kHeadDim = 192; \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_192(__VA_ARGS__)       \
     } else if (HEADDIM <= 224) {           \
-      constexpr static int kHeadDim = 224; \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_224(__VA_ARGS__)       \
     } else if (HEADDIM <= 256) {           \
-      constexpr static int kHeadDim = 256; \
-      return __VA_ARGS__();                \
+      _HEADDIM_CASE_256(__VA_ARGS__)       \
     }                                      \
   }()
