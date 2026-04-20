@@ -69,9 +69,12 @@ namespace ctranslate2 {
       _no_speech_id = vocabulary.to_id("<|nospeech|>");
       if (_no_speech_id == vocabulary.unk_id())
         _no_speech_id = vocabulary.to_id("<|nocaptions|>");
-      _is_multilingual = vocabulary.size() >= 51865;
+      _is_multilingual = vocabulary.to_id("") != vocabulary.unk_id();
       _n_mels = _encoder->input_size();
-      _num_languages = vocabulary.size() - 51765 - (_is_multilingual ? 1 : 0);
+      // vocab: text tokens..., <|endoftext|>, <|startoftranscript|>,
+      // lang tokens..., <|translate|>, <|transcribe|>, <|startoflm|>,
+      // <|startofprev|>, <|nospeech|>, <|notimestamps|>, time tokens...
+      _num_languages = _no_speech_id - _sot_id - 5;
     }
 
     StorageView WhisperReplica::encode(StorageView features, const bool to_cpu) {

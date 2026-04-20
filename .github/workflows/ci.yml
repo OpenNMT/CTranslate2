@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - master
+      - "**"
     tags:
       - v*
   pull_request:
@@ -52,7 +52,7 @@ jobs:
 
       - name: Build
         run: |
-          make install
+          make -j $(nproc) install
 
       - name: Download test data
         working-directory: tests/data/models
@@ -71,8 +71,58 @@ jobs:
         if: matrix.backend == 'dnnl'
         run: |
           tests/ctranslate2_test tests/data
+          
+  build-and-test-cpp-x86_64-address_sanitizer:
+    runs-on: ubuntu-22.04
+    env:
+      CT2_VERBOSE: 1
 
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
 
+      - name: Install Intel oneAPI
+        run: |
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add *.PUB
+          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
+          sudo apt update
+
+      - name: Install MKL
+        env:
+          CT2_USE_MKL: 1
+          MKL_VERSION: 2023.0.0
+        run: |
+          sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
+
+      - name: Install Clang
+        run: |
+          sudo apt install -y clang  
+
+      - name: Configure with MKL and Clang
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DENABLE_ADDRESS_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+
+      - name: Build
+        run: |
+          make -j $(nproc) install
+
+      - name: Download test data
+        working-directory: tests/data/models
+        run: |
+          wget https://opennmt-models.s3.amazonaws.com/pi_lm_step_5000.pt
+          wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
+          tar xf transliteration-aren-all.tar.gz
+
+      - name: Test AddressSanitizer
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          ASAN_OPTIONS=detect_leaks=1:print_stats=1 tests/ctranslate2_test tests/data
+          
   build-and-test-cpp-arm64:
     runs-on: ${{ matrix.os }}
     env:
@@ -97,7 +147,7 @@ jobs:
           tar xzvf v0.3.13.tar.gz
           cd OpenBLAS-0.3.13
           make TARGET=ARMV8 NO_LAPACK=1 -j $(nproc)
-          sudo make PREFIX=/usr/local install
+          sudo make PREFIX=/usr/local install -j $(nproc)
           cd ..
           export OpenBLAS_HOME=/usr/local
           cmake \
@@ -178,6 +228,39 @@ jobs:
           name: python-wheels-${{ runner.os }}-${{ matrix.arch }}
           path: python/wheelhouse
 
+  build-python-wheels-rocm:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Build wheels
+        uses: pypa/cibuildwheel@v3.2.1
+        with:
+          package-dir: python
+          output-dir: python/wheelhouse
+        env:
+          CIBW_ENVIRONMENT_LINUX: ROCM_PATH=/opt/rocm LD_LIBRARY_PATH=/opt/rocm/lib/llvm/lib:$LD_LIBRARY_PATH
+          CIBW_ENVIRONMENT_WINDOWS: CTRANSLATE2_ROOT='${{ github.workspace }}\install'
+          CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux_rocm.sh
+          CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows_rocm.sh
+          CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
+          CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
+          CIBW_ARCHS: auto64
+          CIBW_SKIP: "*-musllinux_*"
+          CIBW_REPAIR_WHEEL_COMMAND_LINUX: 'auditwheel repair -w {dest_dir} --exclude "/opt/rocm/lib/lib*" {wheel}'
+
+      - name: Upload Python wheels
+        uses: actions/upload-artifact@v6
+        with:
+          name: rocm-python-wheels-${{ runner.os }}
+          path: python/wheelhouse
+
 
   # We could test the Python wheels using cibuildwheel but we prefer to run the tests outside
   # the build environment to ensure wheels correctly embed all dependencies.
@@ -194,6 +277,10 @@ jobs:
           - os: ubuntu-22.04-arm
             artifact_pattern: python-wheels-Linux-aarch64
             wheel_pattern: "*cp310*manylinux*_aarch64.whl"
+
+          - os: windows-2022
+            artifact_pattern: python-wheels-Windows-auto64
+            wheel_pattern: "*cp310*win*amd64.whl"
 
           - os: macos-15
             artifact_pattern: python-wheels-macOS-arm64
@@ -284,6 +371,10 @@ jobs:
 
   build-and-push-docker-images:
     runs-on: ubuntu-22.04
+    strategy:
+      matrix:
+        gpu: [cuda, rocm]
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -314,7 +405,7 @@ jobs:
 
       - name: Build Docker images
         run: |
-          ./docker/build_all.sh
+          ./docker/build_all.sh latest 0 ${{ matrix.gpu }}
 
       - name: Login to DockerHub
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
@@ -327,46 +418,66 @@ jobs:
       - name: Push Docker images
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         run: |
-          ./docker/build_all.sh ${GITHUB_REF##*/v} 1
+          ./docker/build_all.sh ${GITHUB_REF##*/v} 1 ${{ matrix.gpu }}
 
 
   build-and-deploy-docs:
     runs-on: ubuntu-latest
-    needs: [check-python-style, build-python-wheels]
+    needs: [check-python-style, build-python-wheels, build-python-wheels-rocm]
 
+    permissions:
+      contents: write
     steps:
       - uses: actions/checkout@v4
-
       - name: Set up Python 3.10.11
         uses: actions/setup-python@v5
         with:
           python-version: "3.10.11"
-
       - name: Download CTranslate2 wheels
         uses: actions/download-artifact@v4
         with:
           pattern: python-wheels-${{ runner.os }}-*
           merge-multiple: true
           path: .
-
       - name: Install CTranslate2 wheel
         run: |
           pip install *cp310*manylinux*x86_64.whl
-
       - name: Install dependencies to build docs
         working-directory: docs
         run: |
           python -m pip install -r requirements.txt
-
       - name: Build docs
         working-directory: docs
         run: |
           python generate.py python
           sphinx-build . build
-
       - name: Deploy docs
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
         uses: JamesIves/github-pages-deploy-action@v4
         with:
           folder: docs/build
           clean: true
+      - name: Download ROCm wheels and zip for release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p release-zips
+
+          gh run download ${{ github.run_id }} \
+            --name rocm-python-wheels-Linux \
+            --dir temp-linux
+          zip -r release-zips/rocm-python-wheels-Linux.zip temp-linux/*
+          rm -rf temp-linux
+
+          gh run download ${{ github.run_id }} \
+            --name rocm-python-wheels-Windows \
+            --dir temp-windows
+          zip -r release-zips/rocm-python-wheels-Windows.zip temp-windows/*
+          rm -rf temp-windows
+
+      - name: Create GitHub Release
+        if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release-zips/*.zip

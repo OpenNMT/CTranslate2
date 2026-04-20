@@ -5,22 +5,17 @@ if sys.platform == "win32":
     import glob
     import os
 
+    from importlib.resources import files
+
     module_name = sys.modules[__name__].__name__
+    package_dir = str(files(module_name))
 
-    # Adressing python 3.9 < version
     try:
-        from importlib.resources import files
-
-        # Fixed the pkg_resources depreciation
-        package_dir = str(files(module_name))
-    except ImportError:
-        import pkg_resources
-
-        package_dir = pkg_resources.resource_filename(module_name, "")
-
-    add_dll_directory = getattr(os, "add_dll_directory", None)
-    if add_dll_directory is not None:
-        add_dll_directory(package_dir)
+        os.add_dll_directory(package_dir)
+        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_core/bin")
+        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
+    except (FileNotFoundError, OSError):
+        pass
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
         ctypes.CDLL(library)

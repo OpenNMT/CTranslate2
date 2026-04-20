@@ -4,7 +4,37 @@
 
 ### Fixes and improvements
 
-## [v4.6.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.3) (2026-01-XX)
+## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-04)
+
+* Fix Windows build (#2007) [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+### New features
+
+* Introduce AMD GPU support with ROCm HIP (#1989) [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Compatibility with Transformers v5 (#1999) by [@jordimas](https://github.com/jordimas)
+
+## Fixes and improvements
+
+* Assume less about whisper vocab (#2000) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Use LLVM ThreadSanitizer instead of Google (#1993) by [@3manifold](https://github.com/3manifold)
+* Optimize all builds with parallel execution (#1992) by [@3manifold](https://github.com/3manifold)
+* Remove unecessary zero init from conv1d (#1990) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Integrate Clang AddressSanitizer in tests (#1903) by [@3manifold](https://github.com/3manifold)
+* Enable multiple of 16 padding for INT8 Tensor Cores (#1982) by [@Purfview](https://github.com/Purfview)
+* Add activation and dilation to conv1d (#1979) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Minor refactor to CMakeLists.txt (#1980) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Remove unnecessary check from wav2vec2 (#1977) by [@plan9better](https://github.com/plan9better)
+* Add optional residual add to gemm op (#1975) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Implement cuda layernorm axis (#1971) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fix Eole conversion (#1998) by [@vince62s](https://github.com/vince62s)
+* Gemma 3 conversion improvements (#1991) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Add causal flag to fa2 (#1976) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fixes cross attention tests and refactors code (#1974) by [@jordimas](https://github.com/jordimas)
+* Fix CUDA bf16 median filter (#1972) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fix various compiler warnings (#1970) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+
+## [v4.6.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.3) (2026-01-06)
 
 ### New features
 

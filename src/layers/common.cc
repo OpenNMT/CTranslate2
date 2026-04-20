@@ -400,6 +400,10 @@ namespace ctranslate2 {
         if (residual)
           ops::Add()(*residual, output, output);
       } else if (_qzero && _qscale) {
+#ifdef CT2_USE_HIP
+        (void)_activation_type;
+        throw std::invalid_argument("AWQ unsupported with ROCm");
+#else
         switch (_quant_method) {
           case models::QUANTIZATION_TYPE::AWQ_GEMM:
             if (input.dim(0) * input.dim(1) >= 1024) {
@@ -411,7 +415,7 @@ namespace ctranslate2 {
                                 /*trans_a=*/false,
                                 /*trans_b=*/false,
                                 /*a_is_packed=*/false,
-                                /*b_is_packed*/false,
+                                /*b_is_packed=*/false,
                                 _activation_type);
               gemm_op(input, weight_dequant, output, nullptr, bias, residual);
             } else {
@@ -431,6 +435,7 @@ namespace ctranslate2 {
             throw std::invalid_argument("Dense forward: invalid quantized type,"
                                         "support only ct2 and awq quantization");
         }
+#endif
       } else {
         _gemm_op(input, *weight, output, nullptr, bias, residual);
       }
@@ -472,8 +477,9 @@ namespace ctranslate2 {
                    dim_t stride,
                    dim_t padding,
                    dim_t dilation,
-                   dim_t groups)
-      : _conv_op(stride, padding, dilation, groups)
+                   dim_t groups,
+                   const ops::ActivationType* activation_type)
+      : _conv_op(stride, padding, dilation, groups, activation_type)
       , _weight(model.get_variable(scope + "/weight"))
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale")) {

@@ -16,7 +16,7 @@ CTranslate2 addresses these issues in several ways:
 
 Here are some scenarios where this project could be used:
 
-* You want to accelarate Transformer models for production usage, especially on CPUs.
+* You want to accelerate Transformer models for production usage, especially on CPUs.
 * You need to embed models in an existing C++ application without adding large dependencies.
 * Your application requires custom threading and memory usage control.
 * You want to reduce the model size on disk and/or memory.

@@ -134,6 +134,9 @@ namespace ctranslate2 {
       CUDNN_CHECK(cudnnDestroyFilterDescriptor(weight_desc));
       CUDNN_CHECK(cudnnDestroyTensorDescriptor(input_desc));
       CUDNN_CHECK(cudnnDestroyTensorDescriptor(output_desc));
+
+      if (_activation_type)
+        get_activation_op(*_activation_type)(output, output);
     }
 
 #define DECLARE_IMPL(T)                                                 \

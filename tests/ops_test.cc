@@ -515,6 +515,7 @@ TEST_P(OpDeviceFPTest, Gemm) {
       -1.186388, -0.947825, -0.367293, -4.243156}, device);
   const ops::Transpose transpose_op;
 
+  // a @ b + y
   {
     ops::Gemm op(1.0, 1.0, false, false);
     StorageView a = gemm_a.to(device).to(dtype);
@@ -524,6 +525,7 @@ TEST_P(OpDeviceFPTest, Gemm) {
     expect_storage_eq(y.to_float32(), expected, error);
   }
 
+  // a^T @ b + y
   {
     ops::Gemm op(1.0, 1.0, true, false);
     StorageView a(dtype, device);
@@ -534,6 +536,7 @@ TEST_P(OpDeviceFPTest, Gemm) {
     expect_storage_eq(y.to_float32(), expected, error);
   }
 
+  // a @ b^T + y
   {
     ops::Gemm op(1.0, 1.0, false, true);
     StorageView a = gemm_a.to(device).to(dtype);
@@ -544,6 +547,7 @@ TEST_P(OpDeviceFPTest, Gemm) {
     expect_storage_eq(y.to_float32(), expected, error);
   }
 
+  // a^T @ b^T + y
   {
     ops::Gemm op(1.0, 1.0, true, true);
     StorageView a(dtype, device);
@@ -569,6 +573,7 @@ TEST_P(OpDeviceFPTest, GemmBias) {
   const StorageView a = gemm_a.to(device).to(dtype);
   const StorageView b = gemm_b.to(device).to(dtype);
   StorageView y = gemm_y.to(device).to(dtype);
+  // a @ b + bias + y
   op(a, b, y, nullptr, &bias);
   expect_storage_eq(y.to_float32(), expected, error);
 };
@@ -585,6 +590,7 @@ TEST_P(OpDeviceFPTest, GemmResidual) {
   const StorageView a = gemm_a.to(device).to(dtype);
   const StorageView b = gemm_b.to(device).to(dtype);
 
+  // a @ b + bias + y + residual
   {
     StorageView bias({2}, std::vector<float>{-0.2f, 0.6f}, device);
     bias = bias.to(dtype);
@@ -596,6 +602,7 @@ TEST_P(OpDeviceFPTest, GemmResidual) {
     expect_storage_eq(y.to_float32(), expected, error);
   }
 
+  // a @ b + y + residual
   {
     StorageView expected({4, 2}, std::vector<float>{
         -3.086019, -2.093316, -0.994635, 4.626600,
@@ -621,6 +628,7 @@ TEST_P(OpDeviceFPTest, GemmGELU) {
   const StorageView a = gemm_a.to(device).to(dtype);
   const StorageView b = gemm_b.to(device).to(dtype);
 
+  // GELU(a @ b + bias + residual)
   {
     StorageView expected({4, 2}, std::vector<float>{
         -0.090621, -0.142394, -0.126177, 2.459627,
@@ -630,6 +638,7 @@ TEST_P(OpDeviceFPTest, GemmGELU) {
     expect_storage_eq(y.to_float32(), expected, error);
   }
 
+  // GELU(a @ b + bias)
   {
     StorageView expected({4, 2}, std::vector<float>{
         -0.000099, -0.030667, -0.019080, 2.839700,
@@ -639,6 +648,7 @@ TEST_P(OpDeviceFPTest, GemmGELU) {
     expect_storage_eq(y.to_float32(), expected, error);
   }
 
+  // GELU(a @ b)
   {
     StorageView expected({4, 2}, std::vector<float>{
         -0.000319, -0.019730, -0.036541, 2.635224,
@@ -883,7 +893,7 @@ TEST_P(OpDeviceFPTest, LayerNormAxis) {
       1.4136513471603394, -1.3856042623519897}, device);
   StorageView y(dtype, device);
   ops::LayerNorm(1, 0)(x.to(dtype), y);
-  expect_storage_eq(y.to_float32(), expected, error * 10);
+  expect_storage_eq(y.to_float32(), expected, error);
 }
 
 TEST_P(OpDeviceFPTest, RMSNorm) {
@@ -1138,36 +1148,28 @@ TEST_P(OpDeviceTest, Max) {
   });
 }
 
-#ifndef CT2_WITH_CUDNN
-#  define GUARD_CONV1D_GPU_TEST GTEST_SKIP() << "Conv1D tests on GPU require cuDNN"
-#else
-#  define GUARD_CONV1D_GPU_TEST do {} while (0)
-#endif
-
 static const StorageView conv_input({2, 2, 3}, std::vector<float>{
-    0.5728129f, 0.8784890f, 0.2029965f, 0.3689166f, 0.6570600f, 0.9202735f,
-    0.7081605f, 0.3570334f, 0.9339380f, 0.8162224f, 0.0597404f, 0.4628246f});
+    0.5728129, 0.8784890, 0.2029965, 0.3689166, 0.6570600, 0.9202735,
+    0.7081605, 0.3570334, 0.9339380, 0.8162224, 0.0597404, 0.4628246});
 
 static const StorageView conv_weight({4, 2, 2}, std::vector<float>{
-    0.4969918f, 0.3711241f, 0.1489926f, -0.3010672f,
-    -0.2055028f, 0.2540314f, 0.3566069f, -0.1201057f,
-    -0.0737700f, -0.0630847f, -0.2370351f, -0.0451550f,
-    0.0186623f, 0.3600836f, -0.2889268f, -0.4857445f});
+    0.4969918, 0.3711241, 0.1489926, -0.3010672,
+    -0.2055028, 0.2540314, 0.3566069, -0.1201057,
+    -0.0737700, -0.0630847, -0.2370351, -0.0451550,
+    0.0186623, 0.3600836, -0.2889268, -0.4857445});
 
 static const StorageView conv_bias({4}, std::vector<float>{
-    0.4631361f, -0.1047785f, 0.1047658f, -0.3157263f});
+    0.4631361, -0.1047785, 0.1047658, -0.3157263});
 
 TEST_P(OpDeviceFPTest, Conv1D) {
   const Device device = GetParam().device;
-  if (device == Device::CUDA)
-    GUARD_CONV1D_GPU_TEST;
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   const StorageView expected({2, 4, 2}, std::vector<float>{
-      0.9309945f, 0.7959076f, 0.0533122f, -0.1099610f,
-      -0.1100256f, -0.1701476f, -0.4144599f, -0.8630960f,
-      1.0512151f, 0.8567453f, 0.1242856f, 0.0248157f,
-      -0.1661695f, -0.0155492f, -0.4387956f, -0.2148425f});
+      0.9309945, 0.7959076, 0.0533122, -0.1099610,
+      -0.1100256, -0.1701476, -0.4144599, -0.8630960,
+      1.0512151, 0.8567453, 0.1242856, 0.0248157,
+      -0.1661695, -0.0155492, -0.4387956, -0.2148425});
   StorageView output(dtype, device);
   ops::Conv1D()(conv_input.to(device).to(dtype),
                 conv_weight.to(device).to(dtype),
@@ -1179,15 +1181,13 @@ TEST_P(OpDeviceFPTest, Conv1D) {
 
 TEST_P(OpDeviceFPTest, Conv1DNoBias) {
   const Device device = GetParam().device;
-  if (device == Device::CUDA)
-    GUARD_CONV1D_GPU_TEST;
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   const StorageView expected({2, 4, 2}, std::vector<float>{
-      0.4678584f, 0.3327716f, 0.1580907f, -0.005182412f,
-      -0.2147914f, -0.2749133f, -0.09873369f, -0.5473697f,
-      0.5880789f, 0.3936091f, 0.2290641f, 0.1295942f,
-      -0.2709353f, -0.120315f, -0.1230693f, 0.1008837f});
+      0.4678584, 0.3327716, 0.1580907, -0.005182412,
+      -0.2147914, -0.2749133, -0.09873369, -0.5473697,
+      0.5880789, 0.3936091, 0.2290641, 0.1295942,
+      -0.2709353, -0.120315, -0.1230693, 0.1008837});
   StorageView output(dtype, device);
   ops::Conv1D()(conv_input.to(device).to(dtype),
                 conv_weight.to(device).to(dtype),
@@ -1198,19 +1198,17 @@ TEST_P(OpDeviceFPTest, Conv1DNoBias) {
 
 TEST_P(OpDeviceFPTest, Conv1DPadding) {
   const Device device = GetParam().device;
-  if (device == Device::CUDA)
-    GUARD_CONV1D_GPU_TEST;
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   const StorageView expected({2, 4, 4}, std::vector<float>{
-      0.5646521f, 0.9309945f, 0.7959076f, 0.7011377f,
-      -0.0035750f, 0.0533122f, -0.1099610f, 0.1816810f,
-      0.0519716f, -0.1100256f, -0.1701476f, -0.1283464f,
-      -0.2886650f, -0.4144599f, -0.8630960f, -0.5778296f,
-      0.4802138f, 1.0512151f, 0.8567453f, 0.9962531f,
-      -0.0229165f, 0.1242856f, 0.0248157f, -0.1316590f,
-      0.0232352f, -0.1661695f, -0.0155492f, -0.0738365f,
-      -0.4572049f, -0.4387956f, -0.2148425f, -0.4320193f});
+      0.5646521, 0.9309945, 0.7959076, 0.7011377,
+      -0.0035750, 0.0533122, -0.1099610, 0.1816810,
+      0.0519716, -0.1100256, -0.1701476, -0.1283464,
+      -0.2886650, -0.4144599, -0.8630960, -0.5778296,
+      0.4802138, 1.0512151, 0.8567453, 0.9962531,
+      -0.0229165, 0.1242856, 0.0248157, -0.1316590,
+      0.0232352, -0.1661695, -0.0155492, -0.0738365,
+      -0.4572049, -0.4387956, -0.2148425, -0.4320193});
   StorageView output(dtype, device);
   ops::Conv1D(1, 1)(conv_input.to(device).to(dtype),
                     conv_weight.to(device).to(dtype),
@@ -1222,13 +1220,11 @@ TEST_P(OpDeviceFPTest, Conv1DPadding) {
 
 TEST_P(OpDeviceFPTest, Conv1DStride) {
   const Device device = GetParam().device;
-  if (device == Device::CUDA)
-    GUARD_CONV1D_GPU_TEST;
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   const StorageView expected({2, 4, 1}, std::vector<float>{
-      0.9309945f, 0.0533122f, -0.1100256f, -0.4144599f,
-      1.0512151f, 0.1242856f, -0.1661695f, -0.4387956f});
+      0.9309945, 0.0533122, -0.1100256, -0.4144599,
+      1.0512151, 0.1242856, -0.1661695, -0.4387956});
   StorageView output(dtype, device);
   ops::Conv1D(2)(conv_input.to(device).to(dtype),
                  conv_weight.to(device).to(dtype),
@@ -1240,15 +1236,13 @@ TEST_P(OpDeviceFPTest, Conv1DStride) {
 
 TEST_P(OpDeviceFPTest, Conv1DPaddingAndStride) {
   const Device device = GetParam().device;
-  if (device == Device::CUDA)
-    GUARD_CONV1D_GPU_TEST;
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   const StorageView expected({2, 4, 2}, std::vector<float>{
-      0.5646521f, 0.7959076f, -0.0035750f, -0.1099610f,
-      0.0519716f, -0.1701476f, -0.2886650f, -0.8630960f,
-      0.4802138f, 0.8567453f, -0.0229165f, 0.0248157f,
-      0.0232352f, -0.0155492f, -0.4572049f, -0.2148425f});
+      0.5646521, 0.7959076, -0.0035750, -0.1099610,
+      0.0519716, -0.1701476, -0.2886650, -0.8630960,
+      0.4802138, 0.8567453, -0.0229165, 0.0248157,
+      0.0232352, -0.0155492, -0.4572049, -0.2148425});
   StorageView output(dtype, device);
   ops::Conv1D(2, 1)(conv_input.to(device).to(dtype),
                     conv_weight.to(device).to(dtype),
@@ -1258,23 +1252,62 @@ TEST_P(OpDeviceFPTest, Conv1DPaddingAndStride) {
   expect_storage_eq(output.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, Conv1DDilation) {
+  const Device device = GetParam().device;
+  if (device == Device::CPU)
+      GTEST_SKIP() << "Dilated convolution is not implemented for CPU.";
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  const StorageView expected({2, 4, 1}, std::vector<float>{
+      0.601058, -0.149898, -0.079298, -0.785548,
+      1.143963, 0.222425, -0.220765, -0.426858});
+  StorageView output(dtype, device);
+  ops::Conv1D(1, 0, 2, 1)(
+      conv_input.to(device).to(dtype),
+      conv_weight.to(device).to(dtype),
+      conv_bias.to(device).to(dtype),
+      output);
+  EXPECT_EQ(output.dtype(), dtype);
+  expect_storage_eq(output.to_float32(), expected, error);
+}
+
+TEST_P(OpDeviceFPTest, Conv1DGELU) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  const StorageView expected({2, 4, 2}, std::vector<float>{
+      0.7672063, 0.62634534, 0.02778943, -0.05016639,
+      -0.05019306, -0.0735798, -0.14061329, -0.16747718,
+      0.89712805, 0.6890007, 0.06828941, 0.01265349,
+      -0.0721195, -0.00767813, -0.14498018, -0.08914787});
+  StorageView output(dtype, device);
+  const ops::ActivationType activation_type = ops::ActivationType::GELU;
+  ops::Conv1D(1, 0, 1, 1, &activation_type)(
+      conv_input.to(device).to(dtype),
+      conv_weight.to(device).to(dtype),
+      conv_bias.to(device).to(dtype),
+      output);
+  EXPECT_EQ(output.dtype(), dtype);
+  expect_storage_eq(output.to_float32(), expected, error);
+}
+
 TEST_P(OpDeviceFPTest, Conv1DGroupNoBias) {
     const Device device = GetParam().device;
     const DataType dtype = GetParam().dtype;
     const float error = GetParam().error;
     const StorageView expected({2, 2, 2}, std::vector<float>{
-            -0.475623f, -0.601933f, 0.165541f, 0.050849f, -0.566024f,
-            -0.592437f, 0.121356f, 0.232157f});
+            -0.475623, -0.601933, 0.165541, 0.050849, -0.566024,
+            -0.592437, 0.121356, 0.232157});
     const StorageView conv_input({2, 4, 4}, std::vector<float>{
-            0.547210f, 0.634821f, 0.571043f, 0.443073f, 0.220554f, 0.478427f,
-            0.836031f, 0.476906f, 0.288942f, 0.393840f, 0.077658f, 0.236493f,
-            0.759209f, 0.826134f, 0.728944f, 0.130438f, 0.355182f, 0.884368f,
-            0.494477f, 0.004999f, 0.306053f, 0.764639f, 0.903179f, 0.440537f,
-            0.040332f, 0.533495f, 0.428653f, 0.311188f, 0.951956f, 0.785873f,
-            0.443364f, 0.065968f});
+            0.547210, 0.634821, 0.571043, 0.443073, 0.220554, 0.478427,
+            0.836031, 0.476906, 0.288942, 0.393840, 0.077658, 0.236493,
+            0.759209, 0.826134, 0.728944, 0.130438, 0.355182, 0.884368,
+            0.494477, 0.004999, 0.306053, 0.764639, 0.903179, 0.440537,
+            0.040332, 0.533495, 0.428653, 0.311188, 0.951956, 0.785873,
+            0.443364, 0.065968});
     const StorageView conv_weight({2, 2, 3}, std::vector<float>{
-            -0.326986f, -0.378711f, -0.120962f, 0.125665f, -0.312741f, 0.161123f,
-            0.226274f, 0.340959f, -0.127573f, 0.094374f, -0.164143f, 0.054516f});
+            -0.326986, -0.378711, -0.120962, 0.125665, -0.312741, 0.161123,
+            0.226274, 0.340959, -0.127573, 0.094374, -0.164143, 0.054516});
     StorageView output(dtype, device);
     ops::Conv1D(1, 0, 1, 2)(conv_input.to(device).to(dtype),
                             conv_weight.to(device).to(dtype),
@@ -1293,15 +1326,15 @@ TEST_P(OpDeviceFPTest, Conv1DGroupNoBiasQuantized) {
     const DataType dtype = GetParam().dtype;
     const float error = std::max(GetParam().error, float(3e-3));
     const StorageView expected({2, 2, 2}, std::vector<float>{
-            -0.475623f, -0.601933f, 0.165541f, 0.050849f, -0.566024f,
-            -0.592437f, 0.121356f, 0.232157f});
+            -0.475623, -0.601933, 0.165541, 0.050849, -0.566024,
+            -0.592437, 0.121356, 0.232157});
     const StorageView conv_input({2, 4, 4}, std::vector<float>{
-            0.547210f, 0.634821f, 0.571043f, 0.443073f, 0.220554f, 0.478427f,
-            0.836031f, 0.476906f, 0.288942f, 0.393840f, 0.077658f, 0.236493f,
-            0.759209f, 0.826134f, 0.728944f, 0.130438f, 0.355182f, 0.884368f,
-            0.494477f, 0.004999f, 0.306053f, 0.764639f, 0.903179f, 0.440537f,
-            0.040332f, 0.533495f, 0.428653f, 0.311188f, 0.951956f, 0.785873f,
-            0.443364f, 0.065968f});
+            0.547210, 0.634821, 0.571043, 0.443073, 0.220554, 0.478427,
+            0.836031, 0.476906, 0.288942, 0.393840, 0.077658, 0.236493,
+            0.759209, 0.826134, 0.728944, 0.130438, 0.355182, 0.884368,
+            0.494477, 0.004999, 0.306053, 0.764639, 0.903179, 0.440537,
+            0.040332, 0.533495, 0.428653, 0.311188, 0.951956, 0.785873,
+            0.443364, 0.065968});
     // These weights correspond to the ones in Conv1DGroupNoBias
     // Hence expected output is same (with quantization error)
     // Therefore we use error = 3e-3
@@ -1322,11 +1355,15 @@ TEST_P(OpDeviceFPTest, Conv1DGroup) {
     const DataType dtype = GetParam().dtype;
     const float error = GetParam().error;
     const StorageView expected({2, 2, 2}, std::vector<float>{
-            0.142335f, 0.103515f, 0.735452f, 0.755268f, 0.109328f, 0.007098f, 0.791004f, 0.537695f});
+            0.142335, 0.103515, 0.735452, 0.755268, 0.109328, 0.007098, 0.791004, 0.537695});
     const StorageView conv_input({2, 4, 4}, std::vector<float>{
-            0.769843f, 0.147572f, 0.195656f, 0.823936f, 0.363211f, 0.584773f, 0.315626f, 0.929829f, 0.724258f, 0.853388f, 0.756254f, 0.791604f, 0.463644f, 0.285105f, 0.952018f, 0.660709f, 0.557387f, 0.147298f, 0.473786f, 0.566577f, 0.255724f, 0.488177f, 0.534283f, 0.678067f, 0.760340f, 0.024571f, 0.559195f, 0.978376f, 0.473044f, 0.351244f, 0.824801f, 0.077629f});
+            0.769843, 0.147572, 0.195656, 0.823936, 0.363211, 0.584773, 0.315626, 0.929829,
+            0.724258, 0.853388, 0.756254, 0.791604, 0.463644, 0.285105, 0.952018, 0.660709,
+            0.557387, 0.147298, 0.473786, 0.566577, 0.255724, 0.488177, 0.534283, 0.678067,
+            0.760340, 0.024571, 0.559195, 0.978376, 0.473044, 0.351244, 0.824801, 0.077629});
     const StorageView conv_weight({2, 2, 3}, std::vector<float>{
-            0.345985f, -0.071498f, 0.200554f, 0.185144f, -0.015271f, 0.014293f, 0.006771f, -0.078667f, -0.065937f, 0.382823f, 0.276695f, 0.352038f});
+            0.345985f, -0.071498f, 0.200554f, 0.185144f, -0.015271f, 0.014293f,
+            0.006771f, -0.078667f, -0.065937f, 0.382823f, 0.276695f, 0.352038f});
     const StorageView conv_bias({2}, std::vector<float>{-0.215535f, 0.256019f});
     StorageView output(dtype, device);
     ops::Conv1D(1, 0, 1, 2)(conv_input.to(device).to(dtype),
