@@ -147,7 +147,7 @@ class FairseqConverter(Converter):
 
         with torch.no_grad():
             checkpoint = torch.load(
-                self._model_path, map_location=torch.device("cpu"), weights_only=False
+                self._model_path, map_location=torch.device("cpu"), weights_only=True
             )
             args = checkpoint["args"] or checkpoint["cfg"]["model"]
 
