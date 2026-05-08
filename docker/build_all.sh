@@ -21,6 +21,7 @@ cd $ROOT_DIR
 VERSION=${1:-latest}
 PUSH=${2:-0}
 GPU=${3:-cuda}
+ROCM_VERSION=${ROCM_VERSION:-7.2.1}
 IMAGE=ghcr.io/opennmt/ctranslate2
 
 build()
@@ -44,7 +45,7 @@ build()
 }
 
 if [ "$GPU" == "rocm" ]; then
-    build Dockerfile_rocm ubuntu22.04-rocm7.2.1
+    build Dockerfile_rocm ubuntu22.04-rocm${ROCM_VERSION}
 else
     build Dockerfile ubuntu22.04-cuda12.8
 fi
