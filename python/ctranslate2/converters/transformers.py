@@ -120,7 +120,13 @@ class TransformersConverter(Converter):
                 )
 
             model_class = getattr(transformers, loader.architecture_name)
+            if hasattr(loader, "get_model_class"):
+                model_class = loader.get_model_class(config, model_class)
             tokenizer_class = transformers.AutoTokenizer
+
+            extra_kwargs = {"config": config}
+            if hasattr(loader, "get_model_kwargs"):
+                extra_kwargs.update(loader.get_model_kwargs(config))
 
             kwargs = {
                 "dtype": (
@@ -138,7 +144,9 @@ class TransformersConverter(Converter):
             if self._trust_remote_code:
                 kwargs["trust_remote_code"] = self._trust_remote_code
 
-            model = self.load_model(model_class, self._model_name_or_path, **kwargs)
+            model = self.load_model(
+                model_class, self._model_name_or_path, **kwargs, **extra_kwargs
+            )
 
             tokenizer_kwargs = {}
             if self._trust_remote_code:
@@ -1842,30 +1850,49 @@ class Gemma3Loader(ModelLoader):
     def architecture_name(self):
         return "Gemma3ForCausalLM"
 
+    def get_model_class(self, config, default_class):
+        # Gemma3Config (4b/12b/27b multimodal) needs ForConditionalGeneration to
+        # load weights correctly. Gemma3TextConfig (1b text-only) uses ForCausalLM.
+        if config.__class__.__name__ == "Gemma3Config":
+            return transformers.Gemma3ForConditionalGeneration
+        return default_class
+
     def get_model_spec(self, model):
-        num_layers = model.config.num_hidden_layers
-        num_heads = model.config.num_attention_heads
-        num_heads_kv = getattr(model.config, "num_key_value_heads", num_heads)
+        text_config = getattr(model.config, "text_config", model.config)
+        num_layers = text_config.num_hidden_layers
+        num_heads = text_config.num_attention_heads
+        num_heads_kv = getattr(text_config, "num_key_value_heads", num_heads)
         if num_heads_kv == num_heads:
             num_heads_kv = None
 
-        head_dim = model.config.head_dim
+        head_dim = text_config.head_dim
 
         activation_config = getattr(
-            model.config, "hidden_activation", "gelu_pytorch_tanh"
+            text_config, "hidden_activation", "gelu_pytorch_tanh"
         )
 
         # Get RoPE parameters
-        rope_theta = getattr(model.config, "rope_theta", 1_000_000)  # Global: 1M
+        rope_theta = getattr(text_config, "rope_theta", 1_000_000)  # Global: 1M
         rope_local_base_freq = getattr(
-            model.config, "rope_local_base_freq", 10_000
+            text_config, "rope_local_base_freq", 10_000
         )  # Local: 10k
 
         # Get sliding window configuration
-        sliding_window = getattr(model.config, "sliding_window", 1024)
-        layer_types = getattr(model.config, "layer_types", None)
+        sliding_window = getattr(text_config, "sliding_window", 1024)
+        layer_types = getattr(text_config, "layer_types", None)
+        if layer_types is None:
+            sliding_window_pattern = getattr(
+                text_config, "_sliding_window_pattern", None
+            )
+            if sliding_window_pattern is not None:
+                layer_types = [
+                    "full_attention"
+                    if (i + 1) % sliding_window_pattern == 0
+                    else "sliding_attention"
+                    for i in range(num_layers)
+                ]
 
-        quantization_config = getattr(model.config, "quantization_config", None)
+        quantization_config = getattr(text_config, "quantization_config", None)
         if quantization_config:
             if quantization_config.quant_method == "awq":
                 quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
@@ -1923,18 +1950,20 @@ class Gemma3Loader(ModelLoader):
                     sliding_window
                 )
 
-        self.set_decoder(spec.decoder, model.model, quant_type)
+        text_model = getattr(model.model, "language_model", model.model)
+        self.set_decoder(spec.decoder, text_model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
         return spec
 
     def get_vocabulary(self, model, tokenizer):
         tokens = super().get_vocabulary(model, tokenizer)
 
-        extra_ids = model.config.vocab_size - len(tokens)
+        text_config = getattr(model.config, "text_config", model.config)
+        extra_ids = text_config.vocab_size - len(tokens)
         for i in range(extra_ids):
             tokens.append("<extra_id_%d>" % i)
-        if model.config.vocab_size < len(tokens):
-            tokens = tokens[: model.config.vocab_size]
+        if text_config.vocab_size < len(tokens):
+            tokens = tokens[: text_config.vocab_size]
 
         return tokens
 
