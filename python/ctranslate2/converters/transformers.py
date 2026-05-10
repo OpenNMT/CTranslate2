@@ -2083,7 +2083,8 @@ class Gemma4Loader(ModelLoader):
         if num_kv_shared_layers > 0:
             raise NotImplementedError(
                 "Gemma 4 KV-shared layers (num_kv_shared_layers=%d) are not yet "
-                "supported. Use the 31B model which has no KV sharing." % num_kv_shared_layers
+                "supported. Use the 31B model which has no KV sharing."
+                % num_kv_shared_layers
             )
 
         # Sliding layers use head_dim, global (full) attention layers use global_head_dim
@@ -2096,7 +2097,9 @@ class Gemma4Loader(ModelLoader):
         # attention_k_eq_v: full-attention layers reuse key projection as value projection
         attention_k_eq_v = getattr(text_config, "attention_k_eq_v", False)
 
-        activation_config = getattr(text_config, "hidden_activation", "gelu_pytorch_tanh")
+        activation_config = getattr(
+            text_config, "hidden_activation", "gelu_pytorch_tanh"
+        )
 
         # RoPE parameters are in a nested dict keyed by layer type
         rope_params = getattr(text_config, "rope_parameters", None) or {}
@@ -2115,7 +2118,9 @@ class Gemma4Loader(ModelLoader):
         if layer_types is None:
             sliding_window_pattern = 6
             layer_types = [
-                "sliding_attention" if bool((i + 1) % sliding_window_pattern) else "full_attention"
+                "sliding_attention"
+                if bool((i + 1) % sliding_window_pattern)
+                else "full_attention"
                 for i in range(num_layers)
             ]
 
@@ -2173,20 +2178,30 @@ class Gemma4Loader(ModelLoader):
             # Gemma4 uses scaling=1.0 (no 1/sqrt(d_head) scaling)
             layer.self_attention.queries_scale = np.dtype("float32").type(1.0)
             if layer_type == "full_attention":
-                layer.self_attention.rotary_dim = np.dtype("int32").type(global_rotary_dim)
+                layer.self_attention.rotary_dim = np.dtype("int32").type(
+                    global_rotary_dim
+                )
                 layer.self_attention.rotary_base = np.dtype("float32").type(rope_theta)
                 layer.self_attention.sliding_window = np.dtype("int32").type(0)
                 layer.self_attention.head_dim = np.dtype("int32").type(global_head_dim)
                 if num_global_kv_heads is not None:
-                    layer.self_attention.num_heads_kv = np.dtype("int32").type(num_global_kv_heads)
+                    layer.self_attention.num_heads_kv = np.dtype("int32").type(
+                        num_global_kv_heads
+                    )
             elif layer_type == "sliding_attention":
-                layer.self_attention.rotary_base = np.dtype("float32").type(rope_local_base_freq)
-                layer.self_attention.sliding_window = np.dtype("int32").type(sliding_window)
+                layer.self_attention.rotary_base = np.dtype("float32").type(
+                    rope_local_base_freq
+                )
+                layer.self_attention.sliding_window = np.dtype("int32").type(
+                    sliding_window
+                )
 
         text_config = getattr(model.config, "text_config", model.config)
         final_softcap = getattr(text_config, "final_logit_softcapping", None)
         if final_softcap:
-            spec.decoder.final_logit_softcapping = np.dtype("float32").type(final_softcap)
+            spec.decoder.final_logit_softcapping = np.dtype("float32").type(
+                final_softcap
+            )
 
         text_model = getattr(model.model, "language_model", model.model)
         self.set_decoder(spec.decoder, text_model, quant_type, has_ple)
@@ -2222,7 +2237,9 @@ class Gemma4Loader(ModelLoader):
         spec.gamma = layer_norm.weight
         # Gemma4 uses output * gamma (ones-initialized), not output * (1 + gamma)
 
-    def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2, has_ple=False):
+    def set_decoder(
+        self, spec, module, quant_type=common_spec.Quantization.CT2, has_ple=False
+    ):
         import torch as _torch
 
         spec.scale_embeddings = True
@@ -2232,10 +2249,18 @@ class Gemma4Loader(ModelLoader):
 
         # PLE decoder-level weights
         if has_ple:
-            self.set_embeddings(spec.embed_tokens_per_layer, module.embed_tokens_per_layer)
-            self.set_linear(spec.per_layer_model_projection, module.per_layer_model_projection)
-            self.set_layer_norm(spec.per_layer_projection_norm, module.per_layer_projection_norm)
-            spec.per_layer_input_scale = np.dtype("float32").type(module.per_layer_input_scale)
+            self.set_embeddings(
+                spec.embed_tokens_per_layer, module.embed_tokens_per_layer
+            )
+            self.set_linear(
+                spec.per_layer_model_projection, module.per_layer_model_projection
+            )
+            self.set_layer_norm(
+                spec.per_layer_projection_norm, module.per_layer_projection_norm
+            )
+            spec.per_layer_input_scale = np.dtype("float32").type(
+                module.per_layer_input_scale
+            )
 
         attention_k_eq_v = getattr(self, "_attention_k_eq_v", False)
 
@@ -2250,10 +2275,14 @@ class Gemma4Loader(ModelLoader):
             self.set_layer_norm(
                 layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
             )
-            self.set_layer_norm(layer_spec.self_attention.q_norm, layer.self_attn.q_norm)
-            self.set_layer_norm(layer_spec.self_attention.k_norm, layer.self_attn.k_norm)
+            self.set_layer_norm(
+                layer_spec.self_attention.q_norm, layer.self_attn.q_norm
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.k_norm, layer.self_attn.k_norm
+            )
 
-            # v_norm has no learnable scale (with_scale=False); supply all-ones gamma (pure RMS norm)
+            # v_norm has no learnable scale; supply all-ones gamma (pure RMS norm)
             layer_spec.self_attention.v_norm.gamma = (
                 _torch.ones_like(layer.self_attn.k_norm.weight).float().numpy()
             )
@@ -2261,27 +2290,40 @@ class Gemma4Loader(ModelLoader):
             # PLE per-layer weights
             if has_ple:
                 self.set_linear(
-                    layer_spec.per_layer_input_gate, layer.per_layer_input_gate, quant_type=quant_type
+                    layer_spec.per_layer_input_gate,
+                    layer.per_layer_input_gate,
+                    quant_type=quant_type,
                 )
                 self.set_linear(
-                    layer_spec.per_layer_projection, layer.per_layer_projection, quant_type=quant_type
+                    layer_spec.per_layer_projection,
+                    layer.per_layer_projection,
+                    quant_type=quant_type,
                 )
                 self.set_layer_norm(
-                    layer_spec.post_per_layer_input_norm, layer.post_per_layer_input_norm
+                    layer_spec.post_per_layer_input_norm,
+                    layer.post_per_layer_input_norm,
                 )
 
             # When attention_k_eq_v is set, full-attention layers have no v_proj —
             # values are the same as keys, so we reuse k_proj weights.
-            is_full_attn = (layer.self_attn.layer_type == "full_attention")
+            is_full_attn = layer.self_attn.layer_type == "full_attention"
             use_k_as_v = attention_k_eq_v and is_full_attn
 
             split_layers = [common_spec.LinearSpec() for _ in range(3)]
-            self.set_linear(split_layers[0], layer.self_attn.q_proj, quant_type=quant_type)
-            self.set_linear(split_layers[1], layer.self_attn.k_proj, quant_type=quant_type)
+            self.set_linear(
+                split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
             if use_k_as_v:
-                self.set_linear(split_layers[2], layer.self_attn.k_proj, quant_type=quant_type)
+                self.set_linear(
+                    split_layers[2], layer.self_attn.k_proj, quant_type=quant_type
+                )
             else:
-                self.set_linear(split_layers[2], layer.self_attn.v_proj, quant_type=quant_type)
+                self.set_linear(
+                    split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+                )
 
             if quant_type == common_spec.Quantization.CT2:
                 utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
@@ -2297,9 +2339,15 @@ class Gemma4Loader(ModelLoader):
                 quant_type=quant_type,
             )
 
-            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type)
-            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type)
-            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type)
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
 
             ls = getattr(layer, "layer_scalar", None)
             if ls is not None:
