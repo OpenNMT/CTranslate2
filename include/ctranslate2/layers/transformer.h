@@ -100,7 +100,8 @@ namespace ctranslate2 {
                       const Padder* memory_padder = nullptr,
                       bool return_normalized_attention = true,
                       StorageView* position_bias = nullptr,
-                      dim_t offset = 0) const;
+                      dim_t offset = 0,
+                      const StorageView* per_layer_input = nullptr) const;
 
       DataType output_type() const override {
         return _ff.output_type();
@@ -129,6 +130,12 @@ namespace ctranslate2 {
       const FeedForwardNetwork _ff;
       const std::unique_ptr<const LayerNorm> _external_pre_encoder_attention_layer_norm;
       const std::unique_ptr<const LayerNorm> _external_post_encoder_attention_layer_norm;
+      // Per-Layer Embeddings (PLE) — Gemma 4
+      const std::unique_ptr<const Dense> _per_layer_input_gate;
+      const std::unique_ptr<const Dense> _per_layer_projection;
+      const std::unique_ptr<const LayerNorm> _post_per_layer_input_norm;
+      // Gemma 4 layer-scalar (multiplied to hidden state at end of each layer)
+      const float _layer_scalar;
     };
 
     class TransformerEncoder : public Encoder
@@ -227,6 +234,12 @@ namespace ctranslate2 {
       Dense _proj;
       const dim_t _sliding_window;
       const bool _tensor_parallel;
+      // Per-Layer Embeddings (PLE) — Gemma 4
+      const std::unique_ptr<const Embeddings> _embed_tokens_per_layer;
+      const std::unique_ptr<const Dense> _per_layer_model_projection;
+      const std::unique_ptr<const LayerNorm> _per_layer_projection_norm;
+      const float _per_layer_input_scale;
+      const float _final_logit_softcapping;
     };
 
   }

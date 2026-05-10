@@ -73,6 +73,7 @@ namespace ctranslate2 {
                                  dim_t beam_size = 1);
 
       void apply_k_norm(StorageView& keys_proj) const;
+      void apply_v_norm(StorageView& values_proj) const;
 
       void apply_qk_norm(StorageView& queries_proj,
                           StorageView& keys_proj) const;
@@ -88,6 +89,7 @@ namespace ctranslate2 {
       const dim_t _cache_time_dim;
       std::unique_ptr<const LayerNorm> _q_norm;  // Query normalization
       std::unique_ptr<const LayerNorm> _k_norm;  // Key normalization
+      std::unique_ptr<const LayerNorm> _v_norm;  // Value normalization (no learnable scale)
     };
   }
 }
