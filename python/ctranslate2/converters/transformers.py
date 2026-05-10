@@ -2124,8 +2124,6 @@ class Gemma4Loader(ModelLoader):
                 for i in range(num_layers)
             ]
 
-        has_ple = bool(getattr(text_config, "hidden_size_per_layer_input", 0))
-
         quantization_config = getattr(text_config, "quantization_config", None)
         if quantization_config:
             if quantization_config.quant_method == "awq":
@@ -2166,7 +2164,6 @@ class Gemma4Loader(ModelLoader):
             quant_bits=quant_bits,
             qk_norm=True,
             v_norm=True,
-            per_layer_embeddings=has_ple,
         )
 
         self._layer_types = layer_types
@@ -2204,7 +2201,7 @@ class Gemma4Loader(ModelLoader):
             )
 
         text_model = getattr(model.model, "language_model", model.model)
-        self.set_decoder(spec.decoder, text_model, quant_type, has_ple)
+        self.set_decoder(spec.decoder, text_model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
         return spec
 
@@ -2237,30 +2234,13 @@ class Gemma4Loader(ModelLoader):
         spec.gamma = layer_norm.weight
         # Gemma4 uses output * gamma (ones-initialized), not output * (1 + gamma)
 
-    def set_decoder(
-        self, spec, module, quant_type=common_spec.Quantization.CT2, has_ple=False
-    ):
+    def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
         import torch as _torch
 
         spec.scale_embeddings = True
         spec.start_from_zero_embedding = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)
         self.set_layer_norm(spec.layer_norm, module.norm)
-
-        # PLE decoder-level weights
-        if has_ple:
-            self.set_embeddings(
-                spec.embed_tokens_per_layer, module.embed_tokens_per_layer
-            )
-            self.set_linear(
-                spec.per_layer_model_projection, module.per_layer_model_projection
-            )
-            self.set_layer_norm(
-                spec.per_layer_projection_norm, module.per_layer_projection_norm
-            )
-            spec.per_layer_input_scale = np.dtype("float32").type(
-                module.per_layer_input_scale
-            )
 
         attention_k_eq_v = getattr(self, "_attention_k_eq_v", False)
 
@@ -2286,23 +2266,6 @@ class Gemma4Loader(ModelLoader):
             layer_spec.self_attention.v_norm.gamma = (
                 _torch.ones_like(layer.self_attn.k_norm.weight).float().numpy()
             )
-
-            # PLE per-layer weights
-            if has_ple:
-                self.set_linear(
-                    layer_spec.per_layer_input_gate,
-                    layer.per_layer_input_gate,
-                    quant_type=quant_type,
-                )
-                self.set_linear(
-                    layer_spec.per_layer_projection,
-                    layer.per_layer_projection,
-                    quant_type=quant_type,
-                )
-                self.set_layer_norm(
-                    layer_spec.post_per_layer_input_norm,
-                    layer.post_per_layer_input_norm,
-                )
 
             # When attention_k_eq_v is set, full-attention layers have no v_proj —
             # values are the same as keys, so we reuse k_proj weights.

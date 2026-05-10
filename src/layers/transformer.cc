@@ -186,9 +186,6 @@ namespace ctranslate2 {
                                      model, scope + "/external_pre_encoder_attention_layer_norm"))
       , _external_post_encoder_attention_layer_norm(build_optional_layer<LayerNorm>(
                                      model, scope + "/external_post_encoder_attention_layer_norm"))
-      , _per_layer_input_gate(build_optional_layer<Dense>(model, scope + "/per_layer_input_gate"))
-      , _per_layer_projection(build_optional_layer<Dense>(model, scope + "/per_layer_projection"))
-      , _post_per_layer_input_norm(build_optional_layer<LayerNorm>(model, scope + "/post_per_layer_input_norm"))
       , _layer_scalar(model.get_attribute_with_default<float>(scope + "/layer_scalar", 1.f))
       {
     }
@@ -207,8 +204,7 @@ namespace ctranslate2 {
                                              const Padder* memory_padder,
                                              bool return_normalized_attention,
                                              StorageView* position_bias,
-                                             dim_t offset,
-                                             const StorageView* per_layer_input) const {
+                                             dim_t offset) const {
       PROFILE("TransformerDecoderLayer");
 
       const DataType dtype = input.dtype();
@@ -274,21 +270,6 @@ namespace ctranslate2 {
         hidden = std::move(output);
         (*_post_feedforward_layer_norm)(hidden, output);
         ops::Add()(output, context, output);
-
-        // Per-Layer Embeddings (PLE) — Gemma 4
-        if (_per_layer_input_gate && _per_layer_projection && _post_per_layer_input_norm
-            && per_layer_input != nullptr) {
-          static const ops::GELU gelu_op(ops::GELU::Approximation::Tanh);
-          StorageView residual(output);
-          StorageView ple_gated(dtype, device);
-          (*_per_layer_input_gate)(output, ple_gated);
-          gelu_op(ple_gated, ple_gated);
-          ops::Mul()(ple_gated, *per_layer_input, ple_gated);
-          StorageView ple_projected(dtype, device);
-          (*_per_layer_projection)(ple_gated, ple_projected);
-          (*_post_per_layer_input_norm)(ple_projected, ple_projected);
-          ops::Add()(residual, ple_projected, output);
-        }
 
         // Gemma 4 layer scalar
         if (_layer_scalar != 1.f)
@@ -515,10 +496,6 @@ namespace ctranslate2 {
       , _proj(model, scope + "/projection")
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
       , _tensor_parallel(model.tensor_parallel())
-      , _embed_tokens_per_layer(build_optional_layer<Embeddings>(model, scope + "/embed_tokens_per_layer"))
-      , _per_layer_model_projection(build_optional_layer<Dense>(model, scope + "/per_layer_model_projection"))
-      , _per_layer_projection_norm(build_optional_layer<LayerNorm>(model, scope + "/per_layer_projection_norm"))
-      , _per_layer_input_scale(model.get_attribute_with_default<float>(scope + "/per_layer_input_scale", 0.f))
       , _final_logit_softcapping(model.get_attribute_with_default<float>(scope + "/final_logit_softcapping", 0.f)) {
 
       dim_t alignment_layer = (
@@ -654,40 +631,6 @@ namespace ctranslate2 {
         (*_position_encoder)(layer_in, std::max(step, dim_t(0)));
       if (_layernorm_embedding)
         (*_layernorm_embedding)(layer_in, layer_in);
-
-      // Compute Per-Layer Embeddings (PLE) — Gemma 4
-      // Shape after computation: [batch, seq, num_layers, ple_dim]
-      StorageView ple_all;
-      if (_embed_tokens_per_layer && _per_layer_model_projection && _per_layer_projection_norm) {
-        const StorageView* ids_2d = nullptr;
-        StorageView ids_squeezed;
-        if (ids.rank() > 1) {
-          ids_2d = &ids;
-        } else {
-          ids_squeezed = ids;
-          ids_squeezed.expand_dims(1);
-          ids_2d = &ids_squeezed;
-        }
-        // Token embedding component: [batch, seq, num_layers * ple_dim]
-        StorageView ple_token(dtype, device);
-        (*_embed_tokens_per_layer)(*ids_2d, ple_token);
-
-        // Context projection component: [batch, seq, num_layers * ple_dim]
-        StorageView ple_ctx(dtype, device);
-        (*_per_layer_model_projection)(layer_in, ple_ctx);
-
-        // Reshape both to [batch, seq, num_layers, ple_dim] then combine
-        const dim_t num_layers = static_cast<dim_t>(_layers.size());
-        const dim_t ple_dim = ple_token.dim(-1) / num_layers;
-        ple_token.reshape({ple_token.dim(0), ple_token.dim(1), num_layers, ple_dim});
-        ple_ctx.reshape({ple_ctx.dim(0), ple_ctx.dim(1), num_layers, ple_dim});
-        (*_per_layer_projection_norm)(ple_ctx, ple_ctx);
-
-        // Combine: (token + context) * scale
-        ops::Add()(ple_token, ple_ctx, ple_all);
-        if (_per_layer_input_scale != 0.f)
-          ops::Mul()(ple_all, StorageView(_per_layer_input_scale, device).to(dtype), ple_all);
-      }
 
       const dim_t batch_size = layer_in.dim(0);
       dim_t max_time;
@@ -831,15 +774,6 @@ namespace ctranslate2 {
             input_lengths_mask = std::make_unique<StorageView>(std::move(tmp_lengths));
           }
 
-          // Slice per-layer embedding for this layer: [batch, seq, ple_dim]
-          StorageView layer_ple;
-          const StorageView* layer_ple_ptr = nullptr;
-          if (!ple_all.empty()) {
-            ops::Slide(2, static_cast<dim_t>(l), 1)(ple_all, layer_ple);
-            layer_ple.reshape({layer_ple.dim(0), layer_ple.dim(1), layer_ple.dim(-1)});
-            layer_ple_ptr = &layer_ple;
-          }
-
           (*_layers[l])(*layer_in_chunk,
                         input_lengths_mask.get(),
                         memory,
@@ -854,8 +788,7 @@ namespace ctranslate2 {
                         memory_padder.get(),
                         return_normalized_attention(),
                         &position_bias,
-                        offset,
-                        layer_ple_ptr);
+                        offset);
           *layer_in_chunk = std::move(layer_out);
 
           if (layer_attention) {

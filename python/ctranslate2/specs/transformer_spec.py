@@ -153,7 +153,6 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         qk_norm: bool = False,
         v_norm: bool = False,
         external_pre_post_encoder_layers: Optional[bool] = False,
-        per_layer_embeddings: bool = False,
     ):
         """Initializes a Transformer decoder specification.
 
@@ -266,16 +265,10 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 qk_norm=qk_norm,
                 v_norm=v_norm,
                 external_pre_post_encoder_layers=external_pre_post_encoder_layers,
-                per_layer_embeddings=per_layer_embeddings,
             )
             for _ in range(num_layers)
         ]
 
-        if per_layer_embeddings:
-            self.embed_tokens_per_layer = common_spec.EmbeddingsSpec()
-            self.per_layer_model_projection = common_spec.LinearSpec()
-            self.per_layer_projection_norm = common_spec.LayerNormSpec(rms_norm=True)
-            self.per_layer_input_scale = np.dtype("float32").type(0)
         self.start_from_zero_embedding = False
         self.final_logit_softcapping = model_spec.OPTIONAL
         self._config["multi_query_attention"] = multi_query_attention or (
@@ -371,7 +364,6 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         qk_norm=False,
         v_norm=False,
         external_pre_post_encoder_layers=False,
-        per_layer_embeddings=False,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
             self_attention=True,
@@ -439,11 +431,6 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
 
             delattr(self.self_attention, "layer_norm")
             delattr(self.ffn, "layer_norm")
-
-        if per_layer_embeddings:
-            self.per_layer_input_gate = common_spec.LinearSpec()
-            self.per_layer_projection = common_spec.LinearSpec()
-            self.post_per_layer_input_norm = common_spec.LayerNormSpec(rms_norm=True)
 
         self.layer_scalar = model_spec.OPTIONAL
 
@@ -668,7 +655,6 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         quant_bits: Optional[int] = None,
         qk_norm: bool = False,
         v_norm: bool = False,
-        per_layer_embeddings: bool = False,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -745,7 +731,6 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             quant_bits=quant_bits,
             qk_norm=qk_norm,
             v_norm=v_norm,
-            per_layer_embeddings=per_layer_embeddings,
         )
 
         return cls(decoder)
