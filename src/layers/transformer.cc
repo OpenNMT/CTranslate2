@@ -292,7 +292,7 @@ namespace ctranslate2 {
 
         // Gemma 4 layer scalar
         if (_layer_scalar != 1.f)
-          ops::Mul()(output, StorageView(_layer_scalar, device), output);
+          ops::Mul()(output, StorageView(_layer_scalar, device).to(dtype), output);
 
         return;
       }
@@ -686,7 +686,7 @@ namespace ctranslate2 {
         // Combine: (token + context) * scale
         ops::Add()(ple_token, ple_ctx, ple_all);
         if (_per_layer_input_scale != 0.f)
-          ops::Mul()(ple_all, StorageView(_per_layer_input_scale, device), ple_all);
+          ops::Mul()(ple_all, StorageView(_per_layer_input_scale, device).to(dtype), ple_all);
       }
 
       const dim_t batch_size = layer_in.dim(0);
