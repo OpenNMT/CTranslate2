@@ -719,7 +719,13 @@ elseif(WITH_HIP)
     src/ops/awq/dequantize_gpu.cu
   )
   if(WITH_FLASH_ATTN)
-    message(FATAL_ERROR "WITH_HIP=ON incompatible with WITH_FLASH_ATTN=ON")
+    # Flash Attention for HIP/ROCm is not yet implemented.
+    # The CUDA kernels rely on CUTLASS/CuTe (sm80-specific) and cannot be hipified directly.
+    # A native HIP implementation using AMD Composable Kernel (CK) is planned.
+    # At runtime, using flash_attention=True on a ROCm build will raise an error.
+    message(WARNING "WITH_FLASH_ATTN=ON has no effect with WITH_HIP=ON: "
+                    "Flash Attention is not yet implemented for the HIP backend. "
+                    "The build will succeed but flash_attention=True will raise an error at runtime.")
   endif()
 
   set_source_files_properties(${CUDA_SOURCES} PROPERTIES LANGUAGE HIP)
