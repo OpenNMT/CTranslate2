@@ -238,6 +238,7 @@ set(CUDA_SOURCES
   src/ops/conv1d_gpu.cu
   src/ops/dequantize_gpu.cu
   src/ops/flash_attention_gpu.cu
+  src/ops/wmma_probe.cu
   src/ops/gather_gpu.cu
   src/ops/gumbel_max_gpu.cu
   src/ops/layer_norm_gpu.cu
