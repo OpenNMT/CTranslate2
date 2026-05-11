@@ -837,9 +837,11 @@ namespace ctranslate2 {
           _proj(layer_in, *outputs);
           if (_final_logit_softcapping != 0.f) {
             // logits = tanh(logits / cap) * cap  — squashes logits to (-cap, cap)
-            ops::Mul()(*outputs, StorageView(1.f / _final_logit_softcapping, outputs->device()), *outputs);
+            const auto dtype = outputs->dtype();
+            const auto device = outputs->device();
+            ops::Mul()(*outputs, StorageView(1.f / _final_logit_softcapping, device).to(dtype), *outputs);
             ops::Tanh()(*outputs, *outputs);
-            ops::Mul()(*outputs, StorageView(_final_logit_softcapping, outputs->device()), *outputs);
+            ops::Mul()(*outputs, StorageView(_final_logit_softcapping, device).to(dtype), *outputs);
           }
         } else
           *outputs = std::move(layer_in);
