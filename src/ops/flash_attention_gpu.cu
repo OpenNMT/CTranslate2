@@ -1,10 +1,11 @@
 #include "ctranslate2/ops/flash_attention.h"
-#ifdef CT2_WITH_FLASH_ATTN
+#if defined(CT2_WITH_FLASH_ATTN) && !defined(CT2_USE_HIP)
 #include "ctranslate2/ops/flash-attention/flash.h"
 #include "ctranslate2/ops/flash-attention/static_switch.h"
 #endif
 #include "ctranslate2/ops/transpose.h"
 #include "cuda/utils.h"
+#include "cuda/helpers.h"
 
 #include "dispatch.h"
 
@@ -14,6 +15,9 @@
 
 namespace ctranslate2 {
   namespace ops {
+
+#ifndef CT2_USE_HIP  // CUDA-only: CUTLASS/CuTe Flash Attention kernels
+
 #ifdef CT2_WITH_FLASH_ATTN
     static void set_params_fprop(Flash_fwd_params &params,
       // sizes
@@ -364,5 +368,272 @@ namespace ctranslate2 {
       throw std::runtime_error("Flash attention 2 is not supported");
 #endif
     }
-  }
-}
+
+#else  // CT2_USE_HIP — native HIP Flash Attention implementation
+
+// ---------------------------------------------------------------------------
+// HIP Flash Attention — native implementation for AMD GPUs (gfx1100 / RDNA3+)
+//
+// Algorithm: standard scaled dot-product attention computed in three passes:
+//   1. S = Q @ K^T * scale          [batch, nheads, seqlen_q, seqlen_k]
+//   2. P = softmax(S + causal_mask)  in-place
+//   3. O = P @ V                     [batch, seqlen_q, nheads, head_dim]
+//
+// Memory layout of all tensors: [batch, seqlen, nheads, head_dim]
+// Supports FP16 and BF16 inputs; FP32 accumulators throughout.
+//
+// Limitations in this initial implementation:
+//   - KV-cache append path (offset > 0) is not yet supported.
+//   - Rotary embeddings and ALiBi are expected to be pre-applied by the caller.
+//   - No sub-quadratic memory tiling (full attention matrix is materialised).
+// ---------------------------------------------------------------------------
+
+
+    // -------------------------------------------------------------------
+    // Kernel 1 — Q @ K^T
+    // Grid:  (ceildiv(seqlen_q * seqlen_k, 256), nheads, batch)
+    // Block: (256, 1, 1)
+    // Each thread computes one element of S[b, h, q, k].
+    // -------------------------------------------------------------------
+    template <typename scalar_t>
+    __global__ void hip_attn_qk_kernel(
+        const scalar_t* __restrict__ Q,  // [batch, seqlen_q, nheads, head_dim]
+        const scalar_t* __restrict__ K,  // [batch, seqlen_k, nheads, head_dim]
+        float*          __restrict__ S,  // [batch, nheads, seqlen_q, seqlen_k]
+        const int seqlen_q,
+        const int seqlen_k,
+        const int nheads,
+        const int head_dim,
+        const float scale)
+    {
+      const int b   = blockIdx.z;
+      const int h   = blockIdx.y;
+      const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+      const int q   = idx / seqlen_k;
+      const int k   = idx % seqlen_k;
+      if (q >= seqlen_q) return;
+
+      float dot = 0.f;
+      const int q_base = b * seqlen_q * nheads * head_dim + q * nheads * head_dim + h * head_dim;
+      const int k_base = b * seqlen_k * nheads * head_dim + k * nheads * head_dim + h * head_dim;
+      for (int d = 0; d < head_dim; ++d)
+        dot += static_cast<float>(Q[q_base + d]) * static_cast<float>(K[k_base + d]);
+
+      S[b * nheads * seqlen_q * seqlen_k + h * seqlen_q * seqlen_k + q * seqlen_k + k] =
+          dot * scale;
+    }
+
+    // -------------------------------------------------------------------
+    // Kernel 2 — row-wise softmax with optional causal mask
+    // Grid:  (seqlen_q, nheads, batch)   — so gridDim = (seqlen_q, nheads, batch)
+    // Block: (min(seqlen_k, 256), 1, 1)
+    // Uses shared memory reduction; wavefront-safe for both wf32 and wf64.
+    // -------------------------------------------------------------------
+    __global__ void hip_attn_softmax_kernel(
+        float* __restrict__ S,       // [batch, nheads, seqlen_q, seqlen_k] — modified in place
+        const int nheads,
+        const int seqlen_q,
+        const int seqlen_k,
+        const bool is_causal,
+        const int q_offset)          // position of q[0] in the full sequence (for KV-cache)
+    {
+      const int b = blockIdx.z;
+      const int h = blockIdx.y;
+      const int q = blockIdx.x;
+
+      float* row = S + (b * nheads + h) * seqlen_q * seqlen_k + q * seqlen_k;
+
+      extern __shared__ float smem[];  // [blockDim.x] for reduction
+
+      // --- apply causal mask ---
+      const int q_pos = q + q_offset;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x)
+        if (is_causal && k > q_pos) row[k] = -1e9f;
+      __syncthreads();
+
+      // --- find row max ---
+      float local_max = -1e9f;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x)
+        local_max = fmaxf(local_max, row[k]);
+      smem[threadIdx.x] = local_max;
+      __syncthreads();
+      for (int s = blockDim.x >> 1; s > 0; s >>= 1) {
+        if (threadIdx.x < s) smem[threadIdx.x] = fmaxf(smem[threadIdx.x], smem[threadIdx.x + s]);
+        __syncthreads();
+      }
+      const float row_max = smem[0];
+      __syncthreads();
+
+      // --- exp and row sum ---
+      float local_sum = 0.f;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x) {
+        const float e = expf(row[k] - row_max);
+        row[k] = e;
+        local_sum += e;
+      }
+      smem[threadIdx.x] = local_sum;
+      __syncthreads();
+      for (int s = blockDim.x >> 1; s > 0; s >>= 1) {
+        if (threadIdx.x < s) smem[threadIdx.x] += smem[threadIdx.x + s];
+        __syncthreads();
+      }
+      const float row_sum = smem[0];
+      __syncthreads();
+
+      // --- normalise ---
+      const float inv_sum = (row_sum > 0.f) ? 1.f / row_sum : 0.f;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x)
+        row[k] *= inv_sum;
+    }
+
+    // -------------------------------------------------------------------
+    // Kernel 3 — O = P @ V
+    // Grid:  (seqlen_q, nheads, batch)
+    // Block: (head_dim, 1, 1)   — head_dim <= 1024
+    // Each thread accumulates one output channel O[b, q, h, d].
+    // -------------------------------------------------------------------
+    template <typename scalar_t>
+    __global__ void hip_attn_ov_kernel(
+        const float*    __restrict__ P,  // [batch, nheads, seqlen_q, seqlen_k]
+        const scalar_t* __restrict__ V,  // [batch, seqlen_k, nheads, head_dim]
+        scalar_t*       __restrict__ O,  // [batch, seqlen_q, nheads, head_dim]
+        const int seqlen_k,
+        const int nheads,
+        const int head_dim)
+    {
+      const int b = blockIdx.z;
+      const int h = blockIdx.y;
+      const int q = blockIdx.x;
+      const int d = threadIdx.x;
+      if (d >= head_dim) return;
+
+      const int seqlen_q = gridDim.x;
+      const float* p_row =
+          P + b * nheads * seqlen_q * seqlen_k + h * seqlen_q * seqlen_k + q * seqlen_k;
+
+      float out = 0.f;
+      for (int k = 0; k < seqlen_k; ++k)
+        out += p_row[k] *
+               static_cast<float>(V[b * seqlen_k * nheads * head_dim +
+                                    k * nheads * head_dim + h * head_dim + d]);
+
+      O[b * seqlen_q * nheads * head_dim + q * nheads * head_dim + h * head_dim + d] =
+          static_cast<scalar_t>(out);
+    }
+
+    // -------------------------------------------------------------------
+    // Dispatcher called from FlashAttention::compute<Device::CUDA> below.
+    // -------------------------------------------------------------------
+    template <typename scalar_t>
+    static void flash_attention_hip_impl(
+        StorageView& queries,
+        StorageView& keys,
+        StorageView& values,
+        StorageView& output,
+        StorageView* cached_keys,
+        StorageView* cached_values,
+        float queries_scale,
+        bool is_causal,
+        dim_t offset)
+    {
+      if (offset != 0)
+        throw std::runtime_error(
+            "Flash Attention HIP: KV-cache append path (offset > 0) is not yet implemented.");
+
+      const dim_t batch_size  = queries.dim(0);
+      const dim_t seqlen_q    = queries.dim(1);
+      const dim_t num_heads   = queries.dim(2);
+      const dim_t head_dim    = queries.dim(3);
+      const dim_t seqlen_k    = keys.dim(1);
+
+      using DevT = typename cuda::DeviceType<scalar_t>::type;
+      const DevT* q_ptr = reinterpret_cast<const DevT*>(queries.data<scalar_t>());
+      const DevT* k_ptr = reinterpret_cast<const DevT*>(keys.data<scalar_t>());
+      const DevT* v_ptr = reinterpret_cast<const DevT*>(values.data<scalar_t>());
+
+      output.resize(queries.shape());
+      DevT* o_ptr = reinterpret_cast<DevT*>(output.data<scalar_t>());
+
+      // Allocate FP32 attention score buffer: [batch, nheads, seqlen_q, seqlen_k]
+      StorageView scores_buf({batch_size, num_heads, seqlen_q, seqlen_k},
+                             DataType::FLOAT32, Device::CUDA);
+      float* s_ptr = scores_buf.data<float>();
+
+      hipStream_t stream = cuda::get_cuda_stream();
+
+      // --- Pass 1: Q @ K^T ---
+      {
+        const int total = seqlen_q * seqlen_k;
+        const int block = 256;
+        dim3 grid((total + block - 1) / block, num_heads, batch_size);
+        hipLaunchKernelGGL(hip_attn_qk_kernel<DevT>, grid, block, 0, stream,
+                           q_ptr, k_ptr, s_ptr,
+                           seqlen_q, seqlen_k, num_heads, head_dim,
+                           queries_scale);
+      }
+
+      // --- Pass 2: softmax (with causal mask) ---
+      {
+        const int block = min((int)seqlen_k, 256);
+        dim3 grid(seqlen_q, num_heads, batch_size);
+        // The kernel uses a flat pointer into S; we compute the nheads-stride
+        // by adjusting the base pointer per head inside the kernel via blockIdx.y.
+        // Pass nheads as a compile-time-unknown dynamic value: kernel reads it
+        // from gridDim.y.
+        hipLaunchKernelGGL(hip_attn_softmax_kernel, grid, block,
+                           block * sizeof(float),  // dynamic shared mem
+                           stream,
+                           s_ptr, (int)num_heads, (int)seqlen_q, (int)seqlen_k,
+                           is_causal, (int)offset);
+      }
+
+      // --- Pass 3: P @ V ---
+      {
+        const int block = min((int)head_dim, 1024);
+        dim3 grid(seqlen_q, num_heads, batch_size);
+        hipLaunchKernelGGL(hip_attn_ov_kernel<DevT>, grid, block, 0, stream,
+                           s_ptr, v_ptr, o_ptr,
+                           seqlen_k, num_heads, head_dim);
+      }
+    }
+
+    template <>
+    void FlashAttention::compute<Device::CUDA>(
+        StorageView& queries,
+        StorageView& keys,
+        StorageView& values,
+        StorageView& output,
+        StorageView* cached_keys,
+        StorageView* cached_values,
+        StorageView* /*attention*/,
+        bool         /*return_normalized_attention*/,
+        StorageView* /*rotary_cos*/,
+        StorageView* /*rotary_sin*/,
+        const bool   /*rotary_interleave*/,
+        StorageView* /*alibi*/,
+        dim_t        offset) const
+    {
+      const DataType dtype = queries.dtype();
+      switch (dtype) {
+        case DataType::FLOAT16:
+          flash_attention_hip_impl<float16_t>(
+              queries, keys, values, output,
+              cached_keys, cached_values,
+              _queries_scale, _is_causal, offset);
+          break;
+        case DataType::BFLOAT16:
+          flash_attention_hip_impl<bfloat16_t>(
+              queries, keys, values, output,
+              cached_keys, cached_values,
+              _queries_scale, _is_causal, offset);
+          break;
+        default:
+          throw std::invalid_argument(
+              "Flash Attention HIP only supports float16 and bfloat16 inputs.");
+      }
+    }
+
+#endif  // CT2_USE_HIP / !CT2_USE_HIP
+
+  }  // namespace ops
+}  // namespace ctranslate2
