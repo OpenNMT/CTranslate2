@@ -611,12 +611,15 @@ namespace ctranslate2 {
     // O is held entirely in registers as `o_frag[D/16]` (4 v8f32 fragments
     // for D = 64) per lane.  Each fragment covers a 16-column slice of O.
     // -------------------------------------------------------------------
-    template <int D>
+    // HalfT is the wave-level fp16/bf16 element type and determines which
+    // WMMA built-in we dispatch (f16 vs bf16).  Both variants share the
+    // same wave32 accumulator-fragment layout on RDNA3.
+    template <typename HalfT, int D>
     __global__ void hip_flash_attn_wmma_fp16(
-        const _Float16* __restrict__ Q,
-        const _Float16* __restrict__ K,
-        const _Float16* __restrict__ V,
-        _Float16*       __restrict__ O,
+        const HalfT* __restrict__ Q,
+        const HalfT* __restrict__ K,
+        const HalfT* __restrict__ V,
+        HalfT*       __restrict__ O,
         const int seqlen_q,
         const int seqlen_k,
         const int k_time_stride,
@@ -631,8 +634,8 @@ namespace ctranslate2 {
       constexpr int BN = 16;
       constexpr int DT = D / 16;  // number of D-tiles
 
-      using v16f16 = _Float16 __attribute__((ext_vector_type(16)));
-      using v8f32  = float    __attribute__((ext_vector_type(8)));
+      using v16f16 = HalfT __attribute__((ext_vector_type(16)));
+      using v8f32  = float __attribute__((ext_vector_type(8)));
 
       const int lane     = threadIdx.x;       // 0..31
       const int b        = blockIdx.z;
@@ -640,14 +643,14 @@ namespace ctranslate2 {
       const int q_tile   = blockIdx.x;
       const int q_row_0  = q_tile * BM;
 
-      __shared__ _Float16 q_lds[BM][D];
-      __shared__ _Float16 k_lds[BN][D];
-      __shared__ _Float16 v_lds[BN][D];
-      __shared__ _Float16 p_lds[BM][BN];
-      __shared__ float    s_scratch[BM][BN];
-      __shared__ float    m_lds[BM];
-      __shared__ float    l_lds[BM];
-      __shared__ float    alpha_lds[BM];
+      __shared__ HalfT q_lds[BM][D];
+      __shared__ HalfT k_lds[BN][D];
+      __shared__ HalfT v_lds[BN][D];
+      __shared__ HalfT p_lds[BM][BN];
+      __shared__ float s_scratch[BM][BN];
+      __shared__ float m_lds[BM];
+      __shared__ float l_lds[BM];
+      __shared__ float alpha_lds[BM];
 
       // ---- Load Q tile, pre-scaled (so S = Q·K^T already has softmax-scale) ----
       for (int idx = lane; idx < BM * D; idx += 32) {
@@ -658,7 +661,7 @@ namespace ctranslate2 {
         if (q_row < seqlen_q)
           v = static_cast<float>(Q[b * seqlen_q * nheads * D
                                    + q_row * nheads * D + h * D + col]) * scale;
-        q_lds[row][col] = static_cast<_Float16>(v);
+        q_lds[row][col] = static_cast<HalfT>(v);
       }
 
       // ---- Initialise running state and output accumulators ----
@@ -684,8 +687,8 @@ namespace ctranslate2 {
           const int row = idx / D;
           const int col = idx % D;
           const int k_row = k_row_0 + row;
-          _Float16 kv_k = static_cast<_Float16>(0);
-          _Float16 kv_v = static_cast<_Float16>(0);
+          HalfT kv_k = static_cast<HalfT>(0);
+          HalfT kv_v = static_cast<HalfT>(0);
           if (k_row < seqlen_k) {
             kv_k = K[b * k_time_stride + k_row * nheads * D + h * D + col];
             kv_v = V[b * v_time_stride + k_row * nheads * D + h * D + col];
@@ -715,7 +718,10 @@ namespace ctranslate2 {
             a_frag[x] = q_lds[a_row][inner * 16 + x];
             b_frag[x] = k_lds[b_col][inner * 16 + x];
           }
-          s_frag = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a_frag, b_frag, s_frag);
+          if constexpr (std::is_same<HalfT, _Float16>::value)
+            s_frag = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a_frag, b_frag, s_frag);
+          else
+            s_frag = __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32(a_frag, b_frag, s_frag);
         }
 
         // -- Write S to LDS with causal/OOB masking baked in --
@@ -753,7 +759,7 @@ namespace ctranslate2 {
           for (int c = 0; c < BN; ++c) {
             const float v = s_scratch[row][c];
             const float e = (v <= -1e29f) ? 0.f : __expf(v - m_new);
-            p_lds[row][c] = static_cast<_Float16>(e);  // P for the P·V WMMA
+            p_lds[row][c] = static_cast<HalfT>(e);  // P for the P·V WMMA
             l_tile += e;
           }
 
@@ -794,7 +800,10 @@ namespace ctranslate2 {
             for (int i = 0; i < 16; ++i)
               b_frag[i] = v_lds[i][t * 16 + b_col];
 
-            o_frag[t] = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a_frag, b_frag, o_frag[t]);
+            if constexpr (std::is_same<HalfT, _Float16>::value)
+              o_frag[t] = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a_frag, b_frag, o_frag[t]);
+            else
+              o_frag[t] = __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32(a_frag, b_frag, o_frag[t]);
           }
         }
         __syncthreads();
@@ -815,6 +824,248 @@ namespace ctranslate2 {
           if (q_row_g < seqlen_q && o_col_base < D) {
             const float val = o_frag[t][s] * alpha_lds[o_row];
             O[b * seqlen_q * nheads * D + q_row_g * nheads * D + h * D + o_col_base]
+                = static_cast<HalfT>(val);
+          }
+        }
+      }
+    }
+    // -------------------------------------------------------------------
+    // Larger WMMA kernel — BM_W = BN = 64, 4 wave32 wavefronts per block.
+    //
+    // The key win over the BM_W = 16 kernel is K/V HBM-reuse: each K-tile
+    // and V-tile is loaded ONCE into LDS per block, and the four waves
+    // share the loaded tiles to compute attention over 64 query rows.
+    // Compared to BM_W = 16, total K-data / V-data read from HBM per
+    // encoder layer drops by ~4x.
+    //
+    // Block layout:
+    //   blockDim = 128 = 4 wave32
+    //   wave w (0..3) handles Q-rows [w*16, w*16 + 16) of this block's tile
+    //   All 128 threads cooperate on Q / K / V tile loads
+    //   WMMA, softmax, and P*V are per-wave (each wave on its 16-row slice)
+    //
+    // LDS layout:
+    //   q_lds[64][D]     fp16  — 8 KiB at D=64
+    //   k_lds[64][D]     fp16  — 8 KiB
+    //   v_lds[64][D]     fp16  — 8 KiB
+    //   s_scratch[4][16][64] fp32 — 16 KiB (one 16x64 slab per wave)
+    //   p_lds[4][16][64] fp16  — 8 KiB (P input for P*V WMMA)
+    //   m_lds/l_lds/alpha_lds[64] fp32 — ~0.8 KiB
+    //   Total ~49 KiB / block (fits in 64 KiB).
+    // -------------------------------------------------------------------
+    template <int D>
+    __global__ void hip_flash_attn_wmma_fp16_bm64(
+        const _Float16* __restrict__ Q,
+        const _Float16* __restrict__ K,
+        const _Float16* __restrict__ V,
+        _Float16*       __restrict__ O,
+        const int seqlen_q,
+        const int seqlen_k,
+        const int k_time_stride,
+        const int v_time_stride,
+        const int nheads,
+        const float scale,
+        const bool is_causal,
+        const int q_offset)
+    {
+      static_assert(D % 16 == 0, "head_dim must be a multiple of 16 for WMMA");
+      constexpr int BM_W = 64;
+      constexpr int BN   = 64;
+      constexpr int WAVES = 4;     // 128 / 32
+      constexpr int DT = D / 16;   // 4 for D=64
+      constexpr int NT = BN / 16;  // 4
+
+      using v16f16 = _Float16 __attribute__((ext_vector_type(16)));
+      using v8f32  = float    __attribute__((ext_vector_type(8)));
+
+      const int tid     = threadIdx.x;     // 0..127
+      const int wave    = tid >> 5;        // 0..3
+      const int lane    = tid & 31;        // 0..31
+      const int b       = blockIdx.z;
+      const int h       = blockIdx.y;
+      const int q_tile  = blockIdx.x;
+      const int q_block_0 = q_tile * BM_W;
+      const int q_row_0   = q_block_0 + wave * 16;  // this wave's first row
+
+      __shared__ _Float16 q_lds[BM_W][D];
+      __shared__ _Float16 k_lds[BN][D];
+      __shared__ _Float16 v_lds[BN][D];
+      __shared__ float    s_scratch[WAVES][16][BN];
+      __shared__ _Float16 p_lds[WAVES][16][BN];
+      __shared__ float    m_lds[BM_W];
+      __shared__ float    l_lds[BM_W];
+      __shared__ float    alpha_lds[BM_W];
+
+      // ---- Load Q tile (pre-scaled by softmax-scale) ----
+      for (int idx = tid; idx < BM_W * D; idx += 128) {
+        const int row = idx / D;
+        const int col = idx % D;
+        const int q_row = q_block_0 + row;
+        float v = 0.f;
+        if (q_row < seqlen_q)
+          v = static_cast<float>(Q[b * seqlen_q * nheads * D
+                                   + q_row * nheads * D + h * D + col]) * scale;
+        q_lds[row][col] = static_cast<_Float16>(v);
+      }
+
+      if (tid < BM_W) {
+        m_lds[tid] = -1e30f;
+        l_lds[tid] = 0.f;
+      }
+
+      v8f32 o_frag[DT];
+      #pragma unroll
+      for (int t = 0; t < DT; ++t)
+        #pragma unroll
+        for (int s = 0; s < 8; ++s) o_frag[t][s] = 0.f;
+
+      __syncthreads();
+
+      // ---- Loop over K/V tiles ----
+      const int num_k_tiles = (seqlen_k + BN - 1) / BN;
+      for (int kt = 0; kt < num_k_tiles; ++kt) {
+        const int k_block_0 = kt * BN;
+
+        // -- Cooperative K/V load (all 128 threads) --
+        for (int idx = tid; idx < BN * D; idx += 128) {
+          const int row = idx / D;
+          const int col = idx % D;
+          const int k_row = k_block_0 + row;
+          _Float16 kv_k = static_cast<_Float16>(0);
+          _Float16 kv_v = static_cast<_Float16>(0);
+          if (k_row < seqlen_k) {
+            kv_k = K[b * k_time_stride + k_row * nheads * D + h * D + col];
+            kv_v = V[b * v_time_stride + k_row * nheads * D + h * D + col];
+          }
+          k_lds[row][col] = kv_k;
+          v_lds[row][col] = kv_v;
+        }
+        __syncthreads();
+
+        // -- Per-wave Q*K^T into 4 S-fragments (one per N-tile) --
+        v8f32 s_frag[NT];
+        #pragma unroll
+        for (int nt = 0; nt < NT; ++nt) {
+          #pragma unroll
+          for (int s = 0; s < 8; ++s) s_frag[nt][s] = 0.f;
+
+          // Inner reduction over the head dimension
+          #pragma unroll
+          for (int inner = 0; inner < DT; ++inner) {
+            v16f16 a_frag, b_frag;
+            const int a_row = wave * 16 + (lane & 15);
+            const int b_col = nt   * 16 + (lane & 15);
+            #pragma unroll
+            for (int x = 0; x < 16; ++x) {
+              a_frag[x] = q_lds[a_row][inner * 16 + x];
+              b_frag[x] = k_lds[b_col][inner * 16 + x];
+            }
+            s_frag[nt] = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(
+                a_frag, b_frag, s_frag[nt]);
+          }
+        }
+
+        // -- Write S to per-wave scratch, with causal / OOB mask --
+        #pragma unroll
+        for (int nt = 0; nt < NT; ++nt) {
+          const int s_col_local = lane & 15;
+          const int s_col_bn    = nt * 16 + s_col_local;
+          const int k_col_g     = k_block_0 + s_col_bn;
+          #pragma unroll
+          for (int s = 0; s < 8; ++s) {
+            const int s_row_w = 2 * s + (lane >> 4);
+            const int q_row_g = q_row_0 + s_row_w;
+            const int q_pos   = q_row_g + q_offset;
+            const bool oob    = (k_col_g >= seqlen_k) || (q_row_g >= seqlen_q);
+            const bool masked = is_causal && k_col_g > q_pos;
+            s_scratch[wave][s_row_w][s_col_bn] = (oob || masked) ? -1e30f : s_frag[nt][s];
+          }
+        }
+        __syncthreads();
+
+        // -- Per-row softmax (one thread per row of the 64-row block) --
+        if (tid < BM_W) {
+          const int row   = tid;
+          const int w_row = row >> 4;            // which wave's chunk
+          const int r_w   = row & 15;            // row index within that chunk
+          const float m_old = m_lds[row];
+          const float l_old = l_lds[row];
+
+          float m_tile = -1e30f;
+          #pragma unroll
+          for (int c = 0; c < BN; ++c)
+            m_tile = fmaxf(m_tile, s_scratch[w_row][r_w][c]);
+
+          const float m_new = fmaxf(m_old, m_tile);
+          const float alpha = (m_old == -1e30f) ? 0.f : __expf(m_old - m_new);
+
+          float l_tile = 0.f;
+          #pragma unroll
+          for (int c = 0; c < BN; ++c) {
+            const float v = s_scratch[w_row][r_w][c];
+            const float e = (v <= -1e29f) ? 0.f : __expf(v - m_new);
+            p_lds[w_row][r_w][c] = static_cast<_Float16>(e);
+            l_tile += e;
+          }
+
+          m_lds[row]     = m_new;
+          l_lds[row]     = alpha * l_old + l_tile;
+          alpha_lds[row] = alpha;
+        }
+        __syncthreads();
+
+        // -- Scale o_frag by per-row alpha (using this wave's 16 rows) --
+        {
+          #pragma unroll
+          for (int t = 0; t < DT; ++t) {
+            #pragma unroll
+            for (int s = 0; s < 8; ++s) {
+              const int o_row_w  = 2 * s + (lane >> 4);
+              const int o_row_b  = wave * 16 + o_row_w;
+              o_frag[t][s] *= alpha_lds[o_row_b];
+            }
+          }
+        }
+
+        // -- O += P * V via WMMA (inner reduction over BN in 16-chunks) --
+        #pragma unroll
+        for (int t = 0; t < DT; ++t) {
+          #pragma unroll
+          for (int n_in = 0; n_in < NT; ++n_in) {
+            v16f16 a_frag, b_frag;
+            const int a_row = lane & 15;
+            const int b_col = lane & 15;
+            #pragma unroll
+            for (int j = 0; j < 16; ++j)
+              a_frag[j] = p_lds[wave][a_row][n_in * 16 + j];
+            #pragma unroll
+            for (int i = 0; i < 16; ++i)
+              b_frag[i] = v_lds[n_in * 16 + i][t * 16 + b_col];
+
+            o_frag[t] = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(
+                a_frag, b_frag, o_frag[t]);
+          }
+        }
+        __syncthreads();
+      }
+
+      // ---- Normalise (1/l) ----
+      if (tid < BM_W)
+        alpha_lds[tid] = (l_lds[tid] > 0.f) ? 1.f / l_lds[tid] : 0.f;
+      __syncthreads();
+
+      // ---- Store O ----
+      #pragma unroll
+      for (int t = 0; t < DT; ++t) {
+        const int o_col = t * 16 + (lane & 15);
+        #pragma unroll
+        for (int s = 0; s < 8; ++s) {
+          const int o_row_w = 2 * s + (lane >> 4);
+          const int o_row_b = wave * 16 + o_row_w;
+          const int q_row_g = q_block_0 + o_row_b;
+          if (q_row_g < seqlen_q && o_col < D) {
+            const float val = o_frag[t][s] * alpha_lds[o_row_b];
+            O[b * seqlen_q * nheads * D + q_row_g * nheads * D + h * D + o_col]
                 = static_cast<_Float16>(val);
           }
         }
@@ -1257,35 +1508,67 @@ namespace ctranslate2 {
       }
 
       // ----------------------------------------------------------------
-      // Fast path B: WMMA-accelerated kernel for FP16 on RDNA3.
-      // Each block handles BM_W = 16 query rows in a single wavefront and
-      // uses the 16x16x16 wave32 WMMA built-in for Q·K^T and P·V.
-      // Compute throughput ~5-10x over the scalar tiled kernel.
-      // Only the FP16 path; BF16 falls through to scalar tiled.
+      // Fast path B: WMMA-accelerated kernels on RDNA3.
+      //   - BM_W = 16 variant: single wave32 per block, used for both FP16
+      //     and BF16 inputs (same wave32 fragment layout; different built-in).
+      //   - BM_W = 64 variant exists in this TU as future-work; currently
+      //     not dispatched — see the comment above launch_wmma_bm64.
       // ----------------------------------------------------------------
-      if constexpr (std::is_same<scalar_t, float16_t>::value) {
-        constexpr int BM_W = 16;
-        auto launch_wmma = [&](auto head_dim_const) -> bool {
+      if constexpr (std::is_same<scalar_t, float16_t>::value
+                 || std::is_same<scalar_t, bfloat16_t>::value) {
+        using HalfT = std::conditional_t<
+            std::is_same<scalar_t, float16_t>::value, _Float16, __bf16>;
+
+        auto launch_wmma_bm64 = [&](auto head_dim_const) -> bool {
           constexpr int D = decltype(head_dim_const)::value;
+          constexpr int BM_W = 64;
           if (head_dim != D) return false;
-          if (D % 16 != 0)  return false;
+          if (D % 16 != 0)   return false;
+          if (seqlen_q < BM_W) return false;
+          if constexpr (!std::is_same<HalfT, _Float16>::value) return false;
+          // (BM_W=64 BF16 variant not generated; only FP16 specialisation exists.)
+          dim3 grid((seqlen_q + BM_W - 1) / BM_W, num_heads, batch_size);
+          dim3 block(128);  // 4 wave32
+          if constexpr (std::is_same<HalfT, _Float16>::value) {
+            hipLaunchKernelGGL((hip_flash_attn_wmma_fp16_bm64<D>),
+                               grid, block, 0, stream,
+                               reinterpret_cast<const _Float16*>(q_ptr),
+                               reinterpret_cast<const _Float16*>(k_ptr),
+                               reinterpret_cast<const _Float16*>(v_ptr),
+                               reinterpret_cast<_Float16*>(o_ptr),
+                               (int)seqlen_q, (int)seqlen_k,
+                               (int)k_time_stride, (int)v_time_stride,
+                               (int)num_heads, queries_scale,
+                               is_causal, (int)offset);
+          }
+          return true;
+        };
+        // BM_W=64 currently disabled (see kernel comment for tuning notes).
+        // if (launch_wmma_bm64(std::integral_constant<int, 64>{})) return;
+        (void)launch_wmma_bm64;
+
+        auto launch_wmma_bm16 = [&](auto head_dim_const) -> bool {
+          constexpr int D = decltype(head_dim_const)::value;
+          constexpr int BM_W = 16;
+          if (head_dim != D) return false;
+          if (D % 16 != 0)   return false;
           if (seqlen_q < BM_W) return false;
           dim3 grid((seqlen_q + BM_W - 1) / BM_W, num_heads, batch_size);
           dim3 block(32);  // one wave32
-          hipLaunchKernelGGL((hip_flash_attn_wmma_fp16<D>),
+          hipLaunchKernelGGL((hip_flash_attn_wmma_fp16<HalfT, D>),
                              grid, block, 0, stream,
-                             reinterpret_cast<const _Float16*>(q_ptr),
-                             reinterpret_cast<const _Float16*>(k_ptr),
-                             reinterpret_cast<const _Float16*>(v_ptr),
-                             reinterpret_cast<_Float16*>(o_ptr),
+                             reinterpret_cast<const HalfT*>(q_ptr),
+                             reinterpret_cast<const HalfT*>(k_ptr),
+                             reinterpret_cast<const HalfT*>(v_ptr),
+                             reinterpret_cast<HalfT*>(o_ptr),
                              (int)seqlen_q, (int)seqlen_k,
                              (int)k_time_stride, (int)v_time_stride,
                              (int)num_heads, queries_scale,
                              is_causal, (int)offset);
           return true;
         };
-        if (launch_wmma(std::integral_constant<int,  64>{})) return;
-        if (launch_wmma(std::integral_constant<int, 128>{})) return;
+        if (launch_wmma_bm16(std::integral_constant<int,  64>{})) return;
+        if (launch_wmma_bm16(std::integral_constant<int, 128>{})) return;
       }
 
       // Fast path C: scalar tiled Flash Attention 2 kernel.
