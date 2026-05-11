@@ -3,9 +3,9 @@
 import numpy as np
 import pytest
 
-import ctranslate2
-
 from test_utils import require_rocm
+
+import ctranslate2
 
 
 @require_rocm
