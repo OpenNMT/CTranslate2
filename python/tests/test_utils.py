@@ -51,7 +51,8 @@ require_cuda = pytest.mark.skipif(
 
 # HIP builds expose ROCm devices through the same CUDA device count API.
 require_rocm = pytest.mark.skipif(
-    ctranslate2.get_cuda_device_count() == 0, reason="Test case requires a ROCm/HIP device"
+    ctranslate2.get_cuda_device_count() == 0,
+    reason="Test case requires a ROCm/HIP device",
 )
 
 on_available_devices = pytest.mark.parametrize(
