@@ -1275,38 +1275,75 @@ namespace ctranslate2 {
       }
 
       // ----------------------------------------------------------------
-      // Fast path B: WMMA-accelerated kernel on RDNA3.
+      // Fast path B: WMMA-accelerated kernel on RDNA3 (gfx11+).
       // One wave32 per block (BM_W = BN = 16), used for both FP16 and BF16
       // inputs.  Wave32 fragment layout is identical between fp16 and bf16
       // on gfx11; only the WMMA built-in differs (selected via if constexpr).
+      //
+      // Two gates here are deliberate:
+      //
+      // 1. The runtime gate (`wmma_supported_at_runtime`) inspects the
+      //    active device's gcnArchName so multi-arch wheels (e.g. CI builds
+      //    against gfx1030;gfx1100;…) only dispatch WMMA when running on a
+      //    GPU that actually has the WMMA built-in.  On other archs we
+      //    fall through to the scalar tiled / 3-pass kernels.
+      //
+      // 2. The compile-time gate (`#if defined(__gfx11..) || !__HIP_DEVICE_COMPILE__`)
+      //    matches the gate around `hip_flash_attn_wmma_fp16`'s definition.
+      //    In a non-gfx11 device pass the kernel template isn't visible, so
+      //    even though `hipLaunchKernelGGL` only generates host-side code,
+      //    the kernel name has to resolve for the compiler to parse the
+      //    call site.  Wrapping the launch with the same guard means the
+      //    call site simply isn't present in that pass.
       // ----------------------------------------------------------------
       if constexpr (std::is_same<scalar_t, float16_t>::value
                  || std::is_same<scalar_t, bfloat16_t>::value) {
         using HalfT = std::conditional_t<
             std::is_same<scalar_t, float16_t>::value, _Float16, __bf16>;
 
-        auto launch_wmma_bm16 = [&](auto head_dim_const) -> bool {
-          constexpr int D = decltype(head_dim_const)::value;
-          constexpr int BM_W = 16;
-          if (head_dim != D) return false;
-          if (D % 16 != 0)   return false;
-          if (seqlen_q < BM_W) return false;
-          dim3 grid((seqlen_q + BM_W - 1) / BM_W, num_heads, batch_size);
-          dim3 block(32);  // one wave32
-          hipLaunchKernelGGL((hip_flash_attn_wmma_fp16<HalfT, D>),
-                             grid, block, 0, stream,
-                             reinterpret_cast<const HalfT*>(q_ptr),
-                             reinterpret_cast<const HalfT*>(k_ptr),
-                             reinterpret_cast<const HalfT*>(v_ptr),
-                             reinterpret_cast<HalfT*>(o_ptr),
-                             (int)seqlen_q, (int)seqlen_k,
-                             (int)k_time_stride, (int)v_time_stride,
-                             (int)num_heads, queries_scale,
-                             is_causal, (int)offset);
-          return true;
-        };
-        if (launch_wmma_bm16(std::integral_constant<int,  64>{})) return;
-        if (launch_wmma_bm16(std::integral_constant<int, 128>{})) return;
+        // Runtime arch check — must be true to enter the WMMA path even
+        // when this TU was compiled with a gfx11 target somewhere in the
+        // arch list (multi-arch wheels).
+        bool wmma_supported_at_runtime = false;
+        {
+          const int device_id = ctranslate2::get_device_index(ctranslate2::Device::CUDA);
+          const auto& dprops = ctranslate2::cuda::get_device_properties(device_id);
+          const char* arch = dprops.gcnArchName;
+          // gcnArchName looks like "gfx1100" or "gfx1100:sramecc-:xnack-".
+          // WMMA is available on gfx11* and gfx12* (RDNA3 / RDNA4).
+          wmma_supported_at_runtime =
+              arch && arch[0]=='g' && arch[1]=='f' && arch[2]=='x' && arch[3]=='1'
+              && (arch[4]=='1' || arch[4]=='2');
+        }
+
+#if defined(__gfx1100__) || defined(__gfx1101__) || defined(__gfx1102__) || defined(__gfx1103__) || !defined(__HIP_DEVICE_COMPILE__)
+        if (wmma_supported_at_runtime) {
+          auto launch_wmma_bm16 = [&](auto head_dim_const) -> bool {
+            constexpr int D = decltype(head_dim_const)::value;
+            constexpr int BM_W = 16;
+            if (head_dim != D) return false;
+            if (D % 16 != 0)   return false;
+            if (seqlen_q < BM_W) return false;
+            dim3 grid((seqlen_q + BM_W - 1) / BM_W, num_heads, batch_size);
+            dim3 block(32);  // one wave32
+            hipLaunchKernelGGL((hip_flash_attn_wmma_fp16<HalfT, D>),
+                               grid, block, 0, stream,
+                               reinterpret_cast<const HalfT*>(q_ptr),
+                               reinterpret_cast<const HalfT*>(k_ptr),
+                               reinterpret_cast<const HalfT*>(v_ptr),
+                               reinterpret_cast<HalfT*>(o_ptr),
+                               (int)seqlen_q, (int)seqlen_k,
+                               (int)k_time_stride, (int)v_time_stride,
+                               (int)num_heads, queries_scale,
+                               is_causal, (int)offset);
+            return true;
+          };
+          if (launch_wmma_bm16(std::integral_constant<int,  64>{})) return;
+          if (launch_wmma_bm16(std::integral_constant<int, 128>{})) return;
+        }
+#else
+        (void)wmma_supported_at_runtime;
+#endif
       }
 
       // Fast path C: scalar tiled Flash Attention 2 kernel.
