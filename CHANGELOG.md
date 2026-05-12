@@ -2,6 +2,15 @@
 
 ### New features
 
+* Native HIP Flash Attention for AMD RDNA3+ GPUs. Adds four dispatched
+  kernels (WMMA via the wave32 16x16x16 fp16/bf16 built-in, scalar tiled,
+  decode-optimised for `seqlen_q == 1`, and a 3-pass correctness oracle)
+  plus the KV-cache write path for autoregressive decoding. Enabled with
+  `-DWITH_HIP=ON -DWITH_FLASH_ATTN=ON`. Encoder and decoder self-attention
+  use this path when `flash_attention=True` is passed at model load time.
+  ~1.08-1.11x encoder speedup and ~1.05-1.09x `generate()` speedup on
+  Whisper-medium / RX 7900 XTX vs. the standard MultiHeadAttention path.
+
 ### Fixes and improvements
 
 ## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-04)

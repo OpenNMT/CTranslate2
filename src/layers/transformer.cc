@@ -393,7 +393,8 @@ namespace ctranslate2 {
                   scope + "/layer",
                   _num_heads,
                   model.get_flag_with_default(scope + "/pre_norm", true),
-                  model.get_enum_value<ops::ActivationType>(scope + "/activation")))
+                  model.get_enum_value<ops::ActivationType>(scope + "/activation"),
+                  _use_flash_attention))
       , _position_encoder(_layers.front()->get_self_attention().has_positional_embeddings()
                           ? nullptr
                           : build_position_encoder(model, scope + "/position_encodings", _embeddings))
