@@ -374,29 +374,31 @@ namespace ctranslate2 {
 // ---------------------------------------------------------------------------
 // HIP Flash Attention — native implementation for AMD GPUs (gfx1100 / RDNA3+)
 //
-// Two code paths are provided:
+// Four code paths.  The dispatcher (flash_attention_hip_impl, below) picks
+// the most efficient one that matches the input shape and dtype:
 //
-// 1) Tiled fused kernel (hip_flash_attn_fwd_tiled<DevT, BM, BN, D>)
-//    Implements the Flash Attention 2 forward algorithm: a single grid block
-//    processes BM contiguous query rows of one (batch, head), streams K/V in
-//    BN-wide tiles through LDS, and maintains an online softmax state
-//    (m_i, l_i) plus an FP32 output accumulator in registers.  S = Q@K^T is
-//    NEVER materialised in HBM — memory and bandwidth scale with O(N·D)
-//    instead of O(N^2).  Used whenever head_dim matches one of the
-//    specialised values (64 / 80 / 128).
+//   Path           Used when                            FP-paths    LDS S?
+//   ─────────────────────────────────────────────────────────────────────────
+//   WMMA           seqlen_q >= 16, D % 16 == 0,         fp16, bf16  no
+//                  D in {64, 128}, RDNA3+ (gfx11)
+//   Decode         seqlen_q == 1, D in {64, 128},       fp16, bf16  fits in
+//                  seqlen_k fits in LDS                              LDS
+//   Tiled (scalar) seqlen_q >= 64 (BM), D in {64,80,128} fp16, bf16  no
+//                  (covers BF16 and head_dim=80 where WMMA isn't built)
+//   3-pass         everything else                      fp16, bf16  materialised
+//                  (also serves as correctness oracle)
 //
-// 2) Three-pass fallback (hip_attn_qk_kernel + softmax + ov)
-//    Simple and provably correct reference path that materialises the full
-//    [batch, nheads, seqlen_q, seqlen_k] score buffer.  Kept as a fallback
-//    for head dimensions that the tiled kernel is not specialised for, and
-//    as an oracle for correctness comparisons.
+// All paths use the same [batch, seqlen, nheads, head_dim] memory layout
+// and FP32 accumulators.  Q and K/V come from the layer split-heads in
+// that shape; the KV-cache (cached_keys, cached_values) shares the same
+// layout but with a larger second-dim allocation (cache_size >= offset +
+// seqlen_new) to amortise the cost of growing it.
 //
-// Memory layout of all tensors: [batch, seqlen, nheads, head_dim]
-// Supports FP16 and BF16 inputs; FP32 accumulators throughout.
-//
-// Limitations in this initial implementation:
-//   - Rotary embeddings and ALiBi are expected to be pre-applied by the caller.
-//   - No backward pass (inference only).
+// Limitations:
+//   - Inference only — no backward pass.
+//   - Rotary embeddings and ALiBi must be pre-applied by the layer.
+//   - WMMA path is FP16+BF16 only and gfx11+ (uses the wave32 16x16x16
+//     WMMA built-in).
 // ---------------------------------------------------------------------------
 
 
@@ -471,9 +473,16 @@ namespace ctranslate2 {
 
     // -------------------------------------------------------------------
     // Kernel 2 — row-wise softmax with optional causal mask
-    // Grid:  (seqlen_q, nheads, batch)   — so gridDim = (seqlen_q, nheads, batch)
-    // Block: (min(seqlen_k, 256), 1, 1)
-    // Uses shared memory reduction; wavefront-safe for both wf32 and wf64.
+    // Grid:  (seqlen_q, nheads, batch)
+    // Block: next-power-of-2 up to min(seqlen_k, 256)
+    //
+    // The block size MUST be a power of two: the per-row max/sum tree
+    // reduction (`for (s = blockDim.x >> 1; s > 0; s >>= 1)`) drops
+    // elements at odd boundaries otherwise.  Extra threads beyond
+    // seqlen_k contribute identity values (-1e9 for max, 0 for sum) and
+    // are harmless.  See commit d9016a58 — the bug this caught caused
+    // generate() to always emit token 50411 because the 3-token prompt
+    // prefill ran the reduction with blockDim.x = 3.
     // -------------------------------------------------------------------
     __global__ void hip_attn_softmax_kernel(
         float* __restrict__ S,       // [batch, nheads, seqlen_q, seqlen_k] — modified in place
