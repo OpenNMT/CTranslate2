@@ -36,9 +36,9 @@ if sys.platform == "win32":
                 except (FileNotFoundError, OSError):
                     pass
 
-import ctranslate2
-
 import test_utils
+
+import ctranslate2
 
 
 # ----------------------------------------------------------------------------
@@ -117,22 +117,26 @@ def test_flash_attention_encoder_matches_standard(compute_type, abs_tol, rel_tol
     mel = _mel(seed=0)
 
     m_off = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type=compute_type, flash_attention=False,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type=compute_type,
+        flash_attention=False,
     )
     m_on = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type=compute_type, flash_attention=True,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type=compute_type,
+        flash_attention=True,
     )
 
     out_off = _encoder_output(m_off, mel)
-    out_on  = _encoder_output(m_on,  mel)
+    out_on = _encoder_output(m_on, mel)
 
     assert out_off.shape == out_on.shape
     diff = np.abs(out_off - out_on)
-    max_diff  = float(diff.max())
-    max_abs   = float(np.abs(out_off).max()) + 1e-8
-    rel_diff  = max_diff / max_abs
+    max_diff = float(diff.max())
+    max_abs = float(np.abs(out_off).max()) + 1e-8
+    rel_diff = max_diff / max_abs
 
     # Informative — what Flash Attention's online softmax saves us in HBM
     # per layer (Whisper-medium encoder: Sq = Sk = 1500, 16 heads).
@@ -143,9 +147,9 @@ def test_flash_attention_encoder_matches_standard(compute_type, abs_tol, rel_tol
         f"per-layer score-buffer avoided = {saved_bytes/1024/1024:.1f} MiB"
     )
 
-    assert max_diff <= abs_tol, (
-        f"{compute_type} encoder max diff {max_diff:.4f} exceeds {abs_tol}"
-    )
+    assert (
+        max_diff <= abs_tol
+    ), f"{compute_type} encoder max diff {max_diff:.4f} exceeds {abs_tol}"
     assert rel_diff <= rel_tol, (
         f"{compute_type} encoder rel diff {rel_diff*100:.3f}% exceeds "
         f"{rel_tol*100:.3f}%"
@@ -175,25 +179,29 @@ def test_flash_attention_generate_fp16_token_match(seed):
     mel = _mel(seed=seed)
 
     m_off = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type="float16", flash_attention=False,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type="float16",
+        flash_attention=False,
     )
     m_on = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type="float16", flash_attention=True,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type="float16",
+        flash_attention=True,
     )
 
     feat_off = ctranslate2.StorageView.from_array(mel)
-    feat_on  = ctranslate2.StorageView.from_array(mel)
+    feat_on = ctranslate2.StorageView.from_array(mel)
 
     r_off = m_off.generate(feat_off, PROMPTS, beam_size=1, max_length=20)
-    r_on  = m_on.generate(feat_on,   PROMPTS, beam_size=1, max_length=20)
+    r_on = m_on.generate(feat_on, PROMPTS, beam_size=1, max_length=20)
 
     tok_off = r_off[0].sequences_ids[0]
-    tok_on  = r_on[0].sequences_ids[0]
-    assert tok_off == tok_on, (
-        f"seed={seed}: Flash=ON produced {tok_on} but oracle is {tok_off}"
-    )
+    tok_on = r_on[0].sequences_ids[0]
+    assert (
+        tok_off == tok_on
+    ), f"seed={seed}: Flash=ON produced {tok_on} but oracle is {tok_off}"
 
 
 # ----------------------------------------------------------------------------
@@ -215,8 +223,10 @@ def test_softmax_block_size_regression():
     when Flash Attention is enabled.  Guards against a re-emergence of the
     softmax reduction block-size bug."""
     m_on = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type="float16", flash_attention=True,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type="float16",
+        flash_attention=True,
     )
 
     first_tokens = set()
@@ -249,30 +259,38 @@ def test_softmax_block_size_regression():
 def test_flash_attention_encoder_batched(batch_size):
     """Encoder correctness for batch_size > 1."""
     mels = np.stack(
-        [np.random.default_rng(seed).standard_normal((80, 3000)).astype(np.float32)
-         for seed in range(batch_size)],
+        [
+            np.random.default_rng(seed).standard_normal((80, 3000)).astype(np.float32)
+            for seed in range(batch_size)
+        ],
         axis=0,
     )
 
     m_off = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type="float16", flash_attention=False,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type="float16",
+        flash_attention=False,
     )
     m_on = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type="float16", flash_attention=True,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type="float16",
+        flash_attention=True,
     )
 
     out_off = _encoder_output(m_off, mels)
-    out_on  = _encoder_output(m_on,  mels)
+    out_on = _encoder_output(m_on, mels)
     assert out_off.shape == out_on.shape == (batch_size, 1500, 1024)
 
     diff = np.abs(out_off - out_on)
     max_diff = float(diff.max())
-    max_abs  = float(np.abs(out_off).max()) + 1e-8
+    max_abs = float(np.abs(out_off).max()) + 1e-8
     rel = max_diff / max_abs
-    print(f"\n[B={batch_size}] encoder max_abs_diff={max_diff:.4f}, "
-          f"rel_diff={rel*100:.3f}%")
+    print(
+        f"\n[B={batch_size}] encoder max_abs_diff={max_diff:.4f}, "
+        f"rel_diff={rel*100:.3f}%"
+    )
     assert max_diff <= 0.5, f"B={batch_size} max diff {max_diff:.4f} > 0.5"
 
 
@@ -295,27 +313,35 @@ def test_flash_attention_variable_prompt_length(n_prompt):
     prompt = [base[:n_prompt]]
 
     m_off = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type="float16", flash_attention=False,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type="float16",
+        flash_attention=False,
     )
     m_on = ctranslate2.models.Whisper(
-        _MODEL_PATH, device="cuda",
-        compute_type="float16", flash_attention=True,
+        _MODEL_PATH,
+        device="cuda",
+        compute_type="float16",
+        flash_attention=True,
     )
 
     r_off = m_off.generate(
         ctranslate2.StorageView.from_array(mel),
-        prompt, beam_size=1, max_length=n_prompt + 5,
+        prompt,
+        beam_size=1,
+        max_length=n_prompt + 5,
     )
     r_on = m_on.generate(
         ctranslate2.StorageView.from_array(mel),
-        prompt, beam_size=1, max_length=n_prompt + 5,
+        prompt,
+        beam_size=1,
+        max_length=n_prompt + 5,
     )
     tok_off = r_off[0].sequences_ids[0]
-    tok_on  = r_on[0].sequences_ids[0]
-    assert tok_off == tok_on, (
-        f"n_prompt={n_prompt}: Flash=ON {tok_on} vs Flash=OFF {tok_off}"
-    )
+    tok_on = r_on[0].sequences_ids[0]
+    assert (
+        tok_off == tok_on
+    ), f"n_prompt={n_prompt}: Flash=ON {tok_on} vs Flash=OFF {tok_off}"
 
 
 # ----------------------------------------------------------------------------
@@ -328,10 +354,10 @@ def test_flash_attention_score_buffer_savings():
     HBM at typical Whisper / LLM shapes.  Useful context when reading the
     timing numbers."""
     cases = [
-        ("Whisper-medium encoder layer",  1, 16, 1500, 1500),
+        ("Whisper-medium encoder layer", 1, 16, 1500, 1500),
         ("Whisper-medium decoder self-attn (max_length=200)", 1, 16, 1, 200),
         ("Whisper-medium decoder cross-attn", 1, 16, 1, 1500),
-        ("Hypothetical LLM @ 4k context",  1, 32, 4096, 4096),
+        ("Hypothetical LLM @ 4k context", 1, 32, 4096, 4096),
         ("Hypothetical LLM @ 32k context", 1, 32, 32768, 32768),
     ]
     print(

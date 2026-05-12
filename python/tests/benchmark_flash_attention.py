@@ -24,7 +24,6 @@ import time
 
 import numpy as np
 
-
 # ----------------------------------------------------------------------------
 # Local-build DLL loader (mirrors test_flash_attention.py).
 # ----------------------------------------------------------------------------
@@ -51,14 +50,19 @@ def _load_hip_runtime():
     if sys.platform == "win32":
         # The DLL name on Windows has a major-version suffix that varies.
         site_dir = next(
-            d for d in (
+            d
+            for d in (
                 os.path.join(s, "_rocm_sdk_core", "bin")
-                for s in (__import__("site").getsitepackages()
-                          + [__import__("site").getusersitepackages()])
-            ) if os.path.isdir(d)
+                for s in (
+                    __import__("site").getsitepackages()
+                    + [__import__("site").getusersitepackages()]
+                )
+            )
+            if os.path.isdir(d)
         )
         candidates = sorted(
-            f for f in os.listdir(site_dir)
+            f
+            for f in os.listdir(site_dir)
             if f.startswith("amdhip64") and f.endswith(".dll")
         )
         if not candidates:
@@ -69,8 +73,10 @@ def _load_hip_runtime():
 
 
 _hip = _load_hip_runtime()
-_hip.hipMemGetInfo.argtypes = [ctypes.POINTER(ctypes.c_size_t),
-                               ctypes.POINTER(ctypes.c_size_t)]
+_hip.hipMemGetInfo.argtypes = [
+    ctypes.POINTER(ctypes.c_size_t),
+    ctypes.POINTER(ctypes.c_size_t),
+]
 _hip.hipMemGetInfo.restype = ctypes.c_int
 _hip.hipDeviceSynchronize.argtypes = []
 _hip.hipDeviceSynchronize.restype = ctypes.c_int
@@ -151,11 +157,13 @@ def main():
         "--model",
         default=None,
         help="Path to a converted faster-whisper-medium snapshot. "
-             "If omitted, the HuggingFace cache is searched.",
+        "If omitted, the HuggingFace cache is searched.",
     )
     parser.add_argument("--runs", type=int, default=20)
     parser.add_argument(
-        "--compute-type", default="float16", choices=["float16", "bfloat16"],
+        "--compute-type",
+        default="float16",
+        choices=["float16", "bfloat16"],
     )
     args = parser.parse_args()
 
@@ -166,8 +174,11 @@ def main():
         )
         if not os.path.isdir(snaps):
             sys.exit("No --model given and faster-whisper-medium not cached.")
-        shas = [d for d in os.listdir(snaps)
-                if os.path.isfile(os.path.join(snaps, d, "model.bin"))]
+        shas = [
+            d
+            for d in os.listdir(snaps)
+            if os.path.isfile(os.path.join(snaps, d, "model.bin"))
+        ]
         if not shas:
             sys.exit("No converted snapshot found in HF cache.")
         args.model = os.path.join(snaps, shas[0])
@@ -188,14 +199,18 @@ def main():
 
         def load():
             return ctranslate2.models.Whisper(
-                args.model, device="cuda",
-                compute_type=args.compute_type, flash_attention=flash,
+                args.model,
+                device="cuda",
+                compute_type=args.compute_type,
+                flash_attention=flash,
             )
 
         def work(m):
             r = m.generate(
                 ctranslate2.StorageView.from_array(mel),
-                PROMPTS, beam_size=1, max_length=100,
+                PROMPTS,
+                beam_size=1,
+                max_length=100,
             )
             return r
 
@@ -213,12 +228,14 @@ def main():
     saved_per_layer = sq * sk * h * 4
     print()
     print(
-        f"  Score-matrix that the standard path materialises and Flash "
-        f"avoids, per encoder layer:"
+        "  Score-matrix that the standard path materialises and Flash "
+        "avoids, per encoder layer:"
     )
     print(f"    {sq}x{sk}x{h} heads x FP32 = {fmt_bytes(saved_per_layer)} per layer")
-    print(f"    24 layers => up to {fmt_bytes(24 * saved_per_layer)} of HBM "
-          f"traffic per encoder pass")
+    print(
+        f"    24 layers => up to {fmt_bytes(24 * saved_per_layer)} of HBM "
+        f"traffic per encoder pass"
+    )
     print()
 
     # ------------------------------------------------------------------
@@ -229,27 +246,31 @@ def main():
     print("=" * 70)
 
     m_off = ctranslate2.models.Whisper(
-        args.model, device="cuda",
-        compute_type=args.compute_type, flash_attention=False,
+        args.model,
+        device="cuda",
+        compute_type=args.compute_type,
+        flash_attention=False,
     )
     m_on = ctranslate2.models.Whisper(
-        args.model, device="cuda",
-        compute_type=args.compute_type, flash_attention=True,
+        args.model,
+        device="cuda",
+        compute_type=args.compute_type,
+        flash_attention=True,
     )
 
     def enc_fn(m):
-        return lambda: m.encode(ctranslate2.StorageView.from_array(mel),
-                                to_cpu=False)
+        return lambda: m.encode(ctranslate2.StorageView.from_array(mel), to_cpu=False)
 
     for batch in (1, 4):
         mel_b = np.stack([mel[0]] * batch, axis=0)
 
         def enc_b(m):
-            return lambda: m.encode(ctranslate2.StorageView.from_array(mel_b),
-                                    to_cpu=False)
+            return lambda: m.encode(
+                ctranslate2.StorageView.from_array(mel_b), to_cpu=False
+            )
 
         off_ms = _bench(enc_b(m_off), runs=args.runs)
-        on_ms  = _bench(enc_b(m_on),  runs=args.runs)
+        on_ms = _bench(enc_b(m_on), runs=args.runs)
         print(
             f"  encoder (B={batch}, Sq=Sk=1500):  "
             f"OFF={off_ms:6.2f} ms  ON={on_ms:6.2f} ms  speedup={off_ms/on_ms:.2f}x"
@@ -257,13 +278,17 @@ def main():
 
     print()
     for max_len in (30, 100, 200, 448):
+
         def gen_b(m, ml=max_len):
             return lambda: m.generate(
                 ctranslate2.StorageView.from_array(mel),
-                PROMPTS, beam_size=1, max_length=ml,
+                PROMPTS,
+                beam_size=1,
+                max_length=ml,
             )
+
         off_ms = _bench(gen_b(m_off), runs=max(args.runs // 4, 3))
-        on_ms  = _bench(gen_b(m_on),  runs=max(args.runs // 4, 3))
+        on_ms = _bench(gen_b(m_on), runs=max(args.runs // 4, 3))
         print(
             f"  generate (max_length={max_len:3d}):  "
             f"OFF={off_ms:7.1f} ms  ON={on_ms:7.1f} ms  speedup={off_ms/on_ms:.2f}x"
