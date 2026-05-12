@@ -23,6 +23,7 @@ option(BUILD_TESTS "Compile the tests" OFF)
 option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
+set(FLASH_ATTN_HDIMS "" CACHE STRING "Head dimensions to compile for flash attention (e.g. '32;64'). Empty means all.")
 option(ENABLE_ADDRESS_SANITIZER "ASAN" OFF)
 
 MESSAGE(STATUS "Compiler Id: ${CMAKE_CXX_COMPILER_ID}")
@@ -606,74 +607,36 @@ if (WITH_CUDA)
   endif()
   if (WITH_FLASH_ATTN)
     add_definitions(-DCT2_WITH_FLASH_ATTN)
-    list(APPEND SOURCES
-      src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
-    )
 
-    set_source_files_properties(
-      src/ops/flash-attention/flash_fwd_hdim32_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim32_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim64_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim64_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim96_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim96_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim128_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim128_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim160_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim160_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim192_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim192_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim224_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim224_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim256_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_hdim256_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim32_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim32_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim64_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim64_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim96_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim96_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim128_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim128_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim160_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim160_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim192_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim192_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim224_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim224_fp16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim256_bf16_sm80.cu
-      src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
+    set(_ALL_FLASH_HDIMS 32 64 96 128 160 192 224 256)
+    if(FLASH_ATTN_HDIMS)
+      set(_FLASH_HDIMS ${FLASH_ATTN_HDIMS})
+    else()
+      set(_FLASH_HDIMS ${_ALL_FLASH_HDIMS})
+    endif()
+
+    message(STATUS "Flash attention head dimensions: ${_FLASH_HDIMS}")
+
+    # Define which hdims are compiled so HEADDIM_SWITCH can limit instantiation
+    foreach(_hdim ${_FLASH_HDIMS})
+      add_definitions(-DCT2_FLASH_ATTN_HDIM_${_hdim})
+    endforeach()
+    if(FLASH_ATTN_HDIMS)
+      add_definitions(-DCT2_FLASH_ATTN_HDIMS_RESTRICTED)
+    endif()
+
+    set(_FLASH_ATTN_SOURCES "")
+    foreach(_hdim ${_FLASH_HDIMS})
+      list(APPEND _FLASH_ATTN_SOURCES
+        src/ops/flash-attention/flash_fwd_hdim${_hdim}_bf16_sm80.cu
+        src/ops/flash-attention/flash_fwd_hdim${_hdim}_fp16_sm80.cu
+        src/ops/flash-attention/flash_fwd_split_hdim${_hdim}_bf16_sm80.cu
+        src/ops/flash-attention/flash_fwd_split_hdim${_hdim}_fp16_sm80.cu
+      )
+    endforeach()
+
+    list(APPEND SOURCES ${_FLASH_ATTN_SOURCES})
+    set_source_files_properties(${_FLASH_ATTN_SOURCES}
       PROPERTIES COMPILE_FLAGS "--use_fast_math")
   endif()
   set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
