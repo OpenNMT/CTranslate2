@@ -1,14 +1,27 @@
 // -----------------------------------------------------------------------------
 // WMMA probe kernel — verifies the wave32 RDNA3 fragment layout empirically.
 //
+// NOT built by default.  This file is excluded from CMakeLists.txt's
+// CUDA_SOURCES list (see the comment next to flash_attention_gpu.cu in
+// CMakeLists.txt).  It is kept in the source tree as a dev tool: when porting
+// the WMMA Flash Attention kernels to a new gfx target, a new precision
+// (e.g. bf16, fp8), or a new tile shape, run this probe first to discover
+// the wave-level fragment layout the WMMA built-in produces — saves days of
+// trial-and-error.
+//
+// To rebuild and run:
+//   1) Uncomment `src/ops/wmma_probe.cu` in CMakeLists.txt's CUDA_SOURCES.
+//   2) Re-cmake and rebuild ctranslate2.dll.
+//   3) Run `python python/tests/benchmark_flash_attention.py` (or call
+//      ct2_wmma_probe_run via ctypes from any Python script).
+//
 // Strategy: feed a known A and B = identity into one 16x16x16 WMMA, then have
 // every lane write its 8 fp32 accumulator elements to an output buffer indexed
 // by lane and slot.  Comparing the result on the host to a reference GEMM
 // reveals which (row, col) of C each (lane, slot) pair corresponds to.
 //
 // Only compiled for HIP gfx11* targets.  Plain HIP / Clang built-ins, no
-// rocWMMA dependency.  Lives in a separate translation unit so it doesn't
-// pollute the production Flash Attention build.
+// rocWMMA dependency.
 // -----------------------------------------------------------------------------
 #ifdef CT2_USE_HIP
 

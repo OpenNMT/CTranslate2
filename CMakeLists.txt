@@ -238,7 +238,13 @@ set(CUDA_SOURCES
   src/ops/conv1d_gpu.cu
   src/ops/dequantize_gpu.cu
   src/ops/flash_attention_gpu.cu
-  src/ops/wmma_probe.cu
+  # src/ops/wmma_probe.cu  — RDNA3 WMMA fragment-layout probe (dev tool).
+  #                         Builds a tiny kernel + C-ABI driver used to
+  #                         reverse-engineer the wave32 accumulator layout.
+  #                         Off by default to keep it out of the production
+  #                         DLL; uncomment to rebuild and rerun the layout
+  #                         probe (see python/tests/benchmark_flash_attention.py
+  #                         and the kernel's own header comment).
   src/ops/gather_gpu.cu
   src/ops/gumbel_max_gpu.cu
   src/ops/layer_norm_gpu.cu
