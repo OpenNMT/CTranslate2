@@ -72,6 +72,24 @@ $env:ROCM_PATH = python -c "from rocm_sdk._devel import get_devel_root; print(ge
 
 This installs AMD Clang (the HIP compiler), HIP headers, `hipblas.dll`, `amdhip64_7.dll`, and the AMDGCN bitcode libraries needed for GPU kernel compilation.
 
+#### Why not the official AMD HIP SDK Installer?
+
+AMD also ships a standalone HIP SDK for Windows as an `.exe` installer (separate from the pip wheels). Don't use it for CTranslate2 — at the time of writing, the installer lags the pip wheels by one release and the runtime libraries are not ABI-compatible. Concretely:
+
+| Distribution | Latest version | Runtime DLL name |
+| --- | --- | --- |
+| Python wheels (`rocm-sdk-*`) | 7.2.0 | `hipblas.dll` |
+| AMD HIP SDK Installer (`.exe`) | 7.1.1 | `libhipblas.dll` |
+
+A CTranslate2 wheel built against the 7.2 Python wheels is linked against `hipblas.dll`. Installing the 7.1.1 SDK provides `libhipblas.dll` instead, and the dynamic loader fails with an unhelpful "module not found" error at `import ctranslate2`. See [issue #2016](https://github.com/OpenNMT/CTranslate2/issues/2016) for the full discussion.
+
+**Recommendation:** use the Python wheels shown above. They are self-contained, used by the official CI, and do not require any system-wide installation.
+
+If you can only use the AMD HIP SDK Installer (for example, because you are bundling CTranslate2 inside a PyInstaller `.exe` and want a single Windows-installer experience for end users), you have two options until AMD ships a 7.2 installer:
+
+1. Build a CTranslate2 wheel against ROCm 7.1.1 yourself. This requires using the matching 7.1 SDK wheels (or the 7.1 installer) when running the build, *not* the 7.2 wheels above.
+2. Wait for the upstream AMD HIP SDK Installer to be updated to 7.2.
+
 ### 3. Intel oneAPI MKL and oneDNN
 
 CTranslate2 uses oneDNN for its CPU backend on Windows. oneDNN in turn requires Intel MKL for optimal performance.
