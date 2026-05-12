@@ -37,11 +37,26 @@ def test_storageview_cpu(dtype, name):
     with pytest.raises(AttributeError, match="CPU"):
         s.__cuda_array_interface__
 
-    assert str(s) == " 1 1 1 ... 1 1 1\n[cpu:0 %s storage viewed as 2x4]" % name
+    expected_output = (
+        "Data (2D Matrix):"
+        "\n[[1, 1, 1, 1], "
+        "\n[1, 1, 1, 1]]"
+        "\n[device:{}:{}, dtype:{}, storage viewed as {}x{}]"
+    ).format(s.device, s.device_index, name, s.shape[0], s.shape[1])
+
+    assert str(s) == expected_output
 
     x[0][2] = 3
     x[1][3] = 8
-    assert str(s) == " 1 1 3 ... 1 1 8\n[cpu:0 %s storage viewed as 2x4]" % name
+
+    expected_output = (
+        "Data (2D Matrix):"
+        "\n[[1, 1, 3, 1], "
+        "\n[1, 1, 1, 8]]"
+        "\n[device:{}:{}, dtype:{}, storage viewed as {}x{}]"
+    ).format(s.device, s.device_index, name, s.shape[0], s.shape[1])
+
+    assert str(s) == expected_output
 
     y = np.array(x)
     assert test_utils.array_equal(x, y)
