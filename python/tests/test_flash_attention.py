@@ -238,6 +238,87 @@ def test_softmax_block_size_regression():
 
 
 # ----------------------------------------------------------------------------
+# Batch > 1 — exercises the WMMA path with a non-trivial batch dimension.
+# Whisper-medium encoder runs at Sq = Sk = 1500, so this also covers the
+# largest tile-count case.  Both flash and standard paths must agree per
+# batch element.
+# ----------------------------------------------------------------------------
+@test_utils.require_cuda
+@require_model
+@pytest.mark.parametrize("batch_size", [2, 4])
+def test_flash_attention_encoder_batched(batch_size):
+    """Encoder correctness for batch_size > 1."""
+    mels = np.stack(
+        [np.random.default_rng(seed).standard_normal((80, 3000)).astype(np.float32)
+         for seed in range(batch_size)],
+        axis=0,
+    )
+
+    m_off = ctranslate2.models.Whisper(
+        _MODEL_PATH, device="cuda",
+        compute_type="float16", flash_attention=False,
+    )
+    m_on = ctranslate2.models.Whisper(
+        _MODEL_PATH, device="cuda",
+        compute_type="float16", flash_attention=True,
+    )
+
+    out_off = _encoder_output(m_off, mels)
+    out_on  = _encoder_output(m_on,  mels)
+    assert out_off.shape == out_on.shape == (batch_size, 1500, 1024)
+
+    diff = np.abs(out_off - out_on)
+    max_diff = float(diff.max())
+    max_abs  = float(np.abs(out_off).max()) + 1e-8
+    rel = max_diff / max_abs
+    print(f"\n[B={batch_size}] encoder max_abs_diff={max_diff:.4f}, "
+          f"rel_diff={rel*100:.3f}%")
+    assert max_diff <= 0.5, f"B={batch_size} max diff {max_diff:.4f} > 0.5"
+
+
+# ----------------------------------------------------------------------------
+# Prompt-prefill correctness across a few prefill lengths.
+# This exercises the seqlen_q path that's neither pure decode (seqlen_q=1)
+# nor the WMMA fast path (seqlen_q >= 16), forcing the scalar-tiled and
+# 3-pass fallback kernels to also get a correctness pass.
+# ----------------------------------------------------------------------------
+@test_utils.require_cuda
+@require_model
+@pytest.mark.parametrize("n_prompt", [1, 3, 5, 8])
+def test_flash_attention_variable_prompt_length(n_prompt):
+    """generate() must agree between Flash=ON and OFF for varying numbers
+    of prompt tokens — covers seqlen_q = 1, 3, 5, 8 in the prefill step,
+    which routes through the decode-kernel (1), 3-pass fallback (3, 5, 8)
+    pieces of the dispatcher."""
+    mel = _mel(seed=0)
+    base = [50258, 50259, 50360, 50364, 1029, 290, 264, 7184]
+    prompt = [base[:n_prompt]]
+
+    m_off = ctranslate2.models.Whisper(
+        _MODEL_PATH, device="cuda",
+        compute_type="float16", flash_attention=False,
+    )
+    m_on = ctranslate2.models.Whisper(
+        _MODEL_PATH, device="cuda",
+        compute_type="float16", flash_attention=True,
+    )
+
+    r_off = m_off.generate(
+        ctranslate2.StorageView.from_array(mel),
+        prompt, beam_size=1, max_length=n_prompt + 5,
+    )
+    r_on = m_on.generate(
+        ctranslate2.StorageView.from_array(mel),
+        prompt, beam_size=1, max_length=n_prompt + 5,
+    )
+    tok_off = r_off[0].sequences_ids[0]
+    tok_on  = r_on[0].sequences_ids[0]
+    assert tok_off == tok_on, (
+        f"n_prompt={n_prompt}: Flash=ON {tok_on} vs Flash=OFF {tok_off}"
+    )
+
+
+# ----------------------------------------------------------------------------
 # Informational test: what does Flash Attention save in peak HBM for
 # attention score buffers?  Reported, not asserted — it's hardware-independent
 # and serves as documentation of the algorithmic benefit.
