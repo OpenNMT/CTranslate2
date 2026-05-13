@@ -122,7 +122,58 @@ jobs:
           CT2_USE_MKL: 1
         run: |
           ASAN_OPTIONS=detect_leaks=1:print_stats=1 tests/ctranslate2_test tests/data
-          
+
+  build-and-test-cpp-x86_64-thread_sanitizer:
+    runs-on: ubuntu-22.04
+    env:
+      CT2_VERBOSE: 1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Intel oneAPI
+        run: |
+          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
+          sudo apt-key add *.PUB
+          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
+          sudo apt update
+
+      - name: Install MKL
+        env:
+          CT2_USE_MKL: 1
+          MKL_VERSION: 2023.0.0
+        run: |
+          sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
+
+      - name: Install Clang
+        run: |
+          sudo apt install -y clang  
+
+      - name: Configure with MKL and Clang
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DENABLE_THREAD_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+
+      - name: Build
+        run: |
+          make -j $(nproc) install
+
+      - name: Download test data
+        working-directory: tests/data/models
+        run: |
+          wget https://opennmt-models.s3.amazonaws.com/pi_lm_step_5000.pt
+          wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
+          tar xf transliteration-aren-all.tar.gz
+
+      - name: Test ThreadSanitizer
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          TSAN_OPTIONS="ignore_noninstrumented_modules=1:halt_on_error=1" tests/ctranslate2_test tests/data
+
   build-and-test-cpp-arm64:
     runs-on: ${{ matrix.os }}
     env:
