@@ -213,6 +213,7 @@ namespace ctranslate2 {
       void apply(dim_t step,
                  StorageView& logits,
                  DisableTokens&,
+                 BiasTokens&,
                  const StorageView&,
                  const std::vector<dim_t>& batch_offset,
                  const std::vector<std::vector<size_t>>*) override {
@@ -307,6 +308,7 @@ namespace ctranslate2 {
       decoding_options.return_scores = options.return_scores;
       decoding_options.return_logits_vocab = options.return_logits_vocab;
       decoding_options.include_eos_in_hypotheses = false;
+      decoding_options.sequence_bias = options.sequence_bias;
 
       for (const auto& id : options.suppress_tokens) {
         if (id >= 0)
@@ -753,6 +755,7 @@ namespace ctranslate2 {
       void apply(dim_t step,
                  StorageView& logits,
                  DisableTokens& disable_tokens,
+                 BiasTokens&,
                  const StorageView& sequences,
                  const std::vector<dim_t>& batch_offset,
                  const std::vector<std::vector<size_t>>* prefix) override {
