@@ -15,6 +15,22 @@ namespace ctranslate2 {
         return _pool->is_multilingual();
       }
 
+#ifdef CT2_ENABLE_LORA_RUNTIME
+      // Low-level primitive: writes W' = W + scale * (lora_B @ lora_A) into a single
+      // named weight buffer.  Adapter pool management and language switching are the
+      // caller's responsibility.  Acquires the inference lock for the duration of the write.
+      //
+      // Note: only patches replica 0.  For inter_threads > 1, iterate all replicas.
+      bool apply_lora_delta(const std::string& name,
+                            const StorageView& lora_A,
+                            const StorageView& lora_B,
+                            float scale = 1.0f) {
+        std::unique_lock<std::shared_mutex> lock(_mutex);
+        assert_model_is_ready();
+        return const_cast<models::Model&>(*model()).apply_lora_delta(name, lora_A, lora_B, scale);
+      }
+#endif  // CT2_ENABLE_LORA_RUNTIME
+
       size_t n_mels() const {
         return _pool->n_mels();
       }
@@ -340,6 +356,39 @@ namespace ctranslate2 {
                  Returns:
                    A list of alignment results.
              )pbdoc")
+
+#ifdef CT2_ENABLE_LORA_RUNTIME
+        .def("apply_lora_delta",
+             &WhisperWrapper::apply_lora_delta,
+             py::arg("name"),
+             py::arg("lora_A"),
+             py::arg("lora_B"),
+             py::arg("scale")=1.0f,
+             R"pbdoc(
+                 [Experimental] Applies a LoRA adapter delta to a single named weight in-place.
+
+                 This is a low-level primitive: it writes W' = W + scale * (lora_B @ lora_A)
+                 directly into the weight buffer and returns immediately.  Adapter pool
+                 management, language switching, and revert logic are entirely the caller's
+                 responsibility.
+
+                 Supported dtypes: float32, float16, bfloat16.
+                 int8 and packed-GEMM weights raise RuntimeError.
+
+                 Note: only the first replica is patched (inter_threads=1 assumed).
+                 For multi-replica deployments, iterate replicas manually.
+
+                 Arguments:
+                   name:   CT2 variable name, e.g.
+                           ``"decoder/layer_0/self_attention/linear_0/weight"``
+                   lora_A: StorageView of shape [r, d_in]  (the A matrix).
+                   lora_B: StorageView of shape [d_out, r] (the B matrix).
+                   scale:  Scalar multiplier (alpha/r in standard LoRA notation).
+
+                 Returns:
+                   True if the variable was found and updated; False otherwise.
+             )pbdoc")
+#endif  // CT2_ENABLE_LORA_RUNTIME
 
         .def("unload_model", &WhisperWrapper::unload_model,
              py::arg("to_cpu")=false,
