@@ -264,6 +264,48 @@ namespace ctranslate2 {
       return false;
     }
 
+#ifdef CT2_ENABLE_LORA_RUNTIME
+    bool Model::apply_lora_delta(const std::string& name,
+                                 const StorageView& lora_A,
+                                 const StorageView& lora_B,
+                                 float scale) const {
+      // Look up variable. Packed weights require unpack+repack, not yet supported.
+      auto it = _variable_index.find(name);
+      if (it == _variable_index.end()) {
+        const std::string packed_name = name + "_packed";
+        it = _variable_index.find(packed_name);
+        if (it == _variable_index.end())
+          return false;
+        throw std::runtime_error(
+          "apply_lora_delta: packed weights are not supported (name=" + name
+          + "). Rebuild without CT2_USE_EXPERIMENTAL_PACKED_GEMM.");
+      }
+
+      StorageView& weight = *it->second;
+      const DataType orig_dtype = weight.dtype();
+      const Device compute_dev = weight.device();
+
+      if (orig_dtype == DataType::INT8)
+        throw std::runtime_error(
+          "apply_lora_delta: int8 quantized weights are not supported; "
+          "use compute_type=float32 or float16.");
+
+      // Cast LoRA matrices to float32 on weight's device.
+      StorageView A_f32 = lora_A.to(DataType::FLOAT32).to(compute_dev);
+      StorageView B_f32 = lora_B.to(DataType::FLOAT32).to(compute_dev);
+
+      // Cast weight to float32, run fused GEMM, write back.
+      // W_f32 = scale * B @ A + 1.0 * W_f32  (single cuBLAS SGEMM on GPU).
+      StorageView W_f32 = weight.to(DataType::FLOAT32);
+      const ops::Gemm gemm_op(/*alpha=*/scale, /*beta=*/1.0f,
+                               /*trans_a=*/false, /*trans_b=*/false);
+      gemm_op(B_f32, A_f32, W_f32);
+
+      weight = W_f32.to(orig_dtype);
+      return true;
+    }
+#endif  // CT2_ENABLE_LORA_RUNTIME
+
     bool Model::get_flag_with_default(const std::string& name, bool default_value) const {
       return get_attribute_with_default(name, static_cast<int8_t>(default_value));
     }

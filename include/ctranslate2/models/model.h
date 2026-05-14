@@ -123,6 +123,23 @@ namespace ctranslate2 {
       std::unordered_map<std::string, StorageView> get_variables() const;
       bool layer_exists(std::string prefix) const;
 
+#ifdef CT2_ENABLE_LORA_RUNTIME
+      // Applies a LoRA adapter delta in-place: W' = W + scale * (lora_B @ lora_A).
+      //
+      // This is a low-level primitive — it modifies a single named weight buffer directly.
+      // Adapter pool management, language switching, and revert logic are entirely the
+      // caller's responsibility (see tools/lora_swap/ for a reference implementation).
+      //
+      // Supported dtypes: float32, float16, bfloat16.
+      // int8 and packed weights (CT2_USE_EXPERIMENTAL_PACKED_GEMM) raise std::runtime_error.
+      // NOT thread-safe — caller must hold the inference lock before calling.
+      // Returns false if the variable name is not found (caller may skip silently).
+      bool apply_lora_delta(const std::string& name,
+                            const StorageView& lora_A,  // shape [r, d_in]
+                            const StorageView& lora_B,  // shape [d_out, r]
+                            float scale = 1.0f) const;
+#endif  // CT2_ENABLE_LORA_RUNTIME
+
       // Attributes are saved as scalar variables.
       template <typename T>
       T get_attribute(const std::string& name) const {
