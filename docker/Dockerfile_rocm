@@ -1,4 +1,5 @@
-FROM rocm/dev-ubuntu-22.04:7.2 AS builder
+ARG ROCM_VERSION=7.2.1
+FROM rocm/dev-ubuntu-22.04:${ROCM_VERSION} AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -87,7 +88,7 @@ RUN cd python && \
     python3 -m pip --no-cache-dir install -r install_requirements.txt && \
     python3 setup.py bdist_wheel --dist-dir $CTRANSLATE2_ROOT
 
-FROM rocm/dev-ubuntu-22.04:7.2
+FROM rocm/dev-ubuntu-22.04:${ROCM_VERSION}
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
