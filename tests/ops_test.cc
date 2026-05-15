@@ -1414,7 +1414,7 @@ INSTANTIATE_TEST_SUITE_P(CPU, OpDeviceTest, ::testing::Values(Device::CPU));
 INSTANTIATE_TEST_SUITE_P(CPU, OpDeviceFPTest,
                          ::testing::Values(FloatType{Device::CPU, DataType::FLOAT32, 1e-5}),
                          fp_test_name);
-#ifdef CT2_WITH_CUDA
+#if defined(CT2_WITH_CUDA) || defined(CT2_USE_HIP)
 INSTANTIATE_TEST_SUITE_P(CUDA, OpDeviceTest, ::testing::Values(Device::CUDA));
 INSTANTIATE_TEST_SUITE_P(CUDA, OpDeviceFPTest,
                          ::testing::Values(FloatType{Device::CUDA, DataType::FLOAT32, 1e-5},
