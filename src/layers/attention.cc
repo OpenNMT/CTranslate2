@@ -7,6 +7,8 @@
 #include <cmath>
 #include <numeric>
 
+#include <spdlog/spdlog.h>
+
 #include "dispatch.h"
 #include "cpu/parallel.h"
 
@@ -460,12 +462,17 @@ namespace ctranslate2 {
 
       _linear[0](*q, fused_proj);
 
+      spdlog::debug("MHA: offset={} heads={} heads_kv={} d_head={} d_model={} sliding_window={} "
+                    "fused_proj=[{},{}]",
+                    offset, _num_heads, _num_heads_kv, _d_head, _d_model, _sliding_window,
+                    fused_proj.dim(0), fused_proj.dim(-1));
+
       dim_t beam_size = 1;
 
       bool prefilling = (_sliding_window > 0 && values_lengths);
 
       if (!_self_attention) {
-      
+
         process_cross_attention(queries, values, fused_proj, queries_proj, keys_proj,
                                 values_proj, cached_keys, cached_values,
                                 queries_padder, values_padder, beam_size);
@@ -475,8 +482,20 @@ namespace ctranslate2 {
           if (queries_padder)
             queries_padder->add_padding(fused_proj);
 
+          spdlog::debug("MHA GQA split: Q={}*{}={} K={}*{}={} V={}*{}={} total_expected={} fused_proj_last_dim={}",
+                        _num_heads, _d_head, _num_heads * _d_head,
+                        _num_heads_kv, _d_head, _num_heads_kv * _d_head,
+                        _num_heads_kv, _d_head, _num_heads_kv * _d_head,
+                        _num_heads * _d_head + 2 * _num_heads_kv * _d_head,
+                        fused_proj.dim(-1));
+
           const ops::Split split_op(2, {_num_heads * _d_head, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
           split_op(fused_proj, queries_proj, keys_proj, values_proj);
+
+          spdlog::debug("MHA GQA after split: Q=[{},{}] K=[{},{}] V=[{},{}]",
+                        queries_proj.dim(0), queries_proj.dim(-1),
+                        keys_proj.dim(0), keys_proj.dim(-1),
+                        values_proj.dim(0), values_proj.dim(-1));
 
           if (_merge_time_and_head_dims) {
             queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
@@ -554,6 +573,15 @@ namespace ctranslate2 {
         keys_proj.shallow_copy(*cached_keys);
         values_proj.shallow_copy(*cached_values);
       }
+
+      spdlog::debug("MHA dot_product_attention: Q ndim={} K ndim={} V ndim={} merge_time_head={}",
+                    queries_proj.rank(), keys_proj.rank(), values_proj.rank(),
+                    _merge_time_and_head_dims);
+      if (queries_proj.rank() == 4)
+        spdlog::debug("  Q=[{},{},{},{}] K=[{},{},{},{}] V=[{},{},{},{}]",
+                      queries_proj.dim(0), queries_proj.dim(1), queries_proj.dim(2), queries_proj.dim(3),
+                      keys_proj.dim(0), keys_proj.dim(1), keys_proj.dim(2), keys_proj.dim(3),
+                      values_proj.dim(0), values_proj.dim(1), values_proj.dim(2), values_proj.dim(3));
 
       StorageView& context = fused_proj;  // Reuse storage.
       dot_product_attention(queries_proj,
