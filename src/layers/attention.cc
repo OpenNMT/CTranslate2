@@ -215,8 +215,16 @@ namespace ctranslate2 {
                                        maximum_relative_position).to(queries.device()));
       }
 
+      spdlog::debug("dot_product_attention: Q=[{},{},{},{}] K=[{},{},{},{}] V=[{},{},{},{}] scale={}",
+                    queries.dim(0), queries.dim(1), queries.dim(2), queries.dim(3),
+                    keys.dim(0), keys.dim(1), keys.dim(2), keys.dim(3),
+                    values.dim(0), values.dim(1), values.dim(2), values.dim(3),
+                    queries_scale);
       const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
+      spdlog::debug("dot_product_attention: before Q*K matmul");
       keys_matmul(queries, keys, output);
+      spdlog::debug("dot_product_attention: after Q*K matmul, output=[{},{},{},{}]",
+                    output.dim(0), output.dim(1), output.dim(2), output.dim(3));
       if (relative_position_keys)
         add_relative_representations(queries,
                                      *relative_positions,
@@ -266,14 +274,20 @@ namespace ctranslate2 {
       if (alibi)
         alibi->apply(output, queries_scale);
 
+      spdlog::debug("dot_product_attention: before softmax, output=[{},{},{},{}]",
+                    output.dim(0), output.dim(1), output.dim(2), output.dim(3));
       StorageView attn(values.dtype(), values.device());
       ops::SoftMax()(output, values_lengths, attn);
+      spdlog::debug("dot_product_attention: after softmax, attn=[{},{},{},{}]",
+                    attn.dim(0), attn.dim(1), attn.dim(2), attn.dim(3));
 
       if (attention && !return_normalized_attention)
         save_attention(*attention, std::move(output), beam_size);
 
+      spdlog::debug("dot_product_attention: before attn*V matmul");
       const ops::MatMul values_matmul;
       values_matmul(attn, values, output);
+      spdlog::debug("dot_product_attention: after attn*V matmul");
       if (relative_position_values)
         add_relative_representations(attn,
                                      *relative_positions,
