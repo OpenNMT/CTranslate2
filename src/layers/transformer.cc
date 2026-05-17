@@ -851,9 +851,9 @@ namespace ctranslate2 {
             // logits = tanh(logits / cap) * cap  — squashes logits to (-cap, cap)
             const auto dtype = outputs->dtype();
             const auto device = outputs->device();
-            ops::Mul()(*outputs, StorageView(1.f / _final_logit_softcapping, device).to(dtype), *outputs);
+            ops::Mul()(*outputs, StorageView(1.f / _final_logit_softcapping).to(dtype), *outputs);
             ops::Tanh()(*outputs, *outputs);
-            ops::Mul()(*outputs, StorageView(_final_logit_softcapping, device).to(dtype), *outputs);
+            ops::Mul()(*outputs, StorageView(_final_logit_softcapping).to(dtype), *outputs);
           }
         } else
           *outputs = std::move(layer_in);
