@@ -283,7 +283,7 @@ namespace ctranslate2 {
         // Gemma 4 layer scalar
         if (_layer_scalar != 1.f) {
           spdlog::debug("decoder layer: layer_scalar={}", _layer_scalar);
-          ops::Mul()(output, StorageView(_layer_scalar, device).to(dtype), output);
+          ops::Mul()(output, StorageView(_layer_scalar).to(dtype), output);
         }
 
         spdlog::debug("decoder layer: done, output=[{},{}]", output.dim(0), output.dim(-1));
