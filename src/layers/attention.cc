@@ -636,7 +636,11 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
+      spdlog::debug("MHA: before output projection, context=[{},{}]",
+                    context.dim(0), context.dim(-1));
       _linear.back()(context, output, _layer_norm ? &queries : nullptr);
+      spdlog::debug("MHA: after output projection, output=[{},{}]",
+                    output.dim(0), output.dim(-1));
 
       if (_tensor_parallel) {
         Shape shape = output.shape();
