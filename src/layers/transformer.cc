@@ -1,7 +1,6 @@
 #include "ctranslate2/layers/transformer.h"
 
 #include <cmath>
-#include <spdlog/spdlog.h>
 
 namespace ctranslate2 {
   namespace layers {
@@ -215,11 +214,8 @@ namespace ctranslate2 {
       if (pre_post_layer_norm) {
         StorageView hidden(dtype, device);
         StorageView context(dtype, device);
-        spdlog::debug("decoder layer: input_layer_norm");
         (*_input_layer_norm)(input, hidden);
 
-        spdlog::debug("decoder layer: self_attention, offset={} input=[{},{}]",
-                      offset, input.dim(0), input.dim(-1));
         if (_self_attention)
           (*_self_attention)(hidden,
                              hidden,
@@ -233,9 +229,7 @@ namespace ctranslate2 {
                              true,
                              position_bias,
                              offset);
-        spdlog::debug("decoder layer: post_attention_layer_norm");
         (*_post_attention_layer_norm)(context, output);
-        spdlog::debug("decoder layer: residual add (attn)");
         ops::Add()(output, input, output);
 
         if (_encoder_attention) {
@@ -267,26 +261,19 @@ namespace ctranslate2 {
         }
 
         context = std::move(output);
-        spdlog::debug("decoder layer: pre_feedforward_layer_norm");
         (*_pre_feedforward_layer_norm)(context, output);
         hidden = std::move(output);
 
-        spdlog::debug("decoder layer: ffn, hidden=[{},{}]", hidden.dim(0), hidden.dim(-1));
         _ff(hidden, output);
-        spdlog::debug("decoder layer: post_feedforward_layer_norm");
 
         hidden = std::move(output);
         (*_post_feedforward_layer_norm)(hidden, output);
-        spdlog::debug("decoder layer: residual add (ffn)");
         ops::Add()(output, context, output);
 
         // Gemma 4 layer scalar
-        if (_layer_scalar != 1.f) {
-          spdlog::debug("decoder layer: layer_scalar={}", _layer_scalar);
+        if (_layer_scalar != 1.f)
           ops::Mul()(output, StorageView(_layer_scalar).to(dtype), output);
-        }
 
-        spdlog::debug("decoder layer: done, output=[{},{}]", output.dim(0), output.dim(-1));
         return;
       }
 

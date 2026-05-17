@@ -7,8 +7,6 @@
 #include <cmath>
 #include <numeric>
 
-#include <spdlog/spdlog.h>
-
 #include "dispatch.h"
 #include "cpu/parallel.h"
 
@@ -215,16 +213,8 @@ namespace ctranslate2 {
                                        maximum_relative_position).to(queries.device()));
       }
 
-      spdlog::debug("dot_product_attention: Q=[{},{},{},{}] K=[{},{},{},{}] V=[{},{},{},{}] scale={}",
-                    queries.dim(0), queries.dim(1), queries.dim(2), queries.dim(3),
-                    keys.dim(0), keys.dim(1), keys.dim(2), keys.dim(3),
-                    values.dim(0), values.dim(1), values.dim(2), values.dim(3),
-                    queries_scale);
       const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
-      spdlog::debug("dot_product_attention: before Q*K matmul");
       keys_matmul(queries, keys, output);
-      spdlog::debug("dot_product_attention: after Q*K matmul, output=[{},{},{},{}]",
-                    output.dim(0), output.dim(1), output.dim(2), output.dim(3));
       if (relative_position_keys)
         add_relative_representations(queries,
                                      *relative_positions,
@@ -274,20 +264,14 @@ namespace ctranslate2 {
       if (alibi)
         alibi->apply(output, queries_scale);
 
-      spdlog::debug("dot_product_attention: before softmax, output=[{},{},{},{}]",
-                    output.dim(0), output.dim(1), output.dim(2), output.dim(3));
       StorageView attn(values.dtype(), values.device());
       ops::SoftMax()(output, values_lengths, attn);
-      spdlog::debug("dot_product_attention: after softmax, attn=[{},{},{},{}]",
-                    attn.dim(0), attn.dim(1), attn.dim(2), attn.dim(3));
 
       if (attention && !return_normalized_attention)
         save_attention(*attention, std::move(output), beam_size);
 
-      spdlog::debug("dot_product_attention: before attn*V matmul");
       const ops::MatMul values_matmul;
       values_matmul(attn, values, output);
-      spdlog::debug("dot_product_attention: after attn*V matmul");
       if (relative_position_values)
         add_relative_representations(attn,
                                      *relative_positions,
@@ -476,11 +460,6 @@ namespace ctranslate2 {
 
       _linear[0](*q, fused_proj);
 
-      spdlog::debug("MHA: offset={} heads={} heads_kv={} d_head={} d_model={} sliding_window={} "
-                    "fused_proj=[{},{}]",
-                    offset, _num_heads, _num_heads_kv, _d_head, _d_model, _sliding_window,
-                    fused_proj.dim(0), fused_proj.dim(-1));
-
       dim_t beam_size = 1;
 
       bool prefilling = (_sliding_window > 0 && values_lengths);
@@ -496,20 +475,8 @@ namespace ctranslate2 {
           if (queries_padder)
             queries_padder->add_padding(fused_proj);
 
-          spdlog::debug("MHA GQA split: Q={}*{}={} K={}*{}={} V={}*{}={} total_expected={} fused_proj_last_dim={}",
-                        _num_heads, _d_head, _num_heads * _d_head,
-                        _num_heads_kv, _d_head, _num_heads_kv * _d_head,
-                        _num_heads_kv, _d_head, _num_heads_kv * _d_head,
-                        _num_heads * _d_head + 2 * _num_heads_kv * _d_head,
-                        fused_proj.dim(-1));
-
           const ops::Split split_op(2, {_num_heads * _d_head, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
           split_op(fused_proj, queries_proj, keys_proj, values_proj);
-
-          spdlog::debug("MHA GQA after split: Q=[{},{}] K=[{},{}] V=[{},{}]",
-                        queries_proj.dim(0), queries_proj.dim(-1),
-                        keys_proj.dim(0), keys_proj.dim(-1),
-                        values_proj.dim(0), values_proj.dim(-1));
 
           if (_merge_time_and_head_dims) {
             queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
@@ -588,15 +555,6 @@ namespace ctranslate2 {
         values_proj.shallow_copy(*cached_values);
       }
 
-      spdlog::debug("MHA dot_product_attention: Q ndim={} K ndim={} V ndim={} merge_time_head={}",
-                    queries_proj.rank(), keys_proj.rank(), values_proj.rank(),
-                    _merge_time_and_head_dims);
-      if (queries_proj.rank() == 4)
-        spdlog::debug("  Q=[{},{},{},{}] K=[{},{},{},{}] V=[{},{},{},{}]",
-                      queries_proj.dim(0), queries_proj.dim(1), queries_proj.dim(2), queries_proj.dim(3),
-                      keys_proj.dim(0), keys_proj.dim(1), keys_proj.dim(2), keys_proj.dim(3),
-                      values_proj.dim(0), values_proj.dim(1), values_proj.dim(2), values_proj.dim(3));
-
       StorageView& context = fused_proj;  // Reuse storage.
       dot_product_attention(queries_proj,
                             keys_proj,
@@ -636,11 +594,7 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-      spdlog::debug("MHA: before output projection, context=[{},{}]",
-                    context.dim(0), context.dim(-1));
       _linear.back()(context, output, _layer_norm ? &queries : nullptr);
-      spdlog::debug("MHA: after output projection, output=[{},{}]",
-                    output.dim(0), output.dim(-1));
 
       if (_tensor_parallel) {
         Shape shape = output.shape();
