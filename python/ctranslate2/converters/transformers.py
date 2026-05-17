@@ -2235,8 +2235,6 @@ class Gemma4Loader(ModelLoader):
         # Gemma4 uses output * gamma (ones-initialized), not output * (1 + gamma)
 
     def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
-        import torch as _torch
-
         spec.scale_embeddings = True
         spec.start_from_zero_embedding = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)
@@ -2264,7 +2262,7 @@ class Gemma4Loader(ModelLoader):
 
             # v_norm has no learnable scale; supply all-ones gamma (pure RMS norm)
             layer_spec.self_attention.v_norm.gamma = (
-                _torch.ones_like(layer.self_attn.k_norm.weight).float().numpy()
+                torch.ones_like(layer.self_attn.k_norm.weight).float().numpy()
             )
 
             # When attention_k_eq_v is set, full-attention layers have no v_proj —
