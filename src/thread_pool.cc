@@ -1,5 +1,9 @@
 #include "ctranslate2/thread_pool.h"
 
+#include <chrono>
+#include <future>
+#include <iostream>
+
 #include "ctranslate2/utils.h"
 
 namespace ctranslate2 {
@@ -46,9 +50,19 @@ namespace ctranslate2 {
   std::unique_ptr<Job> JobQueue::get(const std::function<void()>& before_wait) {
     std::unique_lock<std::mutex> lock(_mutex);
 
-    if (!can_get_job()) {
-      if (before_wait)
+    while (!can_get_job()) {
+      // Only call before_wait() if we're not shutting down.
+      // before_wait() may call cudaStreamSynchronize() which can block
+      // indefinitely if there's pending GPU work, preventing clean shutdown.
+      if (before_wait && !_request_end) {
+        // Release lock before calling before_wait() to avoid holding mutex
+        // during potentially blocking CUDA operations.
+        lock.unlock();
         before_wait();
+        lock.lock();
+        // Re-check condition after re-acquiring lock
+        continue;
+      }
       _can_get_job.wait(lock, [this]{ return can_get_job(); });
     }
 
@@ -102,8 +116,41 @@ namespace ctranslate2 {
       set_thread_affinity(_thread, thread_affinity);
   }
 
-  void Worker::join() {
-    _thread.join();
+  void Worker::join(int timeout_ms) {
+    if (!_thread.joinable()) {
+      return;
+    }
+
+    if (timeout_ms <= 0) {
+      _thread.join();
+      return;
+    }
+
+    // Timed join using a helper thread. If the worker doesn't finish within
+    // the timeout (e.g., stuck in CUDA teardown on Windows), detach both
+    // threads to prevent blocking the process indefinitely.
+    std::promise<void> join_promise;
+    std::future<void> join_future = join_promise.get_future();
+
+    std::thread join_helper([this, &join_promise]() {
+      if (_thread.joinable()) {
+        _thread.join();
+      }
+      join_promise.set_value();
+    });
+
+    auto status = join_future.wait_for(std::chrono::milliseconds(timeout_ms));
+
+    if (status == std::future_status::ready) {
+      join_helper.join();
+    } else {
+      std::cerr << "[CTranslate2] Warning: Worker thread join timed out after "
+                << timeout_ms << "ms, detaching to prevent hang\n";
+      join_helper.detach();
+      if (_thread.joinable()) {
+        _thread.detach();
+      }
+    }
   }
 
   void Worker::run(JobQueue& job_queue) {
@@ -146,6 +193,12 @@ namespace ctranslate2 {
   }
 
   ThreadPool::~ThreadPool() {
+    // Signal all workers to stop idle synchronization BEFORE closing the queue.
+    // This prevents the race where a worker enters synchronize_stream() inside
+    // idle() just before close() sets _request_end. Without this, the worker
+    // blocks on CUDA sync while the queue is already closed.
+    for (auto& worker : _workers)
+      worker->prepare_shutdown();
     _queue.close();
     for (auto& worker : _workers)
       worker->join();
