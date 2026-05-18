@@ -4,9 +4,26 @@
 
 ### Fixes and improvements
 
+## [v4.7.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.2) (2026-05-18)
+
+### New features
+
+* Gemma4 support for dense model (#2048) by [@jordimas](https://github.com/jordimas)
+
+## Fixes and improvements
+
+* Gemma 3 model conversion fixes (#2037) by [@jordimas](https://github.com/jordimas)
+* Update source ROCM version from 7.2 to 7.2.1 (#2030) by [@racedale](https://github.com/racedale)
+* Free curand states before the thread is destroyed (#1912) by [@no1d](https://github.com/no1d)
+
+
 ## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-04)
 
-* Fix Windows build (#2007) [@sssshhhhhh](https://github.com/sssshhhhhh)
+## Fixes and improvements
+
+* Fix Windows build (#2007) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+## [v4.7.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.0) (2026-02-03)
 
 ### New features
 
