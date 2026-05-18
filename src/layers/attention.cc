@@ -310,6 +310,7 @@ namespace ctranslate2 {
       ,_cache_time_dim(_merge_time_and_head_dims ? 1 : 2)
       , _q_norm(build_optional_layer<LayerNorm>(model, scope + "/q_norm"))
       , _k_norm(build_optional_layer<LayerNorm>(model, scope + "/k_norm"))
+      , _v_norm(build_optional_layer<LayerNorm>(model, scope + "/v_norm"))
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
@@ -352,6 +353,14 @@ namespace ctranslate2 {
       apply_k_norm(keys_proj);
     }
 
+    void MultiHeadAttention::apply_v_norm(StorageView& values_proj) const {
+      if (_v_norm) {
+        StorageView values_normed(values_proj.dtype(), values_proj.device());
+        (*_v_norm)(values_proj, values_normed);
+        values_proj = std::move(values_normed);
+      }
+    }
+
     void MultiHeadAttention::process_cross_attention(
         const StorageView& queries,
         const StorageView& values,
@@ -376,6 +385,7 @@ namespace ctranslate2 {
           ops::Split(2, {_d_head, _d_head})(fused_proj, keys_proj, values_proj);
 
           apply_k_norm(keys_proj);
+          apply_v_norm(values_proj);
           keys_proj.expand_dims(1);
           values_proj.expand_dims(1);
           replicate_heads(keys_proj, _num_heads);
@@ -392,6 +402,7 @@ namespace ctranslate2 {
           split_heads(values_proj, _num_heads_kv);
 
           apply_k_norm(keys_proj);
+          apply_v_norm(values_proj);
 
           replicate_heads(keys_proj, _num_heads / _num_heads_kv);
           replicate_heads(values_proj, _num_heads / _num_heads_kv);
@@ -400,6 +411,7 @@ namespace ctranslate2 {
           ops::Split(1)(fused_proj, keys_proj, values_proj);
 
           apply_k_norm(keys_proj);
+          apply_v_norm(values_proj);
         }
 
         if (cached_keys != nullptr) {
@@ -453,7 +465,7 @@ namespace ctranslate2 {
       bool prefilling = (_sliding_window > 0 && values_lengths);
 
       if (!_self_attention) {
-      
+
         process_cross_attention(queries, values, fused_proj, queries_proj, keys_proj,
                                 values_proj, cached_keys, cached_values,
                                 queries_padder, values_padder, beam_size);
@@ -468,13 +480,24 @@ namespace ctranslate2 {
 
           if (_merge_time_and_head_dims) {
             queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
-            apply_qk_norm(queries_proj, keys_proj);
+            // k_norm/v_norm operate per-head (gamma size = _d_head), so temporarily
+            // split keys/values into heads, apply norms, then restore merged layout.
+            if (_k_norm || _q_norm || _v_norm) {
+              split_heads(keys_proj, _num_heads_kv);
+              split_heads(values_proj, _num_heads_kv);
+              apply_qk_norm(queries_proj, keys_proj);
+              apply_v_norm(values_proj);
+              // Restore flat [batch, time, num_kv_heads*head_dim] layout.
+              combine_heads(keys_proj, _num_heads_kv);
+              combine_heads(values_proj, _num_heads_kv);
+            }
           } else {
             split_heads(queries_proj, _num_heads);
             split_heads(keys_proj, _num_heads_kv);
             split_heads(values_proj, _num_heads_kv);
 
             apply_qk_norm(queries_proj, keys_proj);
+            apply_v_norm(values_proj);
 
             replicate_heads(keys_proj, _num_heads / _num_heads_kv);
             replicate_heads(values_proj, _num_heads / _num_heads_kv);
@@ -485,6 +508,7 @@ namespace ctranslate2 {
           ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
 
           apply_qk_norm(queries_proj, keys_proj);
+          apply_v_norm(values_proj);
         }
 
         if (_rotary_embeddings) {

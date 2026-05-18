@@ -129,6 +129,7 @@ namespace ctranslate2 {
       const FeedForwardNetwork _ff;
       const std::unique_ptr<const LayerNorm> _external_pre_encoder_attention_layer_norm;
       const std::unique_ptr<const LayerNorm> _external_post_encoder_attention_layer_norm;
+      const float _layer_scalar;
     };
 
     class TransformerEncoder : public Encoder
@@ -227,6 +228,7 @@ namespace ctranslate2 {
       Dense _proj;
       const dim_t _sliding_window;
       const bool _tensor_parallel;
+      const float _final_logit_softcapping;
     };
 
   }
