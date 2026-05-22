@@ -311,6 +311,9 @@ namespace ctranslate2 {
       , _q_norm(build_optional_layer<LayerNorm>(model, scope + "/q_norm"))
       , _k_norm(build_optional_layer<LayerNorm>(model, scope + "/k_norm"))
       , _v_norm(build_optional_layer<LayerNorm>(model, scope + "/v_norm"))
+      , _memory_kv(model.get_variable_if_exists(scope + "/memory_kv/weight")
+                     ? std::make_unique<const Dense>(model, scope + "/memory_kv")
+                     : nullptr)
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
@@ -603,6 +606,187 @@ namespace ctranslate2 {
         ops_reduce_all(output, tmp);
         output = std::move(tmp);
       }
+      if (_layer_norm && !_pre_norm)
+        (*_layer_norm)(output, output);
+    }
+
+    // Expand a 4-D tensor [batch, heads, time, d_head] along the batch dimension
+    // by `repeats`, producing [batch*repeats, heads, time, d_head].
+    static void replicate_batches(StorageView& x, dim_t repeats) {
+      x.expand_dims(1);                         // [batch, 1, heads, time, d_head]
+      ops::Tile(1, repeats)(x);                 // [batch, repeats, heads, time, d_head]
+      x.reshape({x.dim(0) * x.dim(1), x.dim(2), x.dim(3), x.dim(4)});
+    }
+
+    void MultiHeadAttention::forward_merged(const StorageView& queries,
+                                            const StorageView* memory,
+                                            const StorageView* memory_lengths_mask,
+                                            const StorageView* self_lengths_mask,
+                                            StorageView& output,
+                                            StorageView* cached_self_keys,
+                                            StorageView* cached_self_values,
+                                            StorageView* cached_memory_keys,
+                                            StorageView* cached_memory_values,
+                                            const Padder* queries_padder,
+                                            const Padder* memory_padder,
+                                            dim_t offset) const {
+      PROFILE("MultiHeadAttentionMerged");
+      const Device device = queries.device();
+
+      const DataType dtype = queries.dtype();
+
+      StorageView fused_proj(dtype, device);
+      StorageView queries_proj(dtype, device);
+      StorageView keys_proj(dtype, device);
+      StorageView values_proj(dtype, device);
+
+      const StorageView* q = &queries;
+      if (_layer_norm && _pre_norm) {
+        (*_layer_norm)(queries, queries_proj);
+        q = &queries_proj;
+      }
+
+      _linear[0](*q, fused_proj);
+
+      if (_num_heads_kv < _num_heads) {
+        if (queries_padder)
+          queries_padder->add_padding(fused_proj);
+        const ops::Split split_op(2, {_num_heads * _d_head,
+                                      _num_heads_kv * _d_head,
+                                      _num_heads_kv * _d_head});
+        split_op(fused_proj, queries_proj, keys_proj, values_proj);
+        split_heads(queries_proj, _num_heads);
+        split_heads(keys_proj, _num_heads_kv);
+        split_heads(values_proj, _num_heads_kv);
+        apply_qk_norm(queries_proj, keys_proj);
+        apply_v_norm(values_proj);
+        replicate_heads(keys_proj, _num_heads / _num_heads_kv);
+        replicate_heads(values_proj, _num_heads / _num_heads_kv);
+      } else {
+        split_heads(fused_proj, 3 * _num_heads, queries_padder);
+        ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
+        apply_qk_norm(queries_proj, keys_proj);
+        apply_v_norm(values_proj);
+      }
+
+      if (_rotary_embeddings) {
+        _rotary_embeddings->apply(queries_proj, offset);
+        _rotary_embeddings->apply(keys_proj, offset);
+      }
+
+      // Update self-attention KV cache.
+      if (cached_self_keys) {
+        if (cached_self_keys->empty()) {
+          *cached_self_keys = std::move(keys_proj);
+          *cached_self_values = std::move(values_proj);
+        } else {
+          const ops::Concat concat_op(2);
+          StorageView tmp(dtype, device);
+          tmp = std::move(*cached_self_keys);
+          concat_op({&tmp, &keys_proj}, *cached_self_keys);
+          tmp = std::move(*cached_self_values);
+          concat_op({&tmp, &values_proj}, *cached_self_values);
+        }
+        keys_proj.shallow_copy(*cached_self_keys);
+        values_proj.shallow_copy(*cached_self_values);
+      }
+
+      // Compute beam_size: queries batch = batch * beam_size; memory cache at batch granularity.
+      // During the first decoding step memory is not yet cached; use the live memory batch.
+      const bool memory_already_cached = cached_memory_keys && !cached_memory_keys->empty();
+      const dim_t batch_size_no_beam = memory_already_cached
+                                          ? cached_memory_keys->dim(0)
+                                          : (memory ? memory->dim(0) : queries.dim(0));
+      const dim_t beam_size = queries.dim(0) / batch_size_no_beam;
+
+      // Project encoder memory through memory_kv (no RoPE; k_norm only).
+      // Memory K/V is stored at batch granularity (without beam expansion).
+      StorageView memory_keys(dtype, device);
+      StorageView memory_values(dtype, device);
+      if (memory_already_cached) {
+        memory_keys.shallow_copy(*cached_memory_keys);
+        memory_values.shallow_copy(*cached_memory_values);
+      } else {
+        StorageView mem_kv(dtype, device);
+        (*_memory_kv)(*memory, mem_kv);
+        if (_num_heads_kv < _num_heads) {
+          if (memory_padder)
+            memory_padder->add_padding(mem_kv);
+          const ops::Split split_op(2, {_num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          split_op(mem_kv, memory_keys, memory_values);
+          split_heads(memory_keys, _num_heads_kv);
+          split_heads(memory_values, _num_heads_kv);
+          apply_k_norm(memory_keys);
+          replicate_heads(memory_keys, _num_heads / _num_heads_kv);
+          replicate_heads(memory_values, _num_heads / _num_heads_kv);
+        } else {
+          split_heads(mem_kv, 2 * _num_heads, memory_padder);
+          ops::Split(1)(mem_kv, memory_keys, memory_values);
+          apply_k_norm(memory_keys);
+        }
+        if (cached_memory_keys) {
+          *cached_memory_keys = memory_keys;
+          *cached_memory_values = memory_values;
+        }
+      }
+
+      // Expand memory K/V from [batch, heads, src_len, d] to [batch*beam, heads, src_len, d].
+      if (beam_size > 1) {
+        replicate_batches(memory_keys, beam_size);
+        replicate_batches(memory_values, beam_size);
+      }
+
+      // Concatenate: self K/V (decoder steps) || memory K/V (src_len) along time dim.
+      // This matches HF: key_states = cat([self_keys, cross_keys], dim=2)
+      const ops::Concat time_concat(2);
+      StorageView merged_keys(dtype, device);
+      StorageView merged_values(dtype, device);
+      time_concat({&keys_proj, &memory_keys}, merged_keys);
+      time_concat({&values_proj, &memory_values}, merged_values);
+
+      // Build merged lengths mask.
+      // During prefix processing (training-style), both self_lengths_mask and
+      // memory_lengths_mask are provided; we add them to get the merged valid count.
+      // During single-step generation, self_lengths_mask is null; we create a
+      // full-coverage mask that allows attending to all merged keys.
+      const dim_t total_keys = merged_keys.dim(2);
+      const dim_t q_len = queries_proj.dim(2);
+
+      std::unique_ptr<StorageView> merged_lengths;
+      if (self_lengths_mask && memory_lengths_mask) {
+        // Normalise memory_lengths_mask shape to match self_lengths_mask if needed
+        // (beam search may produce different leading dims).
+        std::unique_ptr<StorageView> norm_mem_lengths;
+        const StorageView* mem_len_ptr = memory_lengths_mask;
+        if (memory_lengths_mask->shape() != self_lengths_mask->shape()) {
+          norm_mem_lengths = std::make_unique<StorageView>(*memory_lengths_mask);
+          norm_mem_lengths->reshape(self_lengths_mask->shape());
+          mem_len_ptr = norm_mem_lengths.get();
+        }
+        merged_lengths = std::make_unique<StorageView>(self_lengths_mask->dtype(), device);
+        merged_lengths->resize_as(*self_lengths_mask);
+        ops::Add()(*self_lengths_mask, *mem_len_ptr, *merged_lengths);
+      } else if (self_lengths_mask) {
+        merged_lengths = std::make_unique<StorageView>(*self_lengths_mask);
+      } else {
+        // Single-step generation: no causal mask needed (only 1 query), and all
+        // merged keys are valid. Create a constant mask = total_keys for each query.
+        const dim_t batch_queries = queries_proj.dim(0) * _num_heads * q_len;
+        merged_lengths = std::make_unique<StorageView>(
+          Shape{batch_queries}, int32_t(total_keys), device);
+      }
+
+      StorageView context(dtype, device);
+      const ops::MatMul keys_matmul(false, true, _queries_scale);
+      keys_matmul(queries_proj, merged_keys, context);
+      StorageView attn(dtype, device);
+      ops::SoftMax()(context, merged_lengths.get(), attn);
+      const ops::MatMul values_matmul;
+      values_matmul(attn, merged_values, context);
+
+      combine_heads(context, _num_heads, queries_padder, /*beam_size=*/1);
+      _linear.back()(context, output, _layer_norm ? &queries : nullptr);
+
       if (_layer_norm && !_pre_norm)
         (*_layer_norm)(output, output);
     }
