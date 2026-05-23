@@ -8,7 +8,7 @@ Below are some general recommendations to further improve performance.
 * Use an Intel CPU supporting AVX512
 * If you are processing a large volume of data, prefer increasing `inter_threads` over `intra_threads` and use stream methods (methods whose name ends with `_file` or `_iterable`)
 * Avoid the total number of threads `inter_threads * intra_threads` to be larger than the number of physical cores
-* For single core execution on Intel CPUs, consider enabling packed GEMM (set the environment variable `CT2_USE_EXPERIMENTAL_PACKED_GEMM=1`)
+* Packed GEMM is enabled by default on Intel CPUs using the MKL backend, which improves single-core decoding performance. Set `CT2_PACKED_GEMM=0` to disable it if needed.
 
 ## GPU
 

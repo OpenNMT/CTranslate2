@@ -64,9 +64,9 @@ Force CTranslate2 to select a specific instruction set architecture (ISA). Possi
 This does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.
 ```
 
-## `CT2_USE_EXPERIMENTAL_PACKED_GEMM`
+## `CT2_PACKED_GEMM`
 
-Enable the packed GEMM API for Intel MKL which can improve performance for single-core decoding. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
+Enable or disable the packed GEMM API for Intel MKL. Packed GEMM is enabled by default when using the MKL backend and improves performance for single-core decoding by pre-packing weight matrices at model load time. Set to `0` to disable it. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
 
 ## `CT2_USE_MKL`
 
