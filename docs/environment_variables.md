@@ -66,7 +66,7 @@ This does not impact backend libraries (such as Intel MKL) which usually have th
 
 ## `CT2_PACKED_GEMM`
 
-Enable or disable the packed GEMM API for Intel MKL. Packed GEMM is enabled by default when using the MKL backend and improves performance for single-core decoding by pre-packing weight matrices at model load time. Set to `0` to disable it. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
+Enable or disable the packed GEMM API for Intel MKL. Packed GEMM is enabled by default when using the MKL backend and improves decoding performance by pre-packing weight matrices at model load time. Set to `0` to disable it. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
 
 ## `CT2_USE_MKL`
 
