@@ -555,7 +555,6 @@ if (WITH_CUDA)
   # -I/usr/local/cuda/include for both GCC and NVCC, so that the headers
   # are coming from the submodule and not the system.
   set(THRUST_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/dependencies/cub
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust
     )
   cuda_include_directories(${THRUST_INCLUDE_DIRS})
