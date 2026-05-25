@@ -554,11 +554,9 @@ if (WITH_CUDA)
   # We should ensure that the Thrust include directories appear before
   # -I/usr/local/cuda/include for both GCC and NVCC, so that the headers
   # are coming from the submodule and not the system.
-  # The submodule now points to NVIDIA/cccl where thrust and cub live as
-  # top-level subdirectories (thrust/thrust/ and cub/).
   set(THRUST_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/thrust
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/dependencies/cub
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust
     )
   cuda_include_directories(${THRUST_INCLUDE_DIRS})
   list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${THRUST_INCLUDE_DIRS})
