@@ -231,7 +231,7 @@ jobs:
         os: [ubuntu-24.04, windows-2025]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v4
         with:
           submodules: recursive
 
@@ -252,7 +252,7 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: 'auditwheel repair -w {dest_dir} --exclude "/opt/rocm/lib/lib*" {wheel}'
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v4
         with:
           name: rocm-python-wheels-${{ runner.os }}
           path: python/wheelhouse
