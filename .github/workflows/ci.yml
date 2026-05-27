@@ -200,10 +200,6 @@ jobs:
         with:
           submodules: recursive
 
-      - uses: docker/setup-qemu-action@v2
-        if: ${{ matrix.arch == 'aarch64' && matrix.os != 'ubuntu-22.04-arm' }}
-        name: Set up QEMU
-
       - name: Build wheels
         uses: pypa/cibuildwheel@v3.2.1
         with:

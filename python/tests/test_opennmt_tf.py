@@ -2,11 +2,13 @@ import copy
 import os
 import sys
 
-import ctranslate2
 import opennmt
 import pytest
 import tensorflow as tf
 import test_utils
+
+import ctranslate2
+
 from ctranslate2.converters import opennmt_tf
 
 pytestmark = pytest.mark.skipif(
