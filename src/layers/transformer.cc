@@ -186,6 +186,7 @@ namespace ctranslate2 {
                                      model, scope + "/external_pre_encoder_attention_layer_norm"))
       , _external_post_encoder_attention_layer_norm(build_optional_layer<LayerNorm>(
                                      model, scope + "/external_post_encoder_attention_layer_norm"))
+      , _layer_scalar(model.get_attribute_with_default<float>(scope + "/layer_scalar", 1.f))
       {
     }
 
@@ -228,7 +229,6 @@ namespace ctranslate2 {
                              true,
                              position_bias,
                              offset);
-
         (*_post_attention_layer_norm)(context, output);
         ops::Add()(output, input, output);
 
@@ -269,6 +269,11 @@ namespace ctranslate2 {
         hidden = std::move(output);
         (*_post_feedforward_layer_norm)(hidden, output);
         ops::Add()(output, context, output);
+
+        // Gemma 4 layer scalar
+        if (_layer_scalar != 1.f)
+          ops::Mul()(output, StorageView(_layer_scalar).to(dtype), output);
+
         return;
       }
 
@@ -489,7 +494,8 @@ namespace ctranslate2 {
       , _with_encoder_attention(_layers.front()->has_cross_attention())
       , _proj(model, scope + "/projection")
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
-      , _tensor_parallel(model.tensor_parallel()) {
+      , _tensor_parallel(model.tensor_parallel())
+      , _final_logit_softcapping(model.get_attribute_with_default<float>(scope + "/final_logit_softcapping", 0.f)) {
 
       dim_t alignment_layer = (
         model.get_attribute_with_default<int32_t>(scope + "/alignment_layer", -1));
@@ -826,9 +832,17 @@ namespace ctranslate2 {
         if (_outputs_scale)
           ops::Mul()(layer_in, *_outputs_scale, layer_in);
 
-        if (return_logits)
+        if (return_logits) {
           _proj(layer_in, *outputs);
-        else
+          if (_final_logit_softcapping != 0.f) {
+            // logits = tanh(logits / cap) * cap  — squashes logits to (-cap, cap)
+            const auto dtype = outputs->dtype();
+            const auto device = outputs->device();
+            ops::Mul()(*outputs, StorageView(1.f / _final_logit_softcapping).to(dtype), *outputs);
+            ops::Tanh()(*outputs, *outputs);
+            ops::Mul()(*outputs, StorageView(_final_logit_softcapping).to(dtype), *outputs);
+          }
+        } else
           *outputs = std::move(layer_in);
 
         if (!is_sequence)

@@ -60,6 +60,10 @@ See the [documentation](https://opennmt.net/CTranslate2) for more information an
 
 If you have an AMD ROCm GPU, we provide specific Python wheels on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/).
 
+## Web Server
+
+[ctranslate2-web-server](https://github.com/jordimas/ctranslate2-web-server) is a web server built on top of CTranslate2 that exposes an OpenAI-compatible REST API, making it easy to integrate CTranslate2 models into applications that already support the OpenAI API.
+
 ## Benchmarks
 
 We translate the En->De test set *newstest2014* with multiple models:

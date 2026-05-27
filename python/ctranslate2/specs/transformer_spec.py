@@ -151,6 +151,7 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
         quant_group_size: Optional[int] = None,
         quant_bits: Optional[int] = None,
         qk_norm: bool = False,
+        v_norm: bool = False,
         external_pre_post_encoder_layers: Optional[bool] = False,
     ):
         """Initializes a Transformer decoder specification.
@@ -262,11 +263,14 @@ class TransformerDecoderSpec(model_spec.LayerSpec):
                 head_dim=head_dim,
                 sliding_window=sliding_window,
                 qk_norm=qk_norm,
+                v_norm=v_norm,
                 external_pre_post_encoder_layers=external_pre_post_encoder_layers,
             )
             for _ in range(num_layers)
         ]
+
         self.start_from_zero_embedding = False
+        self.final_logit_softcapping = model_spec.OPTIONAL
         self._config["multi_query_attention"] = multi_query_attention or (
             num_heads_kv != num_heads
         )
@@ -358,6 +362,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
         head_dim=None,
         sliding_window=None,
         qk_norm=False,
+        v_norm=False,
         external_pre_post_encoder_layers=False,
     ):
         self.self_attention = attention_spec.MultiHeadAttentionSpec(
@@ -376,6 +381,7 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
             head_dim=head_dim,
             sliding_window=sliding_window,
             qk_norm=qk_norm,
+            v_norm=v_norm,
         )
 
         if with_encoder_attention:
@@ -425,6 +431,8 @@ class TransformerDecoderLayerSpec(model_spec.LayerSpec):
 
             delattr(self.self_attention, "layer_norm")
             delattr(self.ffn, "layer_norm")
+
+        self.layer_scalar = model_spec.OPTIONAL
 
 
 class FeedForwardSpec(model_spec.LayerSpec):
@@ -646,6 +654,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
         quant_group_size: Optional[int] = None,
         quant_bits: Optional[int] = None,
         qk_norm: bool = False,
+        v_norm: bool = False,
     ):
         """Creates a Transformer decoder model specification.
 
@@ -721,6 +730,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
             quant_group_size=quant_group_size,
             quant_bits=quant_bits,
             qk_norm=qk_norm,
+            v_norm=v_norm,
         )
 
         return cls(decoder)

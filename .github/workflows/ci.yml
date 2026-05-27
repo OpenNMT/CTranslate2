@@ -359,14 +359,14 @@ jobs:
         with:
           pattern: python-wheels-*
           merge-multiple: true
-          path: .
+          path: dist
 
       - name: Publish Python wheels to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
-          packages-dir: .
+          packages-dir: dist
 
 
   build-and-push-docker-images:
