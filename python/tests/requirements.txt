@@ -1,4 +1,6 @@
 transformers==5.9.0.*;platform_system=='Linux'
+sentencepiece;platform_system=='Linux'
+protobuf;platform_system=='Linux'
 pytest
 wurlitzer==3.1.*;sys_platform=='linux'
 torch==2.12
