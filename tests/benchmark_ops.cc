@@ -58,10 +58,14 @@ void benchmark_masked_softmax(Device device) {
   const dim_t num_heads = 8;
   const dim_t max_source = 24;
   const dim_t max_target = 36;
-  StorageView lengths({batch_size}, std::vector<int32_t>(batch_size, max_source - 5), device);
+  const dim_t rows = batch_size * num_heads * max_source;
+  StorageView lengths(
+      {rows},
+      std::vector<int32_t>(rows, max_target - 5),
+      device);
   StorageView x({batch_size, num_heads, max_source, max_target},
-                rand_vector(batch_size * num_heads * max_source * max_target),
-                device);
+      rand_vector(batch_size * num_heads * max_source * max_target),
+      device);
   StorageView y(x.device());
   const ops::SoftMax softmax_op{};
   BENCHMARK(softmax_op(x, lengths, y), 10000);
