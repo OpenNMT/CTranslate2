@@ -26,7 +26,6 @@ jobs:
           submodules: recursive
 
       - name: Install Intel oneAPI
-        if: startsWith(matrix.os, 'ubuntu')
         run: |
           wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
           sudo apt-key add *.PUB
@@ -34,7 +33,7 @@ jobs:
           sudo apt-get update
 
       - name: Configure with MKL
-        if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
+        if: matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
           MKL_VERSION: 2023.0.0
@@ -43,7 +42,7 @@ jobs:
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
 
       - name: Configure with DNNL
-        if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'dnnl'
+        if: matrix.backend == 'dnnl'
         env:
           DNNL_VERSION: 2023.0.0-25399
         run: |
@@ -443,7 +442,7 @@ jobs:
 
       - name: Login to DockerHub
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: docker/login-action@v2
+        uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -457,7 +456,7 @@ jobs:
 
   build-and-deploy-docs:
     runs-on: ubuntu-latest
-    needs: [check-python-style, build-python-wheels]
+    needs: [check-python-style, build-python-wheels, build-python-wheels-rocm]
 
     permissions:
       contents: write
