@@ -2,19 +2,17 @@ import copy
 import os
 import sys
 
+import ctranslate2
 import opennmt
 import pytest
 import tensorflow as tf
 import test_utils
+from ctranslate2.converters import opennmt_tf
 
 pytestmark = pytest.mark.skipif(
     sys.version_info >= (3, 12),
     reason="opennmt-tf is not compatible with Python 3.12+",
 )
-
-import ctranslate2
-
-from ctranslate2.converters import opennmt_tf
 
 
 @pytest.mark.parametrize("model_path", ["v1/checkpoint", "v2/checkpoint"])

@@ -349,6 +349,8 @@ jobs:
           rm transliteration-aren-all.tar.gz
 
       - name: Test legacy converters
+        env:
+          TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD: 1
         run: |
           pytest -v python/tests/test_fairseq.py python/tests/test_opennmt_py.py python/tests/test_opennmt_tf.py -p no:hydra
 
