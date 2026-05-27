@@ -413,7 +413,8 @@ namespace ctranslate2 {
         }
 
         // If requested, linear weights can be packed for the Gemm call.
-        if (pack_weights && is_packable(name)) {
+        // Only 2D weights are supported; Conv weights are 3D and use a different code path.
+        if (pack_weights && is_packable(name) && weight.rank() == 2) {
           StorageView packed_weight = ops::Gemm::pack_b_input(weight, transpose, k, n, alpha);
           register_variable(name + "_packed", std::move(packed_weight));
           remove_variable(name);  // The original weight is no longer needed.
