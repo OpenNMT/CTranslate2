@@ -1,10 +1,16 @@
 import copy
 import os
+import sys
 
 import opennmt
 import pytest
 import tensorflow as tf
 import test_utils
+
+pytestmark = pytest.mark.skipif(
+    sys.version_info >= (3, 12),
+    reason="opennmt-tf is not compatible with Python 3.12+",
+)
 
 import ctranslate2
 
