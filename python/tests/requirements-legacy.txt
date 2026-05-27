@@ -1,0 +1,6 @@
+git+https://github.com/facebookresearch/fairseq.git@main
+OpenNMT-tf
+OpenNMT-py
+pytest
+wurlitzer==3.1.*
+torch==2.12
