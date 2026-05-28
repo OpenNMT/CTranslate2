@@ -4051,7 +4051,9 @@ class T5Gemma2Loader(ModelLoader):
         if not layer_types:
             return
         rope_params = getattr(side_config, "rope_parameters", {}) or {}
-        global_theta = rope_params.get("full_attention", {}).get("rope_theta", 1_000_000)
+        global_theta = rope_params.get("full_attention", {}).get(
+            "rope_theta", 1_000_000
+        )
         local_theta = rope_params.get("sliding_attention", {}).get("rope_theta", 10_000)
         sliding_window = getattr(side_config, "sliding_window", 0)
         full_attn_params = rope_params.get("full_attention", {})
@@ -4074,7 +4076,9 @@ class T5Gemma2Loader(ModelLoader):
         encoder_config = model.config.encoder.text_config
         decoder_config = model.config.decoder
 
-        encoder = transformer_spec.TransformerEncoderSpec(**self._side_kwargs(encoder_config))
+        encoder = transformer_spec.TransformerEncoderSpec(
+            **self._side_kwargs(encoder_config)
+        )
         decoder = transformer_spec.TransformerDecoderSpec(
             **self._side_kwargs(decoder_config),
             with_encoder_attention=True,
@@ -4196,7 +4200,9 @@ class T5Gemma2Loader(ModelLoader):
         self.set_linear(qkv_split[1], layer.self_attn.k_proj, quant_type=quant_type)
         self.set_linear(qkv_split[2], layer.self_attn.v_proj, quant_type=quant_type)
         utils.fuse_linear(attn_spec.linear[0], qkv_split)
-        self.set_linear(attn_spec.linear[1], layer.self_attn.o_proj, quant_type=quant_type)
+        self.set_linear(
+            attn_spec.linear[1], layer.self_attn.o_proj, quant_type=quant_type
+        )
         self.set_layer_norm(attn_spec.q_norm, layer.self_attn.q_norm)
         self.set_layer_norm(attn_spec.k_norm, layer.self_attn.k_norm)
 
