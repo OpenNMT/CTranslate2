@@ -311,7 +311,8 @@ namespace ctranslate2 {
       , _q_norm(build_optional_layer<LayerNorm>(model, scope + "/q_norm"))
       , _k_norm(build_optional_layer<LayerNorm>(model, scope + "/k_norm"))
       , _v_norm(build_optional_layer<LayerNorm>(model, scope + "/v_norm"))
-      , _memory_kv(model.get_variable_if_exists(scope + "/memory_kv/weight")
+      , _memory_kv((model.get_variable_if_exists(scope + "/memory_kv/weight")
+                    || model.get_variable_if_exists(scope + "/memory_kv/weight_packed"))
                      ? std::make_unique<const Dense>(model, scope + "/memory_kv")
                      : nullptr)
     {
