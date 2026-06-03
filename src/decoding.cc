@@ -185,7 +185,7 @@ namespace ctranslate2 {
     // get target beam logits
     const dim_t flat_index = batch * beam_size + beam;
     ops::Slide slide_axis0(0, flat_index, 1);
-    StorageView hyp_logits;
+    StorageView hyp_logits(history.dtype(), history.device());
     slide_axis0(history, hyp_logits);
     hyp_logits.squeeze(0);
 
