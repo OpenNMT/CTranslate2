@@ -27,6 +27,7 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * Qwen 3
 * T5
 * T5Gemma
+* T5Gemma2
 * Whisper
 * XLM-RoBERTa
 
@@ -628,6 +629,44 @@ translations = [
 ]
 final_translation = " ".join(translations)
 print(final_translation)
+```
+
+
+## T5Gemma2
+
+[T5Gemma2](https://huggingface.co/collections/google/t5gemma2-686038abe6c47de48d6d3aa4) is a collection of Google encoder-decoder models that combines the T5 encoder-decoder architecture with Gemma 2 decoder components, featuring sliding-window and full attention layers.
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model google/t5gemma-2-270m-270m --output_dir t5gemma2_270m_270m.ct2
+```
+
+Usage:
+
+```python
+import ctranslate2
+import transformers
+
+translator = ctranslate2.Translator("t5gemma2_270m_270m.ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("google/t5gemma-2-270m-270m")
+
+sentences = ["Question: Why is the sky blue? Answer:"]
+
+tokenized_sentences = [
+    tokenizer.convert_ids_to_tokens(tokenizer.encode(sentence))
+    for sentence in sentences
+]
+
+translated_batches = translator.translate_batch(
+    tokenized_sentences, beam_size=1, repetition_penalty=1.2, max_decoding_length=50
+)
+
+translations = [
+    tokenizer.decode(tokenizer.convert_tokens_to_ids(t.hypotheses[0]))
+    for t in translated_batches
+]
+print(translations[0])
 ```
 
 

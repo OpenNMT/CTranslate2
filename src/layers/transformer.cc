@@ -187,6 +187,9 @@ namespace ctranslate2 {
       , _external_post_encoder_attention_layer_norm(build_optional_layer<LayerNorm>(
                                      model, scope + "/external_post_encoder_attention_layer_norm"))
       , _layer_scalar(model.get_attribute_with_default<float>(scope + "/layer_scalar", 1.f))
+      , _has_merged_encoder_attention(
+          !use_flash_attention
+          && static_cast<MultiHeadAttention*>(_self_attention.get())->has_merged_encoder_attention())
       {
     }
 
@@ -216,7 +219,21 @@ namespace ctranslate2 {
         StorageView context(dtype, device);
         (*_input_layer_norm)(input, hidden);
 
-        if (_self_attention)
+        if (_has_merged_encoder_attention) {
+          static_cast<MultiHeadAttention*>(_self_attention.get())->forward_merged(
+            hidden,
+            memory,
+            memory_lengths,
+            input_length,
+            context,
+            cached_self_attn_keys,
+            cached_self_attn_values,
+            cached_attn_keys,
+            cached_attn_values,
+            input_padder,
+            memory_padder,
+            offset);
+        } else if (_self_attention) {
           (*_self_attention)(hidden,
                              hidden,
                              input_length,
@@ -229,6 +246,7 @@ namespace ctranslate2 {
                              true,
                              position_bias,
                              offset);
+        }
         (*_post_attention_layer_norm)(context, output);
         ops::Add()(output, input, output);
 

@@ -48,6 +48,23 @@ namespace ctranslate2 {
             return _relative_position_keys || _relative_attention_bias || _rotary_embeddings || _alibi;
       }
 
+      bool has_merged_encoder_attention() const {
+        return bool(_memory_kv);
+      }
+
+      void forward_merged(const StorageView& queries,
+                          const StorageView* memory,
+                          const StorageView* memory_lengths_mask,
+                          const StorageView* self_lengths_mask,
+                          StorageView& output,
+                          StorageView* cached_self_keys,
+                          StorageView* cached_self_values,
+                          StorageView* cached_memory_keys,
+                          StorageView* cached_memory_values,
+                          const Padder* queries_padder,
+                          const Padder* memory_padder,
+                          dim_t offset) const;
+
     protected:
       void process_cross_attention(const StorageView& queries,
                                 const StorageView& values,
@@ -90,6 +107,7 @@ namespace ctranslate2 {
       std::unique_ptr<const LayerNorm> _q_norm;  // Query normalization
       std::unique_ptr<const LayerNorm> _k_norm;  // Key normalization
       std::unique_ptr<const LayerNorm> _v_norm;  // Value normalization (no learnable scale)
+      std::unique_ptr<const Dense> _memory_kv;  // Fused K+V projection of encoder memory (merged attention)
     };
   }
 }
