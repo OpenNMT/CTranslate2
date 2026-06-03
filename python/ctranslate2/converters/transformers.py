@@ -2058,6 +2058,8 @@ class Gemma3Loader(ModelLoader):
             gc.collect()
 
 
+@register_loader("Gemma4UnifiedTextConfig")
+@register_loader("Gemma4UnifiedConfig")
 @register_loader("Gemma4TextConfig")
 @register_loader("Gemma4Config")
 class Gemma4Loader(ModelLoader):
@@ -2068,6 +2070,8 @@ class Gemma4Loader(ModelLoader):
     def get_model_class(self, config, default_class):
         if config.__class__.__name__ == "Gemma4Config":
             return transformers.Gemma4ForConditionalGeneration
+        if config.__class__.__name__ == "Gemma4UnifiedConfig":
+            return transformers.Gemma4UnifiedForConditionalGeneration
         return default_class
 
     def get_model_spec(self, model):
