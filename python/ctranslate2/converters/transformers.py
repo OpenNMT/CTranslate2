@@ -2144,7 +2144,7 @@ class Gemma4Loader(ModelLoader):
             quant_group_size = None
             quant_bits = None
 
-        # Build spec with sliding-attention defaults; global layers overridden per-layer below
+        # Build spec with sliding-attention defaults; global layers overridden per-layer below.
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
             num_layers,
             num_heads,
@@ -2169,6 +2169,10 @@ class Gemma4Loader(ModelLoader):
             qk_norm=True,
             v_norm=True,
         )
+
+        # Set it to 0 so the decoder processes all tokens at once; per-layer sliding_window
+        # set below handles KV-cache trimming for sliding-attention layers.
+        spec.decoder.sliding_window = np.dtype("int32").type(0)
 
         self._layer_types = layer_types
         self._attention_k_eq_v = attention_k_eq_v
@@ -2230,7 +2234,10 @@ class Gemma4Loader(ModelLoader):
             and isinstance(tokenizer.chat_template, str)
             and tokenizer.chat_template.strip()
         ):
-            config.eos_token = "<end_of_turn>"
+            if "<turn|>" in tokenizer.chat_template:
+                config.eos_token = "<turn|>"
+            else:
+                config.eos_token = "<end_of_turn>"
         else:
             config.eos_token = tokenizer.eos_token
 
