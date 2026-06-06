@@ -3,11 +3,12 @@
 #include <algorithm>
 #include <limits>
 
+#include <thrust/iterator/counting_iterator.h>
+
 #ifdef CT2_USE_HIP
 #include <hip/hip_fp16.h>
 #include <hip/hip_bf16.h>
 #include <hip/hip_fp8.h>
-#include <thrust/iterator/counting_iterator.h>
 #define __nv_bfloat16 __hip_bfloat16
 #else
 #include <cuda_fp16.h>
