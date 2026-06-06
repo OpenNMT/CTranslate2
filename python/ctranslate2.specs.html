@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ctranslate2.specs &mdash; CTranslate2 4.7.2 documentation</title>
+  <title>ctranslate2.specs &mdash; CTranslate2 4.8.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -34,7 +34,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.7
+                4.8
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -139,6 +139,20 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.specs.Activation.html">Activation</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation"><code class="docutils literal notranslate"><span class="pre">Activation</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__contains__"><code class="docutils literal notranslate"><span class="pre">Activation.__contains__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__dir__"><code class="docutils literal notranslate"><span class="pre">Activation.__dir__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__getitem__"><code class="docutils literal notranslate"><span class="pre">Activation.__getitem__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__init__"><code class="docutils literal notranslate"><span class="pre">Activation.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__iter__"><code class="docutils literal notranslate"><span class="pre">Activation.__iter__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__len__"><code class="docutils literal notranslate"><span class="pre">Activation.__len__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__new__"><code class="docutils literal notranslate"><span class="pre">Activation.__new__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.as_integer_ratio"><code class="docutils literal notranslate"><span class="pre">Activation.as_integer_ratio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.bit_count"><code class="docutils literal notranslate"><span class="pre">Activation.bit_count()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.bit_length"><code class="docutils literal notranslate"><span class="pre">Activation.bit_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.conjugate"><code class="docutils literal notranslate"><span class="pre">Activation.conjugate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.from_bytes"><code class="docutils literal notranslate"><span class="pre">Activation.from_bytes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.is_integer"><code class="docutils literal notranslate"><span class="pre">Activation.is_integer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.to_bytes"><code class="docutils literal notranslate"><span class="pre">Activation.to_bytes()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.GELU"><code class="docutils literal notranslate"><span class="pre">Activation.GELU</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.GELUSigmoid"><code class="docutils literal notranslate"><span class="pre">Activation.GELUSigmoid</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.GELUTanh"><code class="docutils literal notranslate"><span class="pre">Activation.GELUTanh</span></code></a></li>
@@ -146,14 +160,36 @@
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.SWISH"><code class="docutils literal notranslate"><span class="pre">Activation.SWISH</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.Sigmoid"><code class="docutils literal notranslate"><span class="pre">Activation.Sigmoid</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.Tanh"><code class="docutils literal notranslate"><span class="pre">Activation.Tanh</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.denominator"><code class="docutils literal notranslate"><span class="pre">Activation.denominator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.imag"><code class="docutils literal notranslate"><span class="pre">Activation.imag</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.numerator"><code class="docutils literal notranslate"><span class="pre">Activation.numerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.real"><code class="docutils literal notranslate"><span class="pre">Activation.real</span></code></a></li>
 </ul>
 </li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html">EmbeddingsMerge</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__contains__"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.__contains__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__dir__"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.__dir__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__getitem__"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.__getitem__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__init__"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__iter__"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.__iter__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__len__"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.__len__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__new__"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.__new__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.as_integer_ratio"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.as_integer_ratio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.bit_count"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.bit_count()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.bit_length"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.bit_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.conjugate"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.conjugate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.from_bytes"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.from_bytes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.is_integer"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.is_integer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.to_bytes"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.to_bytes()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.ADD"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.ADD</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.CONCAT"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.CONCAT</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.denominator"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.denominator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.imag"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.imag</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.numerator"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.numerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.real"><code class="docutils literal notranslate"><span class="pre">EmbeddingsMerge.real</span></code></a></li>
 </ul>
 </li>
 </ul>
@@ -203,9 +239,27 @@
 </li>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html">RotaryScalingType</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.__contains__"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.__contains__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.__dir__"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.__dir__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.__getitem__"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.__getitem__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.__init__"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.__iter__"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.__iter__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.__len__"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.__len__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.__new__"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.__new__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.as_integer_ratio"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.as_integer_ratio()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.bit_count"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.bit_count()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.bit_length"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.bit_length()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.conjugate"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.conjugate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.from_bytes"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.from_bytes()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.is_integer"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.is_integer()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.to_bytes"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.to_bytes()</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.Linear"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.Linear</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.Llama3"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.Llama3</span></code></a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.Su"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.Su</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.denominator"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.denominator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.imag"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.imag</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.numerator"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.numerator</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.real"><code class="docutils literal notranslate"><span class="pre">RotaryScalingType.real</span></code></a></li>
 </ul>
 </li>
 </ul>

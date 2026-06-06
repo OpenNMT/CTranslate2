@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 4.7.2 documentation</title>
+  <title>Transformers &mdash; CTranslate2 4.8.0 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -34,7 +34,7 @@
             <a href="../index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.7
+                4.8
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
@@ -95,6 +95,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#qwen-3">Qwen 3</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#t5">T5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#t5gemma">T5Gemma</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#t5gemma2">T5Gemma2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#whisper">Whisper</a></li>
 </ul>
 </li>
@@ -162,6 +163,7 @@
 <li><p>Qwen 3</p></li>
 <li><p>T5</p></li>
 <li><p>T5Gemma</p></li>
+<li><p>T5Gemma2</p></li>
 <li><p>Whisper</p></li>
 <li><p>XLM-RoBERTa</p></li>
 </ul>
@@ -698,6 +700,39 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 <span class="p">]</span>
 <span class="n">final_translation</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">translations</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">final_translation</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+<section id="t5gemma2">
+<h2>T5Gemma2<a class="headerlink" href="#t5gemma2" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://huggingface.co/collections/google/t5gemma2-686038abe6c47de48d6d3aa4">T5Gemma2</a> is a collection of Google encoder-decoder models that combines the T5 encoder-decoder architecture with Gemma 2 decoder components, featuring sliding-window and full attention layers.</p>
+<p>To convert a model:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>google/t5gemma-2-270m-270m<span class="w"> </span>--output_dir<span class="w"> </span>t5gemma2_270m_270m.ct2
+</pre></div>
+</div>
+<p>Usage:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">transformers</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;t5gemma2_270m_270m.ct2&quot;</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;google/t5gemma-2-270m-270m&quot;</span><span class="p">)</span>
+
+<span class="n">sentences</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;Question: Why is the sky blue? Answer:&quot;</span><span class="p">]</span>
+
+<span class="n">tokenized_sentences</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">sentence</span><span class="p">))</span>
+    <span class="k">for</span> <span class="n">sentence</span> <span class="ow">in</span> <span class="n">sentences</span>
+<span class="p">]</span>
+
+<span class="n">translated_batches</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
+    <span class="n">tokenized_sentences</span><span class="p">,</span> <span class="n">beam_size</span><span class="o">=</span><span class="mi">1</span><span class="p">,</span> <span class="n">repetition_penalty</span><span class="o">=</span><span class="mf">1.2</span><span class="p">,</span> <span class="n">max_decoding_length</span><span class="o">=</span><span class="mi">50</span>
+<span class="p">)</span>
+
+<span class="n">translations</span> <span class="o">=</span> <span class="p">[</span>
+    <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">t</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
+    <span class="k">for</span> <span class="n">t</span> <span class="ow">in</span> <span class="n">translated_batches</span>
+<span class="p">]</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">translations</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 </pre></div>
 </div>
 </section>

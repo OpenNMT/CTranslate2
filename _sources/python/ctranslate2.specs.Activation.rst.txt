@@ -7,3 +7,13 @@ Activation
     :inherited-members:
 
     **Inherits from:** :class:`enum.IntEnum`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.Activation.as_integer_ratio`
+    - :obj:`~ctranslate2.specs.Activation.bit_count`
+    - :obj:`~ctranslate2.specs.Activation.bit_length`
+    - :obj:`~ctranslate2.specs.Activation.conjugate`
+    - :obj:`~ctranslate2.specs.Activation.from_bytes`
+    - :obj:`~ctranslate2.specs.Activation.is_integer`
+    - :obj:`~ctranslate2.specs.Activation.to_bytes`

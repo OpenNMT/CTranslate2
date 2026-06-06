@@ -7,3 +7,13 @@ RotaryScalingType
     :inherited-members:
 
     **Inherits from:** :class:`enum.IntEnum`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.RotaryScalingType.as_integer_ratio`
+    - :obj:`~ctranslate2.specs.RotaryScalingType.bit_count`
+    - :obj:`~ctranslate2.specs.RotaryScalingType.bit_length`
+    - :obj:`~ctranslate2.specs.RotaryScalingType.conjugate`
+    - :obj:`~ctranslate2.specs.RotaryScalingType.from_bytes`
+    - :obj:`~ctranslate2.specs.RotaryScalingType.is_integer`
+    - :obj:`~ctranslate2.specs.RotaryScalingType.to_bytes`

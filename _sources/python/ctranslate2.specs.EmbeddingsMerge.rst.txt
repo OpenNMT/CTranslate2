@@ -7,3 +7,13 @@ EmbeddingsMerge
     :inherited-members:
 
     **Inherits from:** :class:`enum.IntEnum`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.EmbeddingsMerge.as_integer_ratio`
+    - :obj:`~ctranslate2.specs.EmbeddingsMerge.bit_count`
+    - :obj:`~ctranslate2.specs.EmbeddingsMerge.bit_length`
+    - :obj:`~ctranslate2.specs.EmbeddingsMerge.conjugate`
+    - :obj:`~ctranslate2.specs.EmbeddingsMerge.from_bytes`
+    - :obj:`~ctranslate2.specs.EmbeddingsMerge.is_integer`
+    - :obj:`~ctranslate2.specs.EmbeddingsMerge.to_bytes`
