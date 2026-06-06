@@ -123,6 +123,53 @@ TEST_F(CrossAttentionTest, GroupedQueryAttention) {
   }
 }
 
+// Merged self+cross attention (T5Gemma2 style): self-attention layer also
+// projects encoder memory through a separate `memory_kv` linear and concatenates
+// the result onto the self-attention K/V before softmax.
+TEST(MergedAttentionTest, ForwardMergedProducesOutput) {
+  constexpr dim_t NUM_HEADS = 4, NUM_KV = 1, D_HEAD = 16;
+  constexpr dim_t D_MODEL = NUM_HEADS * D_HEAD;
+  constexpr dim_t QKV_ROWS = (NUM_HEADS + 2 * NUM_KV) * D_HEAD;
+  constexpr dim_t KV_ROWS = 2 * NUM_KV * D_HEAD;
+
+  class MergedMockModel : public models::Model {
+  public:
+    MergedMockModel() {
+      register_variable("attn/linear_0/weight",
+                        StorageView({QKV_ROWS, D_MODEL}, std::vector<float>(QKV_ROWS * D_MODEL, 0.01f)));
+      register_variable("attn/linear_1/weight",
+                        StorageView({D_MODEL, NUM_HEADS * D_HEAD},
+                                    std::vector<float>(D_MODEL * NUM_HEADS * D_HEAD, 0.01f)));
+      register_variable("attn/memory_kv/weight",
+                        StorageView({KV_ROWS, D_MODEL}, std::vector<float>(KV_ROWS * D_MODEL, 0.01f)));
+      register_variable("attn/q_norm/gamma", StorageView({D_HEAD}, std::vector<float>(D_HEAD, 1.0f)));
+      register_variable("attn/k_norm/gamma", StorageView({D_HEAD}, std::vector<float>(D_HEAD, 1.0f)));
+      register_variable("attn/num_heads_kv", StorageView(static_cast<int32_t>(NUM_KV)));
+      set_compute_type(ComputeType::FLOAT32, Device::CPU, 0, false);
+    }
+  protected:
+    std::unique_ptr<Model> clone() const override { return nullptr; }
+  };
+
+  MergedMockModel model;
+  layers::MultiHeadAttention attention(model, "attn", NUM_HEADS, /*self_attention=*/true);
+  ASSERT_TRUE(attention.has_merged_encoder_attention());
+
+  constexpr dim_t B = 1, Q_LEN = 1, MEM_LEN = 5;
+  StorageView queries({B, Q_LEN, D_MODEL}, std::vector<float>(B * Q_LEN * D_MODEL, 1.0f));
+  StorageView memory({B, MEM_LEN, D_MODEL}, std::vector<float>(B * MEM_LEN * D_MODEL, 1.0f));
+  StorageView output(DataType::FLOAT32);
+  StorageView self_k(DataType::FLOAT32), self_v(DataType::FLOAT32);
+  StorageView mem_k(DataType::FLOAT32), mem_v(DataType::FLOAT32);
+
+  attention.forward_merged(queries, &memory, nullptr, nullptr, output,
+                           &self_k, &self_v, &mem_k, &mem_v, nullptr, nullptr, /*offset=*/0);
+
+  EXPECT_EQ(output.shape(), (Shape{B, Q_LEN, D_MODEL}));
+  EXPECT_EQ(mem_k.shape(), (Shape{B, NUM_HEADS, MEM_LEN, D_HEAD}));
+  EXPECT_EQ(self_k.shape(), (Shape{B, NUM_HEADS, Q_LEN, D_HEAD}));
+}
+
 // MHA: Each head has independent K/V
 TEST_F(CrossAttentionTest, StandardMultiHeadAttention) {
   MockModel model(NUM_HEADS, NUM_HEADS);

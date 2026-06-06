@@ -111,7 +111,7 @@ namespace ctranslate2 {
       }
 
       bool has_cross_attention() const {
-        return bool(_encoder_attention);
+        return bool(_encoder_attention) || _has_merged_encoder_attention;
       }
 
       const AttentionLayer& get_self_attention() const {
@@ -130,6 +130,7 @@ namespace ctranslate2 {
       const std::unique_ptr<const LayerNorm> _external_pre_encoder_attention_layer_norm;
       const std::unique_ptr<const LayerNorm> _external_post_encoder_attention_layer_norm;
       const float _layer_scalar;
+      const bool _has_merged_encoder_attention;
     };
 
     class TransformerEncoder : public Encoder

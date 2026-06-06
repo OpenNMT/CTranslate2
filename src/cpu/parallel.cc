@@ -15,8 +15,8 @@ namespace ctranslate2 {
       return num_threads;
     }
 
-    BS::thread_pool_light& get_thread_pool() {
-      static thread_local BS::thread_pool_light thread_pool(num_threads);
+    BS::light_thread_pool& get_thread_pool() {
+      static thread_local BS::thread_pool thread_pool(num_threads);
       return thread_pool;
     }
 
