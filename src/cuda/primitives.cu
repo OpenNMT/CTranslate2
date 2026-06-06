@@ -29,6 +29,8 @@
 #include <cublas_v2.h>
 #endif
 #include <thrust/device_ptr.h>
+#include <thrust/extrema.h>
+#include <thrust/reduce.h>
 
 #include "cuda/helpers.h"
 #include "type_dispatch.h"
