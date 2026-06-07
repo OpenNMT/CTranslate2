@@ -4,6 +4,22 @@
 
 ### Fixes and improvements
 
+* Upgrade Thrust submodule from 1.12.0 to CCCL 2.7.0 (#2062) by [@jordimas](https://github.com/jordimas)
+
+## [v4.8.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.0) (2026-06-06)
+
+### New features
+
+* Add support for Google T5Gemma2 (#2058) by [@jordimas](https://github.com/jordimas)
+* Enables PACKED_GEMM by default for Intel MKL to improve Intel CPU performance (#2055) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Adopt latest BS_thread_pool library version v5.1.0 (#2053) by [@3manifold](https://github.com/3manifold)
+* Upgrade CI system dependencies and reduce build time (#2056) by [@jordimas](https://github.com/jordimas)
+* Fix PyPI publish: download wheels to dist/ to avoid directory hash error (#2050) by [@jordimas](https://github.com/jordimas)
+* Fix flaky transformers_wav2vec2 test (#1996) by [@3manifold](https://github.com/3manifold)
+
 ## [v4.7.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.2) (2026-05-18)
 
 ### New features

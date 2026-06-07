@@ -2113,9 +2113,17 @@ class Gemma4Loader(ModelLoader):
         rope_local_base_freq = float(sliding_rope.get("rope_theta", 10_000))
         rope_theta = float(global_rope.get("rope_theta", 1_000_000))
 
-        # Proportional RoPE: only a fraction of global_head_dim uses RoPE
+        # Proportional RoPE (HF `rope_type="proportional"`, currently Gemma4-only):
+        # halves on full head_dim and zero-pads trailing freqs, unlike GPT-NeoX-style
+        # partial RoPE which halves on rotary_dim. HF: `1 / rope_theta^(2i/head_dim)`;
+        # CT2's RotaryEmbeddings: `1 / base^(2i/rotary_dim)`. Rescale base to match.
         global_partial_factor = float(global_rope.get("partial_rotary_factor", 1.0))
         global_rotary_dim = int(global_head_dim * global_partial_factor)
+        global_rope_base = (
+            rope_theta ** (global_rotary_dim / global_head_dim)
+            if 0 < global_rotary_dim < global_head_dim
+            else rope_theta
+        )
 
         sliding_window = getattr(text_config, "sliding_window", 512)
         layer_types = getattr(text_config, "layer_types", None)
@@ -2176,6 +2184,8 @@ class Gemma4Loader(ModelLoader):
 
         self._layer_types = layer_types
         self._attention_k_eq_v = attention_k_eq_v
+        self._global_head_dim = global_head_dim
+        self._global_rotary_dim = global_rotary_dim
 
         # Per-layer overrides for full-attention layers
         for i, layer_type in enumerate(layer_types):
@@ -2186,7 +2196,9 @@ class Gemma4Loader(ModelLoader):
                 layer.self_attention.rotary_dim = np.dtype("int32").type(
                     global_rotary_dim
                 )
-                layer.self_attention.rotary_base = np.dtype("float32").type(rope_theta)
+                layer.self_attention.rotary_base = np.dtype("float32").type(
+                    global_rope_base
+                )
                 layer.self_attention.sliding_window = np.dtype("int32").type(0)
                 layer.self_attention.head_dim = np.dtype("int32").type(global_head_dim)
                 if num_global_kv_heads is not None:
@@ -2252,6 +2264,18 @@ class Gemma4Loader(ModelLoader):
         self.set_layer_norm(spec.layer_norm, module.norm)
 
         attention_k_eq_v = getattr(self, "_attention_k_eq_v", False)
+        ghd = getattr(self, "_global_head_dim", None)
+        grd = getattr(self, "_global_rotary_dim", None)
+        # HF's proportional partial-RoPE pairs channels [0:R/2]↔[HD/2:HD/2+R/2];
+        # CT2's RotaryEmbeddings pairs [0:R/2]↔[R/2:R]. Permute Q/K accordingly.
+        partial_perm = None
+        if ghd and grd and 0 < grd < ghd:
+            partial_perm = (
+                list(range(0, grd // 2))
+                + list(range(ghd // 2, ghd // 2 + grd // 2))
+                + list(range(grd // 2, ghd // 2))
+                + list(range(ghd // 2 + grd // 2, ghd))
+            )
 
         for layer_spec, layer in zip(spec.layer, module.layers):
             self.set_layer_norm(layer_spec.input_layer_norm, layer.input_layernorm)
@@ -2304,6 +2328,20 @@ class Gemma4Loader(ModelLoader):
                 utils.fuse_linear_prequant(
                     layer_spec.self_attention.linear[0], split_layers, cc_dim
                 )
+
+            # Apply the partial-RoPE permutation to Q/K rows of the fused QKV (and
+            # the norm gammas); V rows are left untouched (V is not RoPE-rotated).
+            if is_full_attn and partial_perm is not None:
+                fused = layer_spec.self_attention.linear[0].weight
+                q_rows = split_layers[0].weight.shape[0]
+                k_rows = split_layers[1].weight.shape[0]
+                qk = fused[: q_rows + k_rows].view(-1, ghd, fused.shape[1])
+                fused[: q_rows + k_rows] = qk[:, partial_perm, :].reshape(
+                    q_rows + k_rows, fused.shape[1]
+                )
+                for norm_spec in (layer_spec.self_attention.q_norm,
+                                  layer_spec.self_attention.k_norm):
+                    norm_spec.gamma = norm_spec.gamma[partial_perm]
 
             self.set_linear(
                 layer_spec.self_attention.linear[1],
