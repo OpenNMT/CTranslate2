@@ -1886,9 +1886,11 @@ class Gemma3Loader(ModelLoader):
             )
             if sliding_window_pattern is not None:
                 layer_types = [
-                    "full_attention"
-                    if (i + 1) % sliding_window_pattern == 0
-                    else "sliding_attention"
+                    (
+                        "full_attention"
+                        if (i + 1) % sliding_window_pattern == 0
+                        else "sliding_attention"
+                    )
                     for i in range(num_layers)
                 ]
 
@@ -2130,9 +2132,11 @@ class Gemma4Loader(ModelLoader):
         if layer_types is None:
             sliding_window_pattern = 6
             layer_types = [
-                "sliding_attention"
-                if bool((i + 1) % sliding_window_pattern)
-                else "full_attention"
+                (
+                    "sliding_attention"
+                    if bool((i + 1) % sliding_window_pattern)
+                    else "full_attention"
+                )
                 for i in range(num_layers)
             ]
 
@@ -2339,8 +2343,10 @@ class Gemma4Loader(ModelLoader):
                 fused[: q_rows + k_rows] = qk[:, partial_perm, :].reshape(
                     q_rows + k_rows, fused.shape[1]
                 )
-                for norm_spec in (layer_spec.self_attention.q_norm,
-                                  layer_spec.self_attention.k_norm):
+                for norm_spec in (
+                    layer_spec.self_attention.q_norm,
+                    layer_spec.self_attention.k_norm,
+                ):
                     norm_spec.gamma = norm_spec.gamma[partial_perm]
 
             self.set_linear(
