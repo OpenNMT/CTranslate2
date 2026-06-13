@@ -265,10 +265,13 @@ namespace ctranslate2 {
         alibi->apply(output, queries_scale);
 
       StorageView attn(values.dtype(), values.device());
-      ops::SoftMax()(output, values_lengths, attn);
-
-      if (attention && !return_normalized_attention)
+      if (attention && !return_normalized_attention) {
+        ops::SoftMax()(output, values_lengths, attn);
         save_attention(*attention, std::move(output), beam_size);
+      } else {
+        attn = std::move(output);
+        ops::SoftMax()(attn, values_lengths, attn);
+      }
 
       const ops::MatMul values_matmul;
       values_matmul(attn, values, output);
