@@ -67,6 +67,7 @@ namespace ctranslate2 {
     template <CpuIsa ISA>
     void softmax(const float* input,
                  const int32_t* lengths,
+                 const int32_t* offsets,
                  float* output,
                  dim_t batch_size,
                  dim_t depth,

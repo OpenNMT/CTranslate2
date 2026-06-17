@@ -265,7 +265,7 @@ namespace ctranslate2 {
         alibi->apply(output, queries_scale);
 
       StorageView attn(values.dtype(), values.device());
-      ops::SoftMax()(output, values_lengths, attn);
+      ops::SoftMax()(output, values_lengths, nullptr, attn);
 
       if (attention && !return_normalized_attention)
         save_attention(*attention, std::move(output), beam_size);
