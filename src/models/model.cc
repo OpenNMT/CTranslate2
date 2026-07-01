@@ -81,7 +81,7 @@ namespace ctranslate2 {
     std::string consume(std::istream& in) {
       const auto str_length = consume<uint16_t>(in);
       const auto c_str = consume<char>(in, str_length);
-      std::string str(c_str);
+      std::string str(c_str, str_length);
       delete [] c_str;
       return str;
     }
