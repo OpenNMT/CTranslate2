@@ -80,8 +80,10 @@ namespace ctranslate2 {
     template<>
     std::string consume(std::istream& in) {
       const auto str_length = consume<uint16_t>(in);
+      if (str_length == 0)
+        throw std::runtime_error("Invalid string length in " + binary_file);
       const auto c_str = consume<char>(in, str_length);
-      std::string str(c_str, str_length);
+      std::string str(c_str, str_length - 1);
       delete [] c_str;
       return str;
     }
