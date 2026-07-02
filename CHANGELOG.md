@@ -4,7 +4,7 @@
 
 ### Fixes and improvements
 
-## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.0) (2026-07-02)
+## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
 
 ### New features
 
