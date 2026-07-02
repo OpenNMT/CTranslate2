@@ -654,7 +654,7 @@ namespace ctranslate2 {
         }
 
         StorageView variable(std::move(shape), dtype);
-        if (num_bytes != variable.size_in_bytes())
+        if (num_bytes != variable.size() * variable.item_size())
           throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
         consume<char>(model_file, num_bytes, static_cast<char*>(variable.buffer()));
         if (tensor_parallel) {
