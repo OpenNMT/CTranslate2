@@ -13,16 +13,23 @@ namespace ctranslate2 {
     void MedianFilter::compute(const StorageView& input,
                        const dim_t axis_size,
                        StorageView& output) const {
+      const dim_t depth = axis_size;
+      const dim_t rank = _width / 2;
+
+      // Guard before dividing by depth: a zero-size axis (e.g. Whisper align()
+      // with num_frames < 2, halved to 0 by the encoder stride) would make
+      // input.size() / depth an integer division by zero — a native crash,
+      // not a catchable exception. Pass the input through like the GPU path.
+      if (depth <= rank) {
+        if (&output != &input)
+          output.copy_from(input);
+        return;
+      }
+
       const auto* src = input.data<T>();
       auto* dst = output.data<T>();
 
-
-      const dim_t depth = axis_size;
       const dim_t batch_size = input.size() / depth;
-      const dim_t rank = _width / 2;
-
-      if (depth <= rank)
-        return;
 
       cpu::parallel_for(0, batch_size, 1, [&](dim_t begin, dim_t end) {
         StorageView window_storage({_width}, DataType::FLOAT32);
