@@ -1,10 +1,15 @@
 # Security Policy
 
+## Supported Versions
+
+Security fixes are provided for the latest release series only.
+
 ## Reporting a Vulnerability
 
-Please report security vulnerabilities privately using GitHub's vulnerability reporting feature.
 
 Do not open public issues for security vulnerabilities.
+
+Please report security vulnerabilities privately to Jordi Mas <jmas@softcatala.org>.
 
 ## What to Include in Your Report
 
@@ -12,7 +17,7 @@ To help us triage effectively, please include:
 
 - **Severity assessment**: Critical / High / Medium / Low, with a short justification.
 - **Impact**: what an attacker can achieve (RCE, information disclosure, DoS, etc.).
-- **Reproduction steps** and a **working proof of concept** that demonstrates the issue end-to-end. Reports without a working PoC may be deprioritized or closed pending one.
+- **Reproduction steps** with enough detail for maintainers to understand and validate the issue.
 
 ## Response SLA
 
