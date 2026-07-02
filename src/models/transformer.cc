@@ -49,7 +49,7 @@ namespace ctranslate2 {
     bool TransformerModel::is_packable(const std::string& variable_name) const {
       // Disallow packing for the last linear layer if it can be dynamically masked.
       return (is_linear_weight(variable_name)
-              && (!get_vocabulary_map() || variable_name.find("projection") == std::string::npos));
+              && variable_name.find("projection") == std::string::npos);
     }
 
     void TransformerModel::register_variable(std::string name, StorageView variable) {
