@@ -4,8 +4,19 @@
 
 ### Fixes and improvements
 
-* Fix memory-safety issues in the model loader (#2068) by [@jordimas](https://github.com/jordimas), reported by Chegne Eu Joe (Project Umbra)
-* Upgrade Thrust submodule from 1.12.0 to CCCL 2.7.0 (#2062) by [@jordimas](https://github.com/jordimas)
+## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
+
+### New features
+
+* Support for Gemma4 12B dense model (#2060) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Harden legacy converter checkpoint loading (#2036) by [@igorsantosgrueiro](https://github.com/igorsantosgrueiro)
+* Fix model load heap overflow (#2068) by [@jordimas](https://github.com/jordimas), reported by Chegne Eu Joe (Project Umbra)
+* Fix process-killing integer division by zero when Whisper align() gets a window with no frames (#2065) by [@MAkcanca](https://github.com/MAkcanca)
+* CI/CD compilation fixes for Windows (#2069) by [@jordimas](https://github.com/jordimas)
+* Optimize attention softmax buffer reuse (#2066) by [@jordimas](https://github.com/jordimas)
 
 ## [v4.8.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.0) (2026-06-06)
 
@@ -16,6 +27,7 @@
 
 ### Fixes and improvements
 
+* Upgrade Thrust submodule from 1.12.0 to CCCL 2.7.0 (#2062) by [@jordimas](https://github.com/jordimas)
 * Adopt latest BS_thread_pool library version v5.1.0 (#2053) by [@3manifold](https://github.com/3manifold)
 * Upgrade CI system dependencies and reduce build time (#2056) by [@jordimas](https://github.com/jordimas)
 * Fix PyPI publish: download wheels to dist/ to avoid directory hash error (#2050) by [@jordimas](https://github.com/jordimas)
