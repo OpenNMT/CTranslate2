@@ -1,10 +1,11 @@
 #include "ctranslate2/ops/flash_attention.h"
-#ifdef CT2_WITH_FLASH_ATTN
+#if defined(CT2_WITH_FLASH_ATTN) && !defined(CT2_USE_HIP)
 #include "ctranslate2/ops/flash-attention/flash.h"
 #include "ctranslate2/ops/flash-attention/static_switch.h"
 #endif
 #include "ctranslate2/ops/transpose.h"
 #include "cuda/utils.h"
+#include "cuda/helpers.h"
 
 #include "dispatch.h"
 
@@ -14,6 +15,9 @@
 
 namespace ctranslate2 {
   namespace ops {
+
+#ifndef CT2_USE_HIP  // CUDA-only: CUTLASS/CuTe Flash Attention kernels
+
 #ifdef CT2_WITH_FLASH_ATTN
     static void set_params_fprop(Flash_fwd_params &params,
       // sizes
@@ -364,5 +368,1097 @@ namespace ctranslate2 {
       throw std::runtime_error("Flash attention 2 is not supported");
 #endif
     }
-  }
-}
+
+#else  // CT2_USE_HIP — native HIP Flash Attention implementation
+
+// ---------------------------------------------------------------------------
+// HIP Flash Attention — native implementation for AMD GPUs (gfx1100 / RDNA3+)
+//
+// Four code paths.  The dispatcher (flash_attention_hip_impl, below) picks
+// the most efficient one that matches the input shape and dtype:
+//
+//   Path           Used when                            FP-paths    LDS S?
+//   ─────────────────────────────────────────────────────────────────────────
+//   WMMA           seqlen_q >= 16, D % 16 == 0,         fp16, bf16  no
+//                  D in {64, 128}, RDNA3+ (gfx11)
+//   Decode         seqlen_q == 1, D in {64, 128},       fp16, bf16  fits in
+//                  seqlen_k fits in LDS                              LDS
+//   Tiled (scalar) seqlen_q >= 64 (BM), D in {64,80,128} fp16, bf16  no
+//                  (covers BF16 and head_dim=80 where WMMA isn't built)
+//   3-pass         everything else                      fp16, bf16  materialised
+//                  (also serves as correctness oracle)
+//
+// All paths use the same [batch, seqlen, nheads, head_dim] memory layout
+// and FP32 accumulators.  Q and K/V come from the layer split-heads in
+// that shape; the KV-cache (cached_keys, cached_values) shares the same
+// layout but with a larger second-dim allocation (cache_size >= offset +
+// seqlen_new) to amortise the cost of growing it.
+//
+// Limitations:
+//   - Inference only — no backward pass.
+//   - Rotary embeddings and ALiBi must be pre-applied by the layer.
+//   - WMMA path is FP16+BF16 only and gfx11+ (uses the wave32 16x16x16
+//     WMMA built-in).
+// ---------------------------------------------------------------------------
+
+
+    // -------------------------------------------------------------------
+    // Kernel 0 — KV-cache write
+    // Copies new_kv[b, t, h, d] → cache[b, write_offset+t, h, d].
+    // Grid:  (seqlen_new, nheads, batch)
+    // Block: (head_dim, 1, 1)
+    // -------------------------------------------------------------------
+    template <typename scalar_t>
+    __global__ void hip_kv_cache_write_kernel(
+        const scalar_t* __restrict__ new_kv,  // [batch, seqlen_new, nheads, head_dim]
+        scalar_t*       __restrict__ cache,   // [batch, cache_size, nheads, head_dim]
+        const int seqlen_new,
+        const int cache_size,
+        const int nheads,
+        const int head_dim,
+        const int write_offset)
+    {
+      const int b = blockIdx.z;
+      const int t = blockIdx.y;
+      const int h = blockIdx.x;
+      const int d = threadIdx.x;
+      if (d >= head_dim) return;
+
+      const int src = b * seqlen_new * nheads * head_dim + t * nheads * head_dim + h * head_dim + d;
+      const int dst = b * cache_size  * nheads * head_dim
+                    + (write_offset + t) * nheads * head_dim + h * head_dim + d;
+      cache[dst] = new_kv[src];
+    }
+
+    // -------------------------------------------------------------------
+    // Kernel 1 — Q @ K^T
+    // Grid:  (ceildiv(seqlen_q * seqlen_k, 256), nheads, batch)
+    // Block: (256, 1, 1)
+    // Each thread computes one element of S[b, h, q, k].
+    //
+    // k_time_stride: stride (in elements) between consecutive K time steps
+    //   within one batch.  For a K tensor of shape [batch, K_seqlen, nheads, head_dim]
+    //   this equals K_seqlen * nheads * head_dim.  When K is a view into a
+    //   larger KV-cache buffer the allocation seqlen may differ from the
+    //   logically active seqlen, so the stride must be passed explicitly.
+    // -------------------------------------------------------------------
+    template <typename scalar_t>
+    __global__ void hip_attn_qk_kernel(
+        const scalar_t* __restrict__ Q,  // [batch, seqlen_q, nheads, head_dim]
+        const scalar_t* __restrict__ K,  // [batch, K_alloc, nheads, head_dim]
+        float*          __restrict__ S,  // [batch, nheads, seqlen_q, seqlen_k]
+        const int seqlen_q,
+        const int seqlen_k,
+        const int k_time_stride,         // K_alloc * nheads * head_dim
+        const int nheads,
+        const int head_dim,
+        const float scale)
+    {
+      const int b   = blockIdx.z;
+      const int h   = blockIdx.y;
+      const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+      const int q   = idx / seqlen_k;
+      const int k   = idx % seqlen_k;
+      if (q >= seqlen_q) return;
+
+      float dot = 0.f;
+      const int q_base = b * seqlen_q * nheads * head_dim + q * nheads * head_dim + h * head_dim;
+      const int k_base = b * k_time_stride               + k * nheads * head_dim + h * head_dim;
+      for (int d = 0; d < head_dim; ++d)
+        dot += static_cast<float>(Q[q_base + d]) * static_cast<float>(K[k_base + d]);
+
+      S[b * nheads * seqlen_q * seqlen_k + h * seqlen_q * seqlen_k + q * seqlen_k + k] =
+          dot * scale;
+    }
+
+    // -------------------------------------------------------------------
+    // Kernel 2 — row-wise softmax with optional causal mask
+    // Grid:  (seqlen_q, nheads, batch)
+    // Block: next-power-of-2 up to min(seqlen_k, 256)
+    //
+    // The block size MUST be a power of two: the per-row max/sum tree
+    // reduction (`for (s = blockDim.x >> 1; s > 0; s >>= 1)`) drops
+    // elements at odd boundaries otherwise.  Extra threads beyond
+    // seqlen_k contribute identity values (-1e9 for max, 0 for sum) and
+    // are harmless.  See commit d9016a58 — the bug this caught caused
+    // generate() to always emit token 50411 because the 3-token prompt
+    // prefill ran the reduction with blockDim.x = 3.
+    // -------------------------------------------------------------------
+    __global__ void hip_attn_softmax_kernel(
+        float* __restrict__ S,       // [batch, nheads, seqlen_q, seqlen_k] — modified in place
+        const int nheads,
+        const int seqlen_q,
+        const int seqlen_k,
+        const bool is_causal,
+        const int q_offset)          // position of q[0] in the full sequence (for KV-cache)
+    {
+      const int b = blockIdx.z;
+      const int h = blockIdx.y;
+      const int q = blockIdx.x;
+
+      float* row = S + (b * nheads + h) * seqlen_q * seqlen_k + q * seqlen_k;
+
+      extern __shared__ float smem[];  // [blockDim.x] for reduction
+
+      // --- apply causal mask ---
+      const int q_pos = q + q_offset;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x)
+        if (is_causal && k > q_pos) row[k] = -1e9f;
+      __syncthreads();
+
+      // --- find row max ---
+      float local_max = -1e9f;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x)
+        local_max = fmaxf(local_max, row[k]);
+      smem[threadIdx.x] = local_max;
+      __syncthreads();
+      for (int s = blockDim.x >> 1; s > 0; s >>= 1) {
+        if (threadIdx.x < s) smem[threadIdx.x] = fmaxf(smem[threadIdx.x], smem[threadIdx.x + s]);
+        __syncthreads();
+      }
+      const float row_max = smem[0];
+      __syncthreads();
+
+      // --- exp and row sum ---
+      float local_sum = 0.f;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x) {
+        const float e = expf(row[k] - row_max);
+        row[k] = e;
+        local_sum += e;
+      }
+      smem[threadIdx.x] = local_sum;
+      __syncthreads();
+      for (int s = blockDim.x >> 1; s > 0; s >>= 1) {
+        if (threadIdx.x < s) smem[threadIdx.x] += smem[threadIdx.x + s];
+        __syncthreads();
+      }
+      const float row_sum = smem[0];
+      __syncthreads();
+
+      // --- normalise ---
+      const float inv_sum = (row_sum > 0.f) ? 1.f / row_sum : 0.f;
+      for (int k = threadIdx.x; k < seqlen_k; k += blockDim.x)
+        row[k] *= inv_sum;
+    }
+
+    // -------------------------------------------------------------------
+    // Kernel 3 — O = P @ V
+    // Grid:  (seqlen_q, nheads, batch)
+    // Block: (head_dim, 1, 1)   — head_dim <= 1024
+    // Each thread accumulates one output channel O[b, q, h, d].
+    //
+    // v_time_stride: same concept as k_time_stride in Kernel 1.
+    // -------------------------------------------------------------------
+    template <typename scalar_t>
+    __global__ void hip_attn_ov_kernel(
+        const float*    __restrict__ P,  // [batch, nheads, seqlen_q, seqlen_k]
+        const scalar_t* __restrict__ V,  // [batch, V_alloc, nheads, head_dim]
+        scalar_t*       __restrict__ O,  // [batch, seqlen_q, nheads, head_dim]
+        const int seqlen_k,
+        const int v_time_stride,         // V_alloc * nheads * head_dim
+        const int nheads,
+        const int head_dim)
+    {
+      const int b = blockIdx.z;
+      const int h = blockIdx.y;
+      const int q = blockIdx.x;
+      const int d = threadIdx.x;
+      if (d >= head_dim) return;
+
+      const int seqlen_q = gridDim.x;
+      const float* p_row =
+          P + b * nheads * seqlen_q * seqlen_k + h * seqlen_q * seqlen_k + q * seqlen_k;
+
+      float out = 0.f;
+      for (int k = 0; k < seqlen_k; ++k)
+        out += p_row[k] *
+               static_cast<float>(V[b * v_time_stride + k * nheads * head_dim + h * head_dim + d]);
+
+      O[b * seqlen_q * nheads * head_dim + q * nheads * head_dim + h * head_dim + d] =
+          static_cast<scalar_t>(out);
+    }
+
+#if defined(__gfx1100__) || defined(__gfx1101__) || defined(__gfx1102__) || defined(__gfx1103__) || !defined(__HIP_DEVICE_COMPILE__)
+    // -------------------------------------------------------------------
+    // RDNA3 WMMA Flash Attention forward kernel — FP16 only.
+    //
+    // Uses the wave32 16x16x16 fp16-input/fp32-accumulator WMMA built-in
+    // (__builtin_amdgcn_wmma_f32_16x16x16_f16_w32) for Q·K^T and P·V.
+    // Other paths in this file (3-pass / scalar tiled) remain for BF16,
+    // for non-multiple-of-16 head dimensions, and as the correctness oracle.
+    //
+    // Layout (wave32, RDNA3 — verified empirically via wmma_probe.cu):
+    //   A-fragment (16x16 fp16, row-major): each lane holds one full row
+    //     a_frag[j] = A[lane % 16, j],  for j = 0..15
+    //     (Lanes 16..31 carry a duplicate of rows 0..15.)
+    //   B-fragment (16x16 fp16, col-major): each lane holds one full column
+    //     b_frag[i] = B[i, lane % 16],  for i = 0..15
+    //   C-fragment (16x16 fp32, accumulator): each lane holds 8 elements
+    //     c_frag[s] = C[2*s + (lane >> 4), lane % 16],  for s = 0..7
+    //     (Lanes 0..15 hold even rows, lanes 16..31 hold odd rows.)
+    //
+    // S = Q · K^T  is mapped to D = A · B with:
+    //   A[i][k] = Q[i][k]                (Q tile, row-major in LDS)
+    //   B[k][j] = K[j][k]                (K tile transposed view)
+    //
+    // Block layout:
+    //   grid: (ceildiv(seqlen_q, BM), nheads, batch_size)
+    //   block: 32 threads (one wave32)
+    //   BM = 16 query rows per block,  BN = 16 key tokens per K/V tile
+    //
+    // LDS per block (D = 64):
+    //   q_lds[BM][D]    fp16  — Q tile, scaled by softmax-scale on load
+    //   k_lds[BN][D]    fp16  — current K tile
+    //   v_lds[BN][D]    fp16  — current V tile
+    //   p_lds[BM][BN]   fp16  — softmaxed S (used as A-fragment for P·V)
+    //   s_scratch[BM][BN] fp32 — temporary S before softmax
+    //   m_lds[BM]       fp32  — running max per query row
+    //   l_lds[BM]       fp32  — running sum (denominator) per query row
+    //   alpha_lds[BM]   fp32  — softmax correction factor per row
+    //   Total ≈ 18 KiB / block, well within the 64 KiB budget.
+    //
+    // O is held entirely in registers as `o_frag[D/16]` (4 v8f32 fragments
+    // for D = 64) per lane.  Each fragment covers a 16-column slice of O.
+    // -------------------------------------------------------------------
+    // HalfT is the wave-level fp16/bf16 element type and determines which
+    // WMMA built-in we dispatch (f16 vs bf16).  Both variants share the
+    // same wave32 accumulator-fragment layout on RDNA3.
+    template <typename HalfT, int D>
+    __global__ void hip_flash_attn_wmma_fp16(
+        const HalfT* __restrict__ Q,
+        const HalfT* __restrict__ K,
+        const HalfT* __restrict__ V,
+        HalfT*       __restrict__ O,
+        const int seqlen_q,
+        const int seqlen_k,
+        const int k_time_stride,
+        const int v_time_stride,
+        const int nheads,
+        const float scale,
+        const bool is_causal,
+        const int q_offset)
+    {
+      static_assert(D % 16 == 0, "head_dim must be a multiple of 16 for WMMA");
+      constexpr int BM = 16;
+      constexpr int BN = 16;
+      constexpr int DT = D / 16;  // number of D-tiles
+
+      using v16f16 = HalfT __attribute__((ext_vector_type(16)));
+      using v8f32  = float __attribute__((ext_vector_type(8)));
+
+      const int lane     = threadIdx.x;       // 0..31
+      const int b        = blockIdx.z;
+      const int h        = blockIdx.y;
+      const int q_tile   = blockIdx.x;
+      const int q_row_0  = q_tile * BM;
+
+      __shared__ HalfT q_lds[BM][D];
+      __shared__ HalfT k_lds[BN][D];
+      __shared__ HalfT v_lds[BN][D];
+      __shared__ HalfT p_lds[BM][BN];
+      __shared__ float s_scratch[BM][BN];
+      __shared__ float m_lds[BM];
+      __shared__ float l_lds[BM];
+      __shared__ float alpha_lds[BM];
+
+      // ---- Load Q tile, pre-scaled (so S = Q·K^T already has softmax-scale) ----
+      for (int idx = lane; idx < BM * D; idx += 32) {
+        const int row = idx / D;
+        const int col = idx % D;
+        const int q_row = q_row_0 + row;
+        float v = 0.f;
+        if (q_row < seqlen_q)
+          v = static_cast<float>(Q[b * seqlen_q * nheads * D
+                                   + q_row * nheads * D + h * D + col]) * scale;
+        q_lds[row][col] = static_cast<HalfT>(v);
+      }
+
+      // ---- Initialise running state and output accumulators ----
+      if (lane < BM) {
+        m_lds[lane] = -1e30f;
+        l_lds[lane] = 0.f;
+      }
+      v8f32 o_frag[DT];
+      #pragma unroll
+      for (int t = 0; t < DT; ++t)
+        #pragma unroll
+        for (int s = 0; s < 8; ++s) o_frag[t][s] = 0.f;
+
+      __syncthreads();
+
+      // ---- Iterate over K/V tiles ----
+      const int num_k_tiles = (seqlen_k + BN - 1) / BN;
+      for (int kt = 0; kt < num_k_tiles; ++kt) {
+        const int k_row_0 = kt * BN;
+
+        // -- Load K and V tiles --
+        for (int idx = lane; idx < BN * D; idx += 32) {
+          const int row = idx / D;
+          const int col = idx % D;
+          const int k_row = k_row_0 + row;
+          HalfT kv_k = static_cast<HalfT>(0);
+          HalfT kv_v = static_cast<HalfT>(0);
+          if (k_row < seqlen_k) {
+            kv_k = K[b * k_time_stride + k_row * nheads * D + h * D + col];
+            kv_v = V[b * v_time_stride + k_row * nheads * D + h * D + col];
+          }
+          k_lds[row][col] = kv_k;
+          v_lds[row][col] = kv_v;
+        }
+        __syncthreads();
+
+        // -- Compute S[BM=16][BN=16] = Q · K^T using WMMA --
+        v8f32 s_frag;
+        #pragma unroll
+        for (int s = 0; s < 8; ++s) s_frag[s] = 0.f;
+
+        // Inner reduction over D in 16-element chunks.
+        // A (Q row, row-major): a_frag[j] = q_lds[lane & 15][inner*16 + j]
+        // B (K transposed, col-major): b_frag[i] = k_lds[lane & 15][inner*16 + i]
+        // (col-major B's column index = lane mod 16, mapping to the K row j;
+        //  inner reduction index k maps to the D-position within the chunk.)
+        #pragma unroll
+        for (int inner = 0; inner < DT; ++inner) {
+          v16f16 a_frag, b_frag;
+          const int a_row = lane & 15;
+          const int b_col = lane & 15;
+          #pragma unroll
+          for (int x = 0; x < 16; ++x) {
+            a_frag[x] = q_lds[a_row][inner * 16 + x];
+            b_frag[x] = k_lds[b_col][inner * 16 + x];
+          }
+          if constexpr (std::is_same<HalfT, _Float16>::value)
+            s_frag = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a_frag, b_frag, s_frag);
+          else
+            s_frag = __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32(a_frag, b_frag, s_frag);
+        }
+
+        // -- Write S to LDS with causal/OOB masking baked in --
+        {
+          const int s_col = lane & 15;
+          const int k_col_g = k_row_0 + s_col;
+          #pragma unroll
+          for (int s = 0; s < 8; ++s) {
+            const int s_row = 2 * s + (lane >> 4);
+            const int q_row_g = q_row_0 + s_row;
+            const int q_pos   = q_row_g + q_offset;
+            const bool oob    = (k_col_g >= seqlen_k) || (q_row_g >= seqlen_q);
+            const bool masked = is_causal && k_col_g > q_pos;
+            s_scratch[s_row][s_col] = (oob || masked) ? -1e30f : s_frag[s];
+          }
+        }
+        __syncthreads();
+
+        // -- Per-row softmax + online update (one thread per row, 16 rows / 32 threads) --
+        if (lane < BM) {
+          const int row = lane;
+          const float m_old = m_lds[row];
+          const float l_old = l_lds[row];
+
+          float m_tile = -1e30f;
+          #pragma unroll
+          for (int c = 0; c < BN; ++c)
+            m_tile = fmaxf(m_tile, s_scratch[row][c]);
+
+          const float m_new = fmaxf(m_old, m_tile);
+          const float alpha = (m_old == -1e30f) ? 0.f : __expf(m_old - m_new);
+
+          float l_tile = 0.f;
+          #pragma unroll
+          for (int c = 0; c < BN; ++c) {
+            const float v = s_scratch[row][c];
+            const float e = (v <= -1e29f) ? 0.f : __expf(v - m_new);
+            p_lds[row][c] = static_cast<HalfT>(e);  // P for the P·V WMMA
+            l_tile += e;
+          }
+
+          m_lds[row]     = m_new;
+          l_lds[row]     = alpha * l_old + l_tile;
+          alpha_lds[row] = alpha;
+        }
+        __syncthreads();
+
+        // -- Scale o_frag by per-row alpha --
+        {
+          #pragma unroll
+          for (int t = 0; t < DT; ++t) {
+            #pragma unroll
+            for (int s = 0; s < 8; ++s) {
+              const int o_row = 2 * s + (lane >> 4);
+              o_frag[t][s] *= alpha_lds[o_row];
+            }
+          }
+        }
+
+        // -- Compute O += P · V using WMMA (one V-N-tile per D-tile of O) --
+        // A (P, row-major):  a_frag[j] = p_lds[lane & 15][j]      (one row of P)
+        // B (V, col-major):  b_frag[i] = v_lds[i][t*16 + lane&15] (column t*16+col of V)
+        // Inner reduction goes over BN = 16 (the K-token dimension), in one step.
+        {
+          v16f16 a_frag;
+          const int a_row = lane & 15;
+          #pragma unroll
+          for (int x = 0; x < 16; ++x)
+            a_frag[x] = p_lds[a_row][x];
+
+          #pragma unroll
+          for (int t = 0; t < DT; ++t) {
+            v16f16 b_frag;
+            const int b_col = lane & 15;
+            #pragma unroll
+            for (int i = 0; i < 16; ++i)
+              b_frag[i] = v_lds[i][t * 16 + b_col];
+
+            if constexpr (std::is_same<HalfT, _Float16>::value)
+              o_frag[t] = __builtin_amdgcn_wmma_f32_16x16x16_f16_w32(a_frag, b_frag, o_frag[t]);
+            else
+              o_frag[t] = __builtin_amdgcn_wmma_f32_16x16x16_bf16_w32(a_frag, b_frag, o_frag[t]);
+          }
+        }
+        __syncthreads();
+      }
+
+      // ---- Normalise and store O ----
+      if (lane < BM)
+        alpha_lds[lane] = (l_lds[lane] > 0.f) ? 1.f / l_lds[lane] : 0.f;  // reuse alpha_lds as inv_l
+      __syncthreads();
+
+      #pragma unroll
+      for (int t = 0; t < DT; ++t) {
+        const int o_col_base = t * 16 + (lane & 15);
+        #pragma unroll
+        for (int s = 0; s < 8; ++s) {
+          const int o_row = 2 * s + (lane >> 4);
+          const int q_row_g = q_row_0 + o_row;
+          if (q_row_g < seqlen_q && o_col_base < D) {
+            const float val = o_frag[t][s] * alpha_lds[o_row];
+            O[b * seqlen_q * nheads * D + q_row_g * nheads * D + h * D + o_col_base]
+                = static_cast<HalfT>(val);
+          }
+        }
+      }
+    }
+#endif  // gfx11
+
+    // -------------------------------------------------------------------
+    // Tiled fused forward attention (Flash Attention 2 algorithm)
+    //
+    // Each grid block processes BM contiguous query rows of one (batch, head).
+    //   Grid:  (ceildiv(seqlen_q, BM), nheads, batch)
+    //   Block: (BM, 1, 1)        — one thread per query row.
+    //
+    // Per-thread state (kept in registers, never spilled to HBM):
+    //   q_reg[D]   : the thread's Q row, FP32
+    //   acc[D]     : running output accumulator, FP32
+    //   m_i, l_i   : running max / normaliser of the online softmax
+    //
+    // Per-block shared memory:
+    //   s_k[BN][D] : current K tile
+    //   s_v[BN][D] : current V tile
+    //   (BM threads cooperatively load BN·D elements per tile.)
+    //
+    // For every K/V tile we compute s_tile[BN] = q · k_t  for the local Q row,
+    // apply the bounds + causal mask, then perform the standard online-softmax
+    // update of (m_i, l_i, acc).  After all tiles we divide the accumulator
+    // by l_i and store it back to HBM.
+    //
+    // Template parameters allow the compiler to fully unroll the inner D loops
+    // and to keep q_reg/acc entirely in registers.  Supported D values are
+    // currently 64, 80, 128 (covering Whisper / common transformer heads).
+    // -------------------------------------------------------------------
+    template <typename scalar_t, int BM, int BN, int D>
+    __global__ void hip_flash_attn_fwd_tiled(
+        const scalar_t* __restrict__ Q,  // [batch, seqlen_q, nheads, D]
+        const scalar_t* __restrict__ K,  // [batch, K_alloc,  nheads, D]
+        const scalar_t* __restrict__ V,  // [batch, V_alloc,  nheads, D]
+        scalar_t*       __restrict__ O,  // [batch, seqlen_q, nheads, D]
+        const int seqlen_q,
+        const int seqlen_k,
+        const int k_time_stride,         // K_alloc * nheads * D (batch stride)
+        const int v_time_stride,         // V_alloc * nheads * D
+        const int nheads,
+        const float scale,
+        const bool is_causal,
+        const int q_offset)              // absolute position of q[0]
+    {
+      const int b       = blockIdx.z;
+      const int h       = blockIdx.y;
+      const int q_tile  = blockIdx.x;
+      const int tid     = threadIdx.x;          // 0 .. BM-1
+      const int q       = q_tile * BM + tid;    // global query row
+
+      __shared__ scalar_t s_k[BN][D];
+      __shared__ scalar_t s_v[BN][D];
+
+      // -- Load this thread's Q row into registers (FP32, scaled once) --
+      float q_reg[D];
+      const bool q_valid = (q < seqlen_q);
+      if (q_valid) {
+        const int q_base = b * seqlen_q * nheads * D + q * nheads * D + h * D;
+        #pragma unroll
+        for (int d = 0; d < D; ++d)
+          q_reg[d] = static_cast<float>(Q[q_base + d]) * scale;
+      } else {
+        #pragma unroll
+        for (int d = 0; d < D; ++d) q_reg[d] = 0.f;
+      }
+
+      // -- Online softmax state --
+      float m_i = -1e30f;
+      float l_i = 0.f;
+      float acc[D];
+      #pragma unroll
+      for (int d = 0; d < D; ++d) acc[d] = 0.f;
+
+      const int num_tiles = (seqlen_k + BN - 1) / BN;
+      const int q_pos     = q + q_offset;
+
+      for (int t = 0; t < num_tiles; ++t) {
+        const int k_start = t * BN;
+
+        // -- Cooperatively load K and V tiles into LDS --
+        //    BM threads load BN*D elements each (== BN*D / BM per thread).
+        for (int idx = tid; idx < BN * D; idx += BM) {
+          const int kk = idx / D;
+          const int dd = idx % D;
+          const int kpos = k_start + kk;
+          if (kpos < seqlen_k) {
+            const int k_base = b * k_time_stride + kpos * nheads * D + h * D;
+            const int v_base = b * v_time_stride + kpos * nheads * D + h * D;
+            s_k[kk][dd] = K[k_base + dd];
+            s_v[kk][dd] = V[v_base + dd];
+          } else {
+            s_k[kk][dd] = static_cast<scalar_t>(0);
+            s_v[kk][dd] = static_cast<scalar_t>(0);
+          }
+        }
+        __syncthreads();
+
+        if (q_valid) {
+          // -- s_tile[kk] = q · k_t, with bounds + causal mask --
+          float s_tile[BN];
+          float m_tile = -1e30f;
+          #pragma unroll
+          for (int kk = 0; kk < BN; ++kk) {
+            const int kpos = k_start + kk;
+            const bool oob    = kpos >= seqlen_k;
+            const bool masked = is_causal && kpos > q_pos;
+            if (oob || masked) {
+              s_tile[kk] = -1e30f;
+            } else {
+              float dot = 0.f;
+              #pragma unroll
+              for (int d = 0; d < D; ++d)
+                dot += q_reg[d] * static_cast<float>(s_k[kk][d]);
+              s_tile[kk] = dot;
+              if (dot > m_tile) m_tile = dot;
+            }
+          }
+
+          // -- Online softmax update --
+          const float m_new = fmaxf(m_i, m_tile);
+          const float alpha = (m_i == -1e30f) ? 0.f : __expf(m_i - m_new);
+
+          float l_tile = 0.f;
+          #pragma unroll
+          for (int kk = 0; kk < BN; ++kk) {
+            // exp(-inf - finite) == 0, but __expf is undefined for -inf
+            // on some HIP targets, so guard explicitly.
+            float e = (s_tile[kk] <= -1e29f) ? 0.f : __expf(s_tile[kk] - m_new);
+            s_tile[kk] = e;
+            l_tile += e;
+          }
+
+          // acc = alpha * acc + s_tile @ V_tile
+          #pragma unroll
+          for (int d = 0; d < D; ++d) {
+            float a = alpha * acc[d];
+            #pragma unroll
+            for (int kk = 0; kk < BN; ++kk)
+              a += s_tile[kk] * static_cast<float>(s_v[kk][d]);
+            acc[d] = a;
+          }
+          l_i = alpha * l_i + l_tile;
+          m_i = m_new;
+        }
+        __syncthreads();
+      }
+
+      // -- Final normalisation and store --
+      if (q_valid) {
+        const float inv_l = (l_i > 0.f) ? 1.f / l_i : 0.f;
+        const int o_base = b * seqlen_q * nheads * D + q * nheads * D + h * D;
+        #pragma unroll
+        for (int d = 0; d < D; ++d)
+          O[o_base + d] = static_cast<scalar_t>(acc[d] * inv_l);
+      }
+    }
+
+    // -------------------------------------------------------------------
+    // Decode-optimised kernel (seqlen_q == 1)
+    //
+    // The tiled forward kernel above uses one thread per Q row.  During
+    // autoregressive generation seqlen_q == 1, so that design would leave
+    // BM-1 of BM threads idle.  This kernel inverts the parallelisation:
+    // a single block handles one (batch, head), and the threads cooperate
+    // along the K dimension instead.
+    //
+    // Grid:  (1, nheads, batch)
+    // Block: BLOCK threads (BLOCK >= D, both powers of two)
+    //
+    // Phase 1  Compute all seqlen_k scores S[k] = Q . K[k]  (each thread
+    //          handles k = tid, tid+BLOCK, …) and stash them in LDS.
+    // Phase 2  Block-wide tree reduction for row max → exp(S - max) → sum.
+    // Phase 3  Output: thread tid (tid < D) accumulates one channel
+    //          O[d] = Σ_k P[k] · V[k][d] / sum.  V[k][.] is loaded with
+    //          the natural [k, d] memory layout, so the BLOCK threads
+    //          read coalesced D-wide vectors per k.
+    //
+    // LDS layout (one dynamic shared array; scratch is reused across
+    // phases — reduce buffer in phase 2, V-tile in phase 3):
+    //   [0           .. D)                      q_lds   (FP32 scaled Q)
+    //   [D           .. D+seqlen_k)             s_lds   (FP32 scores)
+    //   [D+seqlen_k  .. +max(BLOCK, V_TILE*D))  scratch
+    //
+    // V_TILE controls Phase-3 V-tiling: instead of every output channel
+    // streaming all seqlen_k V values from HBM with no reuse, the BLOCK
+    // threads cooperatively stage a V_TILE-wide slab of V into LDS once,
+    // then the D output-channel threads accumulate against the cached
+    // tile.  HBM reads for V drop by ~BLOCK/D for that phase.
+    //
+    // gfx1100 LDS budget is 64 KiB.  For D=64, BLOCK=64, V_TILE=64 the
+    // scratch region is 64*64*4 = 16 KiB, so seqlen_k can reach ~12 k.
+    // -------------------------------------------------------------------
+    template <typename scalar_t, int BLOCK, int D, int V_TILE>
+    __global__ void hip_flash_decode_kernel(
+        const scalar_t* __restrict__ Q,  // [batch, 1,        nheads, D]
+        const scalar_t* __restrict__ K,  // [batch, K_alloc,  nheads, D]
+        const scalar_t* __restrict__ V,  // [batch, V_alloc,  nheads, D]
+        scalar_t*       __restrict__ O,  // [batch, 1,        nheads, D]
+        const int seqlen_k,
+        const int k_time_stride,
+        const int v_time_stride,
+        const int nheads,
+        const float scale,
+        const bool is_causal,
+        const int q_offset)
+    {
+      const int b   = blockIdx.z;
+      const int h   = blockIdx.y;
+      const int tid = threadIdx.x;
+
+      extern __shared__ float smem[];
+      float* q_lds   = smem;                       // D floats
+      float* s_lds   = smem + D;                   // seqlen_k floats
+      float* scratch = s_lds + seqlen_k;           // reduce_buf OR v_tile
+
+      // ---- Load Q (FP32, scaled once) into LDS ----
+      for (int d = tid; d < D; d += BLOCK)
+        q_lds[d] = static_cast<float>(Q[b * nheads * D + h * D + d]) * scale;
+      __syncthreads();
+
+      // ---- Phase 1: S[k] = q · k_t  (+ causal mask) ----
+      const int q_pos = q_offset;  // seqlen_q == 1, so q_pos == offset
+      for (int k = tid; k < seqlen_k; k += BLOCK) {
+        if (is_causal && k > q_pos) {
+          s_lds[k] = -1e30f;
+          continue;
+        }
+        const int k_base = b * k_time_stride + k * nheads * D + h * D;
+        float dot = 0.f;
+        #pragma unroll
+        for (int d = 0; d < D; ++d)
+          dot += q_lds[d] * static_cast<float>(K[k_base + d]);
+        s_lds[k] = dot;
+      }
+      __syncthreads();
+
+      // ---- Phase 2a: row max via block-wide reduction (scratch=reduce_buf) ----
+      float local_max = -1e30f;
+      for (int k = tid; k < seqlen_k; k += BLOCK)
+        local_max = fmaxf(local_max, s_lds[k]);
+      scratch[tid] = local_max;
+      __syncthreads();
+      for (int s = BLOCK >> 1; s > 0; s >>= 1) {
+        if (tid < s) scratch[tid] = fmaxf(scratch[tid], scratch[tid + s]);
+        __syncthreads();
+      }
+      const float row_max = scratch[0];
+      __syncthreads();
+
+      // ---- Phase 2b: exp(S - max) and row sum ----
+      float local_sum = 0.f;
+      for (int k = tid; k < seqlen_k; k += BLOCK) {
+        const float e = (s_lds[k] <= -1e29f) ? 0.f : __expf(s_lds[k] - row_max);
+        s_lds[k] = e;
+        local_sum += e;
+      }
+      scratch[tid] = local_sum;
+      __syncthreads();
+      for (int s = BLOCK >> 1; s > 0; s >>= 1) {
+        if (tid < s) scratch[tid] += scratch[tid + s];
+        __syncthreads();
+      }
+      const float row_sum = scratch[0];
+      const float inv_sum = (row_sum > 0.f) ? 1.f / row_sum : 0.f;
+      __syncthreads();
+
+      // ---- Phase 3: O[d] = Σ_k P[k] · V[k][d] / sum, with V-tiling ----
+      // scratch is reinterpreted as v_tile (row-major [V_TILE][D] FP32).
+      float* v_tile = scratch;
+      float acc = 0.f;
+
+      for (int kt = 0; kt < seqlen_k; kt += V_TILE) {
+        // -- Cooperative load: BLOCK threads stage V_TILE * D elements --
+        for (int idx = tid; idx < V_TILE * D; idx += BLOCK) {
+          const int kk = idx / D;
+          const int dd = idx % D;
+          const int kpos = kt + kk;
+          float v_val = 0.f;
+          if (kpos < seqlen_k) {
+            const int v_idx = b * v_time_stride + kpos * nheads * D + h * D + dd;
+            v_val = static_cast<float>(V[v_idx]);
+          }
+          v_tile[idx] = v_val;
+        }
+        __syncthreads();
+
+        // -- Accumulate: each output-channel thread sums over this tile --
+        if (tid < D) {
+          const int kk_max = min((int)V_TILE, seqlen_k - kt);
+          for (int kk = 0; kk < kk_max; ++kk) {
+            const float p = s_lds[kt + kk];
+            acc += p * v_tile[kk * D + tid];
+          }
+        }
+        __syncthreads();
+      }
+
+      if (tid < D)
+        O[b * nheads * D + h * D + tid] = static_cast<scalar_t>(acc * inv_sum);
+    }
+
+    // -------------------------------------------------------------------
+    // Dispatcher called from FlashAttention::compute<Device::CUDA> below.
+    //
+    // KV-cache semantics (mirrors the CUDA CUTLASS path):
+    //   offset == 0  — prefilling / encoder self-attention:
+    //     keys/values contain the full context; cached_keys/values are
+    //     filled or updated by the layer *before* this call.
+    //   offset > 0   — autoregressive decoder step:
+    //     keys/values contain only the NEW tokens (seqlen_new, typically 1).
+    //     cached_keys/values hold tokens [0 .. offset-1] and have capacity
+    //     for at least offset+seqlen_new tokens.
+    //     We must: 1) write new tokens into the cache at position offset,
+    //              2) run attention with Q vs. full cache [0 .. offset+seqlen_new).
+    // -------------------------------------------------------------------
+    template <typename scalar_t>
+    static void flash_attention_hip_impl(
+        StorageView& queries,
+        StorageView& keys,
+        StorageView& values,
+        StorageView& output,
+        StorageView* cached_keys,
+        StorageView* cached_values,
+        float queries_scale,
+        bool is_causal,
+        dim_t offset)
+    {
+      const dim_t batch_size = queries.dim(0);
+      const dim_t seqlen_q   = queries.dim(1);
+      const dim_t num_heads  = queries.dim(2);
+      const dim_t head_dim   = queries.dim(3);
+      const dim_t seqlen_new = keys.dim(1);   // NEW tokens this step
+
+      using DevT = typename cuda::DeviceType<scalar_t>::type;
+      const DevT* q_ptr = reinterpret_cast<const DevT*>(queries.data<scalar_t>());
+
+      hipStream_t stream = cuda::get_cuda_stream();
+
+      // Determine K/V pointers and their batch-stride depending on whether
+      // we are using the KV-cache or the raw keys/values tensors.
+      const DevT* k_ptr;
+      const DevT* v_ptr;
+      dim_t seqlen_k;        // number of KEY tokens to attend over
+      dim_t k_time_stride;   // K_alloc * nheads * head_dim (batch stride for K)
+      dim_t v_time_stride;   // V_alloc * nheads * head_dim
+
+      if (offset == 0) {
+        // --- Prefilling / encoder ---
+        k_ptr         = reinterpret_cast<const DevT*>(keys.data<scalar_t>());
+        v_ptr         = reinterpret_cast<const DevT*>(values.data<scalar_t>());
+        seqlen_k      = seqlen_new;
+        k_time_stride = seqlen_k * num_heads * head_dim;
+        v_time_stride = seqlen_k * num_heads * head_dim;
+      } else {
+        // --- Autoregressive decode step ---
+        // 1. Write new keys/values into the cache at position `offset`.
+        const dim_t cache_size = cached_keys->dim(1);
+        {
+          // grid: (num_heads, seqlen_new, batch)
+          //   blockIdx.x = head index  → matches kernel's h = blockIdx.x
+          //   blockIdx.y = time step   → matches kernel's t = blockIdx.y
+          //   blockIdx.z = batch index → matches kernel's b = blockIdx.z
+          dim3 grid(num_heads, seqlen_new, batch_size);
+          const int block = min((int)head_dim, 1024);
+          hipLaunchKernelGGL(
+              hip_kv_cache_write_kernel<DevT>,
+              grid, block, 0, stream,
+              reinterpret_cast<const DevT*>(keys.data<scalar_t>()),
+              reinterpret_cast<DevT*>(cached_keys->data<scalar_t>()),
+              (int)seqlen_new, (int)cache_size,
+              (int)num_heads, (int)head_dim, (int)offset);
+          hipLaunchKernelGGL(
+              hip_kv_cache_write_kernel<DevT>,
+              grid, block, 0, stream,
+              reinterpret_cast<const DevT*>(values.data<scalar_t>()),
+              reinterpret_cast<DevT*>(cached_values->data<scalar_t>()),
+              (int)seqlen_new, (int)cache_size,
+              (int)num_heads, (int)head_dim, (int)offset);
+        }
+        // 2. Attend over the full (now updated) cache.
+        k_ptr         = reinterpret_cast<const DevT*>(cached_keys->data<scalar_t>());
+        v_ptr         = reinterpret_cast<const DevT*>(cached_values->data<scalar_t>());
+        seqlen_k      = offset + seqlen_new;
+        k_time_stride = cache_size * num_heads * head_dim;
+        v_time_stride = cache_size * num_heads * head_dim;
+      }
+
+      output.resize(queries.shape());
+      DevT* o_ptr = reinterpret_cast<DevT*>(output.data<scalar_t>());
+
+      // ----------------------------------------------------------------
+      // Fast path A: decode-optimised kernel for seqlen_q == 1.
+      // Used for every autoregressive generation step.  One block per
+      // (batch, head) — threads parallelise across the K dimension.
+      // ----------------------------------------------------------------
+      if (seqlen_q == 1) {
+        // LDS budget: D + seqlen_k + max(BLOCK, V_TILE*D) FP32 elements.
+        // gfx1100 has 64 KiB per block.  V_TILE is chosen per head_dim to
+        // maximise per-sync reuse without busting LDS.
+        const dim_t lds_budget_floats = 64 * 1024 / sizeof(float);
+        auto launch_decode =
+            [&](auto head_dim_const, auto block_const, auto vtile_const) -> bool {
+          constexpr int D = decltype(head_dim_const)::value;
+          constexpr int BLOCK = decltype(block_const)::value;
+          constexpr int V_TILE = decltype(vtile_const)::value;
+          if (head_dim != D) return false;
+          const size_t scratch =
+              std::max((size_t)BLOCK, (size_t)V_TILE * D);
+          const size_t lds_floats = (size_t)D + (size_t)seqlen_k + scratch;
+          if ((dim_t)lds_floats > lds_budget_floats) return false;
+          dim3 grid(1, num_heads, batch_size);
+          dim3 block(BLOCK);
+          const size_t lds_bytes = lds_floats * sizeof(float);
+          hipLaunchKernelGGL((hip_flash_decode_kernel<DevT, BLOCK, D, V_TILE>),
+                             grid, block, lds_bytes, stream,
+                             q_ptr, k_ptr, v_ptr, o_ptr,
+                             (int)seqlen_k,
+                             (int)k_time_stride, (int)v_time_stride,
+                             (int)num_heads, queries_scale,
+                             is_causal, (int)offset);
+          return true;
+        };
+        // BLOCK > D so the V-tile load is co-operative across more threads
+        // than there are output channels — gives ~BLOCK/D HBM-bandwidth
+        // reduction on V in phase 3 plus more parallelism in phase 1.
+        // V_TILE picked large to amortise the sync cost over more useful
+        // multiply-adds (D=64 -> 128 K-tokens per tile -> 32 KiB scratch).
+        if (launch_decode(std::integral_constant<int,  64>{},
+                          std::integral_constant<int, 128>{},
+                          std::integral_constant<int, 128>{})) return;
+        if (launch_decode(std::integral_constant<int, 128>{},
+                          std::integral_constant<int, 256>{},
+                          std::integral_constant<int,  64>{})) return;
+        // else: fall through to 3-pass for very long sequences or
+        //       unsupported head dimensions.
+      }
+
+      // ----------------------------------------------------------------
+      // Fast path B: WMMA-accelerated kernel on RDNA3 (gfx11+).
+      // One wave32 per block (BM_W = BN = 16), used for both FP16 and BF16
+      // inputs.  Wave32 fragment layout is identical between fp16 and bf16
+      // on gfx11; only the WMMA built-in differs (selected via if constexpr).
+      //
+      // Two gates here are deliberate:
+      //
+      // 1. The runtime gate (`wmma_supported_at_runtime`) inspects the
+      //    active device's gcnArchName so multi-arch wheels (e.g. CI builds
+      //    against gfx1030;gfx1100;…) only dispatch WMMA when running on a
+      //    GPU that actually has the WMMA built-in.  On other archs we
+      //    fall through to the scalar tiled / 3-pass kernels.
+      //
+      // 2. The compile-time gate (`#if defined(__gfx11..) || !__HIP_DEVICE_COMPILE__`)
+      //    matches the gate around `hip_flash_attn_wmma_fp16`'s definition.
+      //    In a non-gfx11 device pass the kernel template isn't visible, so
+      //    even though `hipLaunchKernelGGL` only generates host-side code,
+      //    the kernel name has to resolve for the compiler to parse the
+      //    call site.  Wrapping the launch with the same guard means the
+      //    call site simply isn't present in that pass.
+      // ----------------------------------------------------------------
+      if constexpr (std::is_same<scalar_t, float16_t>::value
+                 || std::is_same<scalar_t, bfloat16_t>::value) {
+        using HalfT = std::conditional_t<
+            std::is_same<scalar_t, float16_t>::value, _Float16, __bf16>;
+
+        // Runtime arch check — must be true to enter the WMMA path even
+        // when this TU was compiled with a gfx11 target somewhere in the
+        // arch list (multi-arch wheels).
+        bool wmma_supported_at_runtime = false;
+        {
+          const int device_id = ctranslate2::get_device_index(ctranslate2::Device::CUDA);
+          const auto& dprops = ctranslate2::cuda::get_device_properties(device_id);
+          const char* arch = dprops.gcnArchName;
+          // gcnArchName looks like "gfx1100" or "gfx1100:sramecc-:xnack-".
+          // WMMA is available on gfx11* and gfx12* (RDNA3 / RDNA4).
+          wmma_supported_at_runtime =
+              arch && arch[0]=='g' && arch[1]=='f' && arch[2]=='x' && arch[3]=='1'
+              && (arch[4]=='1' || arch[4]=='2');
+        }
+
+#if defined(__gfx1100__) || defined(__gfx1101__) || defined(__gfx1102__) || defined(__gfx1103__) || !defined(__HIP_DEVICE_COMPILE__)
+        if (wmma_supported_at_runtime) {
+          auto launch_wmma_bm16 = [&](auto head_dim_const) -> bool {
+            constexpr int D = decltype(head_dim_const)::value;
+            constexpr int BM_W = 16;
+            if (head_dim != D) return false;
+            if (D % 16 != 0)   return false;
+            if (seqlen_q < BM_W) return false;
+            dim3 grid((seqlen_q + BM_W - 1) / BM_W, num_heads, batch_size);
+            dim3 block(32);  // one wave32
+            hipLaunchKernelGGL((hip_flash_attn_wmma_fp16<HalfT, D>),
+                               grid, block, 0, stream,
+                               reinterpret_cast<const HalfT*>(q_ptr),
+                               reinterpret_cast<const HalfT*>(k_ptr),
+                               reinterpret_cast<const HalfT*>(v_ptr),
+                               reinterpret_cast<HalfT*>(o_ptr),
+                               (int)seqlen_q, (int)seqlen_k,
+                               (int)k_time_stride, (int)v_time_stride,
+                               (int)num_heads, queries_scale,
+                               is_causal, (int)offset);
+            return true;
+          };
+          if (launch_wmma_bm16(std::integral_constant<int,  64>{})) return;
+          if (launch_wmma_bm16(std::integral_constant<int, 128>{})) return;
+        }
+#else
+        (void)wmma_supported_at_runtime;
+#endif
+      }
+
+      // Fast path C: scalar tiled Flash Attention 2 kernel.
+      // Fallback for BF16 and head dimensions WMMA doesn't cover.
+      // Used when seqlen_q >= BM (one thread per query row).
+      // ----------------------------------------------------------------
+      constexpr int BM = 64;
+      constexpr int BN = 64;
+      if (seqlen_q >= BM) {
+        auto launch_tiled = [&](auto head_dim_const) -> bool {
+          constexpr int D = decltype(head_dim_const)::value;
+          if (head_dim != D) return false;
+          dim3 grid((seqlen_q + BM - 1) / BM, num_heads, batch_size);
+          dim3 block(BM);
+          hipLaunchKernelGGL((hip_flash_attn_fwd_tiled<DevT, BM, BN, D>),
+                             grid, block, 0, stream,
+                             q_ptr, k_ptr, v_ptr, o_ptr,
+                             (int)seqlen_q, (int)seqlen_k,
+                             (int)k_time_stride, (int)v_time_stride,
+                             (int)num_heads, queries_scale,
+                             is_causal, (int)offset);
+          return true;
+        };
+
+        if (launch_tiled(std::integral_constant<int, 64>{}))  return;
+        if (launch_tiled(std::integral_constant<int, 80>{}))  return;
+        if (launch_tiled(std::integral_constant<int, 128>{})) return;
+      }
+
+      // ----------------------------------------------------------------
+      // Fallback: three-pass reference implementation.  Used when head_dim
+      // is not one of the specialised values above.  Materialises the full
+      // [batch, nheads, seqlen_q, seqlen_k] score buffer in HBM.
+      // ----------------------------------------------------------------
+      StorageView scores_buf({batch_size, num_heads, seqlen_q, seqlen_k},
+                             DataType::FLOAT32, Device::CUDA);
+      float* s_ptr = scores_buf.data<float>();
+
+      // --- Pass 1: Q @ K^T ---
+      {
+        const int total = seqlen_q * seqlen_k;
+        const int block = 256;
+        dim3 grid((total + block - 1) / block, num_heads, batch_size);
+        hipLaunchKernelGGL(hip_attn_qk_kernel<DevT>, grid, block, 0, stream,
+                           q_ptr, k_ptr, s_ptr,
+                           (int)seqlen_q, (int)seqlen_k, (int)k_time_stride,
+                           (int)num_heads, (int)head_dim,
+                           queries_scale);
+      }
+
+      // --- Pass 2: row-wise softmax (with causal mask) ---
+      {
+        // The tree reduction inside hip_attn_softmax_kernel requires
+        // blockDim.x to be a power of 2.  Round up min(seqlen_k, 256) to
+        // the next power of 2 (256 itself is already a power of 2, so the
+        // cap never breaks the invariant).  Extra threads contribute the
+        // identity values (-1e9 / 0.0) and are harmless.
+        int block = 1;
+        while (block < (int)std::min(seqlen_k, (dim_t)256)) block <<= 1;
+        dim3 grid(seqlen_q, num_heads, batch_size);
+        hipLaunchKernelGGL(hip_attn_softmax_kernel, grid, block,
+                           block * sizeof(float),  // dynamic shared mem
+                           stream,
+                           s_ptr, (int)num_heads, (int)seqlen_q, (int)seqlen_k,
+                           is_causal, (int)offset);
+      }
+
+      // --- Pass 3: P @ V ---
+      {
+        const int block = min((int)head_dim, 1024);
+        dim3 grid(seqlen_q, num_heads, batch_size);
+        hipLaunchKernelGGL(hip_attn_ov_kernel<DevT>, grid, block, 0, stream,
+                           s_ptr, v_ptr, o_ptr,
+                           (int)seqlen_k, (int)v_time_stride,
+                           (int)num_heads, (int)head_dim);
+      }
+    }
+
+    template <>
+    void FlashAttention::compute<Device::CUDA>(
+        StorageView& queries,
+        StorageView& keys,
+        StorageView& values,
+        StorageView& output,
+        StorageView* cached_keys,
+        StorageView* cached_values,
+        StorageView* /*attention*/,
+        bool         /*return_normalized_attention*/,
+        StorageView* /*rotary_cos*/,
+        StorageView* /*rotary_sin*/,
+        const bool   /*rotary_interleave*/,
+        StorageView* /*alibi*/,
+        dim_t        offset) const
+    {
+      const DataType dtype = queries.dtype();
+      switch (dtype) {
+        case DataType::FLOAT16:
+          flash_attention_hip_impl<float16_t>(
+              queries, keys, values, output,
+              cached_keys, cached_values,
+              _queries_scale, _is_causal, offset);
+          break;
+        case DataType::BFLOAT16:
+          flash_attention_hip_impl<bfloat16_t>(
+              queries, keys, values, output,
+              cached_keys, cached_values,
+              _queries_scale, _is_causal, offset);
+          break;
+        default:
+          throw std::invalid_argument(
+              "Flash Attention HIP only supports float16 and bfloat16 inputs.");
+      }
+    }
+
+#endif  // CT2_USE_HIP / !CT2_USE_HIP
+
+  }  // namespace ops
+}  // namespace ctranslate2
