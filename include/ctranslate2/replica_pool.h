@@ -309,6 +309,7 @@ namespace ctranslate2 {
       , _device_index(model->device_index())
       , _num_threads(num_threads)
       , _allocator(nullptr)
+      , _shutting_down(false)
     {
       set_model(model);
     }
@@ -346,13 +347,27 @@ namespace ctranslate2 {
       _allocator = &get_allocator(_device);
     }
 
+    void prepare_shutdown() override {
+      // Set shutdown flag BEFORE queue.close() so that idle() won't enter
+      // synchronize_stream() while the queue is being closed. This prevents
+      // the deadlock where idle() blocks on CUDA sync while close() has
+      // already signaled workers to stop.
+      _shutting_down.store(true, std::memory_order_release);
+    }
+
     void idle() override {
+      // Check shutdown flag before synchronizing — synchronize_stream() can
+      // block indefinitely on CUDA teardown if called during shutdown.
+      if (_shutting_down.load(std::memory_order_acquire))
+        return;
+
       // When no new jobs are immediately available, we synchronize the CUDA stream
       // so that the CudaAsyncAllocator can release some memory.
       synchronize_stream(_device);
     }
 
     void finalize() override {
+      _shutting_down.store(true, std::memory_order_release);
       _replica.reset();
 
       destroy_context(_device);
@@ -364,6 +379,7 @@ namespace ctranslate2 {
     const size_t _num_threads;
     Allocator* _allocator;
     std::unique_ptr<Replica> _replica;
+    std::atomic<bool> _shutting_down;
   };
 
 }
