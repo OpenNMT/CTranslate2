@@ -11,6 +11,12 @@ namespace ctranslate2 {
     public:
       using ReplicaPoolHelper::ReplicaPoolHelper;
 
+      void set_alignment_heads(const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) {
+        _pool->for_each_replica([&](models::SequenceGeneratorReplica& replica) {
+          replica.set_alignment_heads(alignment_heads);
+        });
+      }
+
       std::variant<std::vector<GenerationResult>,
                    std::vector<AsyncResult<GenerationResult>>>
       generate_batch(const BatchTokens& tokens,
@@ -33,6 +39,7 @@ namespace ctranslate2 {
                      bool cache_static_prompt,
                      bool include_prompt_in_result,
                      bool return_scores,
+                     bool return_attention,
                      bool return_logits_vocab,
                      bool return_alternatives,
                      float min_alternative_expansion_prob,
@@ -59,6 +66,7 @@ namespace ctranslate2 {
         options.num_hypotheses = num_hypotheses;
         options.return_end_token = return_end_token;
         options.return_scores = return_scores;
+        options.return_attention = return_attention;
         options.return_logits_vocab = return_logits_vocab;
         options.return_alternatives = return_alternatives;
         options.cache_static_prompt = cache_static_prompt;
@@ -183,6 +191,23 @@ namespace ctranslate2 {
         .def_property_readonly("num_active_batches", &GeneratorWrapper::num_active_batches,
                                "Number of batches waiting to be processed or currently processed.")
 
+        .def("set_alignment_heads", &GeneratorWrapper::set_alignment_heads,
+             py::arg("alignment_heads"),
+             R"pbdoc(
+                 Configure which attention heads to collect when ``return_attention=True``.
+
+                 By default, only head 0 of the last layer is returned (averaged).
+                 Use this method to select specific (layer, head) pairs. The attention
+                 from the selected heads will be concatenated in the output.
+
+                 Arguments:
+                   alignment_heads: List of (layer_index, head_index) pairs to collect.
+
+                 Example:
+
+                     >>> generator.set_alignment_heads([(31, 0), (31, 3), (33, 7)])
+             )pbdoc")
+
         .def("generate_batch", &GeneratorWrapper::generate_batch,
              py::arg("start_tokens"),
              py::kw_only(),
@@ -205,6 +230,7 @@ namespace ctranslate2 {
              py::arg("cache_static_prompt")=true,
              py::arg("include_prompt_in_result")=true,
              py::arg("return_scores")=false,
+             py::arg("return_attention")=false,
              py::arg("return_logits_vocab")=false,
              py::arg("return_alternatives")=false,
              py::arg("min_alternative_expansion_prob")=0,
@@ -263,6 +289,7 @@ namespace ctranslate2 {
                      reuse it for future generations using the same static prompt.
                    include_prompt_in_result: Include the :obj:`start_tokens` in the result.
                    return_scores: Include the scores in the output.
+                   return_attention: Include the attention matrices in the output.
                    return_logits_vocab: Include log probs for each token in the output
                    return_alternatives: Return alternatives at the first unconstrained decoding position.
                    min_alternative_expansion_prob: Minimum initial probability to expand an alternative.
