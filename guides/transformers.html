@@ -340,21 +340,21 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 <p><a class="reference external" href="https://ai.google.dev/gemma/docs/gemma4">Gemma 4</a> is Google’s next generation of lightweight open-weight models, featuring a hybrid attention architecture with interleaved global and sliding-window attention layers.</p>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
-<p>Only the 31B dense model (<code class="docutils literal notranslate"><span class="pre">gemma-4-31B</span></code>) is currently supported. The MoE variants (E2B, E4B) are not supported.</p>
+<p>Only the 31B and 12B dense models are currently supported. The MoE variants (E2B, E4B) are not supported.</p>
 </div>
-<p>Gemma 4 models come in two flavors: instruction tuned (it) models and base models.</p>
+<p>Gemma 4 models come in two flavors: instruction tuned (it) models and pre-trained models.</p>
 <p>Instruction tuned models use the same <a class="reference external" href="https://ai.google.dev/gemma/docs/core/prompt-structure">prompt template format</a> as Gemma 3.</p>
 <p>When converting an instruction-tuned model, CTranslate2 sets <code class="docutils literal notranslate"><span class="pre">&lt;end_of_turn&gt;</span></code> as the default end-of-sequence token.</p>
-<p>To convert the 31B instruction-tuned model:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>google/gemma-4-31B-it<span class="w"> </span>--quantization<span class="w"> </span>float16<span class="w"> </span>--output_dir<span class="w"> </span>gemma-4-31b-it
+<p>To convert the 12B instruction-tuned model:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>google/gemma-4-12B-it<span class="w"> </span>--quantization<span class="w"> </span>float16<span class="w"> </span>--output_dir<span class="w"> </span>gemma-4-12b-it
 </pre></div>
 </div>
 <p>Usage sample:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">transformers</span><span class="w"> </span><span class="kn">import</span> <span class="n">AutoTokenizer</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
 
-<span class="n">tok</span> <span class="o">=</span> <span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;google/gemma-4-31B-it&quot;</span><span class="p">)</span>
-<span class="n">gen</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;gemma-4-31b-it&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">)</span>
+<span class="n">tok</span> <span class="o">=</span> <span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;google/gemma-4-12B-it&quot;</span><span class="p">)</span>
+<span class="n">gen</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;gemma-4-12b-it&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;auto&quot;</span><span class="p">)</span>
 
 <span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;&lt;start_of_turn&gt;user</span><span class="se">\n</span><span class="s2">Generate a 200 word text talking about George Orwell.&lt;end_of_turn&gt;</span><span class="se">\n</span><span class="s2">&lt;start_of_turn&gt;model</span><span class="se">\n</span><span class="s2">&quot;</span>
 <span class="n">tokens</span> <span class="o">=</span> <span class="n">tok</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tok</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>

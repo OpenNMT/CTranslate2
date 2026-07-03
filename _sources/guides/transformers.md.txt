@@ -227,19 +227,19 @@ print(tok.convert_tokens_to_string(res[0].sequences[0]))
 [Gemma 4](https://ai.google.dev/gemma/docs/gemma4) is Google's next generation of lightweight open-weight models, featuring a hybrid attention architecture with interleaved global and sliding-window attention layers.
 
 ```{note}
-Only the 31B dense model (`gemma-4-31B`) is currently supported. The MoE variants (E2B, E4B) are not supported.
+Only the 31B and 12B dense models are currently supported. The MoE variants (E2B, E4B) are not supported.
 ```
 
-Gemma 4 models come in two flavors: instruction tuned (it) models and base models.
+Gemma 4 models come in two flavors: instruction tuned (it) models and pre-trained models.
 
 Instruction tuned models use the same [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) as Gemma 3.
 
 When converting an instruction-tuned model, CTranslate2 sets `<end_of_turn>` as the default end-of-sequence token.
 
-To convert the 31B instruction-tuned model:
+To convert the 12B instruction-tuned model:
 
 ```bash
-ct2-transformers-converter --model google/gemma-4-31B-it --quantization float16 --output_dir gemma-4-31b-it
+ct2-transformers-converter --model google/gemma-4-12B-it --quantization float16 --output_dir gemma-4-12b-it
 ```
 
 Usage sample:
@@ -248,8 +248,8 @@ Usage sample:
 from transformers import AutoTokenizer
 import ctranslate2
 
-tok = AutoTokenizer.from_pretrained("google/gemma-4-31B-it")
-gen = ctranslate2.Generator("gemma-4-31b-it", device="auto")
+tok = AutoTokenizer.from_pretrained("google/gemma-4-12B-it")
+gen = ctranslate2.Generator("gemma-4-12b-it", device="auto")
 
 prompt = "<start_of_turn>user\nGenerate a 200 word text talking about George Orwell.<end_of_turn>\n<start_of_turn>model\n"
 tokens = tok.convert_ids_to_tokens(tok.encode(prompt))
