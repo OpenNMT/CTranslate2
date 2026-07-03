@@ -42,7 +42,7 @@ namespace ctranslate2 {
   }
 }
 
-#elif defined(CT2_ARM64_BUILD)
+#elif defined(CT2_ARM_BUILD)
 
 namespace ctranslate2 {
   namespace cpu {
