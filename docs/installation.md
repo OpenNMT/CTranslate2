@@ -18,6 +18,8 @@ The Python wheels have the following requirements:
 The Linux and Windows Python wheels support GPU execution. Install [CUDA](https://developer.nvidia.com/cuda-toolkit) 12.x to use the GPU.
 
 If you plan to run models with convolutional layers (e.g. for speech recognition), you should also install [cuDNN 8](https://developer.nvidia.com/cudnn) for CUDA 12.x.
+
+If you have an AMD ROCm GPU, prebuilt Python wheels are available on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/). To build from source on Windows with ROCm, see the {doc}`building_rocm_windows` guide.
 ```
 
 ```{note}
@@ -124,7 +126,7 @@ Some build options require additional dependencies. See their respective documen
 * `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) >= 3.0
 * `-DWITH_ACCELERATE=ON` requires [Accelerate](https://developer.apple.com/documentation/accelerate)
 * `-DWITH_OPENBLAS=ON` requires [OpenBLAS](https://github.com/xianyi/OpenBLAS)
-* `-DWITH_HIP=ON` requires [ROCm libraries](https://rocm.docs.amd.com/en/latest/reference/api-libraries.html)
+* `-DWITH_HIP=ON` requires [ROCm libraries](https://rocm.docs.amd.com/en/latest/reference/api-libraries.html). For a complete Windows build guide, see {doc}`building_rocm_windows`.
 
 Multiple backends can be enabled for a single build, for example:
 
