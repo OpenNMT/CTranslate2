@@ -17,6 +17,16 @@ TEST(StorageViewTest, ZeroDim) {
   EXPECT_EQ(b.dim(2), 2);
 }
 
+TEST(StorageViewTest, InvalidNegativeDim) {
+  StorageView scalar(1.0f);
+  EXPECT_THROW(scalar.dim(-1), std::invalid_argument);
+}
+
+TEST(StorageViewTest, InvalidNegativeIndex) {
+  StorageView storage({1}, std::vector<float>{0});
+  EXPECT_THROW(storage.at<float>(-1), std::invalid_argument);
+}
+
 TEST(StorageViewTest, BoolOperator) {
   StorageView a;
   EXPECT_FALSE(bool(a));
