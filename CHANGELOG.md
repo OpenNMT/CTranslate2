@@ -4,6 +4,8 @@
 
 ### Fixes and improvements
 
+* Fix out-of-bounds reads in StorageView index validation (#2073) by [@jordimas](https://github.com/jordimas), reported by Nathan Keys (Halo Forge Labs)
+
 ## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
 
 ### New features
