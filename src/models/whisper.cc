@@ -292,6 +292,7 @@ namespace ctranslate2 {
       }
 
       const dim_t total_max_length = options.max_length;
+      const bool without_timestamps = prompts[0][prompt_length - 1] == _no_timestamps_id;
 
       DecodingOptions decoding_options;
       decoding_options.start_step = start_step;
@@ -300,7 +301,10 @@ namespace ctranslate2 {
       decoding_options.length_penalty = options.length_penalty;
       decoding_options.repetition_penalty = options.repetition_penalty;
       decoding_options.no_repeat_ngram_size = options.no_repeat_ngram_size;
-      decoding_options.max_length = std::min(total_max_length / 2, total_max_length - start_step);
+      decoding_options.max_length = without_timestamps
+                                      ? total_max_length - start_step
+                                      : std::min(total_max_length / 2,
+                                                 total_max_length - start_step);
       decoding_options.sampling_topk = options.sampling_topk;
       decoding_options.sampling_temperature = options.sampling_temperature;
       decoding_options.num_hypotheses = options.num_hypotheses;
@@ -329,7 +333,7 @@ namespace ctranslate2 {
         decoding_options.logits_processors.emplace_back(no_speech_probs_processor);
       }
 
-      if (prompts[0][prompt_length - 1] != _no_timestamps_id) {
+      if (!without_timestamps) {
         const size_t timestamp_begin_id = _no_timestamps_id + 1;
         const size_t timestamp_end_id = vocabulary.size() - 1;
         const size_t max_initial_timestamp_id = timestamp_begin_id + options.max_initial_timestamp_index;
