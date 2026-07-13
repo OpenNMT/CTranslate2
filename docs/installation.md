@@ -88,6 +88,7 @@ pip install dist/*.whl
 If you installed the C++ library in a custom directory, you should configure additional environment variables:
 
 * When running `setup.py`, set `CTRANSLATE2_ROOT` to the CTranslate2 install directory.
+  On macOS, this also embeds that library directory in the Python extension runtime search path so it loads the matching `libctranslate2` instead of falling back to `/usr/local/lib`.
 * When running your Python application, add the CTranslate2 library path to `LD_LIBRARY_PATH`.
 ```
 

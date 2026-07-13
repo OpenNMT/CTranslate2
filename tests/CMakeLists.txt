@@ -34,6 +34,15 @@ if(NOT MSVC)
   target_compile_options(benchmark_ops PRIVATE -Wno-unused-result)
 endif()
 
+if(WITH_MPS)
+  add_executable(benchmark_mps
+    benchmark_mps.cc
+    )
+  target_link_libraries(benchmark_mps
+    ${PROJECT_NAME}
+    )
+endif()
+
 if(WITH_CUDA)
   target_link_libraries(benchmark_ops PRIVATE ${CUDA_LIBRARIES})
 

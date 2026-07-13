@@ -43,6 +43,10 @@ try:
         get_supported_compute_types,
         set_random_seed,
     )
+    try:
+        from ctranslate2._ext import get_mps_device_count
+    except ImportError:
+        pass
     from ctranslate2.extensions import register_extensions
     from ctranslate2.logging import get_log_level, set_log_level
 
