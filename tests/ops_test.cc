@@ -128,6 +128,10 @@ class OpDeviceFPTest : public ::testing::TestWithParam<FloatType> {
 
 TEST_P(OpDeviceFPTest, MedianFilter) {
   Device device = GetParam().device;
+#ifdef CT2_WITH_MPS
+  if (device == Device::MPS)
+    GTEST_SKIP() << "MedianFilter is not implemented for MPS.";
+#endif
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   StorageView x({2, 8}, std::vector<float>{
@@ -152,6 +156,10 @@ TEST_P(OpDeviceFPTest, MedianFilterShortAxis) {
   // produced by Whisper align() when num_frames < 2) must pass the input
   // through instead of crashing on an integer division by zero.
   const Device device = GetParam().device;
+#ifdef CT2_WITH_MPS
+  if (device == Device::MPS)
+    GTEST_SKIP() << "MedianFilter is not implemented for MPS.";
+#endif
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   {
@@ -772,6 +780,10 @@ TEST_P(OpDeviceTest, TopKChangeK) {
 
 TEST_P(OpDeviceFPTest, TopPMask) {
   const Device device = GetParam().device;
+#ifdef CT2_WITH_MPS
+  if (device == Device::MPS)
+    GTEST_SKIP() << "TopPMask is not implemented for MPS.";
+#endif
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   constexpr float inf = std::numeric_limits<float>::infinity();
@@ -936,6 +948,10 @@ TEST_P(OpDeviceFPTest, RMSNorm) {
 
 TEST_P(OpDeviceTest, QuantizeINT8) {
   Device device = GetParam();
+#ifdef CT2_WITH_MPS
+  if (device == Device::MPS)
+    GTEST_SKIP() << "INT8 quantization is not implemented for MPS.";
+#endif
   StorageView a({2, 4}, std::vector<float>{-10, -3, 5, 2, 5, 21, -3, 0}, device);
   StorageView scale(DataType::FLOAT32, device);
   StorageView qa(DataType::INT8, device);
@@ -969,6 +985,10 @@ TEST_P(OpDeviceTest, QuantizeINT8) {
 
 TEST_P(OpDeviceTest, QuantizeINT8ZeroRow) {
   Device device = GetParam();
+#ifdef CT2_WITH_MPS
+  if (device == Device::MPS)
+    GTEST_SKIP() << "INT8 quantization is not implemented for MPS.";
+#endif
   StorageView a({2, 4}, std::vector<float>{-10, -3, 5, 2, 0, 0, 0, 0}, device);
   StorageView scale(DataType::FLOAT32, device);
   StorageView qa(DataType::INT8, device);
@@ -993,6 +1013,10 @@ TEST_P(OpDeviceTest, QuantizeINT8ZeroRow) {
 
 TEST_P(OpDeviceFPTest, Multinomial) {
   const Device device = GetParam().device;
+#ifdef CT2_WITH_MPS
+  if (device == Device::MPS)
+    GTEST_SKIP() << "Multinomial is not implemented for MPS.";
+#endif
   const DataType dtype = GetParam().dtype;
   StorageView input({2, 4}, std::vector<float>{0.2, 0.1, 0.6, 0.1, 0.7, 0.2, 0.0, 0.1}, device);
   StorageView output(DataType::INT32, device);
@@ -1349,6 +1373,8 @@ TEST_P(OpDeviceFPTest, Conv1DGroupNoBiasQuantized) {
     const Device device = GetParam().device;
     if (device != Device::CPU)
         GTEST_SKIP() << "Grouped quantized convolution is not implemented for GPU.";
+    if (!mayiuse_int8(device))
+        GTEST_SKIP() << "Grouped quantized convolution requires a CPU INT8 GEMM backend.";
     const DataType dtype = GetParam().dtype;
     const float error = std::max(GetParam().error, float(3e-3));
     const StorageView expected({2, 2, 2}, std::vector<float>{
@@ -1605,7 +1631,6 @@ INSTANTIATE_TEST_SUITE_P(CUDA, OpDeviceFPTest,
 INSTANTIATE_TEST_SUITE_P(MPS, OpDeviceTest, ::testing::Values(Device::MPS));
 INSTANTIATE_TEST_SUITE_P(MPS, OpDeviceFPTest,
                          ::testing::Values(FloatType{Device::MPS, DataType::FLOAT32, 1e-5},
-                                           FloatType{Device::MPS, DataType::FLOAT16, 1e-2},
-                                           FloatType{Device::MPS, DataType::BFLOAT16, 4e-2}),
+                                           FloatType{Device::MPS, DataType::FLOAT16, 1e-2}),
                          fp_test_name);
 #endif

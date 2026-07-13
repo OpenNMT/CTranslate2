@@ -45,6 +45,7 @@ struct BroadcastArgs {
   ulong b_size;
   ulong block;
   uint op;
+  uint mode;
 };
 
 struct Transpose2DArgs {
@@ -753,8 +754,9 @@ kernel void NAME(device const TYPE* bias [[buffer(0)]],                         
                  uint gid [[thread_position_in_grid]]) {                              \
   ulong i = (ulong)gid;                                                                \
   if (i >= args.value_size) return;                                                    \
-  /* The CPU block-broadcast mapping simplifies to i % bias_size. */                   \
-  ulong bias_index = i % args.bias_size;                                               \
+  ulong bias_index = args.block_broadcast                                              \
+    ? (i / args.block) % args.bias_size                                                 \
+    : i % args.bias_size;                                                               \
   float result = LOAD(value, i) + LOAD(bias, bias_index);                              \
   if (args.has_residual) result += LOAD(residual, i);                                  \
   if (args.activation >= 0) result = apply_unary(result, uint(args.activation));       \
@@ -774,14 +776,13 @@ kernel void NAME(device const TYPE* a [[buffer(0)]],                            
   ulong i = (ulong)gid;                                                                 \
   if (i >= args.b_size) return;                                                         \
   ulong ai = 0;                                                                         \
-  if (args.block == 0) {                                                                \
+  if (args.mode == 0) {                                                                 \
     ai = i % args.a_size;                                                               \
-  } else if (args.block == 1) {                                                         \
+  } else if (args.mode == 1) {                                                          \
     ulong depth = args.a_size == 0 ? 0 : args.b_size / args.a_size;                     \
     ai = depth == 0 ? 0 : i / depth;                                                    \
   } else {                                                                              \
-    /* Preserve the offset within each block; this is equivalent to i % a_size. */      \
-    ai = i % args.a_size;                                                               \
+    ai = (i / args.block) % args.a_size;                                                 \
   }                                                                                     \
   STORE(c, i, apply_binary(LOAD(a, ai), LOAD(b, i), args.op));                          \
 }
@@ -1188,6 +1189,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint64_t b_size;
         uint64_t block;
         uint32_t op;
+        uint32_t mode;
       };
 
       struct Transpose2DArgs {
@@ -2911,7 +2913,8 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       const BroadcastArgs args{static_cast<uint64_t>(a_size),
                                static_cast<uint64_t>(b_size),
                                0,
-                               op_code(op)};
+                               op_code(op),
+                               0};
       run_1d(kernel_name("broadcast", dtype),
              b_size,
              {{a, static_cast<size_t>(a_size) * element_size},
@@ -2932,8 +2935,9 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       const size_t element_size = dtype_size(dtype);
       const BroadcastArgs args{static_cast<uint64_t>(a_size),
                                static_cast<uint64_t>(b_size),
-                               1,
-                               op_code(op)};
+                               0,
+                               op_code(op),
+                               1};
       run_1d(kernel_name("broadcast", dtype),
              b_size,
              {{a, static_cast<size_t>(a_size) * element_size},
@@ -2956,7 +2960,8 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       const BroadcastArgs args{static_cast<uint64_t>(a_size),
                                static_cast<uint64_t>(b_size),
                                static_cast<uint64_t>(block),
-                               op_code(op)};
+                               op_code(op),
+                               2};
       run_1d(kernel_name("broadcast", dtype),
              b_size,
              {{a, static_cast<size_t>(a_size) * element_size},
