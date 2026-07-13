@@ -17,6 +17,14 @@ See the [environment variables](environment_variables.md) `CT2_USE_MKL` and `CT2
 
 ## GPU
 
+### NVIDIA CUDA
+
 * NVIDIA GPUs with a Compute Capability greater or equal to 3.5
 
 The driver requirement depends on the CUDA version. See the [CUDA Compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) for more information.
+
+### Apple Metal Performance Shaders
+
+The optional MPS backend supports Apple Silicon Macs. Build from source with
+`-DWITH_MPS=ON`, then select `device="mps"` in the C++ or Python API. The MPS
+backend cannot be enabled together with CUDA or HIP in the same build.
