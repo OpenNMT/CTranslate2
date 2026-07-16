@@ -4,8 +4,36 @@
 
 #include "dispatch.h"
 
+#ifdef CT2_WITH_MPS
+#  include "mps/kernels.h"
+#endif
+
 namespace ctranslate2 {
   namespace ops {
+
+#ifdef CT2_WITH_MPS
+    static int mps_activation_code(const ActivationType* activation) {
+      if (!activation)
+        return -1;
+      switch (*activation) {
+      case ActivationType::ReLU:
+        return static_cast<int>(mps::UnaryOp::RELU);
+      case ActivationType::GELUTanh:
+        return static_cast<int>(mps::UnaryOp::GELU_TANH);
+      case ActivationType::Swish:
+        return static_cast<int>(mps::UnaryOp::SWISH);
+      case ActivationType::GELU:
+        return static_cast<int>(mps::UnaryOp::GELU);
+      case ActivationType::GELUSigmoid:
+        return static_cast<int>(mps::UnaryOp::GELU_SIGMOID);
+      case ActivationType::Tanh:
+        return static_cast<int>(mps::UnaryOp::TANH);
+      case ActivationType::Sigmoid:
+        return static_cast<int>(mps::UnaryOp::SIGMOID);
+      }
+      return -1;
+    }
+#endif
 
     // activation_type(x + bias + residual)
     void apply_bias_and_activation(StorageView& x,
@@ -32,13 +60,13 @@ namespace ctranslate2 {
                bool a_is_packed,
                bool b_is_packed,
                const ActivationType* activation_type)
-      : _alpha(alpha)
+      : _activation_type(activation_type)
+      , _alpha(alpha)
       , _beta(beta)
       , _trans_a(trans_a)
       , _trans_b(trans_b)
       , _a_is_packed(a_is_packed)
       , _b_is_packed(b_is_packed)
-      , _activation_type(activation_type)
     {
     }
 
@@ -49,6 +77,52 @@ namespace ctranslate2 {
                           const StorageView* bias,
                           const StorageView* residual) const {
       PROFILE("Gemm");
+
+#ifdef CT2_WITH_MPS
+      // Decode Dense layers immediately apply bias, optional residual, and
+      // optional activation to a single-row FP16 projection. Encode that
+      // epilogue in the output-major matvec so the intermediate output is not
+      // written and read by another kernel. The matvec rounds to FP16 before
+      // the epilogue to preserve the previous two-dispatch numerics.
+      if (a.device() == Device::MPS
+          && a.dtype() == DataType::FLOAT16
+          && _trans_b
+          && bias
+          && bias->dtype() == DataType::FLOAT16
+          && (!residual || residual->dtype() == DataType::FLOAT16)
+          && !a_shift_compensation) {
+        const dim_t k = a.dim(_trans_a ? -2 : -1);
+        const dim_t n = b.dim(_trans_b ? -2 : -1);
+        const dim_t m = a.size() / k;
+        if (m == 1 && bias->size() == n && (!residual || residual->size() == n)) {
+          Shape output_shape(a.shape());
+          output_shape[output_shape.size() - 2] = a.dim(_trans_a ? -1 : -2);
+          output_shape[output_shape.size() - 1] = n;
+          c.resize(std::move(output_shape));
+          mps::gemv_row(DataType::FLOAT16,
+                        _trans_a,
+                        _trans_b,
+                        n,
+                        k,
+                        _alpha,
+                        a.data<float16_t>(),
+                        _trans_a ? m : k,
+                        0,
+                        b.data<float16_t>(),
+                        _trans_b ? k : n,
+                        0,
+                        _beta,
+                        c.data<float16_t>(),
+                        n,
+                        0,
+                        1,
+                        bias->data<float16_t>(),
+                        residual ? residual->data<float16_t>() : nullptr,
+                        mps_activation_code(_activation_type));
+          return;
+        }
+      }
+#endif
 
       switch (a.dtype()) {
       case DataType::INT8:

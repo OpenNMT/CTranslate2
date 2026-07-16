@@ -129,7 +129,10 @@ namespace ctranslate2 {
                   void* c,
                   dim_t ldc,
                   dim_t stridec,
-                  dim_t batch_size);
+                  dim_t batch_size,
+                  const void* bias = nullptr,
+                  const void* residual = nullptr,
+                  int activation = -1);
 
     bool supports_gemm_type(DataType dtype);
 
