@@ -3,6 +3,7 @@
 #import <Metal/Metal.h>
 #import <Foundation/Foundation.h>
 
+#include <algorithm>
 #include <atomic>
 #include <cerrno>
 #include <cstdio>
@@ -105,6 +106,8 @@ namespace ctranslate2 {
     };
 
     static ProfileCounters g_profile;
+    static std::mutex g_kernel_profile_mutex;
+    static std::unordered_map<std::string, uint64_t> g_kernel_dispatches;
 
     static bool env_enabled(const char* name) {
       const char* value = std::getenv(name);
@@ -173,6 +176,19 @@ namespace ctranslate2 {
                    static_cast<unsigned long long>(g_profile.allocated_bytes.load()),
                    static_cast<unsigned long long>(g_profile.copied_bytes.load()),
                    static_cast<double>(g_profile.gpu_time_ns.load()) / 1.0e6);
+      std::vector<std::pair<std::string, uint64_t>> kernels;
+      {
+        std::lock_guard<std::mutex> lock(g_kernel_profile_mutex);
+        kernels.assign(g_kernel_dispatches.begin(), g_kernel_dispatches.end());
+      }
+      std::sort(kernels.begin(), kernels.end(), [](const auto& left, const auto& right) {
+        return left.second > right.second;
+      });
+      for (const auto& kernel : kernels)
+        std::fprintf(stderr,
+                     "CT2 MPS kernel: name=%s dispatches=%llu\n",
+                     kernel.first.c_str(),
+                     static_cast<unsigned long long>(kernel.second));
     }
 
     static void record_command_buffer_error(id<MTLCommandBuffer> command_buffer) {
@@ -426,6 +442,7 @@ namespace ctranslate2 {
     void* allocate_buffer(size_t size) {
       if (!has_mps())
         throw std::runtime_error("MPS device not available");
+
       id<MTLBuffer> buf = [g_device newBufferWithLength:size
                                                options:MTLResourceStorageModeShared];
       if (!buf)
@@ -560,9 +577,12 @@ namespace ctranslate2 {
       current_stream().end_active_encoder();
     }
 
-    void record_compute_dispatch() {
-      if (profile_enabled())
+    void record_compute_dispatch(const char* kernel_name) {
+      if (profile_enabled()) {
         ++g_profile.compute_dispatches;
+        std::lock_guard<std::mutex> lock(g_kernel_profile_mutex);
+        ++g_kernel_dispatches[kernel_name ? kernel_name : "unknown"];
+      }
       current_stream().record_operation(true);
     }
 

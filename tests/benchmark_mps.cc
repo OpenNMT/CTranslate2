@@ -52,6 +52,17 @@ void benchmark_decode_gemm() {
                samples);
 }
 
+void benchmark_vocab_gemm() {
+  const size_t samples = samples_from_env(50);
+  StorageView input({1, 512}, float16_t(0.01f), Device::MPS);
+  StorageView weight({64176, 512}, float16_t(0.01f), Device::MPS);
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  const ops::Gemm gemm(1, 0, false, true);
+  print_result("fp16_vocab_gemm",
+               benchmark([&]() { gemm(input, weight, output); }, samples),
+               samples);
+}
+
 void benchmark_prefill_gemm() {
   const size_t samples = samples_from_env(30);
   StorageView input({128, 512}, float16_t(0.01f), Device::MPS);
@@ -97,6 +108,8 @@ int main(int argc, char* argv[]) {
   const std::string requested = argc > 1 ? argv[1] : "all";
   if (requested == "all" || requested == "decode")
     benchmark_decode_gemm();
+  if (requested == "all" || requested == "vocab")
+    benchmark_vocab_gemm();
   if (requested == "all" || requested == "prefill")
     benchmark_prefill_gemm();
   if (requested == "all" || requested == "topk")

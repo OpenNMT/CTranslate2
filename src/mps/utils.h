@@ -33,7 +33,7 @@ namespace ctranslate2 {
     void end_compute_encoder();
     void end_blit_encoder();
     void end_active_encoder();
-    void record_compute_dispatch();
+    void record_compute_dispatch(const char* kernel_name = nullptr);
     void record_blit_operation();
     void record_copy_bytes(size_t bytes);
 

@@ -128,6 +128,9 @@ struct GemvArgs {
   uint transpose_b;
   float alpha;
   float beta;
+  uint has_bias;
+  uint has_residual;
+  int activation;
 };
 
 struct GenericGemmArgs {
@@ -553,51 +556,77 @@ GEMV_ROW_KERNEL(gemv_row_f32, float, load_value<float>, store_value<float>)
 GEMV_ROW_KERNEL(gemv_row_f16, half, load_value<half>, store_value<half>)
 GEMV_ROW_KERNEL(gemv_row_bf16, ushort, load_value_bf16, store_value_bf16)
 
-// Output-major FP16 matvec adapted from the dispatch geometry used by MLX's
-// gemv kernel (Apache-2.0, MLX commit recorded in the benchmark report).  One
-// 256-thread group contains 8 SIMD groups and produces 4 outputs per SIMD
-// group, reducing threadgroup launch count by 32x for large projections.
+// Output-major FP16 matvec load and dispatch geometry adapted from Apple MLX's
+// gemv kernel. Copyright (c) 2023-2024 Apple Inc., Apache License 2.0.
+// One SIMD group computes 4 output rows while loading each input-vector block
+// only once. This is especially important for the hundreds of small decoder
+// projections issued for every generated token.
 kernel void gemv_row_output_major_f16(
     device const half* a [[buffer(0)]],
     device const half* b [[buffer(1)]],
     device half* c [[buffer(2)]],
     constant GemvArgs& args [[buffer(3)]],
+    device const half* bias [[buffer(4)]],
+    device const half* residual [[buffer(5)]],
     uint3 group [[threadgroup_position_in_grid]],
     uint lane [[thread_index_in_simdgroup]],
-    uint simd_id [[simdgroup_index_in_threadgroup]]) {
+    uint simd_id [[simdgroup_index_in_threadgroup]],
+    uint simd_groups [[simdgroups_per_threadgroup]]) {
   const uint batch = group.y;
-  const uint first_output = group.x * 32u + simd_id * 4u;
+  const uint first_output = (group.x * simd_groups + simd_id) * 4u;
   const ulong a_base = args.stridea == 0 ? 0 : ulong(batch) * args.stridea;
   const ulong b_base = args.strideb == 0 ? 0 : ulong(batch) * args.strideb;
   const ulong c_base = args.stridec == 0 ? 0 : ulong(batch) * args.stridec;
+
+  float sums[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+  if (args.transpose_a == 0 && (args.k & 3ul) == 0) {
+    device const half4* av = reinterpret_cast<device const half4*>(a + a_base);
+    const uint vectors = uint(args.k >> 2);
+    for (uint p = lane; p < vectors; p += 32u) {
+      const float4 input = float4(av[p]);
+      for (uint output_delta = 0; output_delta < 4; ++output_delta) {
+        const uint output = first_output + output_delta;
+        if (output < args.n) {
+          const ulong weight_row = b_base + ulong(output) * args.ldb;
+          device const half4* weights =
+              reinterpret_cast<device const half4*>(b + weight_row);
+          sums[output_delta] += dot(input, float4(weights[p]));
+        }
+      }
+    }
+  } else {
+    for (ulong p = lane; p < args.k; p += 32ul) {
+      const ulong ai = args.transpose_a ? p * args.lda : p;
+      const float input = float(a[a_base + ai]);
+      for (uint output_delta = 0; output_delta < 4; ++output_delta) {
+        const uint output = first_output + output_delta;
+        if (output < args.n) {
+          const ulong weight_row = b_base + ulong(output) * args.ldb;
+          sums[output_delta] += input * float(b[weight_row + p]);
+        }
+      }
+    }
+  }
 
   for (uint output_delta = 0; output_delta < 4; ++output_delta) {
     const uint output = first_output + output_delta;
     if (output >= args.n)
       continue;
-
-    float sum = 0.0f;
-    const ulong weight_row = b_base + ulong(output) * args.ldb;
-    if (args.transpose_a == 0 && (args.k & 1ul) == 0) {
-      device const half2* av = reinterpret_cast<device const half2*>(a + a_base);
-      device const half2* bv = reinterpret_cast<device const half2*>(b + weight_row);
-      const uint pairs = uint(args.k >> 1);
-      for (uint p = lane; p < pairs; p += 32u) {
-        const half2 ah = av[p];
-        const half2 bh = bv[p];
-        sum += float(ah.x) * float(bh.x) + float(ah.y) * float(bh.y);
-      }
-    } else {
-      for (ulong p = lane; p < args.k; p += 32ul) {
-        const ulong ai = args.transpose_a ? p * args.lda : p;
-        sum += float(a[a_base + ai]) * float(b[weight_row + p]);
-      }
-    }
-    sum = simd_sum(sum);
-    if (lane == 0) {
+    const float sum = simd_sum(sums[output_delta]);
+    if (lane == 0u) {
       const ulong ci = c_base + output;
       const float previous = args.beta == 0.0f ? 0.0f : float(c[ci]);
-      c[ci] = half(args.alpha * sum + args.beta * previous);
+      // Match the unfused path's FP16 GEMV store before applying its epilogue.
+      // This preserves the model's existing numerical behavior while avoiding
+      // a second dispatch and an intermediate output read/write.
+      float result = float(half(args.alpha * sum + args.beta * previous));
+      if (args.has_bias)
+        result += float(bias[output]);
+      if (args.has_residual)
+        result += float(residual[ci]);
+      if (args.activation >= 0)
+        result = apply_unary(result, uint(args.activation));
+      c[ci] = half(result);
     }
   }
 }
@@ -1641,6 +1670,9 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint32_t transpose_b;
         float alpha;
         float beta;
+        uint32_t has_bias;
+        uint32_t has_residual;
+        int32_t activation;
       };
 
       struct GenericGemmArgs {
@@ -2088,7 +2120,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         // Dispatches in a reused compute encoder need an explicit visibility
         // boundary when a later primitive consumes a buffer written here.
         [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-        record_compute_dispatch();
+        record_compute_dispatch(name.c_str());
       }
 
       static void run_rows(const std::string& name,
@@ -2119,7 +2151,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         MTLSize group = MTLSizeMake(threads, 1, 1);
         [encoder dispatchThreadgroups:grid threadsPerThreadgroup:group];
         [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-        record_compute_dispatch();
+        record_compute_dispatch(name.c_str());
       }
 
       static NSUInteger reduction_threads(dim_t size) {
@@ -2397,7 +2429,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                                                 static_cast<NSUInteger>(batch_size))
                threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
       [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-      record_compute_dispatch();
+      record_compute_dispatch(storage_kernel_name("tiled_gemm", dtype).c_str());
     }
 
     static void generic_gemm(DataType dtype,
@@ -2529,7 +2561,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                                                   static_cast<NSUInteger>(batch_size))
                  threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
         [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-        record_compute_dispatch();
+        record_compute_dispatch("tiled_gemm_i8_i32");
       } else {
         const GenericGemmArgs args{static_cast<uint64_t>(m),
                                    static_cast<uint64_t>(n),
@@ -2636,7 +2668,10 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                           transpose_a ? 1u : 0u,
                           transpose_b ? 1u : 0u,
                           alpha,
-                          beta};
+                          beta,
+                          0,
+                          0,
+                          -1};
 
       run_rows(storage_kernel_name("gemv", dtype),
                static_cast<uint64_t>(batch_size * m),
@@ -2666,11 +2701,17 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                   void* c,
                   dim_t ldc,
                   dim_t stridec,
-                  dim_t batch_size) {
+                  dim_t batch_size,
+                  const void* bias,
+                  const void* residual,
+                  int activation) {
       if (batch_size <= 0 || n == 0)
         return;
       if (dtype != DataType::FLOAT32 && dtype != DataType::FLOAT16 && dtype != DataType::BFLOAT16)
         throw std::invalid_argument("unsupported MPS row GEMV dtype");
+      if ((bias || residual || activation >= 0)
+          && (dtype != DataType::FLOAT16 || !transpose_b))
+        throw std::invalid_argument("fused MPS row GEMV requires FP16 output-major weights");
 
       const size_t element_size = dtype_size(dtype);
       const size_t a_elements = transpose_a
@@ -2694,7 +2735,10 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                           transpose_a ? 1u : 0u,
                           transpose_b ? 1u : 0u,
                           alpha,
-                          beta};
+                          beta,
+                          bias ? 1u : 0u,
+                          residual ? 1u : 0u,
+                          activation};
 
       // Dense linear weights are stored by CTranslate2 as [N, K] and called
       // with transpose_b=true, which is already the packed output-major layout
@@ -2723,12 +2767,26 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                    strided_array_bytes(c_elements, stridec, batch_size, element_size),
                    2);
         [encoder setBytes:&args length:sizeof(args) atIndex:3];
-        [encoder dispatchThreadgroups:MTLSizeMake((static_cast<NSUInteger>(n) + 31) / 32,
+        set_buffer(encoder,
+                   bias ? bias : c,
+                   bias ? static_cast<size_t>(n) * element_size : element_size,
+                   4);
+        set_buffer(encoder,
+                   residual ? residual : c,
+                   residual
+                     ? strided_array_bytes(c_elements, stridec, batch_size, element_size)
+                     : element_size,
+                   5);
+        const NSUInteger simd_groups = n >= 4096 ? 8 : 4;
+        const NSUInteger outputs_per_group = simd_groups * 4;
+        [encoder dispatchThreadgroups:MTLSizeMake((static_cast<NSUInteger>(n)
+                                                   + outputs_per_group - 1)
+                                                  / outputs_per_group,
                                                   static_cast<NSUInteger>(batch_size),
                                                   1)
-                 threadsPerThreadgroup:MTLSizeMake(256, 1, 1)];
+                 threadsPerThreadgroup:MTLSizeMake(simd_groups * 32, 1, 1)];
         [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-        record_compute_dispatch();
+        record_compute_dispatch("gemv_row_output_major_f16");
         record_profile_event(ProfileEvent::Gemv);
         return;
       }
@@ -2891,7 +2949,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                          leftMatrix:mat_a
                         rightMatrix:mat_b
                         resultMatrix:mat_c];
-      record_compute_dispatch();
+      record_compute_dispatch("mps_matrix_gemm");
       record_profile_event(ProfileEvent::Gemm);
 
 #if !__has_feature(objc_arc)
@@ -3091,7 +3149,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                          leftMatrix:mat_a
                         rightMatrix:mat_b
                         resultMatrix:mat_c];
-      record_compute_dispatch();
+      record_compute_dispatch("mps_matrix_batched_gemm");
       record_profile_event(ProfileEvent::Gemm);
 
 #if !__has_feature(objc_arc)
@@ -3145,7 +3203,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(batch_size), 1, 1)
                threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
       [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-      record_compute_dispatch();
+      record_compute_dispatch(kernel_name("argmax", dtype).c_str());
       record_profile_event(ProfileEvent::TopKGpu);
     }
 
@@ -3179,7 +3237,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(batch_size), 1, 1)
                threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
       [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-      record_compute_dispatch();
+      record_compute_dispatch(kernel_name("small_topk", dtype).c_str());
       record_profile_event(ProfileEvent::TopKGpu);
     }
 
@@ -3270,7 +3328,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                              inputMatrix:input_matrix
                        resultIndexMatrix:indices_matrix
                        resultValueMatrix:values_matrix];
-      record_compute_dispatch();
+      record_compute_dispatch("mps_matrix_topk");
       record_profile_event(ProfileEvent::TopKGpu);
 
 #if !__has_feature(objc_arc)
@@ -3928,7 +3986,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(batch_size), 1, 1)
                threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
       [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-      record_compute_dispatch();
+      record_compute_dispatch(kernel_name("top_p_mask", dtype).c_str());
     }
 
     static std::atomic<uint64_t> g_random_counter{0};

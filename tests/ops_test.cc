@@ -1572,6 +1572,102 @@ TEST(MPSBackendTest, DecodeGemmFloat16NonTransposedWeight) {
   expect_storage_eq(output.to_float32(), expected, 3e-2f);
 }
 
+TEST(MPSBackendTest, DecodeGemmFloat16FeedsDependentDispatches) {
+  constexpr dim_t k = 64;
+  constexpr dim_t n = 96;
+  std::vector<float> a_values(k);
+  std::vector<float> b_values(n * k);
+  for (dim_t i = 0; i < k; ++i)
+    a_values[i] = std::sin(static_cast<float>(i) * 0.13f) * 0.2f;
+  for (dim_t i = 0; i < n * k; ++i)
+    b_values[i] = std::cos(static_cast<float>(i) * 0.07f) * 0.15f;
+
+  const StorageView a_cpu({1, k}, a_values);
+  const StorageView b_cpu({n, k}, b_values);
+  StorageView expected;
+  ops::Gemm(1, 0, false, true)(a_cpu, b_cpu, expected);
+  primitives<Device::CPU>::add(0.125f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+  primitives<Device::CPU>::mul(0.75f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+  primitives<Device::CPU>::add(-0.05f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+
+  const StorageView a_mps = a_cpu.to_float16().to(Device::MPS);
+  const StorageView b_mps = b_cpu.to_float16().to(Device::MPS);
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  ops::Gemm(1, 0, false, true)(a_mps, b_mps, output);
+  primitives<Device::MPS>::add(float16_t(0.125f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+  primitives<Device::MPS>::mul(float16_t(0.75f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+  primitives<Device::MPS>::add(float16_t(-0.05f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+
+  expect_storage_eq(output.to_float32(), expected, 3e-2f);
+}
+
+TEST(MPSBackendTest, ColdDecodeGemmChainMatchesCPU) {
+  constexpr dim_t input_size = 512;
+  constexpr dim_t hidden_size = 2048;
+  constexpr dim_t output_size = 512;
+  std::vector<float> input_values(input_size);
+  std::vector<float> first_weight_values(hidden_size * input_size);
+  std::vector<float> first_bias_values(hidden_size);
+  std::vector<float> second_weight_values(output_size * hidden_size);
+  std::vector<float> second_bias_values(output_size);
+  for (dim_t i = 0; i < input_size; ++i)
+    input_values[i] = std::sin(static_cast<float>(i) * 0.013f) * 0.1f;
+  for (dim_t i = 0; i < hidden_size * input_size; ++i)
+    first_weight_values[i] = std::cos(static_cast<float>(i) * 0.003f) * 0.02f;
+  for (dim_t i = 0; i < hidden_size; ++i)
+    first_bias_values[i] = std::sin(static_cast<float>(i) * 0.017f) * 0.01f;
+  for (dim_t i = 0; i < output_size * hidden_size; ++i)
+    second_weight_values[i] = std::sin(static_cast<float>(i) * 0.002f) * 0.015f;
+  for (dim_t i = 0; i < output_size; ++i)
+    second_bias_values[i] = std::cos(static_cast<float>(i) * 0.019f) * 0.01f;
+
+  const StorageView input_cpu({1, input_size}, input_values);
+  const StorageView first_weight_cpu({hidden_size, input_size}, first_weight_values);
+  const StorageView first_bias_cpu({hidden_size}, first_bias_values);
+  const StorageView second_weight_cpu({output_size, hidden_size}, second_weight_values);
+  const StorageView second_bias_cpu({output_size}, second_bias_values);
+  const ops::ActivationType activation = ops::ActivationType::GELU;
+
+  StorageView hidden_cpu;
+  StorageView expected;
+  ops::Gemm(1, 0, false, true, false, false, &activation)(
+    input_cpu, first_weight_cpu, hidden_cpu, nullptr, &first_bias_cpu);
+  ops::Gemm(1, 0, false, true)(
+    hidden_cpu, second_weight_cpu, expected, nullptr, &second_bias_cpu);
+
+  const StorageView input_mps = input_cpu.to_float16().to(Device::MPS);
+  const StorageView first_weight_mps = first_weight_cpu.to_float16().to(Device::MPS);
+  const StorageView first_bias_mps = first_bias_cpu.to_float16().to(Device::MPS);
+  const StorageView second_weight_mps = second_weight_cpu.to_float16().to(Device::MPS);
+  const StorageView second_bias_mps = second_bias_cpu.to_float16().to(Device::MPS);
+  StorageView hidden_mps(DataType::FLOAT16, Device::MPS);
+  StorageView output_mps(DataType::FLOAT16, Device::MPS);
+  ops::Gemm(1, 0, false, true, false, false, &activation)(
+    input_mps, first_weight_mps, hidden_mps, nullptr, &first_bias_mps);
+  ops::Gemm(1, 0, false, true)(
+    hidden_mps, second_weight_mps, output_mps, nullptr, &second_bias_mps);
+
+  expect_storage_eq(output_mps.to_float32(), expected, 6e-2f);
+}
+
 TEST(MPSBackendTest, TopKFloat16TieUsesFirstIndex) {
   const StorageView input = StorageView({1, 7},
                                         std::vector<float>{1, 4, 2, 4, 3, 0, -1})

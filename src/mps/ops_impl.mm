@@ -27,6 +27,30 @@
 namespace ctranslate2 {
 namespace ops {
 
+namespace {
+int mps_activation_code(const ActivationType* activation) {
+  if (!activation)
+    return -1;
+  switch (*activation) {
+  case ActivationType::ReLU:
+    return static_cast<int>(mps::UnaryOp::RELU);
+  case ActivationType::GELUTanh:
+    return static_cast<int>(mps::UnaryOp::GELU_TANH);
+  case ActivationType::Swish:
+    return static_cast<int>(mps::UnaryOp::SWISH);
+  case ActivationType::GELU:
+    return static_cast<int>(mps::UnaryOp::GELU);
+  case ActivationType::GELUSigmoid:
+    return static_cast<int>(mps::UnaryOp::GELU_SIGMOID);
+  case ActivationType::Tanh:
+    return static_cast<int>(mps::UnaryOp::TANH);
+  case ActivationType::Sigmoid:
+    return static_cast<int>(mps::UnaryOp::SIGMOID);
+  }
+  return -1;
+}
+}
+
 // ============================================================
 // Gather
 // ============================================================
@@ -175,28 +199,23 @@ void BiasAdd::compute(const StorageView& value,
                       const StorageView& bias,
                       StorageView& output,
                       const StorageView* residual) const {
+  dim_t block = 0;
   if (_axis == -1 || _axis == value.rank() - 1) {
-    primitives<Device::MPS>::add_batch_broadcast(bias.data<T>(),
-                                                 value.data<T>(),
-                                                 output.data<T>(),
-                                                 bias.size(),
-                                                 value.size());
+    block = 0;
   } else {
     const dim_t axis = _axis < 0 ? value.rank() + _axis : _axis;
-    dim_t width = 1;
     for (dim_t i = axis + 1; i < value.rank(); ++i)
-      width *= value.dim(i);
-    primitives<Device::MPS>::add_block_broadcast(bias.data<T>(),
-                                                 value.data<T>(),
-                                                 output.data<T>(),
-                                                 width,
-                                                 bias.size(),
-                                                 value.size());
+      block = (block == 0 ? 1 : block) * value.dim(i);
   }
-  if (residual)
-    Add()(*residual, output, output);
-  if (_activation_type)
-    get_activation_op(*_activation_type)(output, output);
+  mps::bias_add(DataTypeToEnum<T>::value,
+                bias.data<T>(),
+                value.data<T>(),
+                residual ? residual->data<T>() : nullptr,
+                output.data<T>(),
+                bias.size(),
+                value.size(),
+                block,
+                mps_activation_code(_activation_type));
 }
 
 template void BiasAdd::compute<Device::MPS, float>(
