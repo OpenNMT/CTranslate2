@@ -8,6 +8,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstdint>
 #include <cstring>
 #include <limits>
@@ -402,6 +403,27 @@ namespace ctranslate2 {
                                                          dim_t batch_size,
                                                          dim_t length,
                                                          dim_t vocabulary_size) {
+    static const bool gpu_repetition_penalty_enabled = []() {
+      const char* value = std::getenv("CT2_MPS_USE_GPU_REPETITION_PENALTY");
+      return !value || value[0] == '\0' || value[0] != '0';
+    }();
+    if constexpr (is_mps_float_type_v<T>) {
+      if (!gpu_repetition_penalty_enabled) {
+        // Retain a diagnostic escape hatch for comparing with the synchronized
+        // reference implementation.
+      } else {
+        mps::penalize_previous_tokens(DataTypeToEnum<T>::value,
+                                      scores,
+                                      previous_scores,
+                                      previous_ids,
+                                      to_float(penalty),
+                                      batch_size,
+                                      length,
+                                      vocabulary_size);
+        return;
+      }
+    }
+
     mps::synchronize("host repetition penalty");
     const float p = to_float(penalty);
     for (dim_t i = 0; i < batch_size * length; ++i) {

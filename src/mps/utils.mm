@@ -49,6 +49,11 @@ namespace ctranslate2 {
       return *buffers;
     }
 
+    static std::unordered_map<void*, size_t>& globally_active_buffers() {
+      static auto* buffers = new std::unordered_map<void*, size_t>;
+      return *buffers;
+    }
+
     static std::unordered_set<void*>& pending_buffer_frees() {
       static auto* buffers = new std::unordered_set<void*>;
       return *buffers;
@@ -62,8 +67,15 @@ namespace ctranslate2 {
                                                             active_buffers.end());
       active_buffers.clear();
       std::lock_guard<std::mutex> lock(inflight_mutex());
-      for (void* buffer : *resources)
+      for (void* buffer : *resources) {
+        auto& active = globally_active_buffers();
+        const auto active_it = active.find(buffer);
+        if (active_it != active.end()) {
+          if (--active_it->second == 0)
+            active.erase(active_it);
+        }
         ++inflight_buffers()[buffer];
+      }
       return resources;
     }
 
@@ -76,12 +88,14 @@ namespace ctranslate2 {
           const auto found = buffers.find(buffer);
           if (found != buffers.end() && --found->second == 0) {
             buffers.erase(found);
-            if (pending_buffer_frees().erase(buffer) != 0)
+            if (globally_active_buffers().find(buffer) == globally_active_buffers().end()
+                && pending_buffer_frees().erase(buffer) != 0)
               buffers_to_destroy.emplace_back(buffer);
           }
-          CFRelease(static_cast<CFTypeRef>(buffer));
         }
       }
+      for (void* buffer : *resources)
+        CFRelease(static_cast<CFTypeRef>(buffer));
       for (void* buffer : buffers_to_destroy)
         destroy_buffer(buffer);
     }
@@ -119,10 +133,7 @@ namespace ctranslate2 {
       return enabled;
     }
 
-    static uint64_t operation_limit(const char* specific_name, uint64_t default_value) {
-      const char* legacy = std::getenv("CT2_MPS_MAX_OPS");
-      const char* specific = std::getenv(specific_name);
-      const char* env = specific && specific[0] != '\0' ? specific : legacy;
+    static uint64_t parse_operation_limit(const char* env, uint64_t default_value) {
       if (!env || env[0] == '\0')
         return default_value;
       errno = 0;
@@ -131,6 +142,13 @@ namespace ctranslate2 {
       if (errno != 0 || end == env || *end != '\0')
         return default_value;
       return static_cast<uint64_t>(parsed);
+    }
+
+    static uint64_t operation_limit(const char* specific_name, uint64_t default_value) {
+      const char* legacy = std::getenv("CT2_MPS_MAX_OPS");
+      const char* specific = std::getenv(specific_name);
+      const char* env = specific && specific[0] != '\0' ? specific : legacy;
+      return parse_operation_limit(env, default_value);
     }
 
     static uint64_t max_compute_operations() {
@@ -145,6 +163,24 @@ namespace ctranslate2 {
     static uint64_t max_blit_operations() {
       static const uint64_t value = []() {
         return operation_limit("CT2_MPS_MAX_BLIT_OPS", 64);
+      }();
+      return value;
+    }
+
+    static NSUInteger max_inflight_command_buffers() {
+      static const NSUInteger value = []() {
+        // An unbounded queue lets a fast CPU encoder submit thousands of tiny
+        // command buffers while the GPU is busy. Each submitted buffer keeps
+        // its temporary tensors alive until completion, which is especially
+        // dangerous on unified-memory systems. Eight preserves useful overlap
+        // while applying backpressure before memory pressure becomes extreme;
+        // higher values corrupted cold Whisper encoders on an 8 GB M1.
+        // CT2_MPS_MAX_OPS is intentionally not consulted here: that legacy
+        // variable controls dispatch batching, not the number of resident
+        // Metal command buffers.
+        const uint64_t configured = parse_operation_limit(
+          std::getenv("CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS"), 8);
+        return static_cast<NSUInteger>(std::max<uint64_t>(1, configured));
       }();
       return value;
     }
@@ -221,7 +257,8 @@ namespace ctranslate2 {
       std::call_once(once, []() {
         g_device = MTLCreateSystemDefaultDevice();
         if (g_device) {
-          g_queue = [g_device newCommandQueue];
+          g_queue = [g_device
+            newCommandQueueWithMaxCommandBufferCount:max_inflight_command_buffers()];
           if (profile_enabled())
             std::atexit(print_profile);
         }
@@ -248,7 +285,15 @@ namespace ctranslate2 {
           ensure_initialized();
           if (!g_queue)
             throw std::runtime_error("MPS command queue not available");
-          _command_buffer = [[g_queue commandBuffer] retain];
+          // CTranslate2 workers are plain C++ threads and do not have Cocoa's
+          // run-loop autorelease pool. Retain the command buffer explicitly,
+          // then drain only the temporary factory ownership immediately. A
+          // pool spanning the whole inference kept thousands of completed
+          // command buffers alive until the first host read and could exhaust
+          // unified memory during a cold Whisper encoder.
+          @autoreleasepool {
+            _command_buffer = [[g_queue commandBuffer] retain];
+          }
           if (!_command_buffer)
             throw std::runtime_error("MPS command buffer creation failed");
           if (profile_enabled())
@@ -261,7 +306,9 @@ namespace ctranslate2 {
         if (_blit_encoder)
           end_blit_encoder();
         if (!_compute_encoder) {
-          _compute_encoder = [[command_buffer() computeCommandEncoder] retain];
+          @autoreleasepool {
+            _compute_encoder = [[command_buffer() computeCommandEncoder] retain];
+          }
           if (!_compute_encoder)
             throw std::runtime_error("MPS compute encoder creation failed");
         }
@@ -272,7 +319,9 @@ namespace ctranslate2 {
         if (_compute_encoder)
           end_compute_encoder();
         if (!_blit_encoder) {
-          _blit_encoder = [[command_buffer() blitCommandEncoder] retain];
+          @autoreleasepool {
+            _blit_encoder = [[command_buffer() blitCommandEncoder] retain];
+          }
           if (!_blit_encoder)
             throw std::runtime_error("MPS blit encoder creation failed");
         }
@@ -318,6 +367,8 @@ namespace ctranslate2 {
           // the registry ownership, so retain each resource until the GPU
           // completion handler has run.
           CFRetain(static_cast<CFTypeRef>(buffer));
+          std::lock_guard<std::mutex> lock(inflight_mutex());
+          ++globally_active_buffers()[buffer];
         }
       }
 
@@ -338,14 +389,16 @@ namespace ctranslate2 {
           [_last_submitted release];
         _last_submitted = submitted;
         [submitted addCompletedHandler:^(id<MTLCommandBuffer> completed_buffer) {
-          record_command_buffer_error(completed_buffer);
-          if (profile_enabled()
-              && completed_buffer.GPUStartTime > 0
-              && completed_buffer.GPUEndTime >= completed_buffer.GPUStartTime) {
-            const double duration = completed_buffer.GPUEndTime - completed_buffer.GPUStartTime;
-            g_profile.gpu_time_ns.fetch_add(static_cast<uint64_t>(duration * 1.0e9));
+          @autoreleasepool {
+            record_command_buffer_error(completed_buffer);
+            if (profile_enabled()
+                && completed_buffer.GPUStartTime > 0
+                && completed_buffer.GPUEndTime >= completed_buffer.GPUStartTime) {
+              const double duration = completed_buffer.GPUEndTime - completed_buffer.GPUStartTime;
+              g_profile.gpu_time_ns.fetch_add(static_cast<uint64_t>(duration * 1.0e9));
+            }
+            unmark_inflight(resources);
           }
-          unmark_inflight(resources);
         }];
         [submitted commit];
         if (profile_enabled())
@@ -477,17 +530,28 @@ namespace ctranslate2 {
       if (!ptr)
         return;
 
-      const bool active = current_stream().has_active_buffer(ptr);
-      if (active)
-        current_stream().flush();
-      bool defer = active;
+      const bool active_on_current_stream = current_stream().has_active_buffer(ptr);
+      bool defer = false;
       {
         std::lock_guard<std::mutex> lock(inflight_mutex());
-        if (inflight_buffers().find(ptr) != inflight_buffers().end())
-          defer = true;
+        // Register the pending free under the same mutex used by stream
+        // submission and completion. Previously this function flushed first;
+        // a fast command buffer could complete before the pending marker was
+        // inserted, leaking the MTLBuffer and its registry entry forever.
+        // The global active map also makes cross-thread StorageView destruction
+        // safe without forcing a command-buffer commit for every temporary.
+        defer = globally_active_buffers().find(ptr) != globally_active_buffers().end()
+                || inflight_buffers().find(ptr) != inflight_buffers().end();
         if (defer)
           pending_buffer_frees().insert(ptr);
       }
+      // Keep the conservative commit for a temporary owned by this stream.
+      // Some CTranslate2 paths directly reuse shared-memory views at lifetime
+      // boundaries, so merely retaining the MTLBuffer is insufficient. The
+      // pending marker is deliberately installed before this flush to prevent
+      // the lost-completion leak described above.
+      if (active_on_current_stream)
+        current_stream().flush();
       if (!defer)
         destroy_buffer(ptr);
     }
@@ -504,7 +568,10 @@ namespace ctranslate2 {
       return (__bridge void*)g_device;
     }
 
-    void* get_buffer(const void* ptr, size_t size, size_t* offset) {
+    static void* lookup_buffer(const void* ptr,
+                               size_t size,
+                               size_t* offset,
+                               bool record_use) {
       if (!ptr)
         return nullptr;
 
@@ -528,9 +595,20 @@ namespace ctranslate2 {
       if (address >= base && requested_end <= allocation_end) {
         if (offset)
           *offset = static_cast<size_t>(address - base);
-        return (__bridge void*)it->second.buffer;
+        void* buffer = (__bridge void*)it->second.buffer;
+        if (record_use)
+          current_stream().record_buffer(buffer);
+        return buffer;
       }
       return nullptr;
+    }
+
+    void* get_buffer(const void* ptr, size_t size, size_t* offset) {
+      return lookup_buffer(ptr, size, offset, false);
+    }
+
+    void* get_buffer_for_use(const void* ptr, size_t size, size_t* offset) {
+      return lookup_buffer(ptr, size, offset, true);
     }
 
     void record_metal_buffer_use(void* metal_buffer) {

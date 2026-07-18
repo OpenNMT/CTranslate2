@@ -6,6 +6,9 @@
 #ifdef CT2_WITH_MPS
 
 #include <algorithm>
+#include <cstdlib>
+#include <cstdint>
+#include <limits>
 #include <numeric>
 #include <vector>
 
@@ -101,6 +104,28 @@ namespace {
     for (dim_t i = 0; i < axis; ++i) s *= x.dim(i);
     return s;
   }
+  static bool _css_ranges_overlap(const void* first,
+                                  size_t first_size,
+                                  const void* second,
+                                  size_t second_size) {
+    if (first_size == 0 || second_size == 0)
+      return false;
+    const auto first_begin = reinterpret_cast<uintptr_t>(first);
+    const auto second_begin = reinterpret_cast<uintptr_t>(second);
+    if (first_begin > std::numeric_limits<uintptr_t>::max() - first_size
+        || second_begin > std::numeric_limits<uintptr_t>::max() - second_size)
+      return true;
+    const auto first_end = first_begin + first_size;
+    const auto second_end = second_begin + second_size;
+    return first_begin < second_end && second_begin < first_end;
+  }
+  static bool _css_concat2_enabled() {
+    static const bool enabled = []() {
+      const char* value = std::getenv("CT2_MPS_USE_CONCAT2");
+      return !value || value[0] == '\0' || value[0] != '0';
+    }();
+    return enabled;
+  }
 }
 
 template <Device D, typename T>
@@ -109,6 +134,33 @@ void Concat::compute(const std::vector<const StorageView*>& inputs,
   const dim_t axis = _axis < 0 ? output.rank() + _axis : _axis;
   const dim_t step_size = output.dim(axis) * output.stride(axis);
   T* out = output.data<T>();
+
+  // Whisper appends decoder K/V cache tensors shaped [B, H, T, D]. The old
+  // implementation issued one copy dispatch per head and per input, which
+  // accounted for most decoder dispatches. Concatenate the two non-aliasing
+  // inputs with one kernel while preserving the generic path for unusual
+  // arity, empty tensors, and in-place views.
+  if (_css_concat2_enabled() && inputs.size() == 2) {
+    const dim_t a_block_size = _css_copy_size(*inputs[0], axis);
+    const dim_t b_block_size = _css_copy_size(*inputs[1], axis);
+    const dim_t outer_size = _css_iter_size(output, axis);
+    const size_t element_size = sizeof(T);
+    const size_t output_bytes = static_cast<size_t>(output.size()) * element_size;
+    const size_t a_bytes = static_cast<size_t>(inputs[0]->size()) * element_size;
+    const size_t b_bytes = static_cast<size_t>(inputs[1]->size()) * element_size;
+    if (a_block_size > 0 && b_block_size > 0 && outer_size > 0
+        && !_css_ranges_overlap(inputs[0]->data<T>(), a_bytes, out, output_bytes)
+        && !_css_ranges_overlap(inputs[1]->data<T>(), b_bytes, out, output_bytes)) {
+      mps::concat2(DataTypeToEnum<T>::value,
+                   inputs[0]->data<T>(),
+                   a_block_size,
+                   inputs[1]->data<T>(),
+                   b_block_size,
+                   out,
+                   outer_size);
+      return;
+    }
+  }
 
   for (const StorageView* inp : inputs) {
     const dim_t copy_size = _css_copy_size(*inp, axis);

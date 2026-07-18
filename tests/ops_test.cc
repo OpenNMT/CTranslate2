@@ -4,6 +4,11 @@
 #include "ctranslate2/layers/attention.h"
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/primitives.h"
+#ifdef CT2_WITH_MPS
+#  include "ctranslate2/allocator.h"
+#  include "ctranslate2/devices.h"
+#  include "mps/utils.h"
+#endif
 
 TEST(OpTest, Transpose1D) {
   StorageView x({4}, std::vector<float>{1, 2, 3, 4});
@@ -1483,6 +1488,28 @@ TEST_P(OpDeviceFPTest, BiasAddAxisGELU) {
 }
 
 #ifdef CT2_WITH_MPS
+TEST(MPSBackendTest, ActiveTemporaryFreesAreProcessedAfterCompletion) {
+  constexpr size_t iterations = 256;
+  constexpr dim_t elements = 16;
+  auto& allocator = get_allocator<Device::MPS>();
+  std::vector<void*> released;
+  released.reserve(iterations);
+
+  for (size_t iteration = 0; iteration < iterations; ++iteration) {
+    auto* buffer = static_cast<float*>(
+      allocator.allocate(static_cast<size_t>(elements) * sizeof(float), 0));
+    primitives<Device::MPS>::fill(buffer, static_cast<float>(iteration), elements);
+    released.emplace_back(buffer);
+    allocator.free(buffer, 0);
+  }
+
+  synchronize_stream(Device::MPS);
+  for (const void* address : released) {
+    size_t offset = 0;
+    EXPECT_EQ(mps::get_buffer(address, sizeof(float), &offset), nullptr);
+  }
+}
+
 TEST(MPSBackendTest, BatchesDependentComputeDispatches) {
   StorageView x({4}, std::vector<float>{1, 2, 3, 4}, Device::MPS);
   StorageView y({4}, DataType::FLOAT32, Device::MPS);
@@ -1522,6 +1549,43 @@ TEST(MPSBackendTest, LayerNormParallelReductionIsStable) {
     ops::LayerNorm()(beta_mps, gamma_mps, input_mps, output);
     expect_storage_eq(output.to_float32(), expected, 2e-4f);
   }
+}
+
+TEST(MPSBackendTest, WhisperSizedFloat16LayerNormFeedsDependentDispatch) {
+  constexpr dim_t rows = 1500;
+  constexpr dim_t width = 1024;
+  std::vector<float> input_values(rows * width);
+  std::vector<float> gamma_values(width);
+  std::vector<float> beta_values(width);
+  for (dim_t i = 0; i < rows * width; ++i)
+    input_values[i] = std::sin(static_cast<float>(i) * 0.0013f) * 1.5f
+                      + std::cos(static_cast<float>(i) * 0.0007f) * 0.5f;
+  for (dim_t i = 0; i < width; ++i) {
+    gamma_values[i] = 0.75f + std::sin(static_cast<float>(i) * 0.011f) * 0.2f;
+    beta_values[i] = std::cos(static_cast<float>(i) * 0.017f) * 0.1f;
+  }
+
+  const StorageView input_cpu({rows, width}, input_values);
+  const StorageView gamma_cpu({width}, gamma_values);
+  const StorageView beta_cpu({width}, beta_values);
+  StorageView expected;
+  ops::LayerNorm()(beta_cpu, gamma_cpu, input_cpu, expected);
+  primitives<Device::CPU>::add(0.125f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+
+  const StorageView input_mps = input_cpu.to_float16().to(Device::MPS);
+  const StorageView gamma_mps = gamma_cpu.to_float16().to(Device::MPS);
+  const StorageView beta_mps = beta_cpu.to_float16().to(Device::MPS);
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  ops::LayerNorm()(beta_mps, gamma_mps, input_mps, output);
+  primitives<Device::MPS>::add(float16_t(0.125f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+
+  expect_storage_eq(output.to_float32(), expected, 3e-2f);
 }
 
 TEST(MPSBackendTest, DecodeGemmFloat16OddShapeAlphaBeta) {

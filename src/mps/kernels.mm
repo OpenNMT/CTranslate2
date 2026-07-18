@@ -179,6 +179,13 @@ struct IndexedFillArgs {
   int int_value;
 };
 
+struct RepetitionPenaltyArgs {
+  uint total;
+  uint length;
+  uint vocabulary_size;
+  float penalty;
+};
+
 struct LengthMaskArgs {
   uint batch_size;
   uint num_heads;
@@ -192,6 +199,12 @@ struct GatherArgs {
   ulong batch_stride;
   ulong num_indices;
   ulong num_indices_per_batch;
+};
+
+struct Concat2Args {
+  ulong outer_size;
+  ulong a_block_size;
+  ulong b_block_size;
 };
 
 struct TileArgs {
@@ -365,6 +378,27 @@ INDEXED_FILL_KERNEL(indexed_fill_bf16, ushort, f32_to_bf16(args.float_value))
 INDEXED_FILL_KERNEL(indexed_fill_i8, char, char(args.int_value))
 INDEXED_FILL_KERNEL(indexed_fill_i16, short, short(args.int_value))
 INDEXED_FILL_KERNEL(indexed_fill_i32, int, args.int_value)
+
+#define REPETITION_PENALTY_KERNEL(NAME, TYPE, LOAD, STORE)                            \
+kernel void NAME(device TYPE* scores [[buffer(0)]],                                   \
+                 device const TYPE* previous_scores [[buffer(1)]],                   \
+                 device const int* previous_ids [[buffer(2)]],                       \
+                 constant RepetitionPenaltyArgs& args [[buffer(3)]],                 \
+                 uint gid [[thread_position_in_grid]]) {                             \
+  if (gid >= args.total) return;                                                      \
+  const uint batch = gid / args.length;                                               \
+  const int token = previous_ids[gid];                                                \
+  if (token < 0 || uint(token) >= args.vocabulary_size) return;                       \
+  const ulong write_index = ulong(batch) * ulong(args.vocabulary_size)               \
+                            + ulong(token);                                           \
+  const float score = LOAD(previous_scores[gid]);                                    \
+  scores[write_index] = STORE(score < 0.0f ? score * args.penalty                    \
+                                           : score / args.penalty);                  \
+}
+
+REPETITION_PENALTY_KERNEL(repetition_penalty_f32, float, float, float)
+REPETITION_PENALTY_KERNEL(repetition_penalty_f16, half, float, half)
+REPETITION_PENALTY_KERNEL(repetition_penalty_bf16, ushort, bf16_to_f32, f32_to_bf16)
 
 kernel void prepare_length_mask(device const int* lengths [[buffer(0)]],
                                 device int* mask [[buffer(1)]],
@@ -937,6 +971,30 @@ GATHER_KERNEL(gather_bf16, ushort)
 GATHER_KERNEL(gather_i8, char)
 GATHER_KERNEL(gather_i16, short)
 GATHER_KERNEL(gather_i32, int)
+
+#define CONCAT2_KERNEL(NAME, TYPE)                                                    \
+kernel void NAME(device const TYPE* a [[buffer(0)]],                                 \
+                 device const TYPE* b [[buffer(1)]],                                 \
+                 device TYPE* output [[buffer(2)]],                                  \
+                 constant Concat2Args& args [[buffer(3)]],                           \
+                 uint gid [[thread_position_in_grid]]) {                             \
+  const ulong out = ulong(gid);                                                      \
+  const ulong output_block = args.a_block_size + args.b_block_size;                  \
+  const ulong total = args.outer_size * output_block;                                \
+  if (out >= total) return;                                                          \
+  const ulong outer = out / output_block;                                            \
+  const ulong within = out - outer * output_block;                                   \
+  output[out] = within < args.a_block_size                                           \
+                  ? a[outer * args.a_block_size + within]                            \
+                  : b[outer * args.b_block_size + within - args.a_block_size];       \
+}
+
+CONCAT2_KERNEL(concat2_f32, float)
+CONCAT2_KERNEL(concat2_f16, half)
+CONCAT2_KERNEL(concat2_bf16, ushort)
+CONCAT2_KERNEL(concat2_i8, char)
+CONCAT2_KERNEL(concat2_i16, short)
+CONCAT2_KERNEL(concat2_i32, int)
 
 #define TILE_KERNEL(NAME, TYPE)                                                       \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                              \
@@ -1721,6 +1779,13 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         int32_t int_value;
       };
 
+      struct RepetitionPenaltyArgs {
+        uint32_t total;
+        uint32_t length;
+        uint32_t vocabulary_size;
+        float penalty;
+      };
+
       struct LengthMaskArgs {
         uint32_t batch_size;
         uint32_t num_heads;
@@ -1734,6 +1799,12 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint64_t batch_stride;
         uint64_t num_indices;
         uint64_t num_indices_per_batch;
+      };
+
+      struct Concat2Args {
+        uint64_t outer_size;
+        uint64_t a_block_size;
+        uint64_t b_block_size;
       };
 
       struct TileArgs {
@@ -1902,22 +1973,24 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         static id<MTLLibrary> lib = nil;
         static std::once_flag library_once;
         std::call_once(library_once, [&]() {
-          id<MTLDevice> device = (__bridge id<MTLDevice>)get_device();
-          if (!device)
-            throw std::runtime_error("MPS device not available");
+          @autoreleasepool {
+            id<MTLDevice> device = (__bridge id<MTLDevice>)get_device();
+            if (!device)
+              throw std::runtime_error("MPS device not available");
 
-          NSError* error = nil;
-          NSString* source = [NSString stringWithUTF8String:kMetalSource];
-          MTLCompileOptions* options = [[MTLCompileOptions alloc] init];
-          lib = [device newLibraryWithSource:source options:options error:&error];
+            NSError* error = nil;
+            NSString* source = [NSString stringWithUTF8String:kMetalSource];
+            MTLCompileOptions* options = [[MTLCompileOptions alloc] init];
+            lib = [device newLibraryWithSource:source options:options error:&error];
 #if !__has_feature(objc_arc)
-          [options release];
+            [options release];
 #endif
-          if (!lib) {
-            std::string message = "failed to compile CTranslate2 MPS kernels";
-            if (error && [error localizedDescription])
-              message += ": " + std::string([[error localizedDescription] UTF8String]);
-            throw std::runtime_error(message);
+            if (!lib) {
+              std::string message = "failed to compile CTranslate2 MPS kernels";
+              if (error && [error localizedDescription])
+                message += ": " + std::string([[error localizedDescription] UTF8String]);
+              throw std::runtime_error(message);
+            }
           }
         });
         return lib;
@@ -1940,8 +2013,11 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         }
 
         id<MTLDevice> device = (__bridge id<MTLDevice>)get_device();
-        NSString* ns_name = [NSString stringWithUTF8String:name.c_str()];
+        NSString* ns_name = [[NSString alloc] initWithUTF8String:name.c_str()];
         id<MTLFunction> function = [library() newFunctionWithName:ns_name];
+#if !__has_feature(objc_arc)
+        [ns_name release];
+#endif
         if (!function)
           throw std::runtime_error("MPS kernel not found: " + name);
 
@@ -1998,10 +2074,9 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
 
       static id<MTLBuffer> mtl_buffer(const void* ptr, size_t bytes, NSUInteger& offset) {
         size_t raw_offset = 0;
-        void* raw_buffer = get_buffer(ptr, bytes, &raw_offset);
+        void* raw_buffer = get_buffer_for_use(ptr, bytes, &raw_offset);
         if (!raw_buffer)
           throw std::runtime_error("MPS pointer is not backed by a registered Metal buffer");
-        record_metal_buffer_use(raw_buffer);
         offset = static_cast<NSUInteger>(raw_offset);
         return (__bridge id<MTLBuffer>)raw_buffer;
       }
@@ -2907,56 +2982,63 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       id<MTLBuffer> buf_b = mtl_buffer(b, dense_matrix_bytes(b_rows, b_cols, ldb, element_size), offset_b);
       id<MTLBuffer> buf_c = mtl_buffer(c, dense_matrix_bytes(m, n, ldc, element_size), offset_c);
 
-      const MPSDataType matrix_type = mps_matrix_data_type(dtype);
-      MPSMatrixDescriptor* desc_a =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(a_rows)
-                                              columns:static_cast<NSUInteger>(a_cols)
-                                             rowBytes:static_cast<NSUInteger>(lda * element_size)
-                                             dataType:matrix_type];
-      MPSMatrixDescriptor* desc_b =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(b_rows)
-                                              columns:static_cast<NSUInteger>(b_cols)
-                                             rowBytes:static_cast<NSUInteger>(ldb * element_size)
-                                             dataType:matrix_type];
-      MPSMatrixDescriptor* desc_c =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(m)
-                                              columns:static_cast<NSUInteger>(n)
-                                             rowBytes:static_cast<NSUInteger>(ldc * element_size)
-                                             dataType:matrix_type];
+      @autoreleasepool {
+        const MPSDataType matrix_type = mps_matrix_data_type(dtype);
+        MPSMatrixDescriptor* desc_a =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(a_rows)
+                                                columns:static_cast<NSUInteger>(a_cols)
+                                               rowBytes:static_cast<NSUInteger>(lda * element_size)
+                                               dataType:matrix_type];
+        MPSMatrixDescriptor* desc_b =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(b_rows)
+                                                columns:static_cast<NSUInteger>(b_cols)
+                                               rowBytes:static_cast<NSUInteger>(ldb * element_size)
+                                               dataType:matrix_type];
+        MPSMatrixDescriptor* desc_c =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(m)
+                                                columns:static_cast<NSUInteger>(n)
+                                               rowBytes:static_cast<NSUInteger>(ldc * element_size)
+                                               dataType:matrix_type];
+        // MPS descriptor factories return autoreleased objects. Keep them
+        // alive until GPU completion while draining the worker-local pool now.
+        record_metal_object_use((__bridge void*)desc_a);
+        record_metal_object_use((__bridge void*)desc_b);
+        record_metal_object_use((__bridge void*)desc_c);
 
-      MPSMatrix* mat_a = [[MPSMatrix alloc] initWithBuffer:buf_a offset:offset_a descriptor:desc_a];
-      MPSMatrix* mat_b = [[MPSMatrix alloc] initWithBuffer:buf_b offset:offset_b descriptor:desc_b];
-      MPSMatrix* mat_c = [[MPSMatrix alloc] initWithBuffer:buf_c offset:offset_c descriptor:desc_c];
-      record_metal_object_use((__bridge void*)mat_a);
-      record_metal_object_use((__bridge void*)mat_b);
-      record_metal_object_use((__bridge void*)mat_c);
+        MPSMatrix* mat_a = [[MPSMatrix alloc] initWithBuffer:buf_a offset:offset_a descriptor:desc_a];
+        MPSMatrix* mat_b = [[MPSMatrix alloc] initWithBuffer:buf_b offset:offset_b descriptor:desc_b];
+        MPSMatrix* mat_c = [[MPSMatrix alloc] initWithBuffer:buf_c offset:offset_c descriptor:desc_c];
+        record_metal_object_use((__bridge void*)mat_a);
+        record_metal_object_use((__bridge void*)mat_b);
+        record_metal_object_use((__bridge void*)mat_c);
 
-      MPSMatrixMultiplication* matmul = gemm_kernel(device,
-                                                    dtype,
-                                                    transpose_a,
-                                                    transpose_b,
-                                                    m,
-                                                    n,
-                                                    k,
-                                                    1,
-                                                    alpha,
-                                                    beta);
+        MPSMatrixMultiplication* matmul = gemm_kernel(device,
+                                                      dtype,
+                                                      transpose_a,
+                                                      transpose_b,
+                                                      m,
+                                                      n,
+                                                      k,
+                                                      1,
+                                                      alpha,
+                                                      beta);
 
-      end_active_encoder();
-      id<MTLCommandBuffer> active_command_buffer =
-        (__bridge id<MTLCommandBuffer>)command_buffer();
-      [matmul encodeToCommandBuffer:active_command_buffer
-                         leftMatrix:mat_a
-                        rightMatrix:mat_b
-                        resultMatrix:mat_c];
-      record_compute_dispatch("mps_matrix_gemm");
-      record_profile_event(ProfileEvent::Gemm);
+        end_active_encoder();
+        id<MTLCommandBuffer> active_command_buffer =
+          (__bridge id<MTLCommandBuffer>)command_buffer();
+        [matmul encodeToCommandBuffer:active_command_buffer
+                           leftMatrix:mat_a
+                          rightMatrix:mat_b
+                          resultMatrix:mat_c];
+        record_compute_dispatch("mps_matrix_gemm");
+        record_profile_event(ProfileEvent::Gemm);
 
 #if !__has_feature(objc_arc)
-      [mat_a release];
-      [mat_b release];
-      [mat_c release];
+        [mat_a release];
+        [mat_b release];
+        [mat_c release];
 #endif
+      }
     }
 
     void gemm_batch_strided(DataType dtype,
@@ -3102,61 +3184,66 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       id<MTLBuffer> buf_c =
         mtl_buffer(c, strided_matrix_array_bytes(m, n, ldc, stridec, batch_size, element_size), offset_c);
 
-      const MPSDataType matrix_type = mps_matrix_data_type(dtype);
-      MPSMatrixDescriptor* desc_a =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(a_rows)
-                                              columns:static_cast<NSUInteger>(a_cols)
-                                             matrices:static_cast<NSUInteger>(batch_size)
-                                             rowBytes:static_cast<NSUInteger>(lda * element_size)
-                                          matrixBytes:static_cast<NSUInteger>(stridea * element_size)
-                                             dataType:matrix_type];
-      MPSMatrixDescriptor* desc_b =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(b_rows)
-                                              columns:static_cast<NSUInteger>(b_cols)
-                                             matrices:static_cast<NSUInteger>(batch_size)
-                                             rowBytes:static_cast<NSUInteger>(ldb * element_size)
-                                          matrixBytes:static_cast<NSUInteger>(strideb * element_size)
-                                             dataType:matrix_type];
-      MPSMatrixDescriptor* desc_c =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(m)
-                                              columns:static_cast<NSUInteger>(n)
-                                             matrices:static_cast<NSUInteger>(batch_size)
-                                             rowBytes:static_cast<NSUInteger>(ldc * element_size)
-                                          matrixBytes:static_cast<NSUInteger>(stridec * element_size)
-                                             dataType:matrix_type];
+      @autoreleasepool {
+        const MPSDataType matrix_type = mps_matrix_data_type(dtype);
+        MPSMatrixDescriptor* desc_a =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(a_rows)
+                                                columns:static_cast<NSUInteger>(a_cols)
+                                               matrices:static_cast<NSUInteger>(batch_size)
+                                               rowBytes:static_cast<NSUInteger>(lda * element_size)
+                                            matrixBytes:static_cast<NSUInteger>(stridea * element_size)
+                                               dataType:matrix_type];
+        MPSMatrixDescriptor* desc_b =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(b_rows)
+                                                columns:static_cast<NSUInteger>(b_cols)
+                                               matrices:static_cast<NSUInteger>(batch_size)
+                                               rowBytes:static_cast<NSUInteger>(ldb * element_size)
+                                            matrixBytes:static_cast<NSUInteger>(strideb * element_size)
+                                               dataType:matrix_type];
+        MPSMatrixDescriptor* desc_c =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(m)
+                                                columns:static_cast<NSUInteger>(n)
+                                               matrices:static_cast<NSUInteger>(batch_size)
+                                               rowBytes:static_cast<NSUInteger>(ldc * element_size)
+                                            matrixBytes:static_cast<NSUInteger>(stridec * element_size)
+                                               dataType:matrix_type];
+        record_metal_object_use((__bridge void*)desc_a);
+        record_metal_object_use((__bridge void*)desc_b);
+        record_metal_object_use((__bridge void*)desc_c);
 
-      MPSMatrix* mat_a = [[MPSMatrix alloc] initWithBuffer:buf_a offset:offset_a descriptor:desc_a];
-      MPSMatrix* mat_b = [[MPSMatrix alloc] initWithBuffer:buf_b offset:offset_b descriptor:desc_b];
-      MPSMatrix* mat_c = [[MPSMatrix alloc] initWithBuffer:buf_c offset:offset_c descriptor:desc_c];
-      record_metal_object_use((__bridge void*)mat_a);
-      record_metal_object_use((__bridge void*)mat_b);
-      record_metal_object_use((__bridge void*)mat_c);
-      MPSMatrixMultiplication* matmul = gemm_kernel(device,
-                                                    dtype,
-                                                    transpose_a,
-                                                    transpose_b,
-                                                    m,
-                                                    n,
-                                                    k,
-                                                    batch_size,
-                                                    alpha,
-                                                    beta);
+        MPSMatrix* mat_a = [[MPSMatrix alloc] initWithBuffer:buf_a offset:offset_a descriptor:desc_a];
+        MPSMatrix* mat_b = [[MPSMatrix alloc] initWithBuffer:buf_b offset:offset_b descriptor:desc_b];
+        MPSMatrix* mat_c = [[MPSMatrix alloc] initWithBuffer:buf_c offset:offset_c descriptor:desc_c];
+        record_metal_object_use((__bridge void*)mat_a);
+        record_metal_object_use((__bridge void*)mat_b);
+        record_metal_object_use((__bridge void*)mat_c);
+        MPSMatrixMultiplication* matmul = gemm_kernel(device,
+                                                      dtype,
+                                                      transpose_a,
+                                                      transpose_b,
+                                                      m,
+                                                      n,
+                                                      k,
+                                                      batch_size,
+                                                      alpha,
+                                                      beta);
 
-      end_active_encoder();
-      id<MTLCommandBuffer> active_command_buffer =
-        (__bridge id<MTLCommandBuffer>)command_buffer();
-      [matmul encodeToCommandBuffer:active_command_buffer
-                         leftMatrix:mat_a
-                        rightMatrix:mat_b
-                        resultMatrix:mat_c];
-      record_compute_dispatch("mps_matrix_batched_gemm");
-      record_profile_event(ProfileEvent::Gemm);
+        end_active_encoder();
+        id<MTLCommandBuffer> active_command_buffer =
+          (__bridge id<MTLCommandBuffer>)command_buffer();
+        [matmul encodeToCommandBuffer:active_command_buffer
+                           leftMatrix:mat_a
+                          rightMatrix:mat_b
+                          resultMatrix:mat_c];
+        record_compute_dispatch("mps_matrix_batched_gemm");
+        record_profile_event(ProfileEvent::Gemm);
 
 #if !__has_feature(objc_arc)
-      [mat_a release];
-      [mat_b release];
-      [mat_c release];
+        [mat_a release];
+        [mat_b release];
+        [mat_c release];
 #endif
+      }
     }
 
     bool supports_topk(DataType dtype, dim_t k) {
@@ -3276,66 +3363,71 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       id<MTLBuffer> indices_buffer =
         mtl_buffer(indices, static_cast<size_t>(batch_size * k) * sizeof(uint32_t), indices_offset);
 
-      MPSMatrixDescriptor* input_desc =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
-                                              columns:static_cast<NSUInteger>(depth)
-                                             rowBytes:static_cast<NSUInteger>(depth * element_size)
-                                             dataType:mps_matrix_data_type(dtype)];
-      MPSMatrixDescriptor* values_desc =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
-                                              columns:static_cast<NSUInteger>(k)
-                                             rowBytes:static_cast<NSUInteger>(k * element_size)
-                                             dataType:mps_matrix_data_type(dtype)];
-      MPSMatrixDescriptor* indices_desc =
-        [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
-                                              columns:static_cast<NSUInteger>(k)
-                                             rowBytes:static_cast<NSUInteger>(k * sizeof(uint32_t))
-                                             dataType:MPSDataTypeUInt32];
+      @autoreleasepool {
+        MPSMatrixDescriptor* input_desc =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
+                                                columns:static_cast<NSUInteger>(depth)
+                                               rowBytes:static_cast<NSUInteger>(depth * element_size)
+                                               dataType:mps_matrix_data_type(dtype)];
+        MPSMatrixDescriptor* values_desc =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
+                                                columns:static_cast<NSUInteger>(k)
+                                               rowBytes:static_cast<NSUInteger>(k * element_size)
+                                               dataType:mps_matrix_data_type(dtype)];
+        MPSMatrixDescriptor* indices_desc =
+          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
+                                                columns:static_cast<NSUInteger>(k)
+                                               rowBytes:static_cast<NSUInteger>(k * sizeof(uint32_t))
+                                               dataType:MPSDataTypeUInt32];
+        record_metal_object_use((__bridge void*)input_desc);
+        record_metal_object_use((__bridge void*)values_desc);
+        record_metal_object_use((__bridge void*)indices_desc);
 
-      MPSMatrix* input_matrix = [[MPSMatrix alloc] initWithBuffer:input_buffer
-                                                          offset:input_offset
-                                                      descriptor:input_desc];
-      MPSMatrix* values_matrix = [[MPSMatrix alloc] initWithBuffer:values_buffer
-                                                            offset:values_offset
-                                                        descriptor:values_desc];
-      MPSMatrix* indices_matrix = [[MPSMatrix alloc] initWithBuffer:indices_buffer
-                                                             offset:indices_offset
-                                                         descriptor:indices_desc];
-      record_metal_object_use((__bridge void*)input_matrix);
-      record_metal_object_use((__bridge void*)values_matrix);
-      record_metal_object_use((__bridge void*)indices_matrix);
+        MPSMatrix* input_matrix = [[MPSMatrix alloc] initWithBuffer:input_buffer
+                                                            offset:input_offset
+                                                        descriptor:input_desc];
+        MPSMatrix* values_matrix = [[MPSMatrix alloc] initWithBuffer:values_buffer
+                                                              offset:values_offset
+                                                          descriptor:values_desc];
+        MPSMatrix* indices_matrix = [[MPSMatrix alloc] initWithBuffer:indices_buffer
+                                                               offset:indices_offset
+                                                           descriptor:indices_desc];
+        record_metal_object_use((__bridge void*)input_matrix);
+        record_metal_object_use((__bridge void*)values_matrix);
+        record_metal_object_use((__bridge void*)indices_matrix);
 
-      static thread_local std::unordered_map<dim_t, MPSMatrixFindTopK*> topk_cache;
-      MPSMatrixFindTopK* topk_kernel = nil;
-      auto cache_it = topk_cache.find(k);
-      if (cache_it == topk_cache.end()) {
-        topk_kernel = [[MPSMatrixFindTopK alloc]
-          initWithDevice:device
-          numberOfTopKValues:static_cast<NSUInteger>(k)];
-        if (!topk_kernel)
-          throw std::runtime_error("failed to create MPS TopK kernel");
-        topk_cache.emplace(k, topk_kernel);
-      } else {
-        topk_kernel = cache_it->second;
-      }
-      topk_kernel.sourceRows = static_cast<NSUInteger>(batch_size);
-      topk_kernel.sourceColumns = static_cast<NSUInteger>(depth);
+        static thread_local std::unordered_map<dim_t, MPSMatrixFindTopK*> topk_cache;
+        MPSMatrixFindTopK* topk_kernel = nil;
+        auto cache_it = topk_cache.find(k);
+        if (cache_it == topk_cache.end()) {
+          topk_kernel = [[MPSMatrixFindTopK alloc]
+            initWithDevice:device
+            numberOfTopKValues:static_cast<NSUInteger>(k)];
+          if (!topk_kernel)
+            throw std::runtime_error("failed to create MPS TopK kernel");
+          topk_cache.emplace(k, topk_kernel);
+        } else {
+          topk_kernel = cache_it->second;
+        }
+        topk_kernel.sourceRows = static_cast<NSUInteger>(batch_size);
+        topk_kernel.sourceColumns = static_cast<NSUInteger>(depth);
 
-      end_active_encoder();
-      id<MTLCommandBuffer> active_command_buffer =
-        (__bridge id<MTLCommandBuffer>)command_buffer();
-      [topk_kernel encodeToCommandBuffer:active_command_buffer
-                             inputMatrix:input_matrix
-                       resultIndexMatrix:indices_matrix
-                       resultValueMatrix:values_matrix];
-      record_compute_dispatch("mps_matrix_topk");
-      record_profile_event(ProfileEvent::TopKGpu);
+        end_active_encoder();
+        id<MTLCommandBuffer> active_command_buffer =
+          (__bridge id<MTLCommandBuffer>)command_buffer();
+        [topk_kernel encodeToCommandBuffer:active_command_buffer
+                               inputMatrix:input_matrix
+                         resultIndexMatrix:indices_matrix
+                         resultValueMatrix:values_matrix];
+        record_compute_dispatch("mps_matrix_topk");
+        record_profile_event(ProfileEvent::TopKGpu);
 
 #if !__has_feature(objc_arc)
-      [input_matrix release];
-      [values_matrix release];
-      [indices_matrix release];
+        [input_matrix release];
+        [values_matrix release];
+        [indices_matrix release];
 #endif
+      }
     }
 
     void fill(DataType dtype, const void* value, void* y, dim_t size) {
@@ -3413,6 +3505,42 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
              &args,
              sizeof(args),
              2);
+    }
+
+    void penalize_previous_tokens(DataType dtype,
+                                  void* scores,
+                                  const void* previous_scores,
+                                  const int32_t* previous_ids,
+                                  float penalty,
+                                  dim_t batch_size,
+                                  dim_t length,
+                                  dim_t vocabulary_size) {
+      if (batch_size <= 0 || length <= 0 || vocabulary_size <= 0)
+        return;
+      const uint64_t total = static_cast<uint64_t>(batch_size)
+                             * static_cast<uint64_t>(length);
+      if (!fits_u32(batch_size) || !fits_u32(length) || !fits_u32(vocabulary_size)
+          || total > UINT32_MAX)
+        throw std::invalid_argument("MPS repetition penalty dimensions are too large");
+
+      const size_t element_size = dtype_size(dtype);
+      const size_t scores_bytes = static_cast<size_t>(batch_size)
+                                  * static_cast<size_t>(vocabulary_size)
+                                  * element_size;
+      const size_t previous_scores_bytes = static_cast<size_t>(total) * element_size;
+      const size_t previous_ids_bytes = static_cast<size_t>(total) * sizeof(int32_t);
+      const RepetitionPenaltyArgs args{static_cast<uint32_t>(total),
+                                       static_cast<uint32_t>(length),
+                                       static_cast<uint32_t>(vocabulary_size),
+                                       penalty};
+      run_1d(kernel_name("repetition_penalty", dtype),
+             total,
+             {{scores, scores_bytes},
+              {previous_scores, previous_scores_bytes},
+              {previous_ids, previous_ids_bytes}},
+             &args,
+             sizeof(args),
+             3);
     }
 
     void prepare_length_mask(const int32_t* lengths,
@@ -3562,6 +3690,31 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
              output_size,
              {{data, static_cast<size_t>(batch_size * batch_stride) * element_size},
               {indices, static_cast<size_t>(num_indices) * sizeof(int32_t)},
+              {output, static_cast<size_t>(output_size) * element_size}},
+             &args,
+             sizeof(args),
+             3);
+    }
+
+    void concat2(DataType dtype,
+                 const void* a,
+                 dim_t a_block_size,
+                 const void* b,
+                 dim_t b_block_size,
+                 void* output,
+                 dim_t outer_size) {
+      if (outer_size <= 0 || a_block_size <= 0 || b_block_size <= 0)
+        return;
+      const size_t element_size = dtype_size(dtype);
+      const uint64_t output_block = static_cast<uint64_t>(a_block_size + b_block_size);
+      const uint64_t output_size = static_cast<uint64_t>(outer_size) * output_block;
+      const Concat2Args args{static_cast<uint64_t>(outer_size),
+                             static_cast<uint64_t>(a_block_size),
+                             static_cast<uint64_t>(b_block_size)};
+      run_1d(storage_kernel_name("concat2", dtype),
+             output_size,
+             {{a, static_cast<size_t>(outer_size * a_block_size) * element_size},
+              {b, static_cast<size_t>(outer_size * b_block_size) * element_size},
               {output, static_cast<size_t>(output_size) * element_size}},
              &args,
              sizeof(args),

@@ -61,10 +61,19 @@ command buffer is committed without waiting. The default is `16`.
 Set the maximum number of copy/blit operations encoded before the current MPS
 command buffer is committed without waiting. The default is `64`.
 
+## `CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS`
+
+Set the maximum number of unfinished MPS command buffers. The default is `8`,
+which keeps useful CPU/GPU overlap while bounding Metal temporary resources on
+unified-memory systems. Increasing this value can help large-memory devices,
+but should be validated with cold, end-to-end inference rather than GEMM-only
+benchmarks.
+
 ## `CT2_MPS_MAX_OPS`
 
 Legacy command-buffer operation limit. When one of the more specific MPS
-limits above is not set, this value overrides its default.
+compute or blit limits above is not set, this value overrides its default. It
+does not change `CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS`.
 
 ## `CT2_MPS_PROFILE`
 
