@@ -146,6 +146,14 @@ namespace ctranslate2 {
                       void* y,
                       const int32_t* indices,
                       dim_t size);
+    void penalize_previous_tokens(DataType dtype,
+                                  void* scores,
+                                  const void* previous_scores,
+                                  const int32_t* previous_ids,
+                                  float penalty,
+                                  dim_t batch_size,
+                                  dim_t length,
+                                  dim_t vocabulary_size);
     void prepare_length_mask(const int32_t* lengths,
                              dim_t batch_size,
                              dim_t num_heads,
@@ -194,6 +202,17 @@ namespace ctranslate2 {
                 dim_t batch_stride,
                 dim_t num_indices,
                 dim_t num_indices_per_batch);
+
+    // Concatenates two contiguous tensors along one logical axis in a single
+    // dispatch. a_block_size and b_block_size include the dimensions at and
+    // after that axis; outer_size is the product of dimensions before it.
+    void concat2(DataType dtype,
+                 const void* a,
+                 dim_t a_block_size,
+                 const void* b,
+                 dim_t b_block_size,
+                 void* output,
+                 dim_t outer_size);
 
     void tile(DataType dtype,
               const void* input,

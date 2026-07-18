@@ -21,6 +21,9 @@ namespace ctranslate2 {
     void* get_command_queue();
     void* get_device();
     void* get_buffer(const void* ptr, size_t size, size_t* offset);
+    // Atomically looks up and retains a registered Metal buffer for command
+    // encoding. This closes the lookup-to-retain race with asynchronous frees.
+    void* get_buffer_for_use(const void* ptr, size_t size, size_t* offset);
     void record_metal_buffer_use(void* metal_buffer);
     void record_metal_object_use(void* metal_object);
     bool buffer_in_use(const void* ptr, size_t size);

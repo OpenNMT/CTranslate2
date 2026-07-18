@@ -51,6 +51,38 @@ TEST_P(PrimitiveTest, PenalizePreviousTokens) {
   expect_storage_eq(scores, expected);
 }
 
+#ifdef CT2_WITH_MPS
+TEST(MPSPrimitiveTest, PenalizePreviousTokensFloat16OddLength) {
+  const std::vector<float> score_values{
+    0.5f, 1.f, -1.5f, 2.f, -2.5f, 3.f, -3.5f,
+    -4.f, 4.5f, -5.f, 5.5f, -6.f, 6.5f, -7.f};
+  StorageView scores = StorageView({2, 7}, score_values).to_float16().to(Device::MPS);
+  const StorageView previous_ids(
+    {2, 3}, std::vector<int32_t>{0, 2, 6, 1, 4, 4}, Device::MPS);
+  const StorageView previous_scores =
+    StorageView({2, 3}, std::vector<float>{0.5f, -1.5f, -3.5f, 4.5f, -6.f, -6.f})
+      .to_float16()
+      .to(Device::MPS);
+
+  std::vector<float> expected_values = score_values;
+  expected_values[0] = 0.25f;
+  expected_values[2] = -3.f;
+  expected_values[6] = -7.f;
+  expected_values[8] = 2.25f;
+  expected_values[11] = -12.f;
+  const StorageView expected = StorageView({2, 7}, expected_values).to_float16();
+
+  primitives<Device::MPS>::penalize_previous_tokens(scores.data<float16_t>(),
+                                                     previous_scores.data<float16_t>(),
+                                                     previous_ids.data<int32_t>(),
+                                                     float16_t(2.f),
+                                                     scores.dim(0),
+                                                     previous_ids.dim(1),
+                                                     scores.dim(1));
+  expect_storage_eq(scores, expected);
+}
+#endif
+
 INSTANTIATE_TEST_SUITE_P(CPU, PrimitiveTest, ::testing::Values(Device::CPU));
 #ifdef CT2_WITH_CUDA
 INSTANTIATE_TEST_SUITE_P(CUDA, PrimitiveTest, ::testing::Values(Device::CUDA));
