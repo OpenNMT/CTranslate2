@@ -4,6 +4,9 @@
 #  include "cuda/utils.h"
 #  include "cuda/random.h"
 #endif
+#ifdef CT2_WITH_RUY
+#  include "cpu/backend.h"
+#endif
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <unistd.h>
 #endif
@@ -125,9 +128,16 @@ namespace ctranslate2 {
       if (device == Device::CUDA) {
           cuda::free_curand_states();
       }
-#else
-      (void)device;
 #endif
+#ifdef CT2_WITH_RUY
+      if (device == Device::CPU) {
+          // Release this worker thread's ruy::Context here (a normal execution
+          // context) rather than at thread exit, where joining ruy's internal
+          // threads deadlocks ThreadPool shutdown on Windows (ctranslate2-rs#64).
+          cpu::clear_ruy_context();
+      }
+#endif
+      (void)device;
   }
 
   // Initialize the static member variable
