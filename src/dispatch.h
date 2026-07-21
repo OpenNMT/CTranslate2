@@ -28,12 +28,12 @@
     TYPE_CASE(float16_t, {                                              \
       if (DEVICE != Device::CUDA && DEVICE != Device::MPS)              \
         throw std::invalid_argument("FP16 " NAME " is only supported on GPU"); \
-      DEVICE_DISPATCH(DEVICE, (STMTS));                                 \
+      GPU_DEVICE_DISPATCH(DEVICE, (STMTS));                             \
     })                                                                  \
     TYPE_CASE(bfloat16_t, {                                             \
       if (DEVICE != Device::CUDA && DEVICE != Device::MPS)              \
         throw std::invalid_argument("BF16 " NAME " is only supported on GPU"); \
-      DEVICE_DISPATCH(DEVICE, (STMTS));                                 \
+      GPU_DEVICE_DISPATCH(DEVICE, (STMTS));                             \
     })                                                                  \
     NON_FLOAT_CASE(NAME)                                                \
   }
