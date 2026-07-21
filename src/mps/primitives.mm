@@ -786,26 +786,25 @@ namespace ctranslate2 {
                                      float beta,
                                      bfloat16_t* c, dim_t ldc,
                                      const bfloat16_t*) {
-    (void)transpose_a;
-    (void)transpose_b;
-    (void)m;
-    (void)n;
-    (void)k;
-    (void)alpha;
-    (void)a;
-    (void)lda;
-    (void)b;
-    (void)ldb;
-    (void)beta;
-    (void)c;
-    (void)ldc;
-    throw std::invalid_argument(
-      "BF16 GEMM is not supported on MPS; load the model with compute_type=float16");
+    mps::gemm(DataType::BFLOAT16,
+              transpose_a,
+              transpose_b,
+              m,
+              n,
+              k,
+              alpha,
+              a,
+              lda,
+              b,
+              ldb,
+              beta,
+              c,
+              ldc);
   }
 
   template<>
   template<>
-  void primitives<Device::MPS>::gemm(bool, bool,
+  void primitives<Device::MPS>::gemm(bool a_is_packed, bool b_is_packed,
                                      bool transpose_a, bool transpose_b,
                                      dim_t m, dim_t n, dim_t k,
                                      float alpha,
@@ -814,23 +813,13 @@ namespace ctranslate2 {
                                      float beta,
                                      int32_t* c, dim_t ldc,
                                      const int32_t* a_shift_compensation) {
-    (void)transpose_a;
-    (void)transpose_b;
-    (void)m;
-    (void)n;
-    (void)k;
-    (void)alpha;
-    (void)a;
-    (void)lda;
-    (void)b;
-    (void)ldb;
-    (void)beta;
-    (void)c;
-    (void)ldc;
-    (void)a_shift_compensation;
-    // TODO: implement fused weight-only INT8/INT4 dequantization + GEMV/GEMM.
-    throw std::invalid_argument(
-      "INT8 GEMM is not supported on MPS; use float16 MPS or route the model to CPU");
+    if (a_is_packed || b_is_packed)
+      throw std::invalid_argument("Packed INT8 GEMM is not supported on MPS");
+    if (a_shift_compensation)
+      throw std::invalid_argument("Shifted-u8 INT8 GEMM is not supported on MPS");
+    mps::gemm_int8(transpose_a, transpose_b,
+                   m, n, k, alpha,
+                   a, lda, b, ldb, beta, c, ldc);
   }
 
   template<>
@@ -885,6 +874,47 @@ namespace ctranslate2 {
                               batch_size);
       return;
     }
+    if constexpr (std::is_same_v<In, Out> && std::is_same_v<In, bfloat16_t>) {
+      mps::gemm_batch_strided(DataType::BFLOAT16,
+                              transpose_a,
+                              transpose_b,
+                              m,
+                              n,
+                              k,
+                              alpha,
+                              a,
+                              lda,
+                              stridea,
+                              b,
+                              ldb,
+                              strideb,
+                              beta,
+                              c,
+                              ldc,
+                              stridec,
+                              batch_size);
+      return;
+    }
+    if constexpr (std::is_same_v<In, int8_t> && std::is_same_v<Out, int32_t>) {
+      mps::gemm_int8_batch_strided(transpose_a,
+                                   transpose_b,
+                                   m,
+                                   n,
+                                   k,
+                                   alpha,
+                                   a,
+                                   lda,
+                                   stridea,
+                                   b,
+                                   ldb,
+                                   strideb,
+                                   beta,
+                                   c,
+                                   ldc,
+                                   stridec,
+                                   batch_size);
+      return;
+    }
     for (dim_t i = 0; i < batch_size; ++i) {
       primitives<Device::MPS>::gemm(false, false,
                                     transpose_a, transpose_b,
@@ -923,7 +953,8 @@ namespace ctranslate2 {
   }
 
   // -------------------------
-  // Integer GEMM Stubs (not implemented on MPS)
+  // Same-type integer GEMM outputs are unsupported. Quantized MPS inference
+  // uses the signed INT8 -> INT32 overload implemented above.
   // -------------------------
 
   #define MPS_STUB_GEMM(T) \
@@ -975,6 +1006,12 @@ namespace ctranslate2 {
   template void cross_device_primitives<Device::MPS, Device::CPU>::copy<T>(const T*, T*, dim_t);
 
   DECLARE_ALL_TYPES(MPS_DECLARE_IMPL)
+
+  template void primitives<Device::MPS>::gemm_batch_strided<int8_t, int32_t>(
+    bool, bool, dim_t, dim_t, dim_t, float,
+    const int8_t*, dim_t, dim_t,
+    const int8_t*, dim_t, dim_t,
+    float, int32_t*, dim_t, dim_t, dim_t);
 
   // Float-math operations (float/float16/bfloat16 only)
 #define MPS_DECLARE_FLOAT_IMPL(T) \

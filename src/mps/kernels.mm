@@ -6,6 +6,7 @@
 #import <MetalPerformanceShaders/MetalPerformanceShaders.h>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -19,6 +20,7 @@
 
 #include "mps/kernels.h"
 #include "mps/utils.h"
+#include "ctranslate2/random.h"
 
 namespace ctranslate2 {
   namespace mps {
@@ -202,6 +204,59 @@ struct BiasAddArgs {
   uint block_broadcast;
   uint has_residual;
   int activation;
+};
+
+struct QuantizeArgs {
+  ulong batch_size;
+  ulong depth;
+  uint round_before_cast;
+};
+
+struct DequantizeArgs {
+  ulong total;
+  ulong depth;
+};
+
+struct DequantizeGemmArgs {
+  ulong batch_size;
+  ulong depth;
+  ulong a_scale_size;
+  ulong b_scale_size;
+  uint transpose_a;
+  uint transpose_b;
+  uint has_bias;
+  int activation;
+};
+
+struct MedianFilterArgs {
+  ulong total;
+  ulong depth;
+  ulong width;
+};
+
+struct TopPMaskArgs {
+  uint batch_size;
+  uint depth;
+  uint padded_depth;
+  float probability;
+  float mask_value;
+};
+
+struct RandomArgs {
+  ulong total;
+  ulong depth;
+  ulong sample_size;
+  ulong seed;
+  ulong counter;
+};
+
+struct AlibiArgs {
+  ulong total;
+  ulong num_heads;
+  ulong query_length;
+  ulong key_length;
+  ulong cached_key_length;
+  ulong alibi_offset;
 };
 
 static inline ushort f32_to_bf16(float x) {
@@ -577,6 +632,7 @@ kernel void NAME(device const TYPE* a [[buffer(0)]],                            
 
 GENERIC_GEMM_KERNEL(generic_gemm_f32, float, load_value<float>, store_value<float>)
 GENERIC_GEMM_KERNEL(generic_gemm_f16, half, load_value<half>, store_value<half>)
+GENERIC_GEMM_KERNEL(generic_gemm_bf16, ushort, load_value_bf16, store_value_bf16)
 
 #define TILED_GEMM_KERNEL(NAME, TYPE, LOAD, STORE)                                   \
 kernel void NAME(device const TYPE* a [[buffer(0)]],                                 \
@@ -626,10 +682,138 @@ kernel void NAME(device const TYPE* a [[buffer(0)]],                            
 
 TILED_GEMM_KERNEL(tiled_gemm_f32, float, load_value<float>, store_value<float>)
 TILED_GEMM_KERNEL(tiled_gemm_f16, half, load_value<half>, store_value<half>)
+TILED_GEMM_KERNEL(tiled_gemm_bf16, ushort, load_value_bf16, store_value_bf16)
+
+kernel void generic_gemm_i8_i32(device const char* a [[buffer(0)]],
+                                device const char* b [[buffer(1)]],
+                                device int* c [[buffer(2)]],
+                                constant GenericGemmArgs& args [[buffer(3)]],
+                                uint gid [[thread_position_in_grid]]) {
+  const ulong index = (ulong)gid;
+  const ulong matrix_size = args.m * args.n;
+  const ulong total = args.batch_size * matrix_size;
+  if (index >= total) return;
+  const ulong batch = index / matrix_size;
+  const ulong matrix_index = index - batch * matrix_size;
+  const ulong row = matrix_index / args.n;
+  const ulong column = matrix_index - row * args.n;
+  const ulong a_base = args.stridea == 0 ? 0 : batch * args.stridea;
+  const ulong b_base = args.strideb == 0 ? 0 : batch * args.strideb;
+  const ulong c_base = args.stridec == 0 ? 0 : batch * args.stridec;
+  int sum = 0;
+  for (ulong p = 0; p < args.k; ++p) {
+    const ulong ai = args.transpose_a ? p * args.lda + row : row * args.lda + p;
+    const ulong bi = args.transpose_b ? column * args.ldb + p : p * args.ldb + column;
+    sum += int(a[a_base + ai]) * int(b[b_base + bi]);
+  }
+  const ulong ci = c_base + row * args.ldc + column;
+  const float previous = args.beta == 0.0f ? 0.0f : float(c[ci]);
+  c[ci] = int(rint(args.alpha * float(sum) + args.beta * previous));
+}
+
+kernel void tiled_gemm_i8_i32(device const char* a [[buffer(0)]],
+                              device const char* b [[buffer(1)]],
+                              device int* c [[buffer(2)]],
+                              constant TiledGemmArgs& args [[buffer(3)]],
+                              threadgroup int* tiles [[threadgroup(0)]],
+                              uint3 group [[threadgroup_position_in_grid]],
+                              uint3 tid [[thread_position_in_threadgroup]]) {
+  const uint row = group.y * 16u + tid.y;
+  const uint column = group.x * 16u + tid.x;
+  const uint batch = group.z;
+  const uint a_base = args.stridea == 0 ? 0 : batch * args.stridea;
+  const uint b_base = args.strideb == 0 ? 0 : batch * args.strideb;
+  const uint c_base = args.stridec == 0 ? 0 : batch * args.stridec;
+  threadgroup int* tile_a = tiles;
+  threadgroup int* tile_b = tiles + 256;
+  int sum = 0;
+  for (uint base_k = 0; base_k < args.k; base_k += 16u) {
+    const uint ak = base_k + tid.x;
+    const uint bk = base_k + tid.y;
+    int av = 0;
+    int bv = 0;
+    if (row < args.m && ak < args.k) {
+      const uint ai = args.transpose_a ? ak * args.lda + row : row * args.lda + ak;
+      av = int(a[a_base + ai]);
+    }
+    if (column < args.n && bk < args.k) {
+      const uint bi = args.transpose_b ? column * args.ldb + bk : bk * args.ldb + column;
+      bv = int(b[b_base + bi]);
+    }
+    tile_a[tid.y * 16u + tid.x] = av;
+    tile_b[tid.y * 16u + tid.x] = bv;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint p = 0; p < 16u; ++p)
+      sum += tile_a[tid.y * 16u + p] * tile_b[p * 16u + tid.x];
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+  if (row < args.m && column < args.n) {
+    const uint ci = c_base + row * args.ldc + column;
+    const float previous = args.beta == 0.0f ? 0.0f : float(c[ci]);
+    c[ci] = int(rint(args.alpha * float(sum) + args.beta * previous));
+  }
+}
 
 static inline bool topk_better(float av, uint ai, float bv, uint bi) {
   return av > bv || (av == bv && ai < bi);
 }
+
+#define TOP_P_MASK_KERNEL(NAME, TYPE, LOAD, STORE)                                     \
+kernel void NAME(device const TYPE* input [[buffer(0)]],                               \
+                 device const TYPE* probabilities [[buffer(1)]],                       \
+                 device TYPE* output [[buffer(2)]],                                    \
+                 constant TopPMaskArgs& args [[buffer(3)]],                            \
+                 threadgroup float* values [[threadgroup(0)]],                         \
+                 threadgroup uint* indices [[threadgroup(1)]],                         \
+                 uint row [[threadgroup_position_in_grid]],                            \
+                 uint tid [[thread_index_in_threadgroup]],                             \
+                 uint nt [[threads_per_threadgroup]]) {                                \
+  if (row >= args.batch_size) return;                                                   \
+  const ulong offset = (ulong)row * args.depth;                                         \
+  for (uint i = tid; i < args.padded_depth; i += nt) {                                  \
+    values[i] = i < args.depth ? LOAD(probabilities, offset + i) : -INFINITY;           \
+    indices[i] = i;                                                                     \
+  }                                                                                     \
+  threadgroup_barrier(mem_flags::mem_threadgroup);                                      \
+  for (uint width = 2; width <= args.padded_depth; width <<= 1) {                       \
+    for (uint stride = width >> 1; stride > 0; stride >>= 1) {                          \
+      for (uint i = tid; i < args.padded_depth; i += nt) {                              \
+        const uint other = i ^ stride;                                                  \
+        if (other > i) {                                                                \
+          const bool descending = (i & width) == 0;                                     \
+          const bool left_better = topk_better(values[i], indices[i],                   \
+                                                values[other], indices[other]);          \
+          const bool right_better = topk_better(values[other], indices[other],          \
+                                                 values[i], indices[i]);                 \
+          if ((descending && right_better) || (!descending && left_better)) {           \
+            const float temp_value = values[i];                                         \
+            const uint temp_index = indices[i];                                         \
+            values[i] = values[other];                                                  \
+            indices[i] = indices[other];                                                \
+            values[other] = temp_value;                                                 \
+            indices[other] = temp_index;                                                \
+          }                                                                             \
+        }                                                                               \
+      }                                                                                 \
+      threadgroup_barrier(mem_flags::mem_threadgroup);                                  \
+    }                                                                                   \
+  }                                                                                     \
+  if (tid == 0) {                                                                       \
+    float cumulative = 0.0f;                                                           \
+    for (uint i = 0; i < args.depth; ++i) {                                            \
+      const uint original = indices[i];                                                 \
+      const float value = cumulative < args.probability                                \
+                          ? LOAD(input, offset + original)                              \
+                          : args.mask_value;                                            \
+      STORE(output, offset + original, value);                                          \
+      cumulative += values[i];                                                         \
+    }                                                                                   \
+  }                                                                                     \
+}
+
+TOP_P_MASK_KERNEL(top_p_mask_f32, float, load_value<float>, store_value<float>)
+TOP_P_MASK_KERNEL(top_p_mask_f16, half, load_value<half>, store_value<half>)
+TOP_P_MASK_KERNEL(top_p_mask_bf16, ushort, load_value_bf16, store_value_bf16)
 
 #define SMALL_TOPK_KERNEL(NAME, TYPE, LOAD, STORE)                                    \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                              \
@@ -700,6 +884,7 @@ kernel void NAME(device const TYPE* input [[buffer(0)]],                        
 
 SMALL_TOPK_KERNEL(small_topk_f32, float, load_value<float>, store_value<float>)
 SMALL_TOPK_KERNEL(small_topk_f16, half, load_value<half>, store_value<half>)
+SMALL_TOPK_KERNEL(small_topk_bf16, ushort, load_value_bf16, store_value_bf16)
 
 #define GATHER_KERNEL(NAME, TYPE)                                                     \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                              \
@@ -790,6 +975,191 @@ kernel void NAME(device const TYPE* a [[buffer(0)]],                            
 BROADCAST_KERNEL(broadcast_f32, float, load_value<float>, store_value<float>)
 BROADCAST_KERNEL(broadcast_f16, half, load_value<half>, store_value<half>)
 BROADCAST_KERNEL(broadcast_bf16, ushort, load_value_bf16, store_value_bf16)
+
+#define QUANTIZE_KERNEL(NAME, TYPE, LOAD)                                                \
+kernel void NAME(device const TYPE* input [[buffer(0)]],                                \
+                 device char* output [[buffer(1)]],                                     \
+                 device float* scales [[buffer(2)]],                                    \
+                 constant QuantizeArgs& args [[buffer(3)]],                             \
+                 threadgroup float* scratch [[threadgroup(0)]],                         \
+                 uint row [[threadgroup_position_in_grid]],                             \
+                 uint tid [[thread_index_in_threadgroup]],                              \
+                 uint nt [[threads_per_threadgroup]]) {                                 \
+  if ((ulong)row >= args.batch_size) return;                                            \
+  const ulong offset = (ulong)row * args.depth;                                         \
+  float maximum = 0.0f;                                                                 \
+  for (ulong i = (ulong)tid; i < args.depth; i += (ulong)nt)                            \
+    maximum = max(maximum, fabs(LOAD(input, offset + i)));                              \
+  scratch[tid] = maximum;                                                               \
+  threadgroup_barrier(mem_flags::mem_threadgroup);                                      \
+  for (uint stride = nt >> 1; stride > 0; stride >>= 1) {                               \
+    if (tid < stride) scratch[tid] = max(scratch[tid], scratch[tid + stride]);           \
+    threadgroup_barrier(mem_flags::mem_threadgroup);                                    \
+  }                                                                                     \
+  if (tid == 0) {                                                                       \
+    const float scale = scratch[0] == 0.0f ? 1.0f : 127.0f / scratch[0];                \
+    scratch[0] = scale;                                                                 \
+    scales[row] = scale;                                                                \
+  }                                                                                     \
+  threadgroup_barrier(mem_flags::mem_threadgroup);                                      \
+  const float scale = scratch[0];                                                       \
+  for (ulong i = (ulong)tid; i < args.depth; i += (ulong)nt) {                          \
+    float value = LOAD(input, offset + i) * scale;                                      \
+    if (args.round_before_cast) value = rint(value);                                    \
+    value = clamp(value, -127.0f, 127.0f);                                              \
+    output[offset + i] = char(value);                                                   \
+  }                                                                                     \
+}
+
+QUANTIZE_KERNEL(quantize_f32, float, load_value<float>)
+QUANTIZE_KERNEL(quantize_f16, half, load_value<half>)
+QUANTIZE_KERNEL(quantize_bf16, ushort, load_value_bf16)
+
+#define DEQUANTIZE_KERNEL(NAME, TYPE, STORE)                                            \
+kernel void NAME(device const char* input [[buffer(0)]],                               \
+                 device const float* scales [[buffer(1)]],                             \
+                 device TYPE* output [[buffer(2)]],                                    \
+                 constant DequantizeArgs& args [[buffer(3)]],                          \
+                 uint gid [[thread_position_in_grid]]) {                               \
+  const ulong i = (ulong)gid;                                                          \
+  if (i >= args.total) return;                                                         \
+  const ulong row = i / args.depth;                                                    \
+  STORE(output, i, float(input[i]) / scales[row]);                                     \
+}
+
+DEQUANTIZE_KERNEL(dequantize_f32, float, store_value<float>)
+DEQUANTIZE_KERNEL(dequantize_f16, half, store_value<half>)
+DEQUANTIZE_KERNEL(dequantize_bf16, ushort, store_value_bf16)
+
+#define DEQUANTIZE_GEMM_KERNEL(NAME, TYPE, LOAD, STORE)                                 \
+kernel void NAME(device const int* input [[buffer(0)]],                                \
+                 device const float* a_scales [[buffer(1)]],                           \
+                 device const float* b_scales [[buffer(2)]],                           \
+                 device const TYPE* bias [[buffer(3)]],                                \
+                 device TYPE* output [[buffer(4)]],                                    \
+                 constant DequantizeGemmArgs& args [[buffer(5)]],                      \
+                 uint gid [[thread_position_in_grid]]) {                               \
+  const ulong i = (ulong)gid;                                                          \
+  const ulong total = args.batch_size * args.depth;                                    \
+  if (i >= total) return;                                                              \
+  const ulong row = i / args.depth;                                                    \
+  const ulong column = i - row * args.depth;                                           \
+  const ulong ai = args.a_scale_size == 1 ? 0 : (args.transpose_a ? column : row);     \
+  const ulong bi = args.b_scale_size == 1 ? 0 : (args.transpose_b ? column : row);     \
+  float value = float(input[i]) / (a_scales[ai] * b_scales[bi]);                       \
+  if (args.has_bias) value += LOAD(bias, column);                                      \
+  if (args.activation >= 0) value = apply_unary(value, uint(args.activation));         \
+  STORE(output, i, value);                                                             \
+}
+
+DEQUANTIZE_GEMM_KERNEL(dequantize_gemm_f32, float, load_value<float>, store_value<float>)
+DEQUANTIZE_GEMM_KERNEL(dequantize_gemm_f16, half, load_value<half>, store_value<half>)
+DEQUANTIZE_GEMM_KERNEL(dequantize_gemm_bf16, ushort, load_value_bf16, store_value_bf16)
+
+#define MEDIAN_FILTER_KERNEL(NAME, TYPE, LOAD, STORE)                                  \
+kernel void NAME(device const TYPE* input [[buffer(0)]],                               \
+                 device TYPE* output [[buffer(1)]],                                    \
+                 constant MedianFilterArgs& args [[buffer(2)]],                        \
+                 uint gid [[thread_position_in_grid]]) {                               \
+  const ulong index = (ulong)gid;                                                      \
+  if (index >= args.total) return;                                                     \
+  const long rank = long(args.width / 2);                                              \
+  const long column = long(index % args.depth);                                        \
+  const ulong row_offset = (index / args.depth) * args.depth;                          \
+  float window[129];                                                                   \
+  for (long k = -rank; k <= rank; ++k) {                                               \
+    long read = abs(column + k);                                                       \
+    if (read >= long(args.depth)) read = 2 * long(args.depth) - read - 2;              \
+    window[k + rank] = LOAD(input, row_offset + ulong(read));                          \
+  }                                                                                    \
+  for (ulong i = 1; i < args.width; ++i) {                                             \
+    const float key = window[i];                                                       \
+    long j = long(i) - 1;                                                             \
+    while (j >= 0 && window[j] > key) {                                                \
+      window[j + 1] = window[j];                                                       \
+      --j;                                                                            \
+    }                                                                                  \
+    window[j + 1] = key;                                                              \
+  }                                                                                    \
+  STORE(output, index, window[rank]);                                                  \
+}
+
+MEDIAN_FILTER_KERNEL(median_filter_f32, float, load_value<float>, store_value<float>)
+MEDIAN_FILTER_KERNEL(median_filter_f16, half, load_value<half>, store_value<half>)
+MEDIAN_FILTER_KERNEL(median_filter_bf16, ushort, load_value_bf16, store_value_bf16)
+
+#define ALIBI_ADD_KERNEL(NAME, TYPE, LOAD, STORE)                                      \
+kernel void NAME(device const TYPE* input [[buffer(0)]],                               \
+                 device const TYPE* alibi [[buffer(1)]],                               \
+                 device TYPE* output [[buffer(2)]],                                    \
+                 constant AlibiArgs& args [[buffer(3)]],                               \
+                 uint gid [[thread_position_in_grid]]) {                               \
+  const ulong i = (ulong)gid;                                                          \
+  if (i >= args.total) return;                                                         \
+  const ulong key = i % args.key_length;                                               \
+  const ulong query_row = i / args.key_length;                                         \
+  const ulong head = (query_row / args.query_length) % args.num_heads;                 \
+  const ulong alibi_i = head * args.cached_key_length + args.alibi_offset + key;        \
+  STORE(output, i, LOAD(input, i) + LOAD(alibi, alibi_i));                             \
+}
+
+ALIBI_ADD_KERNEL(alibi_add_f32, float, load_value<float>, store_value<float>)
+ALIBI_ADD_KERNEL(alibi_add_f16, half, load_value<half>, store_value<half>)
+ALIBI_ADD_KERNEL(alibi_add_bf16, ushort, load_value_bf16, store_value_bf16)
+
+static inline uint random_hash(uint x) {
+  x ^= x >> 16;
+  x *= 0x7feb352du;
+  x ^= x >> 15;
+  x *= 0x846ca68bu;
+  return x ^ (x >> 16);
+}
+
+static inline float random_uniform(ulong seed, ulong counter, ulong index) {
+  const uint mixed = random_hash(uint(seed) ^ uint(seed >> 32) ^
+                                 uint(counter + index) ^ uint((counter + index) >> 32));
+  return (float(mixed >> 8) + 1.0f) * (1.0f / 16777217.0f);
+}
+
+#define MULTINOMIAL_KERNEL(NAME, TYPE, LOAD)                                           \
+kernel void NAME(device const TYPE* probabilities [[buffer(0)]],                      \
+                 device int* output [[buffer(1)]],                                     \
+                 constant RandomArgs& args [[buffer(2)]],                              \
+                 uint gid [[thread_position_in_grid]]) {                               \
+  const ulong sample = (ulong)gid;                                                     \
+  if (sample >= args.total) return;                                                    \
+  const ulong row = sample / args.sample_size;                                         \
+  const ulong offset = row * args.depth;                                               \
+  float total = 0.0f;                                                                  \
+  for (ulong i = 0; i < args.depth; ++i) total += max(LOAD(probabilities, offset + i), 0.0f); \
+  const float target = random_uniform(args.seed, args.counter, sample) * total;         \
+  float cumulative = 0.0f;                                                             \
+  int selected = int(args.depth - 1);                                                  \
+  for (ulong i = 0; i < args.depth; ++i) {                                             \
+    cumulative += max(LOAD(probabilities, offset + i), 0.0f);                          \
+    if (cumulative >= target) { selected = int(i); break; }                            \
+  }                                                                                    \
+  output[sample] = selected;                                                           \
+}
+
+MULTINOMIAL_KERNEL(multinomial_f32, float, load_value<float>)
+MULTINOMIAL_KERNEL(multinomial_f16, half, load_value<half>)
+MULTINOMIAL_KERNEL(multinomial_bf16, ushort, load_value_bf16)
+
+#define GUMBEL_NOISE_KERNEL(NAME, TYPE, LOAD, STORE)                                   \
+kernel void NAME(device const TYPE* input [[buffer(0)]],                               \
+                 device TYPE* output [[buffer(1)]],                                    \
+                 constant RandomArgs& args [[buffer(2)]],                              \
+                 uint gid [[thread_position_in_grid]]) {                               \
+  const ulong i = (ulong)gid;                                                          \
+  if (i >= args.total) return;                                                         \
+  const float noise = -log(random_uniform(args.seed, args.counter, i));                \
+  STORE(output, i, LOAD(input, i) + noise);                                            \
+}
+
+GUMBEL_NOISE_KERNEL(gumbel_noise_f32, float, load_value<float>, store_value<float>)
+GUMBEL_NOISE_KERNEL(gumbel_noise_f16, half, load_value<half>, store_value<half>)
+GUMBEL_NOISE_KERNEL(gumbel_noise_bf16, ushort, load_value_bf16, store_value_bf16)
 
 #define TRANSPOSE_2D_KERNEL(NAME, TYPE)                                                \
 kernel void NAME(device const TYPE* a [[buffer(0)]],                                   \
@@ -1017,6 +1387,7 @@ kernel void NAME(device const TYPE* x [[buffer(0)]],                            
 
 ARGMAX_KERNEL(argmax_f32, float, load_value<float>, store_value<float>)
 ARGMAX_KERNEL(argmax_f16, half, load_value<half>, store_value<half>)
+ARGMAX_KERNEL(argmax_bf16, ushort, load_value_bf16, store_value_bf16)
 
 #define LAYER_NORM_KERNEL(NAME, TYPE, LOAD, STORE)                                     \
 kernel void NAME(device const TYPE* x [[buffer(0)]],                                   \
@@ -1346,6 +1717,59 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint32_t block_broadcast;
         uint32_t has_residual;
         int32_t activation;
+      };
+
+      struct QuantizeArgs {
+        uint64_t batch_size;
+        uint64_t depth;
+        uint32_t round_before_cast;
+      };
+
+      struct DequantizeArgs {
+        uint64_t total;
+        uint64_t depth;
+      };
+
+      struct DequantizeGemmArgs {
+        uint64_t batch_size;
+        uint64_t depth;
+        uint64_t a_scale_size;
+        uint64_t b_scale_size;
+        uint32_t transpose_a;
+        uint32_t transpose_b;
+        uint32_t has_bias;
+        int32_t activation;
+      };
+
+      struct MedianFilterArgs {
+        uint64_t total;
+        uint64_t depth;
+        uint64_t width;
+      };
+
+      struct TopPMaskArgs {
+        uint32_t batch_size;
+        uint32_t depth;
+        uint32_t padded_depth;
+        float probability;
+        float mask_value;
+      };
+
+      struct RandomArgs {
+        uint64_t total;
+        uint64_t depth;
+        uint64_t sample_size;
+        uint64_t seed;
+        uint64_t counter;
+      };
+
+      struct AlibiArgs {
+        uint64_t total;
+        uint64_t num_heads;
+        uint64_t query_length;
+        uint64_t key_length;
+        uint64_t cached_key_length;
+        uint64_t alibi_offset;
       };
 
       static size_t dtype_size(DataType dtype) {
@@ -1905,7 +2329,9 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
     }
 
     bool supports_gemm_type(DataType dtype) {
-      return dtype == DataType::FLOAT32 || dtype == DataType::FLOAT16;
+      return dtype == DataType::FLOAT32
+             || dtype == DataType::FLOAT16
+             || dtype == DataType::BFLOAT16;
     }
 
     static bool mps_matrix_layout_supported(dim_t rows,
@@ -2036,6 +2462,136 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
              sizeof(args),
              3);
       record_profile_event(ProfileEvent::Gemm);
+    }
+
+    static void int8_gemm_impl(bool transpose_a,
+                               bool transpose_b,
+                               dim_t m,
+                               dim_t n,
+                               dim_t k,
+                               float alpha,
+                               const int8_t* a,
+                               dim_t lda,
+                               dim_t stridea,
+                               const int8_t* b,
+                               dim_t ldb,
+                               dim_t strideb,
+                               float beta,
+                               int32_t* c,
+                               dim_t ldc,
+                               dim_t stridec,
+                               dim_t batch_size) {
+      if (batch_size <= 0 || m <= 0 || n <= 0)
+        return;
+      if (stridea < 0 || strideb < 0 || stridec < 0)
+        throw std::invalid_argument("MPS INT8 GEMM received a negative batch stride");
+
+      const dim_t a_rows = transpose_a ? k : m;
+      const dim_t a_cols = transpose_a ? m : k;
+      const dim_t b_rows = transpose_b ? n : k;
+      const dim_t b_cols = transpose_b ? k : n;
+      const size_t a_elements = dense_matrix_elements(a_rows, a_cols, lda);
+      const size_t b_elements = dense_matrix_elements(b_rows, b_cols, ldb);
+      const size_t c_elements = dense_matrix_elements(m, n, ldc);
+      const size_t a_bytes = strided_array_bytes(a_elements, stridea, batch_size, sizeof(int8_t));
+      const size_t b_bytes = strided_array_bytes(b_elements, strideb, batch_size, sizeof(int8_t));
+      const size_t c_bytes = strided_array_bytes(c_elements, stridec, batch_size, sizeof(int32_t));
+
+      if (fits_u32(m) && fits_u32(n) && fits_u32(k)
+          && fits_u32(lda) && fits_u32(ldb) && fits_u32(ldc)
+          && fits_u32(stridea) && fits_u32(strideb) && fits_u32(stridec)
+          && fits_u32(batch_size)) {
+        const TiledGemmArgs args{static_cast<uint32_t>(m),
+                                 static_cast<uint32_t>(n),
+                                 static_cast<uint32_t>(k),
+                                 static_cast<uint32_t>(lda),
+                                 static_cast<uint32_t>(ldb),
+                                 static_cast<uint32_t>(ldc),
+                                 static_cast<uint32_t>(stridea),
+                                 static_cast<uint32_t>(strideb),
+                                 static_cast<uint32_t>(stridec),
+                                 static_cast<uint32_t>(batch_size),
+                                 transpose_a ? 1u : 0u,
+                                 transpose_b ? 1u : 0u,
+                                 alpha,
+                                 beta};
+        id<MTLComputePipelineState> state = pipeline("tiled_gemm_i8_i32");
+        id<MTLComputeCommandEncoder> encoder =
+          (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+        [encoder setComputePipelineState:state];
+        set_buffer(encoder, a, a_bytes, 0);
+        set_buffer(encoder, b, b_bytes, 1);
+        set_buffer(encoder, c, c_bytes, 2);
+        [encoder setBytes:&args length:sizeof(args) atIndex:3];
+        [encoder setThreadgroupMemoryLength:512 * sizeof(int32_t) atIndex:0];
+        [encoder dispatchThreadgroups:MTLSizeMake((static_cast<NSUInteger>(n) + 15) / 16,
+                                                  (static_cast<NSUInteger>(m) + 15) / 16,
+                                                  static_cast<NSUInteger>(batch_size))
+                 threadsPerThreadgroup:MTLSizeMake(16, 16, 1)];
+        [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+        record_compute_dispatch();
+      } else {
+        const GenericGemmArgs args{static_cast<uint64_t>(m),
+                                   static_cast<uint64_t>(n),
+                                   static_cast<uint64_t>(k),
+                                   static_cast<uint64_t>(lda),
+                                   static_cast<uint64_t>(ldb),
+                                   static_cast<uint64_t>(ldc),
+                                   static_cast<uint64_t>(stridea),
+                                   static_cast<uint64_t>(strideb),
+                                   static_cast<uint64_t>(stridec),
+                                   static_cast<uint64_t>(batch_size),
+                                   transpose_a ? 1u : 0u,
+                                   transpose_b ? 1u : 0u,
+                                   alpha,
+                                   beta};
+        run_1d("generic_gemm_i8_i32",
+               static_cast<uint64_t>(batch_size * m * n),
+               {{a, a_bytes}, {b, b_bytes}, {c, c_bytes}},
+               &args,
+               sizeof(args),
+               3);
+      }
+      record_profile_event(ProfileEvent::Gemm);
+    }
+
+    void gemm_int8(bool transpose_a,
+                   bool transpose_b,
+                   dim_t m,
+                   dim_t n,
+                   dim_t k,
+                   float alpha,
+                   const int8_t* a,
+                   dim_t lda,
+                   const int8_t* b,
+                   dim_t ldb,
+                   float beta,
+                   int32_t* c,
+                   dim_t ldc) {
+      int8_gemm_impl(transpose_a, transpose_b, m, n, k, alpha,
+                     a, lda, 0, b, ldb, 0, beta, c, ldc, 0, 1);
+    }
+
+    void gemm_int8_batch_strided(bool transpose_a,
+                                 bool transpose_b,
+                                 dim_t m,
+                                 dim_t n,
+                                 dim_t k,
+                                 float alpha,
+                                 const int8_t* a,
+                                 dim_t lda,
+                                 dim_t stridea,
+                                 const int8_t* b,
+                                 dim_t ldb,
+                                 dim_t strideb,
+                                 float beta,
+                                 int32_t* c,
+                                 dim_t ldc,
+                                 dim_t stridec,
+                                 dim_t batch_size) {
+      int8_gemm_impl(transpose_a, transpose_b, m, n, k, alpha,
+                     a, lda, stridea, b, ldb, strideb, beta,
+                     c, ldc, stridec, batch_size);
     }
 
     void gemv(DataType dtype,
@@ -2252,6 +2808,17 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         return;
       }
 
+      // MPSMatrix does not expose a portable BF16 matrix type on the minimum
+      // deployment target. The custom kernel stores BF16 as ushort and
+      // accumulates in FP32, so it works consistently on all supported Macs.
+      if (dtype == DataType::BFLOAT16) {
+        log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
+                 1, 0, 0, 0, "bf16_tiled");
+        generic_gemm(dtype, transpose_a, transpose_b, m, n, k, alpha,
+                     a, lda, 0, b, ldb, 0, beta, c, ldc, 0, 1);
+        return;
+      }
+
       const size_t element_size = dtype_size(dtype);
       const dim_t a_rows = transpose_a ? k : m;
       const dim_t a_cols = transpose_a ? m : k;
@@ -2418,6 +2985,15 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       if (!supports_gemm_type(dtype))
         throw std::invalid_argument("unsupported MPS batched GEMM dtype");
 
+      if (dtype == DataType::BFLOAT16) {
+        log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
+                 batch_size, stridea, strideb, stridec, "bf16_tiled_batched");
+        generic_gemm(dtype, transpose_a, transpose_b, m, n, k, alpha,
+                     a, lda, stridea, b, ldb, strideb, beta,
+                     c, ldc, stridec, batch_size);
+        return;
+      }
+
       const dim_t a_rows = transpose_a ? k : m;
       const dim_t a_cols = transpose_a ? m : k;
       const dim_t b_rows = transpose_b ? n : k;
@@ -2527,13 +3103,17 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
 
     bool supports_topk(DataType dtype, dim_t k) {
       if (!gpu_topk_enabled()
-          || (dtype != DataType::FLOAT32 && dtype != DataType::FLOAT16)
+          || (dtype != DataType::FLOAT32
+              && dtype != DataType::FLOAT16
+              && dtype != DataType::BFLOAT16)
           || k <= 0
           || k > 16)
         return false;
       // The custom reduction supports the search-critical k values without
       // MPSMatrix's 16-byte result-row restriction. Larger aligned results use
       // MPSMatrixFindTopK.
+      if (dtype == DataType::BFLOAT16)
+        return k <= 8;
       return k <= 8 || (static_cast<size_t>(k) * dtype_size(dtype)) % 16 == 0;
     }
 
@@ -2819,6 +3399,88 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       const size_t bytes = static_cast<size_t>(size) * dtype_size(dtype);
       const ElementwiseArgs args{static_cast<uint64_t>(size), op_code(op), a};
       run_1d(kernel_name("scalar", dtype), size, {{x, bytes}, {y, bytes}}, &args, sizeof(args), 2);
+    }
+
+    void quantize(DataType dtype,
+                  const void* input,
+                  int8_t* output,
+                  float* scales,
+                  dim_t batch_size,
+                  dim_t depth,
+                  bool round_before_cast) {
+      if (batch_size <= 0 || depth <= 0)
+        return;
+      const size_t input_bytes = static_cast<size_t>(batch_size * depth) * dtype_size(dtype);
+      const QuantizeArgs args{static_cast<uint64_t>(batch_size),
+                              static_cast<uint64_t>(depth),
+                              round_before_cast ? 1u : 0u};
+      run_rows(kernel_name("quantize", dtype),
+               batch_size,
+               reduction_threads(depth),
+               {{input, input_bytes},
+                {output, static_cast<size_t>(batch_size * depth)},
+                {scales, static_cast<size_t>(batch_size) * sizeof(float)}},
+               &args,
+               sizeof(args),
+               3);
+    }
+
+    void dequantize(DataType dtype,
+                    const int8_t* input,
+                    const float* scales,
+                    void* output,
+                    dim_t batch_size,
+                    dim_t depth) {
+      if (batch_size <= 0 || depth <= 0)
+        return;
+      const uint64_t total = static_cast<uint64_t>(batch_size * depth);
+      const DequantizeArgs args{total, static_cast<uint64_t>(depth)};
+      run_1d(kernel_name("dequantize", dtype),
+             total,
+             {{input, static_cast<size_t>(total)},
+              {scales, static_cast<size_t>(batch_size) * sizeof(float)},
+              {output, static_cast<size_t>(total) * dtype_size(dtype)}},
+             &args,
+             sizeof(args),
+             3);
+    }
+
+    void dequantize_gemm_output(DataType dtype,
+                                const int32_t* input,
+                                const float* a_scales,
+                                dim_t a_scale_size,
+                                const float* b_scales,
+                                dim_t b_scale_size,
+                                bool transpose_a,
+                                bool transpose_b,
+                                const void* bias,
+                                void* output,
+                                dim_t batch_size,
+                                dim_t depth,
+                                int activation) {
+      if (batch_size <= 0 || depth <= 0)
+        return;
+      const uint64_t total = static_cast<uint64_t>(batch_size * depth);
+      const size_t element_size = dtype_size(dtype);
+      const void* bias_or_dummy = bias ? bias : output;
+      const DequantizeGemmArgs args{static_cast<uint64_t>(batch_size),
+                                    static_cast<uint64_t>(depth),
+                                    static_cast<uint64_t>(a_scale_size),
+                                    static_cast<uint64_t>(b_scale_size),
+                                    transpose_a ? 1u : 0u,
+                                    transpose_b ? 1u : 0u,
+                                    bias ? 1u : 0u,
+                                    activation};
+      run_1d(kernel_name("dequantize_gemm", dtype),
+             total,
+             {{input, static_cast<size_t>(total) * sizeof(int32_t)},
+              {a_scales, static_cast<size_t>(a_scale_size) * sizeof(float)},
+              {b_scales, static_cast<size_t>(b_scale_size) * sizeof(float)},
+              {bias_or_dummy, bias ? static_cast<size_t>(depth) * element_size : element_size},
+              {output, static_cast<size_t>(total) * element_size}},
+             &args,
+             sizeof(args),
+             5);
     }
 
     void gather(DataType dtype,
@@ -3187,6 +3849,168 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
              &args,
              sizeof(args),
              2);
+    }
+
+    void median_filter(DataType dtype,
+                       const void* input,
+                       void* output,
+                       dim_t rows,
+                       dim_t depth,
+                       dim_t width) {
+      if (rows <= 0 || depth <= 0)
+        return;
+      if (width <= 0 || (width & 1) == 0 || width > 129)
+        throw std::invalid_argument("MPS MedianFilter requires an odd width no greater than 129");
+      const uint64_t total = static_cast<uint64_t>(rows * depth);
+      const size_t bytes = static_cast<size_t>(total) * dtype_size(dtype);
+      const MedianFilterArgs args{total,
+                                  static_cast<uint64_t>(depth),
+                                  static_cast<uint64_t>(width)};
+      run_1d(kernel_name("median_filter", dtype),
+             total,
+             {{input, bytes}, {output, bytes}},
+             &args,
+             sizeof(args),
+             2);
+    }
+
+    static uint32_t next_power_of_two(uint32_t value) {
+      if (value <= 1)
+        return 1;
+      --value;
+      value |= value >> 1;
+      value |= value >> 2;
+      value |= value >> 4;
+      value |= value >> 8;
+      value |= value >> 16;
+      return value + 1;
+    }
+
+    dim_t max_top_p_classes() {
+      return 1024;
+    }
+
+    void top_p_mask(DataType dtype,
+                    const void* input,
+                    const void* probabilities,
+                    void* output,
+                    dim_t batch_size,
+                    dim_t depth,
+                    float probability,
+                    float mask_value) {
+      if (batch_size <= 0 || depth <= 0)
+        return;
+      if (depth > max_top_p_classes())
+        throw std::invalid_argument("MPS TopPMask supports at most "
+                                    + std::to_string(max_top_p_classes())
+                                    + " classes");
+      const uint32_t padded_depth = next_power_of_two(static_cast<uint32_t>(depth));
+      const TopPMaskArgs args{static_cast<uint32_t>(batch_size),
+                              static_cast<uint32_t>(depth),
+                              padded_depth,
+                              probability,
+                              mask_value};
+      const size_t bytes = static_cast<size_t>(batch_size * depth) * dtype_size(dtype);
+      id<MTLComputePipelineState> state = pipeline(kernel_name("top_p_mask", dtype));
+      id<MTLComputeCommandEncoder> encoder =
+        (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+      [encoder setComputePipelineState:state];
+      set_buffer(encoder, input, bytes, 0);
+      set_buffer(encoder, probabilities, bytes, 1);
+      set_buffer(encoder, output, bytes, 2);
+      [encoder setBytes:&args length:sizeof(args) atIndex:3];
+      [encoder setThreadgroupMemoryLength:static_cast<NSUInteger>(padded_depth) * sizeof(float)
+                                  atIndex:0];
+      [encoder setThreadgroupMemoryLength:static_cast<NSUInteger>(padded_depth) * sizeof(uint32_t)
+                                  atIndex:1];
+      NSUInteger threads = std::min<NSUInteger>(256, padded_depth);
+      threads = std::min<NSUInteger>(threads, state.maxTotalThreadsPerThreadgroup);
+      [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(batch_size), 1, 1)
+               threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+      [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+      record_compute_dispatch();
+    }
+
+    static std::atomic<uint64_t> g_random_counter{0};
+
+    void multinomial(DataType dtype,
+                     const void* probabilities,
+                     int32_t* output,
+                     dim_t batch_size,
+                     dim_t depth,
+                     dim_t sample_size) {
+      if (batch_size <= 0 || depth <= 0 || sample_size <= 0)
+        return;
+      const uint64_t total = static_cast<uint64_t>(batch_size * sample_size);
+      const uint64_t counter = g_random_counter.fetch_add(total);
+      const RandomArgs args{total,
+                            static_cast<uint64_t>(depth),
+                            static_cast<uint64_t>(sample_size),
+                            static_cast<uint64_t>(get_random_seed()),
+                            counter};
+      run_1d(kernel_name("multinomial", dtype),
+             total,
+             {{probabilities,
+               static_cast<size_t>(batch_size * depth) * dtype_size(dtype)},
+              {output, static_cast<size_t>(total) * sizeof(int32_t)}},
+             &args,
+             sizeof(args),
+             2);
+    }
+
+    void gumbel_noise(DataType dtype,
+                      const void* input,
+                      void* output,
+                      dim_t size) {
+      if (size <= 0)
+        return;
+      const uint64_t total = static_cast<uint64_t>(size);
+      const uint64_t counter = g_random_counter.fetch_add(total);
+      const RandomArgs args{total,
+                            0,
+                            0,
+                            static_cast<uint64_t>(get_random_seed()),
+                            counter};
+      const size_t bytes = static_cast<size_t>(size) * dtype_size(dtype);
+      run_1d(kernel_name("gumbel_noise", dtype),
+             total,
+             {{input, bytes}, {output, bytes}},
+             &args,
+             sizeof(args),
+             2);
+    }
+
+    void alibi_add(DataType dtype,
+                   const void* input,
+                   const void* alibi,
+                   void* output,
+                   dim_t batch_size,
+                   dim_t num_heads,
+                   dim_t query_length,
+                   dim_t key_length,
+                   dim_t cached_key_length,
+                   dim_t alibi_offset) {
+      const uint64_t total = static_cast<uint64_t>(batch_size)
+                             * static_cast<uint64_t>(num_heads)
+                             * static_cast<uint64_t>(query_length)
+                             * static_cast<uint64_t>(key_length);
+      if (total == 0)
+        return;
+      const size_t element_size = dtype_size(dtype);
+      const AlibiArgs args{total,
+                           static_cast<uint64_t>(num_heads),
+                           static_cast<uint64_t>(query_length),
+                           static_cast<uint64_t>(key_length),
+                           static_cast<uint64_t>(cached_key_length),
+                           static_cast<uint64_t>(alibi_offset)};
+      run_1d(kernel_name("alibi_add", dtype),
+             total,
+             {{input, static_cast<size_t>(total) * element_size},
+              {alibi, static_cast<size_t>(num_heads * cached_key_length) * element_size},
+              {output, static_cast<size_t>(total) * element_size}},
+             &args,
+             sizeof(args),
+             3);
     }
 
   }

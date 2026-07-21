@@ -63,6 +63,38 @@ namespace ctranslate2 {
                             dim_t stridec,
                             dim_t batch_size);
 
+    void gemm_int8(bool transpose_a,
+                   bool transpose_b,
+                   dim_t m,
+                   dim_t n,
+                   dim_t k,
+                   float alpha,
+                   const int8_t* a,
+                   dim_t lda,
+                   const int8_t* b,
+                   dim_t ldb,
+                   float beta,
+                   int32_t* c,
+                   dim_t ldc);
+
+    void gemm_int8_batch_strided(bool transpose_a,
+                                 bool transpose_b,
+                                 dim_t m,
+                                 dim_t n,
+                                 dim_t k,
+                                 float alpha,
+                                 const int8_t* a,
+                                 dim_t lda,
+                                 dim_t stridea,
+                                 const int8_t* b,
+                                 dim_t ldb,
+                                 dim_t strideb,
+                                 float beta,
+                                 int32_t* c,
+                                 dim_t ldc,
+                                 dim_t stridec,
+                                 dim_t batch_size);
+
     void gemv(DataType dtype,
               bool transpose_a,
               bool transpose_b,
@@ -121,6 +153,35 @@ namespace ctranslate2 {
     void unary(DataType dtype, UnaryOp op, const void* x, void* y, dim_t size);
     void binary(DataType dtype, BinaryOp op, const void* a, const void* b, void* c, dim_t size);
     void scalar(DataType dtype, BinaryOp op, float a, const void* x, void* y, dim_t size);
+
+    void quantize(DataType dtype,
+                  const void* input,
+                  int8_t* output,
+                  float* scales,
+                  dim_t batch_size,
+                  dim_t depth,
+                  bool round_before_cast);
+
+    void dequantize(DataType dtype,
+                    const int8_t* input,
+                    const float* scales,
+                    void* output,
+                    dim_t batch_size,
+                    dim_t depth);
+
+    void dequantize_gemm_output(DataType dtype,
+                                const int32_t* input,
+                                const float* a_scales,
+                                dim_t a_scale_size,
+                                const float* b_scales,
+                                dim_t b_scale_size,
+                                bool transpose_a,
+                                bool transpose_b,
+                                const void* bias,
+                                void* output,
+                                dim_t batch_size,
+                                dim_t depth,
+                                int activation);
 
     void gather(DataType dtype,
                 const void* data,
@@ -237,6 +298,47 @@ namespace ctranslate2 {
                        dim_t k,
                        dim_t in_batch_stride,
                        dim_t in_group_stride);
+
+    void median_filter(DataType dtype,
+                       const void* input,
+                       void* output,
+                       dim_t rows,
+                       dim_t depth,
+                       dim_t width);
+
+    void top_p_mask(DataType dtype,
+                    const void* input,
+                    const void* probabilities,
+                    void* output,
+                    dim_t batch_size,
+                    dim_t depth,
+                    float probability,
+                    float mask_value);
+
+    dim_t max_top_p_classes();
+
+    void multinomial(DataType dtype,
+                     const void* probabilities,
+                     int32_t* output,
+                     dim_t batch_size,
+                     dim_t depth,
+                     dim_t sample_size);
+
+    void gumbel_noise(DataType dtype,
+                      const void* input,
+                      void* output,
+                      dim_t size);
+
+    void alibi_add(DataType dtype,
+                   const void* input,
+                   const void* alibi,
+                   void* output,
+                   dim_t batch_size,
+                   dim_t num_heads,
+                   dim_t query_length,
+                   dim_t key_length,
+                   dim_t cached_key_length,
+                   dim_t alibi_offset);
 
     bool supports_topk(DataType dtype, dim_t k);
 

@@ -108,7 +108,7 @@ namespace ctranslate2 {
     case Device::MPS: {
 #ifdef CT2_WITH_MPS
       (void)device_index;
-      return false;
+      return mps::has_mps();
 #else
       (void)device_index;
       return false;
@@ -167,7 +167,7 @@ namespace ctranslate2 {
     case Device::MPS:
 #ifdef CT2_WITH_MPS
       (void)device_index;
-      return false;
+      return mps::has_mps();
 #else
       (void)device_index;
       return false;
@@ -294,7 +294,16 @@ namespace ctranslate2 {
     }
 
     case ComputeType::AUTO: {
-      if (device == Device::CUDA || device == Device::MPS) {
+      // The custom INT8 path on Apple GPUs is useful for reduced model memory,
+      // but is not faster than FP16 for the common batch-1 decoder workload.
+      // Keep AUTO performance-oriented while still allowing explicit INT8 modes.
+      if (device == Device::MPS) {
+        if (support_float16)
+          return ComputeType::FLOAT16;
+        if (support_int8)
+          return ComputeType::INT8_FLOAT32;
+      }
+      if (device == Device::CUDA) {
         if (support_int8 && support_float16)
           return ComputeType::INT8_FLOAT16;
         if (support_int8)

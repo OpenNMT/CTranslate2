@@ -51,6 +51,47 @@ export CT2_CUDA_CACHING_ALLOCATOR_CONFIG=8,3,7,6291455
 
 See the description of each parameter in the [allocator implementation](https://github.com/NVIDIA/cub/blob/main/cub/util_allocator.cuh).
 
+## `CT2_MPS_MAX_COMPUTE_OPS`
+
+Set the maximum number of compute operations encoded before the current MPS
+command buffer is committed without waiting. The default is `16`.
+
+## `CT2_MPS_MAX_BLIT_OPS`
+
+Set the maximum number of copy/blit operations encoded before the current MPS
+command buffer is committed without waiting. The default is `64`.
+
+## `CT2_MPS_MAX_OPS`
+
+Legacy command-buffer operation limit. When one of the more specific MPS
+limits above is not set, this value overrides its default.
+
+## `CT2_MPS_PROFILE`
+
+Print aggregated MPS execution counters at process exit, including command
+buffers, dispatches, synchronization points, GEMM paths, TopK calls, copies,
+allocations, and buffer lookups. Profiling is disabled by default.
+
+## `CT2_MPS_LOG_GEMM`
+
+Log each MPS GEMM shape, transpose and stride configuration, and selected
+execution path. This option is intended for debugging and benchmarking.
+
+## `CT2_MPS_LOG_SYNC`
+
+Log each MPS synchronization together with its reason and host-visible byte
+count.
+
+## `CT2_MPS_USE_GEMV`
+
+Enable the specialized MPS batch-size-1 GEMV path (default). Set to `0` to
+force the general GEMM path for correctness comparisons or benchmarking.
+
+## `CT2_MPS_USE_TOPK`
+
+Enable the MPS GPU TopK path (default). Set to `0` to use the fallback path for
+debugging or performance comparisons.
+
 ## `CT2_FORCE_CPU_ISA`
 
 Force CTranslate2 to select a specific instruction set architecture (ISA). Possible values are:

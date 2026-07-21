@@ -87,7 +87,7 @@ By default, the runtime tries to use the type that is saved in the converted mod
 | AArch64/ARM64 (Apple) | int8_float32 | int8_float32 | int8_float32 | int8_float32 | float32 | float32 |
 | AArch64/ARM64 (other) | int8_float32 | int8_float32 | int8_float32 | int8_float32 | float32 | float32 |
 
-**On GPU:**
+**On NVIDIA GPU:**
 
 | Compute Capability | int8_float32 | int8_float16 | int8_bfloat16 | int16 | float16 | bfloat16 |
 | --- | --- | --- | --- | --- | --- | -- |
@@ -96,6 +96,17 @@ By default, the runtime tries to use the type that is saved in the converted mod
 | 6.2 | float32 | float32 | float32 | float32 | float32 | float32 |
 | 6.1 | int8_float32 | int8_float32 | int8_float32 | float32 | float32 | float32 |
 | <= 6.0 | float32 | float32 | float32 | float32 | float32 | float32 |
+
+**On Apple MPS:**
+
+| Device | int8_float32 | int8_float16 | int8_bfloat16 | int16 | float16 | bfloat16 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Apple Silicon GPU | int8_float32 | int8_float16 | int8_bfloat16 | float16 | float16 | bfloat16 |
+
+MPS `compute_type="auto"` selects `float16`. The explicit INT8 hybrid modes
+remain available when reduced model weight size or INT8 compatibility is more
+important than latency. On Apple GPUs, INT8 is not guaranteed to outperform
+FP16, especially for batch-size-1 autoregressive decoding.
 
 ```{tip}
 You can get more information about the detected capabilities of your system by enabling the info logs (set the environment variable `CT2_VERBOSE=1` or call ``ctranslate2.set_log_level(logging.INFO)``).
@@ -110,6 +121,7 @@ The supported compute types can also be queried at runtime with the Python funct
 **Supported on:**
 
 * NVIDIA GPU with Compute Capability >= 7.0 or Compute Capability 6.1
+* Apple Silicon GPU with the MPS backend
 * x86-64 CPU with the Intel MKL or oneDNN backends
 * AArch64/ARM64 CPU with the Ruy backend
 
@@ -130,6 +142,10 @@ Non quantized layers are run in the floating point precision of the original mod
 * `int8_float32`
 * `int8_float16`
 * `int8_bfloat16`
+
+On MPS, activations are quantized per row to signed INT8, matrix products
+accumulate in INT32, and the output is dequantized with optional bias and
+activation fusion. Packed and shifted-u8 INT8 matrices are not yet supported.
 
 ### 16-bit integers (`int16`)
 
@@ -152,6 +168,7 @@ Similar to the `int8` quantization, only the weights of the embedding and linear
 **Supported on:**
 
 * NVIDIA GPU with Compute Capability >= 7.0
+* Apple Silicon GPU with the MPS backend
 
 In this mode, all model weights are stored in half precision and all layers are run in half precision.
 
@@ -160,8 +177,12 @@ In this mode, all model weights are stored in half precision and all layers are 
 **Supported on:**
 
 * NVIDIA GPU with Compute Capability >= 8.0
+* Apple Silicon GPU with the MPS backend
 
-In this mode, all model weights are stored in BF16 and all layers are run with this type.
+In this mode, all model weights are stored in BF16 and all layers are run with
+this type. The MPS implementation stores BF16-encoded values and converts them
+to FP32 for GEMM and reduction accumulation before rounding results back to
+BF16.
 
 ### 4-bit AWQ
 
@@ -169,7 +190,8 @@ In this mode, all model weights are stored in BF16 and all layers are run with t
 
 * NVIDIA GPU with Compute Capability >= 7.5
 
-CTranslate2 internally handles the compute type for AWQ quantization.
+CTranslate2 internally handles the compute type for AWQ quantization. AWQ is
+not currently supported by the MPS backend.
 In this mode, all model weights are stored in half precision and all layers are run in half precision. Other parameters like scale and zero are stored in ``int32``.
 
 **Steps to use AWQ Quantization:**
