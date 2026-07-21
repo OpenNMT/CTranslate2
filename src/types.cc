@@ -5,6 +5,9 @@
 #ifdef CT2_WITH_CUDA
 #  include "./cuda/utils.h"
 #endif
+#ifdef CT2_WITH_MPS
+#  include "mps/utils.h"
+#endif
 
 #include "cpu/backend.h"
 #include "env.h"
@@ -102,6 +105,15 @@ namespace ctranslate2 {
       return false;
 #endif
     }
+    case Device::MPS: {
+#ifdef CT2_WITH_MPS
+      (void)device_index;
+      return mps::has_mps();
+#else
+      (void)device_index;
+      return false;
+#endif
+    }
     default:
       return false;
     }
@@ -113,6 +125,15 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_CUDA
       static const bool allow_float16 = read_bool_from_env("CT2_CUDA_ALLOW_FP16");
       return allow_float16 || cuda::gpu_has_fp16_tensor_cores(device_index);
+#else
+      (void)device_index;
+      return false;
+#endif
+    }
+    case Device::MPS: {
+#ifdef CT2_WITH_MPS
+      (void)device_index;
+      return mps::has_mps();
 #else
       (void)device_index;
       return false;
@@ -143,6 +164,14 @@ namespace ctranslate2 {
 #endif
     case Device::CPU:
       return cpu::has_gemm_backend(ComputeType::INT8);
+    case Device::MPS:
+#ifdef CT2_WITH_MPS
+      (void)device_index;
+      return mps::has_mps();
+#else
+      (void)device_index;
+      return false;
+#endif
     default:
       return false;
     }
@@ -192,7 +221,7 @@ namespace ctranslate2 {
         unsupported_compute_type("int16");
       if (device == Device::CPU && support_int8)
         return ComputeType::INT8_FLOAT32;
-      if (device == Device::CUDA && support_float16)
+      if ((device == Device::CUDA || device == Device::MPS) && support_float16)
         return ComputeType::FLOAT16;
       return ComputeType::FLOAT32;
     }
@@ -233,7 +262,7 @@ namespace ctranslate2 {
         unsupported_compute_type("int8_float32");
       if (device == Device::CPU && support_int16)
         return ComputeType::INT16;
-      if (device == Device::CUDA && support_float16)
+      if ((device == Device::CUDA || device == Device::MPS) && support_float16)
         return ComputeType::FLOAT16;
       return ComputeType::FLOAT32;
     }
@@ -265,6 +294,15 @@ namespace ctranslate2 {
     }
 
     case ComputeType::AUTO: {
+      // The custom INT8 path on Apple GPUs is useful for reduced model memory,
+      // but is not faster than FP16 for the common batch-1 decoder workload.
+      // Keep AUTO performance-oriented while still allowing explicit INT8 modes.
+      if (device == Device::MPS) {
+        if (support_float16)
+          return ComputeType::FLOAT16;
+        if (support_int8)
+          return ComputeType::INT8_FLOAT32;
+      }
       if (device == Device::CUDA) {
         if (support_int8 && support_float16)
           return ComputeType::INT8_FLOAT16;
@@ -272,7 +310,8 @@ namespace ctranslate2 {
           return ComputeType::INT8_FLOAT32;
         if (support_float16)
           return ComputeType::FLOAT16;
-      } else {
+      }
+      if (device == Device::CPU) {
         if (support_int8)
           return ComputeType::INT8_FLOAT32;
         if (support_int16)
@@ -354,7 +393,15 @@ namespace ctranslate2 {
           && cuda::gpu_has_int8_tensor_cores(device_index))
         return 16;
     }
-#else
+#endif
+#ifdef CT2_WITH_MPS
+    if (device == Device::MPS && mps::has_mps()) {
+      (void)device_index;
+      if (compute_type == ComputeType::FLOAT16 || compute_type == ComputeType::BFLOAT16)
+        return 8;
+    }
+#endif
+#if !defined(CT2_WITH_CUDA) && !defined(CT2_WITH_MPS)
     (void)compute_type;
     (void)device;
     (void)device_index;

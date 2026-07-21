@@ -88,6 +88,7 @@ pip install dist/*.whl
 If you installed the C++ library in a custom directory, you should configure additional environment variables:
 
 * When running `setup.py`, set `CTRANSLATE2_ROOT` to the CTranslate2 install directory.
+  On macOS, this also embeds that library directory in the Python extension runtime search path so it loads the matching `libctranslate2` instead of falling back to `/usr/local/lib`.
 * When running your Python application, add the CTranslate2 library path to `LD_LIBRARY_PATH`.
 ```
 
@@ -112,6 +113,7 @@ The following options can be set with `-DOPTION=VALUE` during the CMake configur
 | WITH_DNNL | **OFF**, ON | Compiles with the oneDNN backend (a.k.a. DNNL) |
 | WITH_MKL | OFF, **ON** | Compiles with the Intel MKL backend |
 | WITH_ACCELERATE | **OFF**, ON | Compiles with the Apple Accelerate backend |
+| WITH_MPS | **OFF**, ON | Compiles the experimental Apple Metal/MPS backend |
 | WITH_OPENBLAS | **OFF**, ON | Compiles with the OpenBLAS backend |
 | WITH_RUY | **OFF**, ON | Compiles with the Ruy backend |
 | WITH_HIP | **OFF**, ON | Compiles with the AMD HIP GPU backend |
@@ -123,6 +125,7 @@ Some build options require additional dependencies. See their respective documen
 * `-DWITH_MKL=ON` requires [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) >= 2019.5
 * `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) >= 3.0
 * `-DWITH_ACCELERATE=ON` requires [Accelerate](https://developer.apple.com/documentation/accelerate)
+* `-DWITH_MPS=ON` requires an Apple Silicon Mac with the Metal and Metal Performance Shaders frameworks
 * `-DWITH_OPENBLAS=ON` requires [OpenBLAS](https://github.com/xianyi/OpenBLAS)
 * `-DWITH_HIP=ON` requires [ROCm libraries](https://rocm.docs.amd.com/en/latest/reference/api-libraries.html)
 
@@ -131,3 +134,20 @@ Multiple backends can be enabled for a single build, for example:
 * `-DWITH_MKL=ON -DWITH_CUDA=ON`: enable CPU and GPU support
 * `-DWITH_MKL=ON -DWITH_DNNL=ON`: during runtime, the library will select Intel MKL when running on Intel and oneDNN when running on AMD
 * `-DWITH_OPENBLAS=ON -DWITH_RUY=ON`: use Ruy for quantized models and OpenBLAS for non quantized models
+
+To build a native Release library with CPU and MPS execution on Apple Silicon:
+
+```bash
+cmake -S . -B build-mps \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DWITH_MPS=ON \
+  -DWITH_ACCELERATE=ON \
+  -DWITH_MKL=OFF \
+  -DOPENMP_RUNTIME=NONE
+cmake --build build-mps -j
+cmake --install build-mps --prefix install-mps
+```
+
+`WITH_MPS` cannot be combined with `WITH_CUDA` or `WITH_HIP` in the same
+build. See [Hardware support](hardware_support.md) for current backend
+limitations.

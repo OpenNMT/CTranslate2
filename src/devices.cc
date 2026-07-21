@@ -4,6 +4,9 @@
 #  include "cuda/utils.h"
 #  include "cuda/random.h"
 #endif
+#ifdef CT2_WITH_MPS
+#  include "mps/utils.h"
+#endif
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <unistd.h>
 #endif
@@ -21,12 +24,23 @@ namespace ctranslate2 {
 #endif
     if (device == "cpu" || device == "CPU")
       return Device::CPU;
-    if (device == "auto" || device == "AUTO")
-#ifdef CT2_WITH_CUDA
-      return cuda::has_gpu() ? Device::CUDA : Device::CPU;
+    if (device == "mps" || device == "MPS")
+#ifdef CT2_WITH_MPS
+      return Device::MPS;
 #else
-      return Device::CPU;
+      throw std::invalid_argument("This CTranslate2 package was not compiled with MPS support");
 #endif
+    if (device == "auto" || device == "AUTO") {
+#ifdef CT2_WITH_CUDA
+      if (cuda::has_gpu())
+        return Device::CUDA;
+#endif
+#ifdef CT2_WITH_MPS
+      if (mps::has_mps())
+        return Device::MPS;
+#endif
+      return Device::CPU;
+    }
     throw std::invalid_argument("unsupported device " + device);
   }
 
@@ -36,6 +50,8 @@ namespace ctranslate2 {
       return "cuda";
     case Device::CPU:
       return "cpu";
+    case Device::MPS:
+      return "mps";
     }
     return "";
   }
@@ -54,6 +70,12 @@ namespace ctranslate2 {
 #endif
     case Device::CPU:
       return 1;
+    case Device::MPS:
+#ifdef CT2_WITH_MPS
+      return mps::get_device_count();
+#else
+      return 0;
+#endif
     }
     return 0;
   }
@@ -88,6 +110,18 @@ namespace ctranslate2 {
   }
 #endif
 
+#ifdef CT2_WITH_MPS
+  template<>
+  int get_device_index<Device::MPS>() {
+    return mps::get_device_index();
+  }
+
+  template<>
+  void set_device_index<Device::MPS>(int index) {
+    mps::set_device_index(index);
+  }
+#endif
+
   int get_device_index(Device device) {
     int index = 0;
     DEVICE_DISPATCH(device, index = get_device_index<D>());
@@ -104,7 +138,14 @@ namespace ctranslate2 {
       const ScopedDeviceSetter scoped_device_setter(device, index);
       cudaDeviceSynchronize();
     }
-#else
+#endif
+#ifdef CT2_WITH_MPS
+    if (device == Device::MPS) {
+      const ScopedDeviceSetter scoped_device_setter(device, index);
+      mps::synchronize();
+    }
+#endif
+#if !defined(CT2_WITH_CUDA) && !defined(CT2_WITH_MPS)
     (void)device;
     (void)index;
 #endif
@@ -115,17 +156,22 @@ namespace ctranslate2 {
     if (device == Device::CUDA) {
       cudaStreamSynchronize(cuda::get_cuda_stream());
     }
-#else
+#endif
+#ifdef CT2_WITH_MPS
+    if (device == Device::MPS)
+      mps::synchronize();
+#endif
+#if !defined(CT2_WITH_CUDA) && !defined(CT2_WITH_MPS)
     (void)device;
 #endif
   }
 
   void destroy_context(Device device) {
 #ifdef CT2_WITH_CUDA
-      if (device == Device::CUDA) {
-          cuda::free_curand_states();
-      }
-#else
+    if (device == Device::CUDA)
+      cuda::free_curand_states();
+#endif
+#ifndef CT2_WITH_CUDA
       (void)device;
 #endif
   }
