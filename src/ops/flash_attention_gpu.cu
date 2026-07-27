@@ -232,8 +232,8 @@ namespace ctranslate2 {
         num_heads_k = cached_keys->dim(2);
       }
 
+      bool is_causal = _is_causal;
       // causal=true is the same as causal=false in this case
-      bool is_causal = true;
       if (seqlen_q == 1 && !alibi) { is_causal = false; }
       if (is_causal) { window_size_right = 0; }
 

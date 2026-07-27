@@ -1,4 +1,5 @@
 import os
+import platform
 import sys
 
 import numpy as np
@@ -37,6 +38,11 @@ skip_on_windows = pytest.mark.skipif(
 
 only_on_linux = pytest.mark.skipif(
     sys.platform != "linux", reason="Test case only running on Linux"
+)
+
+only_on_linux_and_intel = pytest.mark.skipif(
+    sys.platform != "linux" or "Intel" not in platform.processor(),
+    reason="Test case only running on Linux with Intel CPU",
 )
 
 require_cuda = pytest.mark.skipif(

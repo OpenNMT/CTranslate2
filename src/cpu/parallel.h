@@ -5,7 +5,7 @@
 #ifdef _OPENMP
 #  include <omp.h>
 #else
-#  include <BS_thread_pool_light.hpp>
+#  include <BS_thread_pool.hpp>
 #endif
 
 #include "ctranslate2/types.h"
@@ -32,7 +32,7 @@ namespace ctranslate2 {
     void set_num_threads(size_t num_threads);
     size_t get_num_threads();
 
-    BS::thread_pool_light& get_thread_pool();
+    BS::light_thread_pool& get_thread_pool();
 #endif
 
     template <typename Function>
@@ -79,26 +79,26 @@ namespace ctranslate2 {
       }
 
       auto& thread_pool = get_thread_pool();
-      thread_pool.push_loop(begin, end, f, num_blocks);
-      thread_pool.wait_for_tasks();
+      thread_pool.detach_blocks(begin, end, f, num_blocks);
+      thread_pool.wait();
 
 #endif
     }
 
     template <typename T1, typename T2, typename Function>
-    inline void unary_transform(const T1* x,
-                                T2* y,
-                                dim_t size,
-                                const Function& func) {
+    void unary_transform(const T1* x,
+                         T2* y,
+                         dim_t size,
+                         const Function& func) {
       std::transform(x, x + size, y, func);
     }
 
     template <typename T1, typename T2, typename Function>
-    inline void parallel_unary_transform(const T1* x,
-                                         T2* y,
-                                         dim_t size,
-                                         dim_t work_size,
-                                         const Function& func) {
+    void parallel_unary_transform(const T1* x,
+                                  T2* y,
+                                  dim_t size,
+                                  dim_t work_size,
+                                  const Function& func) {
       parallel_for(0, size, GRAIN_SIZE / work_size,
                    [x, y, &func](dim_t begin, dim_t end) {
                      std::transform(x + begin, x + end, y + begin, func);
@@ -106,21 +106,21 @@ namespace ctranslate2 {
     }
 
     template <typename T1, typename T2, typename T3, typename Function>
-    inline void binary_transform(const T1* a,
-                                 const T2* b,
-                                 T3* c,
-                                 dim_t size,
-                                 const Function& func) {
+    void binary_transform(const T1* a,
+                          const T2* b,
+                          T3* c,
+                          dim_t size,
+                          const Function& func) {
       std::transform(a, a + size, b, c, func);
     }
 
     template <typename T1, typename T2, typename T3, typename Function>
-    inline void parallel_binary_transform(const T1* a,
-                                          const T2* b,
-                                          T3* c,
-                                          dim_t size,
-                                          dim_t work_size,
-                                          const Function& func) {
+    void parallel_binary_transform(const T1* a,
+                                   const T2* b,
+                                   T3* c,
+                                   dim_t size,
+                                   dim_t work_size,
+                                   const Function& func) {
       parallel_for(0, size, GRAIN_SIZE / work_size,
                    [a, b, c, &func](dim_t begin, dim_t end) {
                      std::transform(a + begin, a + end, b + begin, c + begin, func);

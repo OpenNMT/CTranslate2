@@ -12,6 +12,8 @@ namespace ctranslate2 {
 
     private:
       const dim_t _width;
+      template <Device D, typename T>
+      void compute(const StorageView& input, const dim_t axis_size, StorageView& output) const;
     };
 
   }

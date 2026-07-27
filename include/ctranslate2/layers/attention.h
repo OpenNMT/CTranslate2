@@ -2,6 +2,7 @@
 
 #include "ctranslate2/layers/attention_layer.h"
 #include "ctranslate2/padder.h"
+#include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
   namespace layers {
@@ -9,6 +10,11 @@ namespace ctranslate2 {
     StorageView make_relative_positions(dim_t queries_length,
                                         dim_t keys_length,
                                         dim_t max_position);
+
+    StorageView make_asymmetric_relative_positions(dim_t queries_length,
+                                                   dim_t keys_length,
+                                                   dim_t left_max_position,
+                                                   dim_t right_max_position);
 
     class RotaryEmbeddings;
     class Alibi;
@@ -41,6 +47,37 @@ namespace ctranslate2 {
       virtual bool has_positional_embeddings() const override {
             return _relative_position_keys || _relative_attention_bias || _rotary_embeddings || _alibi;
       }
+
+      bool has_merged_encoder_attention() const {
+        return bool(_memory_kv);
+      }
+
+      void forward_merged(const StorageView& queries,
+                          const StorageView* memory,
+                          const StorageView* memory_lengths_mask,
+                          const StorageView* self_lengths_mask,
+                          StorageView& output,
+                          StorageView* cached_self_keys,
+                          StorageView* cached_self_values,
+                          StorageView* cached_memory_keys,
+                          StorageView* cached_memory_values,
+                          const Padder* queries_padder,
+                          const Padder* memory_padder,
+                          dim_t offset) const;
+
+    protected:
+      void process_cross_attention(const StorageView& queries,
+                                const StorageView& values,
+                                StorageView& fused_proj,
+                                StorageView& queries_proj,
+                                StorageView& keys_proj,
+                                StorageView& values_proj,
+                                StorageView* cached_keys,
+                                StorageView* cached_values,
+                                const Padder* queries_padder,
+                                const Padder* values_padder,
+                                dim_t& beam_size) const;
+
     private:
       static void split_heads(StorageView& x,
                                dim_t num_heads,
@@ -51,12 +88,26 @@ namespace ctranslate2 {
                                  dim_t num_heads,
                                  const Padder* padder = nullptr,
                                  dim_t beam_size = 1);
+
+      void apply_k_norm(StorageView& keys_proj) const;
+      void apply_v_norm(StorageView& values_proj) const;
+
+      void apply_qk_norm(StorageView& queries_proj,
+                          StorageView& keys_proj) const;
+
       const StorageView* _relative_attention_bias;
       const StorageView* _relative_position_keys;
+      const StorageView* _relative_asymmetric_position_keys;
       const StorageView* _relative_position_values;
       dim_t _maximum_relative_position;
+      dim_t _relative_left_max_position;
+      dim_t _relative_right_max_position;
       const bool _merge_time_and_head_dims;
       const dim_t _cache_time_dim;
+      std::unique_ptr<const LayerNorm> _q_norm;  // Query normalization
+      std::unique_ptr<const LayerNorm> _k_norm;  // Key normalization
+      std::unique_ptr<const LayerNorm> _v_norm;  // Value normalization (no learnable scale)
+      std::unique_ptr<const Dense> _memory_kv;  // Fused K+V projection of encoder memory (merged attention)
     };
   }
 }

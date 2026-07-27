@@ -350,6 +350,9 @@ namespace ctranslate2 {
       if ((compute_type == ComputeType::FLOAT16 || compute_type == ComputeType::BFLOAT16)
           && cuda::gpu_has_fp16_tensor_cores(device_index))
         return 8;
+      else if ((compute_type == ComputeType::INT8_FLOAT16 || compute_type == ComputeType::INT8_BFLOAT16 || compute_type == ComputeType::INT8_FLOAT32)
+          && cuda::gpu_has_int8_tensor_cores(device_index))
+        return 16;
     }
 #else
     (void)compute_type;

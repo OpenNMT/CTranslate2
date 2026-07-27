@@ -13,6 +13,7 @@ namespace ctranslate2 {
       GELU,
       GELUSigmoid,
       Tanh,
+      Sigmoid,
     };
 
     const UnaryOp& get_activation_op(ActivationType type);

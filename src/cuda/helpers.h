@@ -3,20 +3,29 @@
 #include <algorithm>
 #include <limits>
 
+#include <thrust/iterator/counting_iterator.h>
+
+#ifdef CT2_USE_HIP
+#include <hip/hip_fp16.h>
+#include <hip/hip_bf16.h>
+#include <hip/hip_fp8.h>
+#define __nv_bfloat16 __hip_bfloat16
+#else
 #include <cuda_fp16.h>
 #include <cuda_bf16.h>
+#endif
 
 #include "ctranslate2/types.h"
 
 #include "utils.h"
 
-#if !defined(__CUDACC__) || !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 530
+#if !defined(__CUDACC__) || !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 530 || defined(CT2_USE_HIP)
 #  define CUDA_CAN_USE_HALF 1
 #else
 #  define CUDA_CAN_USE_HALF 0
 #endif
 
-#if defined(__CUDACC__) && (__CUDA_ARCH__ >= 800 || !defined(__CUDA_ARCH__))
+#if defined(__CUDACC__) && (__CUDA_ARCH__ >= 800 || !defined(__CUDA_ARCH__)) || defined(CT2_USE_HIP)
 #  define CUDA_CAN_USE_BF16_MATH 1
 #else
 #  define CUDA_CAN_USE_BF16_MATH 0
@@ -123,6 +132,22 @@ namespace ctranslate2 {
       __device__
       T operator()(const T i) const {
         return i / _size;
+      }
+    };
+
+    template <typename T>
+    class repeat_vec_block {
+    private:
+      T _block;
+      T _size;
+    public:
+      repeat_vec_block(T block, T size)
+        : _block(block)
+        , _size(size) {
+      }
+      __device__
+      T operator()(const T i) const {
+        return (i / _block) % _size;
       }
     };
 
@@ -252,6 +277,14 @@ namespace ctranslate2 {
       // Implicitly promote half to float in this function.
       __device__ float operator()(float x) const {
         return x / (1.f + expf(-1.702f * x));
+      }
+    };
+
+    template <typename T>
+    struct sigmoid_func {
+      // Implicitly promote half to float in this function.
+      __device__ float operator()(float x) const {
+        return 1.f / (1.f + expf(-x));
       }
     };
 
@@ -392,7 +425,7 @@ namespace ctranslate2 {
       AccumT warpVal = defaultVal;
 
       // First warp will perform per-warp reductions for the remaining warps
-      uint32_t mask = (((uint64_t)1) << (blockDim.x / C10_WARP_SIZE)) - 1;
+      uint64_t mask = (((uint64_t)1) << (blockDim.x / C10_WARP_SIZE)) - 1;
       if (threadIdx.x < C10_WARP_SIZE) {
         index_t lane = threadIdx.x % C10_WARP_SIZE;
         if (lane < blockDim.x / C10_WARP_SIZE) {

@@ -13,7 +13,8 @@ namespace ctranslate2 {
                       const StorageView& scale,
                       const StorageView& zero,
                       StorageView& c,
-                      const StorageView* bias = nullptr) const;
+                      const StorageView* bias = nullptr,
+                      const StorageView* residual = nullptr) const;
 
     private:
       template <Device D, typename In, typename Out>

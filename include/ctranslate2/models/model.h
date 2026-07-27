@@ -171,10 +171,12 @@ namespace ctranslate2 {
       virtual void initialize(ModelReader&) {}
 
       virtual std::unique_ptr<Model> clone() const = 0;
+      
+      void set_compute_type(ComputeType type, Device device, int device_index, bool update_weight=true);
+
 
     private:
       void process_linear_weights();
-      void set_compute_type(ComputeType type, Device device, int device_index, bool update_weight=true);
       void ensure_dtype(const std::string& name,
                         StorageView& variable,
                         const DataType target_dtype);

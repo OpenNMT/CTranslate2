@@ -31,6 +31,23 @@ namespace ctranslate2 {
       return positions;
     }
 
+    StorageView make_asymmetric_relative_positions(dim_t queries_length,
+                                                  dim_t keys_length,
+                                                  dim_t left_max_position,
+                                                  dim_t right_max_position) {
+      StorageView positions({queries_length, keys_length}, DataType::INT32);
+      auto* positions_data = positions.data<int32_t>();
+
+      for (dim_t i = 0; i < queries_length; ++i) {
+        auto* row = positions_data + i * keys_length;
+        for (dim_t j = 0; j < keys_length; ++j) {
+          row[j] = std::max(std::min(j - i, right_max_position), -left_max_position) + left_max_position;
+        }
+      }
+
+      return positions;
+    }
+
     static StorageView get_relative_position_bucket(bool bidirectional,
                                                     dim_t query_length,
                                                     dim_t key_length,
@@ -163,8 +180,11 @@ namespace ctranslate2 {
                                       const StorageView& values,
                                       const StorageView* values_lengths,
                                       const StorageView* relative_position_keys,
+                                      const StorageView* relative_asymmetric_position_keys,
                                       const StorageView* relative_position_values,
                                       const StorageView* relative_attention_bias,
+                                      dim_t relative_left_max_position,
+                                      dim_t relative_right_max_position,
                                       dim_t maximum_relative_position,
                                       StorageView& output,
                                       StorageView* attention = nullptr,
@@ -178,13 +198,19 @@ namespace ctranslate2 {
       PROFILE("dot_product_attention");
 
       std::unique_ptr<const StorageView> relative_positions;
-      if (relative_position_keys || relative_position_values) {
+      if (relative_position_keys || relative_position_values || relative_asymmetric_position_keys) {
         const dim_t query_length = queries.dim(2);
         const dim_t key_length = keys.dim(2);
-        relative_positions = std::make_unique<StorageView>(
-          make_relative_positions(query_length,
-                                  key_length,
-                                  maximum_relative_position).to(queries.device()));
+        if (relative_asymmetric_position_keys)
+          relative_positions = std::make_unique<StorageView>(
+            make_asymmetric_relative_positions(query_length,
+                                    key_length,
+                                    relative_left_max_position,
+                                    relative_right_max_position).to(queries.device()));
+        else relative_positions = std::make_unique<StorageView>(
+               make_relative_positions(query_length,
+                                       key_length,
+                                       maximum_relative_position).to(queries.device()));
       }
 
       const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
@@ -196,6 +222,12 @@ namespace ctranslate2 {
                                      keys_matmul,
                                      output);
 
+      if (relative_asymmetric_position_keys)
+        add_relative_representations(queries,
+                                     *relative_positions,
+                                     *relative_asymmetric_position_keys,
+                                     keys_matmul,
+                                     output);
       if (relative_attention_bias) {
         StorageView local_position_bias(output.dtype(), output.device());
 
@@ -233,10 +265,13 @@ namespace ctranslate2 {
         alibi->apply(output, queries_scale);
 
       StorageView attn(values.dtype(), values.device());
-      ops::SoftMax()(output, values_lengths, attn);
-
-      if (attention && !return_normalized_attention)
+      if (attention && !return_normalized_attention) {
+        ops::SoftMax()(output, values_lengths, attn);
         save_attention(*attention, std::move(output), beam_size);
+      } else {
+        attn = std::move(output);
+        ops::SoftMax()(attn, values_lengths, attn);
+      }
 
       const ops::MatMul values_matmul;
       values_matmul(attn, values, output);
@@ -269,15 +304,29 @@ namespace ctranslate2 {
       : AttentionLayer(model, scope, num_heads, self_attention, pre_norm, is_decoder, alibi, false)
       , _relative_attention_bias(model.get_variable_if_exists(scope + "/relative_attention_bias"))
       , _relative_position_keys(model.get_variable_if_exists(scope + "/relative_position_keys"))
+      , _relative_asymmetric_position_keys(model.get_variable_if_exists(scope + "/relative_asymmetric_position_keys"))
       , _relative_position_values(model.get_variable_if_exists(scope + "/relative_position_values"))
       , _merge_time_and_head_dims(_multi_query
                                   && !_relative_attention_bias
                                   && !_relative_position_keys
                                   && !_relative_position_values)
       ,_cache_time_dim(_merge_time_and_head_dims ? 1 : 2)
+      , _q_norm(build_optional_layer<LayerNorm>(model, scope + "/q_norm"))
+      , _k_norm(build_optional_layer<LayerNorm>(model, scope + "/k_norm"))
+      , _v_norm(build_optional_layer<LayerNorm>(model, scope + "/v_norm"))
+      , _memory_kv((model.get_variable_if_exists(scope + "/memory_kv/weight")
+                    || model.get_variable_if_exists(scope + "/memory_kv/weight_packed"))
+                     ? std::make_unique<const Dense>(model, scope + "/memory_kv")
+                     : nullptr)
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
+      else if (_relative_asymmetric_position_keys) {
+        _relative_left_max_position = model.get_attribute<int32_t>(
+          scope + "/relative_left_max_position");
+        _relative_right_max_position = model.get_attribute<int32_t>(
+          scope + "/relative_right_max_position");
+      }
       else if (_relative_attention_bias)
         _maximum_relative_position = model.get_attribute<int32_t>(
           scope + "/relative_attention_max_distance");
@@ -291,6 +340,103 @@ namespace ctranslate2 {
 
     dim_t MultiHeadAttention::output_size() const {
       return _d_model;
+    }
+
+    void MultiHeadAttention::apply_k_norm(StorageView& keys_proj) const {
+      if (_k_norm) {
+        StorageView keys_normed(keys_proj.dtype(), keys_proj.device());
+        (*_k_norm)(keys_proj, keys_normed);
+        keys_proj = std::move(keys_normed);
+      }
+    }
+
+    void MultiHeadAttention::apply_qk_norm(StorageView& queries_proj, StorageView& keys_proj) const {
+      if (_q_norm) {
+        StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
+        (*_q_norm)(queries_proj, queries_normed);
+        queries_proj = std::move(queries_normed);
+      }
+
+      apply_k_norm(keys_proj);
+    }
+
+    void MultiHeadAttention::apply_v_norm(StorageView& values_proj) const {
+      if (_v_norm) {
+        StorageView values_normed(values_proj.dtype(), values_proj.device());
+        (*_v_norm)(values_proj, values_normed);
+        values_proj = std::move(values_normed);
+      }
+    }
+
+    void MultiHeadAttention::process_cross_attention(
+        const StorageView& queries,
+        const StorageView& values,
+        StorageView& fused_proj,
+        StorageView& queries_proj,
+        StorageView& keys_proj,
+        StorageView& values_proj,
+        StorageView* cached_keys,
+        StorageView* cached_values,
+        const Padder* queries_padder,
+        const Padder* values_padder,
+        dim_t& beam_size) const {
+
+      queries_proj = std::move(fused_proj);
+
+      if (cached_keys == nullptr || cached_keys->empty()) {
+        _linear[1](values, fused_proj);
+
+        if (_num_heads_kv == 1) { // MQA (Multi-Query Attention)
+          if (values_padder)
+            values_padder->add_padding(fused_proj);
+          ops::Split(2, {_d_head, _d_head})(fused_proj, keys_proj, values_proj);
+
+          apply_k_norm(keys_proj);
+          apply_v_norm(values_proj);
+          keys_proj.expand_dims(1);
+          values_proj.expand_dims(1);
+          replicate_heads(keys_proj, _num_heads);
+          replicate_heads(values_proj, _num_heads);
+
+        } else if (_num_heads_kv < _num_heads) { // GQA (Grouped-Query Attention)
+          if (values_padder)
+            values_padder->add_padding(fused_proj);
+
+          const ops::Split split_op(2, {_num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          split_op(fused_proj, keys_proj, values_proj);
+
+          split_heads(keys_proj, _num_heads_kv);
+          split_heads(values_proj, _num_heads_kv);
+
+          apply_k_norm(keys_proj);
+          apply_v_norm(values_proj);
+
+          replicate_heads(keys_proj, _num_heads / _num_heads_kv);
+          replicate_heads(values_proj, _num_heads / _num_heads_kv);
+        } else { //Standard Multi-Head Attention (MHA)
+          split_heads(fused_proj, 2 * _num_heads, values_padder);
+          ops::Split(1)(fused_proj, keys_proj, values_proj);
+
+          apply_k_norm(keys_proj);
+          apply_v_norm(values_proj);
+        }
+
+        if (cached_keys != nullptr) {
+          *cached_keys = std::move(keys_proj);
+          *cached_values = std::move(values_proj);
+        }
+      }
+
+      if (_q_norm) {
+        StorageView queries_normed(queries_proj.dtype(), queries_proj.device());
+        (*_q_norm)(queries_proj, queries_normed);
+        queries_proj = std::move(queries_normed);
+      }
+
+      if (queries_proj.dim(1) == 1 && cached_keys)
+        beam_size = queries_proj.dim(0) / cached_keys->dim(0);
+
+      split_heads(queries_proj, _num_heads, queries_padder, beam_size);
     }
 
     void MultiHeadAttention::operator()(const StorageView& queries,
@@ -326,52 +472,39 @@ namespace ctranslate2 {
       bool prefilling = (_sliding_window > 0 && values_lengths);
 
       if (!_self_attention) {
-        queries_proj = std::move(fused_proj);
 
-        if (cached_keys == nullptr || cached_keys->empty()) {
-          _linear[1](values, fused_proj);
-
-          if (_multi_query) {
-            if (values_padder)
-              values_padder->add_padding(fused_proj);
-            ops::Split(2, {_d_head, _d_head})(fused_proj, keys_proj, values_proj);
-          } else {
-            split_heads(fused_proj, 2 * _num_heads, values_padder);
-            ops::Split(1)(fused_proj, keys_proj, values_proj);
-          }
-
-          if (cached_keys != nullptr) {
-            *cached_keys = std::move(keys_proj);
-            *cached_values = std::move(values_proj);
-          }
-        }
-
-        if (queries_proj.dim(1) == 1 && cached_keys)
-          beam_size = queries_proj.dim(0) / cached_keys->dim(0);
-
-        if (_multi_query) {
-          if (queries_padder)
-            queries_padder->add_padding(queries_proj);
-          queries_proj.reshape({queries_proj.dim(0) / beam_size, -1, _d_head});
-        } else {
-          split_heads(queries_proj, _num_heads, queries_padder, beam_size);
-        }
-
+        process_cross_attention(queries, values, fused_proj, queries_proj, keys_proj,
+                                values_proj, cached_keys, cached_values,
+                                queries_padder, values_padder, beam_size);
       } else {
 
-        if (_num_heads_kv < _num_heads) {
+        if (_num_heads_kv < _num_heads) {// MQA or GQA: queries stay in merged time/head format
           if (queries_padder)
             queries_padder->add_padding(fused_proj);
 
-          const ops::Split split_op(2, {_d_model, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          const ops::Split split_op(2, {_num_heads * _d_head, _num_heads_kv * _d_head, _num_heads_kv * _d_head});
           split_op(fused_proj, queries_proj, keys_proj, values_proj);
 
           if (_merge_time_and_head_dims) {
             queries_proj.reshape({queries_proj.dim(0), -1, _d_head});
+            // k_norm/v_norm operate per-head (gamma size = _d_head), so temporarily
+            // split keys/values into heads, apply norms, then restore merged layout.
+            if (_k_norm || _q_norm || _v_norm) {
+              split_heads(keys_proj, _num_heads_kv);
+              split_heads(values_proj, _num_heads_kv);
+              apply_qk_norm(queries_proj, keys_proj);
+              apply_v_norm(values_proj);
+              // Restore flat [batch, time, num_kv_heads*head_dim] layout.
+              combine_heads(keys_proj, _num_heads_kv);
+              combine_heads(values_proj, _num_heads_kv);
+            }
           } else {
             split_heads(queries_proj, _num_heads);
             split_heads(keys_proj, _num_heads_kv);
             split_heads(values_proj, _num_heads_kv);
+
+            apply_qk_norm(queries_proj, keys_proj);
+            apply_v_norm(values_proj);
 
             replicate_heads(keys_proj, _num_heads / _num_heads_kv);
             replicate_heads(values_proj, _num_heads / _num_heads_kv);
@@ -380,6 +513,9 @@ namespace ctranslate2 {
         } else {
           split_heads(fused_proj, 3 * _num_heads, queries_padder);
           ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
+
+          apply_qk_norm(queries_proj, keys_proj);
+          apply_v_norm(values_proj);
         }
 
         if (_rotary_embeddings) {
@@ -432,8 +568,11 @@ namespace ctranslate2 {
                             values_proj,
                             values_lengths,
                             _relative_position_keys,
+                            _relative_asymmetric_position_keys,
                             _relative_position_values,
                             _relative_attention_bias,
+                            _relative_left_max_position,
+                            _relative_right_max_position,
                             _maximum_relative_position,
                             context,
                             attention,
@@ -462,7 +601,7 @@ namespace ctranslate2 {
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-      _linear.back()(context, output);
+      _linear.back()(context, output, _layer_norm ? &queries : nullptr);
 
       if (_tensor_parallel) {
         Shape shape = output.shape();
@@ -471,12 +610,189 @@ namespace ctranslate2 {
         ops_reduce_all(output, tmp);
         output = std::move(tmp);
       }
-      if (_layer_norm) {
-        ops::Add()(queries, output, output);
+      if (_layer_norm && !_pre_norm)
+        (*_layer_norm)(output, output);
+    }
 
-        if (!_pre_norm)
-          (*_layer_norm)(output, output);
+    // Expand a 4-D tensor [batch, heads, time, d_head] along the batch dimension
+    // by `repeats`, producing [batch*repeats, heads, time, d_head].
+    static void replicate_batches(StorageView& x, dim_t repeats) {
+      x.expand_dims(1);                         // [batch, 1, heads, time, d_head]
+      ops::Tile(1, repeats)(x);                 // [batch, repeats, heads, time, d_head]
+      x.reshape({x.dim(0) * x.dim(1), x.dim(2), x.dim(3), x.dim(4)});
+    }
+
+    void MultiHeadAttention::forward_merged(const StorageView& queries,
+                                            const StorageView* memory,
+                                            const StorageView* memory_lengths_mask,
+                                            const StorageView* self_lengths_mask,
+                                            StorageView& output,
+                                            StorageView* cached_self_keys,
+                                            StorageView* cached_self_values,
+                                            StorageView* cached_memory_keys,
+                                            StorageView* cached_memory_values,
+                                            const Padder* queries_padder,
+                                            const Padder* memory_padder,
+                                            dim_t offset) const {
+      PROFILE("MultiHeadAttentionMerged");
+      const Device device = queries.device();
+
+      const DataType dtype = queries.dtype();
+
+      StorageView fused_proj(dtype, device);
+      StorageView queries_proj(dtype, device);
+      StorageView keys_proj(dtype, device);
+      StorageView values_proj(dtype, device);
+
+      const StorageView* q = &queries;
+      if (_layer_norm && _pre_norm) {
+        (*_layer_norm)(queries, queries_proj);
+        q = &queries_proj;
       }
+
+      _linear[0](*q, fused_proj);
+
+      if (_num_heads_kv < _num_heads) {
+        if (queries_padder)
+          queries_padder->add_padding(fused_proj);
+        const ops::Split split_op(2, {_num_heads * _d_head,
+                                      _num_heads_kv * _d_head,
+                                      _num_heads_kv * _d_head});
+        split_op(fused_proj, queries_proj, keys_proj, values_proj);
+        split_heads(queries_proj, _num_heads);
+        split_heads(keys_proj, _num_heads_kv);
+        split_heads(values_proj, _num_heads_kv);
+        apply_qk_norm(queries_proj, keys_proj);
+        apply_v_norm(values_proj);
+        replicate_heads(keys_proj, _num_heads / _num_heads_kv);
+        replicate_heads(values_proj, _num_heads / _num_heads_kv);
+      } else {
+        split_heads(fused_proj, 3 * _num_heads, queries_padder);
+        ops::Split(1)(fused_proj, queries_proj, keys_proj, values_proj);
+        apply_qk_norm(queries_proj, keys_proj);
+        apply_v_norm(values_proj);
+      }
+
+      if (_rotary_embeddings) {
+        _rotary_embeddings->apply(queries_proj, offset);
+        _rotary_embeddings->apply(keys_proj, offset);
+      }
+
+      // Update self-attention KV cache.
+      if (cached_self_keys) {
+        if (cached_self_keys->empty()) {
+          *cached_self_keys = std::move(keys_proj);
+          *cached_self_values = std::move(values_proj);
+        } else {
+          const ops::Concat concat_op(2);
+          StorageView tmp(dtype, device);
+          tmp = std::move(*cached_self_keys);
+          concat_op({&tmp, &keys_proj}, *cached_self_keys);
+          tmp = std::move(*cached_self_values);
+          concat_op({&tmp, &values_proj}, *cached_self_values);
+        }
+        keys_proj.shallow_copy(*cached_self_keys);
+        values_proj.shallow_copy(*cached_self_values);
+      }
+
+      // Compute beam_size: queries batch = batch * beam_size; memory cache at batch granularity.
+      // During the first decoding step memory is not yet cached; use the live memory batch.
+      const bool memory_already_cached = cached_memory_keys && !cached_memory_keys->empty();
+      const dim_t batch_size_no_beam = memory_already_cached
+                                          ? cached_memory_keys->dim(0)
+                                          : (memory ? memory->dim(0) : queries.dim(0));
+      const dim_t beam_size = queries.dim(0) / batch_size_no_beam;
+
+      // Project encoder memory through memory_kv (no RoPE; k_norm only).
+      // Memory K/V is stored at batch granularity (without beam expansion).
+      StorageView memory_keys(dtype, device);
+      StorageView memory_values(dtype, device);
+      if (memory_already_cached) {
+        memory_keys.shallow_copy(*cached_memory_keys);
+        memory_values.shallow_copy(*cached_memory_values);
+      } else {
+        StorageView mem_kv(dtype, device);
+        (*_memory_kv)(*memory, mem_kv);
+        if (_num_heads_kv < _num_heads) {
+          if (memory_padder)
+            memory_padder->add_padding(mem_kv);
+          const ops::Split split_op(2, {_num_heads_kv * _d_head, _num_heads_kv * _d_head});
+          split_op(mem_kv, memory_keys, memory_values);
+          split_heads(memory_keys, _num_heads_kv);
+          split_heads(memory_values, _num_heads_kv);
+          apply_k_norm(memory_keys);
+          replicate_heads(memory_keys, _num_heads / _num_heads_kv);
+          replicate_heads(memory_values, _num_heads / _num_heads_kv);
+        } else {
+          split_heads(mem_kv, 2 * _num_heads, memory_padder);
+          ops::Split(1)(mem_kv, memory_keys, memory_values);
+          apply_k_norm(memory_keys);
+        }
+        if (cached_memory_keys) {
+          *cached_memory_keys = memory_keys;
+          *cached_memory_values = memory_values;
+        }
+      }
+
+      // Expand memory K/V from [batch, heads, src_len, d] to [batch*beam, heads, src_len, d].
+      if (beam_size > 1) {
+        replicate_batches(memory_keys, beam_size);
+        replicate_batches(memory_values, beam_size);
+      }
+
+      // Concatenate: self K/V (decoder steps) || memory K/V (src_len) along time dim.
+      // This matches HF: key_states = cat([self_keys, cross_keys], dim=2)
+      const ops::Concat time_concat(2);
+      StorageView merged_keys(dtype, device);
+      StorageView merged_values(dtype, device);
+      time_concat({&keys_proj, &memory_keys}, merged_keys);
+      time_concat({&values_proj, &memory_values}, merged_values);
+
+      // Build merged lengths mask.
+      // During prefix processing (training-style), both self_lengths_mask and
+      // memory_lengths_mask are provided; we add them to get the merged valid count.
+      // During single-step generation, self_lengths_mask is null; we create a
+      // full-coverage mask that allows attending to all merged keys.
+      const dim_t total_keys = merged_keys.dim(2);
+      const dim_t q_len = queries_proj.dim(2);
+
+      std::unique_ptr<StorageView> merged_lengths;
+      if (self_lengths_mask && memory_lengths_mask) {
+        // Normalise memory_lengths_mask shape to match self_lengths_mask if needed
+        // (beam search may produce different leading dims).
+        std::unique_ptr<StorageView> norm_mem_lengths;
+        const StorageView* mem_len_ptr = memory_lengths_mask;
+        if (memory_lengths_mask->shape() != self_lengths_mask->shape()) {
+          norm_mem_lengths = std::make_unique<StorageView>(*memory_lengths_mask);
+          norm_mem_lengths->reshape(self_lengths_mask->shape());
+          mem_len_ptr = norm_mem_lengths.get();
+        }
+        merged_lengths = std::make_unique<StorageView>(self_lengths_mask->dtype(), device);
+        merged_lengths->resize_as(*self_lengths_mask);
+        ops::Add()(*self_lengths_mask, *mem_len_ptr, *merged_lengths);
+      } else if (self_lengths_mask) {
+        merged_lengths = std::make_unique<StorageView>(*self_lengths_mask);
+      } else {
+        // Single-step generation: no causal mask needed (only 1 query), and all
+        // merged keys are valid. Create a constant mask = total_keys for each query.
+        const dim_t batch_queries = queries_proj.dim(0) * _num_heads * q_len;
+        merged_lengths = std::make_unique<StorageView>(
+          Shape{batch_queries}, int32_t(total_keys), device);
+      }
+
+      StorageView context(dtype, device);
+      const ops::MatMul keys_matmul(false, true, _queries_scale);
+      keys_matmul(queries_proj, merged_keys, context);
+      StorageView attn(dtype, device);
+      ops::SoftMax()(context, merged_lengths.get(), attn);
+      const ops::MatMul values_matmul;
+      values_matmul(attn, merged_values, context);
+
+      combine_heads(context, _num_heads, queries_padder, /*beam_size=*/1);
+      _linear.back()(context, output, _layer_norm ? &queries : nullptr);
+
+      if (_layer_norm && !_pre_norm)
+        (*_layer_norm)(output, output);
     }
 
     void MultiHeadAttention::split_heads(StorageView& x,

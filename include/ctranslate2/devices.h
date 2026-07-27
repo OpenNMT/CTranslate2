@@ -3,6 +3,7 @@
 #include <stdexcept>
 #include <string>
 #include <vector>
+#include <cstdint>
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <nccl.h>
 #endif
@@ -25,6 +26,8 @@ namespace ctranslate2 {
 
   void synchronize_device(Device device, int index);
   void synchronize_stream(Device device);
+
+  void destroy_context(Device device);
 
   class ScopedDeviceSetter {
   public:

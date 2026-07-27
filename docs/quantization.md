@@ -165,18 +165,26 @@ In this mode, all model weights are stored in BF16 and all layers are run with t
 
 ### 4-bit AWQ
 
-The compute type would be `int32_float16`
-
 **Supported on:**
 
 * NVIDIA GPU with Compute Capability >= 7.5
 
+CTranslate2 internally handles the compute type for AWQ quantization.
 In this mode, all model weights are stored in half precision and all layers are run in half precision. Other parameters like scale and zero are stored in ``int32``.
 
-For example,
+**Steps to use AWQ Quantization:**
 
+* Download a AWQ quantized model from Hugging Face for example (TheBloke/Llama-2-7B-AWQ){https://huggingface.co/TheBloke/Llama-2-7B-AWQ} or quantize your own model with using this (AutoAWQ example){https://casper-hansen.github.io/AutoAWQ/examples/}.
+
+* Convert AWQ Quantized model to Ctranslate2 model:
 ```bash
  ct2-transformers-converter --model TheBloke/Llama-2-7B-AWQ --copy_files tokenizer.model --output_dir ct2_model
 ```
 
-We have to quantize the model with AWQ first, then convert it to CT2 format.
+* Run inference as usual with Ctranslate2:
+```bash
+model = ctranslate2.Generator('ct2_model', device='cuda')
+outputs = model.generate_batch([tokens])
+```
+
+Currently, CTranslate2 only supports the GEMM and GEMV kernels for AWQ quantization.

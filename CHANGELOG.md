@@ -4,6 +4,162 @@
 
 ### Fixes and improvements
 
+## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
+
+### New features
+
+* Support for Gemma4 12B dense model (#2060) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Harden legacy converter checkpoint loading (#2036) by [@igorsantosgrueiro](https://github.com/igorsantosgrueiro)
+* Fix model load heap overflow (#2068) by [@jordimas](https://github.com/jordimas), reported by Chegne Eu Joe (Project Umbra)
+* Fix process-killing integer division by zero when Whisper align() gets a window with no frames (#2065) by [@MAkcanca](https://github.com/MAkcanca)
+* CI/CD compilation fixes for Windows (#2069) by [@jordimas](https://github.com/jordimas)
+* Optimize attention softmax buffer reuse (#2066) by [@jordimas](https://github.com/jordimas)
+
+## [v4.8.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.0) (2026-06-06)
+
+### New features
+
+* Add support for Google T5Gemma2 (#2058) by [@jordimas](https://github.com/jordimas)
+* Enables PACKED_GEMM by default for Intel MKL to improve Intel CPU performance (#2055) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Upgrade Thrust submodule from 1.12.0 to CCCL 2.7.0 (#2062) by [@jordimas](https://github.com/jordimas)
+* Adopt latest BS_thread_pool library version v5.1.0 (#2053) by [@3manifold](https://github.com/3manifold)
+* Upgrade CI system dependencies and reduce build time (#2056) by [@jordimas](https://github.com/jordimas)
+* Fix PyPI publish: download wheels to dist/ to avoid directory hash error (#2050) by [@jordimas](https://github.com/jordimas)
+* Fix flaky transformers_wav2vec2 test (#1996) by [@3manifold](https://github.com/3manifold)
+
+## [v4.7.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.2) (2026-05-18)
+
+### New features
+
+* Gemma4 support for dense model (#2048) by [@jordimas](https://github.com/jordimas)
+
+## Fixes and improvements
+
+* Gemma 3 model conversion fixes (#2037) by [@jordimas](https://github.com/jordimas)
+* Update source ROCM version from 7.2 to 7.2.1 (#2030) by [@racedale](https://github.com/racedale)
+* Free curand states before the thread is destroyed (#1912) by [@no1d](https://github.com/no1d)
+
+
+## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-04)
+
+## Fixes and improvements
+
+* Fix Windows build (#2007) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+## [v4.7.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.0) (2026-02-03)
+
+### New features
+
+* Introduce AMD GPU support with ROCm HIP (#1989) [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Compatibility with Transformers v5 (#1999) by [@jordimas](https://github.com/jordimas)
+
+## Fixes and improvements
+
+* Assume less about whisper vocab (#2000) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Use LLVM ThreadSanitizer instead of Google (#1993) by [@3manifold](https://github.com/3manifold)
+* Optimize all builds with parallel execution (#1992) by [@3manifold](https://github.com/3manifold)
+* Remove unecessary zero init from conv1d (#1990) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Integrate Clang AddressSanitizer in tests (#1903) by [@3manifold](https://github.com/3manifold)
+* Enable multiple of 16 padding for INT8 Tensor Cores (#1982) by [@Purfview](https://github.com/Purfview)
+* Add activation and dilation to conv1d (#1979) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Minor refactor to CMakeLists.txt (#1980) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Remove unnecessary check from wav2vec2 (#1977) by [@plan9better](https://github.com/plan9better)
+* Add optional residual add to gemm op (#1975) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Implement cuda layernorm axis (#1971) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fix Eole conversion (#1998) by [@vince62s](https://github.com/vince62s)
+* Gemma 3 conversion improvements (#1991) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Add causal flag to fa2 (#1976) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fixes cross attention tests and refactors code (#1974) by [@jordimas](https://github.com/jordimas)
+* Fix CUDA bf16 median filter (#1972) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+* Fix various compiler warnings (#1970) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+
+## [v4.6.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.3) (2026-01-06)
+
+### New features
+
+* T5Gemma model conversion and inference (#1962) by [@jordimas](https://github.com/jordimas)
+* Support for CUDA 12.8 (#1937, #1940) by [@Purfview](https://github.com/Purfview)
+* Conv1d pure CUDA implementation (#1949), makes cuDNN an optional dependency by [@jordimas](https://github.com/jordimas)
+* Add CUDA implementation for median filter (#1917) by [@ja2d8a4v](https://github.com/a2d8a4v)
+
+### Fixes and improvements
+
+* Fix issue- tokens batch_type may exceed max_batch_size (#1948) by [@anterart](https://github.com/anterart)
+* Fixes AWQ support for Qwen 2.5/3 and Phi3 (#1951, #1952, #1953) by [@BBC-Esq](https://github.com/BBC-Esq)
+
+## [v4.6.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.2) (2025-12-05)
+
+### New features
+
+* Qwen 3 support (#1943) by [@jordimas](https://github.com/jordimas)
+* Gemma 3 text support (#1936) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Fixed pkg_resources Deprecated Warning (#1911) by [@thawancomt](https://github.com/thawancomt)
+* Disable INT8 for sm120 - Blackwell GPUs (#1937) by [@Purfview](https://github.com/Purfview)
+* FIX: package libctranslate2.so in wheel to avoid build fail (#1920) by [@yzewei](https://github.com/yzewei)
+
+## [v4.6.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.1) (2025-11-07)
+
+### New features
+
+* Python 3.14 support (#1926)
+* Support for Cuda 12.4 (#1925)
+* Update Intel oneAPI to version 2025.3 (#1931)
+
+## [v4.6.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.6.0) (2025-04-08)
+Note: The Ctranslate2 Python package now supports python 3.13, drop the support for python 3.8.
+
+### New features
+* Python 3.13 support (#1858)
+* Support returning hidden vector in Wav2Vec2 and Wav2Vec2Bert Models (#1867)
+* Add noexecstack linker flags (#1852 + #1861)
+* Support Qwen2 (#1820)
+* Eoleconv (#1832)
+* Add support RobertModel (#1864)
+
+### Fixes and improvements
+* Fix github action (#1871)
+* Prevent double library def (#1818)
+
+## [v4.5.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.5.0) (2024-10-22)
+Note: The Ctranslate2 Python package now supports CUDNN 9 and is no longer compatible with CUDNN 8.
+
+### New features
+* Support Phi3 (#1800)
+* Support Mistral Nemo (#1785)
+* Support Wav2Vec2Bert ASR (#1778)
+
+### Fixes and improvements
+* Upgrade to CUDNN9 (#1803)
+* Fix logits vocab (#1786 + #1791)
+* Update doc AWQ (#1795)
+
+## [v4.4.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.4.0) (2024-09-09)
+**Removed**: Flash Attention support in the Python package due to significant package size increase with minimal performance gain.
+Note: Flash Attention remains supported in the C++ package with the `WITH_FLASH_ATTN` option.
+Flash Attention may be re-added in the future if substantial improvements are made.
+
+### New features
+* Support Llama3 (#1751)
+* Support Gemma2 (1772)
+* Add log probs for all tokens in vocab (#1755)
+* Grouped conv1d (#1749 + #1758)
+
+### Fixes and improvements
+* Fix pipeline (#1723 + #1747)
+* Some improvements in flash attention (#1732)
+* Fix crash when using return_alternative on CUDA (#1733)
+* Quantization AWQ GEMM + GEMV (#1727)
+
 ## [v4.3.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.3.1) (2024-06-10)
 Note: Because of exceeding project's size on Pypi (> 20 GB), the release v4.3.0 was pushed unsuccessfully.
 

@@ -19,6 +19,7 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         self,
         self_attention=False,
         relative_position=False,
+        relative_asymmetric_position=False,
         relative_attention_bias=False,
         rms_norm=False,
         rotary_dim=None,
@@ -31,13 +32,26 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         num_heads_kv=None,
         head_dim=None,
         sliding_window=None,
+        qk_norm=False,
+        qk_norm_rms=True,
+        v_norm=False,
+        has_norm=True,
+        merged_encoder_attention=False,
     ):
         self.queries_scale = model_spec.OPTIONAL
 
-        self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
+        if has_norm:
+            self.layer_norm = common_spec.LayerNormSpec(rms_norm=rms_norm)
         self.linear = [
             common_spec.LinearSpec() for _ in range(2 if self_attention else 3)
         ]
+
+        if qk_norm:
+            self.q_norm = common_spec.LayerNormSpec(rms_norm=qk_norm_rms)
+            self.k_norm = common_spec.LayerNormSpec(rms_norm=qk_norm_rms)
+
+        if v_norm:
+            self.v_norm = common_spec.LayerNormSpec(rms_norm=True)
 
         if relative_position:
             self.relative_position_keys = None
@@ -46,6 +60,11 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         if relative_attention_bias:
             self.relative_attention_bias = None
             self.relative_attention_max_distance = None
+
+        if relative_asymmetric_position:
+            self.relative_asymmetric_position_keys = None
+            self.relative_left_max_position = None
+            self.relative_right_max_position = None
 
         if original_max_position_embeddings != 0:
             self.original_max_position_embeddings = np.dtype("int32").type(
@@ -82,3 +101,7 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
 
         if sliding_window is not None:
             self.sliding_window = np.dtype("int32").type(sliding_window)
+
+        if merged_encoder_attention:
+            self.merged_encoder_attention = True
+            self.memory_kv = common_spec.LinearSpec()

@@ -80,8 +80,10 @@ namespace ctranslate2 {
     template<>
     std::string consume(std::istream& in) {
       const auto str_length = consume<uint16_t>(in);
+      if (str_length == 0)
+        throw std::runtime_error("Invalid string length in " + binary_file);
       const auto c_str = consume<char>(in, str_length);
-      std::string str(c_str);
+      std::string str(c_str, str_length - 1);
       delete [] c_str;
       return str;
     }
@@ -413,7 +415,8 @@ namespace ctranslate2 {
         }
 
         // If requested, linear weights can be packed for the Gemm call.
-        if (pack_weights && is_packable(name)) {
+        // Only 2D weights are supported; Conv weights are 3D and use a different code path.
+        if (pack_weights && is_packable(name) && weight.rank() == 2) {
           StorageView packed_weight = ops::Gemm::pack_b_input(weight, transpose, k, n, alpha);
           register_variable(name + "_packed", std::move(packed_weight));
           remove_variable(name);  // The original weight is no longer needed.
@@ -446,18 +449,10 @@ namespace ctranslate2 {
       size_t num = partitions_size.size();
       std::vector<StorageView*> p_outputs(num);
 
-      for (int i = 0; i < num; ++i) {
+      for (size_t i = 0; i < num; ++i) {
         p_outputs[i] = &outputs[i];
       }
       ops::Split(dim, partitions_size)(variable, p_outputs);
-    }
-
-    static bool replace(std::string& str, const std::string& from, const std::string& to) {
-      size_t start_pos = str.find(from);
-      if (start_pos == std::string::npos)
-        return false;
-      str.replace(start_pos, from.length(), to);
-      return true;
     }
 
     static void check_version(const size_t saved_version,
@@ -638,7 +633,6 @@ namespace ctranslate2 {
                        " the config.json could lead to error! Try using the latest version of converters");
       }
 
-      QUANTIZATION_TYPE quantization_type = QUANTIZATION_TYPE::CT2;
       if (model->config.contains("quantization_type"))
         model->set_quant_method(model->config["quantization_type"]);
 
@@ -662,6 +656,8 @@ namespace ctranslate2 {
         }
 
         StorageView variable(std::move(shape), dtype);
+        if (num_bytes != variable.size() * variable.item_size())
+          throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
         consume<char>(model_file, num_bytes, static_cast<char*>(variable.buffer()));
         if (tensor_parallel) {
           int outer_dim = 0;
@@ -741,7 +737,7 @@ namespace ctranslate2 {
                 split_variables(std::move(variable), outer_dim, partitions_size, outputs);
               }
             };
-            if (outputs.size() > current_index && !outputs[current_index].empty())
+            if (static_cast<int>(outputs.size()) > current_index && !outputs[current_index].empty())
               variable = std::move(outputs[current_index]);
           }
         }
@@ -844,16 +840,22 @@ namespace ctranslate2 {
                      " running independently a model in each device");
       }
 
-      bool is_sm8x = false;
-      bool is_sm90 = false;
+      bool supports_flash_attention = false;
       if (device == Device::CUDA) {
         int device_id = ctranslate2::get_device_index(ctranslate2::Device::CUDA);
         auto dprops = ctranslate2::cuda::get_device_properties(device_id);
-        is_sm8x = dprops.major == 8 && dprops.minor >= 0;
-        is_sm90 = dprops.major == 9 && dprops.minor == 0;
+#ifdef CT2_USE_HIP
+        supports_flash_attention = false;
+#else
+        supports_flash_attention = dprops.major >= 8;
+#endif
       }
-      if (use_flash_attention && (device != Device::CUDA || (!is_sm8x && !is_sm90))) {
+      if (use_flash_attention && !supports_flash_attention) {
+#ifdef CT2_USE_HIP
+        throw std::invalid_argument("FlashAttention not supported on ROCm.");
+#else
         throw std::invalid_argument("FlashAttention only supports Ampere GPUs or newer.");
+#endif
       }
 #endif
 

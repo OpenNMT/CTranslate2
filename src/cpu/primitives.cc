@@ -174,6 +174,20 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CPU>::add_block_broadcast(const T* a, const T* b, T* c,
+                                                    dim_t block, dim_t a_size, dim_t b_size) {
+    const dim_t iter_size = b_size / block;
+    cpu::parallel_for(0, iter_size, 1, [&](dim_t begin, dim_t end) {
+      for (dim_t i = begin; i < end; ++i) {
+        const T a_i = a[i % a_size];
+        const dim_t offset = i * block;
+        add(a_i, b + offset, c + offset, block);
+      }
+    });
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::CPU>::sub(const T* a, const T* b, T* c, dim_t size) {
     CPU_ISA_DISPATCH((cpu::sub<ISA>(a, b, c, size)));
   }
@@ -310,6 +324,15 @@ namespace ctranslate2 {
     cpu::parallel_for(0, size, /*grain_size=*/512,
                       [x, y](dim_t begin, dim_t end) {
                         CPU_ISA_DISPATCH((cpu::gelu_sigmoid<ISA>(x + begin, y + begin, end - begin)));
+                      });
+  }
+
+  template<>
+  template<>
+  void primitives<Device::CPU>::sigmoid(const float* x, float* y, dim_t size) {
+    cpu::parallel_for(0, size, cpu::GRAIN_SIZE / 10,
+                      [x, y](dim_t begin, dim_t end) {
+                        CPU_ISA_DISPATCH((cpu::sigmoid<ISA>(x + begin, y + begin, end - begin)));
                       });
   }
 
@@ -1159,6 +1182,9 @@ namespace ctranslate2 {
   template void                                                         \
   primitives<Device::CPU>::add_depth_broadcast(const T* a, const T* b, T* c, \
                                                dim_t a_size, dim_t b_size); \
+  template void                                                         \
+  primitives<Device::CPU>::add_block_broadcast(const T* a, const T* b, T* c, \
+                                               dim_t block, dim_t a_size, dim_t b_size); \
   template void                                                         \
   primitives<Device::CPU>::min(T a, const T* x, T* y, dim_t size);      \
   template void                                                         \

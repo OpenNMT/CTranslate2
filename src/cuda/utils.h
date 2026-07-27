@@ -2,6 +2,32 @@
 
 #include <string>
 
+#ifdef CT2_USE_HIP
+#include <hip/hip_runtime.h>
+#include <hipblas/hipblas.h>
+#include <thrust/execution_policy.h>
+#include <hipcub/hipcub.hpp>
+#ifdef CT2_WITH_TENSOR_PARALLEL
+  #include <cuda/mpi_stub.h>
+  #include <rccl/rccl.h>
+#endif
+
+#define cub hipcub
+#define cudaError_t hipError_t
+#define cudaSuccess hipSuccess
+#define cudaGetErrorString hipGetErrorString
+#define cublasStatus_t hipblasStatus_t
+#define CUBLAS_STATUS_SUCCESS HIPBLAS_STATUS_SUCCESS
+#define cudaStream_t  hipStream_t
+#define cublasHandle_t hipblasHandle_t
+#define cudaDeviceProp hipDeviceProp_t
+
+#define cudaGetDevice hipGetDevice
+#define cudaSetDevice hipSetDevice
+#define cudaDeviceSynchronize hipDeviceSynchronize
+#define cudaStreamSynchronize hipStreamSynchronize
+
+#else
 #include <cuda_runtime.h>
 #include <cublas_v2.h>
 #include <thrust/execution_policy.h>
@@ -12,6 +38,7 @@
 #endif
 #ifdef CT2_WITH_CUDNN
 #  include <cudnn.h>
+#endif
 #endif
 
 #include "ctranslate2/types.h"
@@ -107,7 +134,11 @@ namespace ctranslate2 {
     };
 
 // Convenience macro to call Thrust functions with a default execution policy.
+#ifdef CT2_USE_HIP
+#define THRUST_CALL(FUN, ...) FUN(thrust::hip::par_nosync.on(ctranslate2::cuda::get_cuda_stream()), __VA_ARGS__)
+#else
 #define THRUST_CALL(FUN, ...) FUN(thrust::cuda::par_nosync.on(ctranslate2::cuda::get_cuda_stream()), __VA_ARGS__)
+#endif
 
   }
 }

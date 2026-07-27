@@ -10,6 +10,31 @@
 
 #include "env.h"
 
+#ifdef CT2_USE_HIP
+#define CUBLAS_STATUS_SUCCESS          HIPBLAS_STATUS_SUCCESS
+#define CUBLAS_STATUS_NOT_INITIALIZED  HIPBLAS_STATUS_NOT_INITIALIZED
+#define CUBLAS_STATUS_ALLOC_FAILED     HIPBLAS_STATUS_ALLOC_FAILED
+#define CUBLAS_STATUS_INVALID_VALUE    HIPBLAS_STATUS_INVALID_VALUE
+#define CUBLAS_STATUS_ARCH_MISMATCH    HIPBLAS_STATUS_ARCH_MISMATCH
+#define CUBLAS_STATUS_MAPPING_ERROR    HIPBLAS_STATUS_MAPPING_ERROR
+#define CUBLAS_STATUS_EXECUTION_FAILED HIPBLAS_STATUS_EXECUTION_FAILED
+#define CUBLAS_STATUS_INTERNAL_ERROR   HIPBLAS_STATUS_INTERNAL_ERROR
+#define CUBLAS_STATUS_NOT_SUPPORTED    HIPBLAS_STATUS_NOT_SUPPORTED
+#define CUBLAS_STATUS_LICENSE_ERROR    HIPBLAS_STATUS_UNKNOWN
+#define cudaStreamDefault hipStreamDefault
+#define cudaGetDevice hipGetDevice
+#define cudaStreamCreate hipStreamCreate
+#define cudaStreamDestroy hipStreamDestroy
+#define cublasCreate hipblasCreate
+#define cublasDestroy hipblasDestroy
+#define cublasSetStream hipblasSetStream
+#define cudaMalloc hipMalloc
+#define cudaFree hipFree
+#define cudaGetDeviceCount hipGetDeviceCount
+#define cudaSuccess hipSuccess
+#define cudaGetDeviceProperties hipGetDeviceProperties
+#endif
+
 namespace ctranslate2 {
   namespace cuda {
 
@@ -177,6 +202,23 @@ namespace ctranslate2 {
       return *device_prop;
     }
 
+#ifdef CT2_USE_HIP
+    // https://rocm.docs.amd.com/en/latest/reference/precision-support.html
+    // All archs supported by ROCm 7 support the following precisions
+
+    bool gpu_supports_int8(int device) {
+      return true;
+    }
+
+    bool gpu_has_int8_tensor_cores(int device) {
+      return true;
+    }
+
+    bool gpu_has_fp16_tensor_cores(int device) {
+      return true;
+    }
+#else
+
     // See docs.nvidia.com/deeplearning/sdk/tensorrt-support-matrix/index.html
     // for hardware support of reduced precision.
 
@@ -194,6 +236,7 @@ namespace ctranslate2 {
       const cudaDeviceProp& device_prop = get_device_properties(device);
       return device_prop.major >= 7;
     }
+#endif
 
     bool have_same_compute_capability(const std::vector<int>& devices) {
       if (devices.size() > 1) {

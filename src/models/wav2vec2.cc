@@ -93,20 +93,6 @@ namespace ctranslate2 {
       return encoder_output;
     }
 
-    StorageView Wav2Vec2Replica::maybe_encode(StorageView features) {
-      const Device device = _model->device();
-      const DataType dtype = _encoder->output_type();
-
-      features.move_to(device, dtype);
-
-      if (_encoder->is_encoded(features))
-        return features;
-
-      StorageView encoder_output(dtype, device);
-      (*_encoder)(features, encoder_output);
-      return encoder_output;
-    }
-
     std::future<StorageView> Wav2Vec2::encode(const StorageView& features, const bool to_cpu) {
       return post<StorageView>(
         [features = features.sync_copy(), to_cpu](Wav2Vec2Replica& replica) mutable {

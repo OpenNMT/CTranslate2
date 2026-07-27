@@ -1,5 +1,6 @@
 #pragma once
 
+#include <optional>
 #include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
@@ -26,8 +27,8 @@ namespace ctranslate2 {
       dim_t _stride;
       dim_t _padding;
       const Conv1D _conv;
-      const LayerNorm _output_norm;
       const ops::Transpose _transpose;
+      const LayerNorm _output_norm;
       const ops::GELU _gelu;
     };
 
@@ -58,40 +59,42 @@ namespace ctranslate2 {
       void operator()(const StorageView& features, StorageView& output);
 
       DataType output_type() const override {
-        return _output_norm.output_type();
+        if (_lm_head) {
+          return (*_lm_head).output_type();
+        }
+        else {
+          return _output_norm.output_type();
+        }
       }
 
       dim_t output_size() const override {
-        return _output_norm.output_size();
+        if (_lm_head) {
+          return (*_lm_head).output_size();
+        }
+        else {
+          return _output_norm.output_size();
+        }
       }
 
       dim_t input_size() const {
         return 1024;
       }
 
-      bool is_encoded(const StorageView& features) const {
-        // Input features shape: [batch_size, input_size, input_time]
-        // Encoder output shape: [batch_size, input_time // 2, output_size]
-        //
-        // input_time is variable so we check that dimension 1 is different than its original value.
-
-        return (features.rank() == 3
-                && features.dim(2) == output_size()
-                && features.dim(1) != input_size());
-      }
+      const StorageView* _upgraded_model;
 
     private:
-      const Wav2Vec2LayerNormConvLayer _feat_layer0;
-      const std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>> _feat_layers;
-      const LayerNorm _fp_norm;
-      const Dense _fp_ff;
-      const Wav2Vec2PosConvLayer _pos_conv_embed;
+      const StorageView* _return_logits;
+      std::optional<Wav2Vec2LayerNormConvLayer> _feat_layer0;
+      std::optional<std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>>> _feat_layers;
+      std::optional<LayerNorm> _fp_norm;
+      std::optional<Dense> _fp_ff;
+      std::optional<Wav2Vec2PosConvLayer> _pos_conv_embed;
       const ops::Transpose _transpose;
       const ops::GELU _gelu;
       const dim_t _num_heads;
       const std::vector<std::unique_ptr<const TransformerEncoderLayer>> _layers;
       const LayerNorm _output_norm;
-      const Dense _lm_head;
+      std::optional<Dense> _lm_head;
     };
 
   }

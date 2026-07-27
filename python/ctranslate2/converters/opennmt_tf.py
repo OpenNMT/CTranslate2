@@ -291,9 +291,11 @@ class TransformerSpecBuilder:
     def set_layer_norm_from_wrapper(self, spec, module):
         self.set_layer_norm(
             spec,
-            module.output_layer_norm
-            if module.input_layer_norm is None
-            else module.input_layer_norm,
+            (
+                module.output_layer_norm
+                if module.input_layer_norm is None
+                else module.input_layer_norm
+            ),
         )
 
     def set_layer_norm(self, spec, module):

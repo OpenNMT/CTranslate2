@@ -10,7 +10,8 @@ namespace ctranslate2 {
                           const StorageView& scale,
                           const StorageView& zero,
                           StorageView& c,
-                          const StorageView* bias) const {
+                          const StorageView* bias,
+                          const StorageView* residual) const {
       PROFILE("Gemm Awq");
 #if defined(__CUDA_ARCH__) && __CUDA_ARCH__ < 750
       throw std::runtime_error("AWQ Gemm does not support for cuda arch < 7.5");
@@ -27,7 +28,7 @@ namespace ctranslate2 {
       tmp.squeeze(0);
       c = std::move(tmp);
 
-      apply_bias_and_activation(c, bias, _activation_type);
+      apply_bias_and_activation(c, bias, _activation_type, residual);
 #endif
     }
   }

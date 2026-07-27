@@ -116,7 +116,27 @@ namespace ctranslate2 {
   SOFTWARE.
 */
 
+#ifdef CT2_USE_HIP
+#include <hipcub/block/block_reduce.hpp>
+#define cub hipcub
+namespace hipcub {
+  template <>
+  struct FpLimits<__hip_bfloat16>  // hipcub only defines hip_bfloat16
+  {
+      static HIPCUB_HOST_DEVICE __forceinline__ __hip_bfloat16 Max() {
+          unsigned short max_word = 0x7F7F;
+          return reinterpret_cast<__hip_bfloat16 &>(max_word);
+      }
+
+      static HIPCUB_HOST_DEVICE __forceinline__ __hip_bfloat16 Lowest() {
+          unsigned short lowest_word = 0xFF7F;
+          return reinterpret_cast<__hip_bfloat16 &>(lowest_word);
+      }
+  };
+}
+#else
 #include <cub/block/block_reduce.cuh>
+#endif
 
 namespace fastertransformer {
 

@@ -354,6 +354,8 @@ namespace ctranslate2 {
 
     void finalize() override {
       _replica.reset();
+
+      destroy_context(_device);
     }
 
   private:

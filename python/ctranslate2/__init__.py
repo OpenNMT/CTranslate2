@@ -5,14 +5,17 @@ if sys.platform == "win32":
     import glob
     import os
 
-    import pkg_resources
+    from importlib.resources import files
 
     module_name = sys.modules[__name__].__name__
-    package_dir = pkg_resources.resource_filename(module_name, "")
+    package_dir = str(files(module_name))
 
-    add_dll_directory = getattr(os, "add_dll_directory", None)
-    if add_dll_directory is not None:
-        add_dll_directory(package_dir)
+    try:
+        os.add_dll_directory(package_dir)
+        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_core/bin")
+        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
+    except (FileNotFoundError, OSError):
+        pass
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
         ctypes.CDLL(library)

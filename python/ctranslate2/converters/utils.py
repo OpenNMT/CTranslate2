@@ -25,9 +25,11 @@ def fuse_linear(spec, layers):
     if bias_dtype is not None:
         spec.bias = concatenate(
             [
-                layer.bias
-                if layer.has_bias()
-                else zeros([layer.weight.shape[0]], dtype=bias_dtype)
+                (
+                    layer.bias
+                    if layer.has_bias()
+                    else zeros([layer.weight.shape[0]], dtype=bias_dtype)
+                )
                 for layer in layers
             ]
         )

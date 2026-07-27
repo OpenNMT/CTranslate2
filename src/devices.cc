@@ -2,6 +2,7 @@
 
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
+#  include "cuda/random.h"
 #endif
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <unistd.h>
@@ -118,6 +119,17 @@ namespace ctranslate2 {
     (void)device;
 #endif
   }
+
+  void destroy_context(Device device) {
+#ifdef CT2_WITH_CUDA
+      if (device == Device::CUDA) {
+          cuda::free_curand_states();
+      }
+#else
+      (void)device;
+#endif
+  }
+
   // Initialize the static member variable
 #ifdef CT2_WITH_TENSOR_PARALLEL
     std::vector<ncclComm_t*> ScopedMPISetter::_nccl_comms;

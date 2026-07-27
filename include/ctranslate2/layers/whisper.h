@@ -45,7 +45,6 @@ namespace ctranslate2 {
     private:
       const Conv1D _conv1;
       const Conv1D _conv2;
-      const ops::GELU _gelu;
       const ops::Transpose _transpose;
       PositionEmbedding _position_embedding;
       const dim_t _num_heads;

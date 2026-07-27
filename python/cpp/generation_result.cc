@@ -50,7 +50,7 @@ namespace ctranslate2 {
         .def_readonly("scores", &GenerationResult::scores,
                       "Score of each sequence (empty if :obj:`return_scores` was disabled).")
         .def_readonly("logits", &GenerationResult::logits,
-                      "Score of each sequence (empty if :obj:`return_logits_vocab` was disabled).")
+                      "Logits of each sequence (empty if :obj:`return_logits_vocab` was disabled).")
 
         .def("__repr__", [](const GenerationResult& result) {
           return "GenerationResult(sequences=" + std::string(py::repr(py::cast(result.sequences)))

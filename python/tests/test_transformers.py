@@ -21,7 +21,9 @@ def clear_transformers_cache_in_ci():
     import transformers
 
     if os.environ.get("CI") == "true":
-        shutil.rmtree(transformers.utils.default_cache_path)
+        from huggingface_hub import constants
+
+        shutil.rmtree(constants.HF_HUB_CACHE, ignore_errors=True)
 
 
 _TRANSFORMERS_TRANSLATION_TESTS = [
@@ -106,8 +108,23 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "▁Es ▁ist ▁in ▁den ▁süd amerikanische n ▁And en ▁ver breite t ▁und "
         "▁eine ▁vom ▁Guan ako ▁ab sta mmende ▁ Haustier form . </s>",
         "",
-        "▁Was ▁ist ▁Lama ▁glam a ?",
+        "▁Was ▁ist ▁ein ▁Lama - L ama ?",
         dict(),
+    ),
+    (
+        "jordimas/t5gemma-s-s-ul2",
+        ["Question : ▁Why ▁is ▁the ▁sky ▁blue ? ▁Answer :"],
+        "",
+        "\n\n Answer : \n\n The ▁sky ▁is ▁blue .",
+        dict(),
+    ),
+    (
+        "jordimas/t5gemma-2-270m-270m",
+        ["<bos> Question : ▁Why ▁is ▁the ▁sky ▁blue ? ▁Answer :"],
+        "",
+        "<unused6237> ▁The ▁sky ▁is ▁blue ▁because ▁the ▁sun ▁shines ▁on ▁it . "
+        "▁The ▁sun ▁is ▁the ▁source ▁of ▁all ▁the ▁light ▁in ▁the ▁sky .",
+        dict(max_decoding_length=50),
     ),
 ]
 
@@ -193,6 +210,21 @@ _TRANSFORMERS_GENERATION_TESTS = [
         20,
         "Hello , ĠI Ġam Ġa Ġnew bie Ġin Ġthe Ġworld Ġof Ġweb Ġdesign Ġand ĠI Ġam "
         "Ġlooking Ġfor Ġa Ġweb Ġdeveloper",
+    ),
+    (
+        "jordimas/gemma-3-1b-it",
+        "<bos> Which ▁city ▁hosted ▁the ▁Olympic ▁Games ▁in ▁ 1 9 9 2 ?",
+        50,
+        "Which ▁city ▁hosted ▁the ▁Olympic ▁Games ▁in ▁ 1 9 9 2 ? \n\n"
+        " The ▁answer ▁is ▁** Barcelona **. \n",
+    ),
+    (
+        "Qwen/Qwen3-0.6B",
+        "<|im_start|> user Ċ What Ġis Ġthe Ġcapital Ġof ĠPortugal ? Ġ/ no _th ink Ċ <|im_end|> Ċ "
+        "<|im_start|> assistant Ċ",
+        50,
+        "<|im_start|> user Ċ What Ġis Ġthe Ġcapital Ġof ĠPortugal ? Ġ/ no _th ink Ċ <|im_end|> Ċ "
+        "<|im_start|> assistant Ċ <think> ĊĊ </think> ĊĊ The Ġcapital Ġof ĠPortugal Ġis ĠLisbon .",
     ),
 ]
 
@@ -343,7 +375,7 @@ def _to_numpy(storage, device):
     )
 
 
-@test_utils.only_on_linux
+@test_utils.only_on_linux_and_intel
 def test_transformers_gptbigcode(clear_transformers_cache, tmp_dir):
     import transformers
 
@@ -410,7 +442,7 @@ class TestGeneration:
         assert not output.tokens
         assert not output.log_probs
 
-    @test_utils.only_on_linux
+    @test_utils.only_on_linux_and_intel
     @test_utils.on_available_devices
     @pytest.mark.parametrize("return_log_probs", [True, False])
     @pytest.mark.parametrize("tensor_input", [True, False])
@@ -953,12 +985,14 @@ class TestWav2Vec2:
     @test_utils.only_on_linux
     @test_utils.on_available_devices
     @pytest.mark.parametrize(
-        "model_name,expected_transcription",
+        "model_name,expected_transcriptions",
         [
             (
                 "facebook/wav2vec2-large-robust-ft-swbd-300h",
                 [
                     "MISTER QUILTER IS THE APOSSEL OF THE MIDDLE CLASSES AND"
+                    " WE ARE GLAD TO WELCOME HIS GOSPEL",
+                    "MISTER QUILTER IS THE APOSSTEL OF THE MIDDLE CLASSES AND"
                     " WE ARE GLAD TO WELCOME HIS GOSPEL",
                 ],
             ),
@@ -969,7 +1003,7 @@ class TestWav2Vec2:
         tmp_dir,
         device,
         model_name,
-        expected_transcription,
+        expected_transcriptions,
     ):
         import torch
         import transformers
@@ -987,13 +1021,13 @@ class TestWav2Vec2:
         )
 
         device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
-        cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        # cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
         model = ctranslate2.models.Wav2Vec2(
             output_dir,
             device=device,
             device_index=[0],
             compute_type="int8",
-            intra_threads=cpu_threads,
+            intra_threads=1,
             inter_threads=1,
         )
 
@@ -1008,6 +1042,86 @@ class TestWav2Vec2:
         ).input_values
 
         hidden_states = np.ascontiguousarray(input_values.unsqueeze(0))
+        hidden_states = ctranslate2.StorageView.from_array(hidden_states)
+        to_cpu = model.device == "cuda" and len(model.device_index) > 1
+        output = model.encode(hidden_states, to_cpu=to_cpu)
+        if model.device == "cuda":
+            logits = torch.as_tensor(output, device=model.device)[0]
+        else:
+            logits = torch.as_tensor(
+                np.array(output), dtype=torch.float32, device=model.device
+            )[0]
+
+        predicted_ids = torch.argmax(logits, dim=-1)
+        transcription = processor.decode(predicted_ids, output_word_offsets=True)
+        transcription = transcription[0].replace(processor.tokenizer.unk_token, "")
+
+        assert transcription in expected_transcriptions
+
+
+class TestWav2Vec2Bert:
+    @classmethod
+    def teardown_class(cls):
+        clear_transformers_cache_in_ci()
+
+    @test_utils.only_on_linux
+    @test_utils.on_available_devices
+    @pytest.mark.parametrize(
+        "model_name,expected_transcription",
+        [
+            (
+                "hf-audio/wav2vec2-bert-CV16-en",
+                [
+                    "mr quilter is the apostle of the middle classes and"
+                    " we are glad to welcome his gospel"
+                ],
+            ),
+        ],
+    )
+    def test_transformers_wav2vec2bert(
+        self,
+        tmp_dir,
+        device,
+        model_name,
+        expected_transcription,
+    ):
+        import torch
+        import transformers
+
+        converter = ctranslate2.converters.TransformersConverter(
+            model_name, load_as_float16="int8"
+        )
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+
+        w2v2_processor = transformers.Wav2Vec2BertProcessor.from_pretrained(model_name)
+        w2v2_processor.save_pretrained(output_dir + "/wav2vec2_processor")
+        processor = transformers.AutoProcessor.from_pretrained(
+            output_dir + "/wav2vec2_processor"
+        )
+
+        device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
+        # cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
+        model = ctranslate2.models.Wav2Vec2Bert(
+            output_dir,
+            device=device,
+            device_index=[0],
+            compute_type="int8",
+            intra_threads=1,
+            inter_threads=1,
+        )
+
+        speech_array = np.load(
+            os.path.join(test_utils.get_data_dir(), "audio", "mr_quilter.npy")
+        )
+        input_values = processor(
+            [speech_array],
+            padding=True,
+            return_tensors="pt",
+            sampling_rate=16000,
+        ).input_features
+
+        hidden_states = np.ascontiguousarray(input_values)
         hidden_states = ctranslate2.StorageView.from_array(hidden_states)
         to_cpu = model.device == "cuda" and len(model.device_index) > 1
         output = model.encode(hidden_states, to_cpu=to_cpu)

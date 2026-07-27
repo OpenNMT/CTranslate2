@@ -1,7 +1,14 @@
 #include "ctranslate2/ops/multinomial.h"
 
+#ifdef CT2_USE_HIP
+#include <hipcub/hipcub.hpp>
+#include <hipcub/block/block_reduce.hpp>
+#include <hipcub/block/block_scan.hpp>
+#define cub hipcub
+#else
 #include <cub/block/block_reduce.cuh>
 #include <cub/block/block_scan.cuh>
+#endif
 
 #include "cuda/helpers.h"
 #include "cuda/random.h"

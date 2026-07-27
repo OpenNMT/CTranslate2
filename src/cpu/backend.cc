@@ -99,8 +99,10 @@ namespace ctranslate2 {
     }
 
     bool pack_gemm_weights(ComputeType compute_type) {
-      static const bool should_pack = read_bool_from_env("CT2_USE_EXPERIMENTAL_PACKED_GEMM");
-      return should_pack && get_gemm_backend(compute_type) == GemmBackend::MKL;
+      if (get_gemm_backend(compute_type) != GemmBackend::MKL)
+        return false;
+      static const bool enabled = read_bool_from_env("CT2_PACKED_GEMM", /*default=*/true);
+      return enabled;
     }
 
 #ifdef CT2_WITH_RUY

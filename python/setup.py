@@ -51,6 +51,9 @@ if sys.platform == "darwin":
 elif sys.platform == "win32":
     cflags = ["/std:c++17", "/d2FH4-"]
     package_data["ctranslate2"] = ["*.dll"]
+elif sys.platform == "linux":
+    cflags.append("-fPIC")
+    ldflags.append("-Wl,-rpath,/usr/local/lib64:/usr/local/lib")
 
 ctranslate2_module = Extension(
     "ctranslate2._ext",
@@ -75,19 +78,17 @@ setup(
     url="https://opennmt.net",
     classifiers=[
         "Development Status :: 5 - Production/Stable",
-        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.0",
-        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.1",
-        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.2",
+        "Environment :: GPU :: NVIDIA CUDA :: 12 :: 12.4",
         "Intended Audience :: Developers",
         "Intended Audience :: Science/Research",
-        "License :: OSI Approved :: MIT License",
         "Programming Language :: Python :: 3",
         "Programming Language :: Python :: 3 :: Only",
-        "Programming Language :: Python :: 3.8",
         "Programming Language :: Python :: 3.9",
         "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: 3.11",
         "Programming Language :: Python :: 3.12",
+        "Programming Language :: Python :: 3.13",
+        "Programming Language :: Python :: 3.14",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     project_urls={
@@ -100,7 +101,7 @@ setup(
     packages=find_packages(exclude=["bin"]),
     package_data=package_data,
     ext_modules=[ctranslate2_module],
-    python_requires=">=3.8",
+    python_requires=">=3.9",
     install_requires=[
         "setuptools",
         "numpy",

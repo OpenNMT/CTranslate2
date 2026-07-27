@@ -8,6 +8,9 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * CodeGen
 * DistilBERT
 * Falcon
+* Gemma 2
+* Gemma 3 (text only)
+* Gemma 4 (text only)
 * Llama
 * M2M100
 * MarianMT
@@ -20,7 +23,11 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * GPT-NeoX
 * OPT
 * Pegasus
+* Qwen 2.5
+* Qwen 3
 * T5
+* T5Gemma
+* T5Gemma2
 * Whisper
 * XLM-RoBERTa
 
@@ -80,7 +87,7 @@ print(tokenizer.decode(tokenizer.convert_tokens_to_ids(target), skip_special_tok
 
 ## BERT
 
-[BERT](https://huggingface.co/docs/transformers/model_doc/bert) is pretrained model on English language using a masked language modeling objective.
+[BERT](https://huggingface.co/docs/transformers/model_doc/bert) is a pretrained model on English language using a masked language modeling objective.
 
 CTranslate2 only implements the `BertModel` class from Transformers which includes the Transformer encoder and the pooling layer. Task-specific layers should be run with PyTorch as shown in the example below.
 
@@ -182,6 +189,75 @@ output = tokenizer.decode(results[0].sequences_ids[0])
 
 print(output)
 ```
+
+## Gemma 3 (text only)
+
+[Gemma 3](https://ai.google.dev/gemma/docs/core) is Google's family of lightweight, open-weight AI models, built on the same technology as Gemini.
+
+Gemma models come in two flavors: instruction tuned (it) models and base models.
+
+Instruction tuned models expect a specific [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) which you should use.
+
+When converting an instruction-tuned model, CTranslate2 sets `<end_of_turn>` as the default end-of-sequence token.
+
+To convert the 12B instruction-tuned model:
+
+```bash
+ct2-transformers-converter --model google/gemma-3-12b-it --quantization float16 --output_dir gemma-3-12b-it
+```
+
+Usage sample:
+
+```python
+from transformers import AutoTokenizer
+import ctranslate2
+
+tok = AutoTokenizer.from_pretrained("google/gemma-3-12b-it")
+gen = ctranslate2.Generator("gemma-3-12b-it", device="cuda")
+
+prompt = "<start_of_turn>user\nGenerate a 200 word text talking about George Orwell.<end_of_turn>\n<start_of_turn>model\n"
+tokens = tok.convert_ids_to_tokens(tok.encode(prompt))
+
+res = gen.generate_batch([tokens], max_length=2048, sampling_temperature=0.1, include_prompt_in_result=False)
+print(tok.convert_tokens_to_string(res[0].sequences[0]))
+```
+
+## Gemma 4 (text only)
+
+[Gemma 4](https://ai.google.dev/gemma/docs/gemma4) is Google's next generation of lightweight open-weight models, featuring a hybrid attention architecture with interleaved global and sliding-window attention layers.
+
+```{note}
+Only the 31B and 12B dense models are currently supported. The MoE variants (E2B, E4B) are not supported.
+```
+
+Gemma 4 models come in two flavors: instruction tuned (it) models and pre-trained models.
+
+Instruction tuned models use the same [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) as Gemma 3.
+
+When converting an instruction-tuned model, CTranslate2 sets `<end_of_turn>` as the default end-of-sequence token.
+
+To convert the 12B instruction-tuned model:
+
+```bash
+ct2-transformers-converter --model google/gemma-4-12B-it --quantization float16 --output_dir gemma-4-12b-it
+```
+
+Usage sample:
+
+```python
+from transformers import AutoTokenizer
+import ctranslate2
+
+tok = AutoTokenizer.from_pretrained("google/gemma-4-12B-it")
+gen = ctranslate2.Generator("gemma-4-12b-it", device="auto")
+
+prompt = "<start_of_turn>user\nGenerate a 200 word text talking about George Orwell.<end_of_turn>\n<start_of_turn>model\n"
+tokens = tok.convert_ids_to_tokens(tok.encode(prompt))
+
+res = gen.generate_batch([tokens], max_length=2048, sampling_temperature=0.1, include_prompt_in_result=False)
+print(tok.convert_tokens_to_string(res[0].sequences[0]))
+```
+
 
 ## Llama 2
 
@@ -446,6 +522,44 @@ output = tokenizer.decode(results[0].sequences_ids[0])
 print(output)
 ```
 
+## Qwen 3
+
+[Qwen 3](https://github.com/QwenLM/Qwen3) are a collection of large language models developed by the Alibaba Group. A key feature is allows switching between "thinking mode" for complex reasoning and a "non-thinking mode" for efficient general chat.
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model Qwen/Qwen3-4B --quantization float16 --output_dir qwen3-4b-ct2
+```
+
+Usage Sample
+
+You can use the converted model for text generation with ctranslate2.Generator. For Qwen 3 instruction-tuned models, you should use the Hugging Face tokenizer's apply_chat_template method to correctly format your prompts, especially when dealing with the optional "thinking mode". Currently MoE models variants are not supported.
+
+```python
+import ctranslate2
+import transformers
+
+generator = ctranslate2.Generator("qwen3-4b-ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("Qwen/Qwen3-4B")
+
+def generate(prompt):
+    tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(prompt, add_special_tokens=False))
+    results = generator.generate_batch([tokens], max_length=2048, sampling_temperature=0.7, include_prompt_in_result=False)
+    return tokenizer.decode(results[0].sequences_ids[0])
+
+prompt_base = """<|im_start|>user
+A train leaves Station A at 60 mph heading towards Station B, 300 miles away. At the same time, another train leaves Station B at 40 mph heading towards Station A. When will they meet and how far from Station A?
+<|im_end|>
+<|im_start|>assistant"""
+
+print("Non-thinking:\n" + "-"*60)
+print(generate(prompt_base + "\n<think></think>\n"))
+
+print("\nThinking:\n" + "="*60)
+print(generate(prompt_base))
+```
+
 ## T5
 
 [T5](https://huggingface.co/docs/transformers/model_doc/t5) is an encoder-decoder model pre-trained on a multi-task mixture of unsupervised and supervised tasks and for which each task is converted into a text-to-text format.
@@ -477,6 +591,84 @@ output_text = tokenizer.decode(tokenizer.convert_tokens_to_ids(output_tokens))
 
 print(output_text)
 ```
+
+## T5Gemma
+
+[T5Gemma](https://deepmind.google/models/gemma/t5gemma/) is collection of Google encoder-decoder models that provide a strong quality-inference efficiency tradeoff.
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model google/t5gemma-b-b-prefixlm-it --output_dir t5gemma_b_b_prefixlm_it.ct2
+```
+
+Usage:
+
+```python
+import ctranslate2
+import transformers
+
+translator = ctranslate2.Translator("t5gemma_b_b_prefixlm_it.ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("google/t5gemma-b-b-prefixlm-it")
+
+sentences = ["Question: Why is the sky blue? Answer:"]
+
+# Tokenize each sentence
+tokenized_sentences = [
+    tokenizer.convert_ids_to_tokens(tokenizer.encode(sentence))
+    for sentence in sentences
+]
+
+translated_batches = translator.translate_batch(tokenized_sentences, beam_size=1, repetition_penalty=1.2, max_decoding_length=50)
+
+
+# Decode results
+translations = [
+    tokenizer.decode(tokenizer.convert_tokens_to_ids(t.hypotheses[0]))
+    for t in translated_batches
+]
+final_translation = " ".join(translations)
+print(final_translation)
+```
+
+
+## T5Gemma2
+
+[T5Gemma2](https://huggingface.co/collections/google/t5gemma2-686038abe6c47de48d6d3aa4) is a collection of Google encoder-decoder models that combines the T5 encoder-decoder architecture with Gemma 2 decoder components, featuring sliding-window and full attention layers.
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model google/t5gemma-2-270m-270m --output_dir t5gemma2_270m_270m.ct2
+```
+
+Usage:
+
+```python
+import ctranslate2
+import transformers
+
+translator = ctranslate2.Translator("t5gemma2_270m_270m.ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("google/t5gemma-2-270m-270m")
+
+sentences = ["Question: Why is the sky blue? Answer:"]
+
+tokenized_sentences = [
+    tokenizer.convert_ids_to_tokens(tokenizer.encode(sentence))
+    for sentence in sentences
+]
+
+translated_batches = translator.translate_batch(
+    tokenized_sentences, beam_size=1, repetition_penalty=1.2, max_decoding_length=50
+)
+
+translations = [
+    tokenizer.decode(tokenizer.convert_tokens_to_ids(t.hypotheses[0]))
+    for t in translated_batches
+]
+print(translations[0])
+```
+
 
 ## Whisper
 
