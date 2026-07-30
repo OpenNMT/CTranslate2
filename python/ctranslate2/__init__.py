@@ -55,5 +55,25 @@ except ImportError as e:
     else:
         raise
 
-from ctranslate2 import converters, models, specs
+from ctranslate2 import models
 from ctranslate2.version import __version__
+
+# converters and specs import torch (and, for converters, transformers) at module level.
+# Those dependencies are only needed to convert models, not to run inference, so import
+# these submodules on first use to keep "import ctranslate2" free of them.
+_LAZY_SUBMODULES = ("converters", "specs")
+
+
+def __getattr__(name):
+    if name in _LAZY_SUBMODULES:
+        import importlib
+
+        module = importlib.import_module(f"{__name__}.{name}")
+        globals()[name] = module
+        return module
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_LAZY_SUBMODULES))
