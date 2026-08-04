@@ -77,3 +77,13 @@ def __getattr__(name):
 
 def __dir__():
     return sorted(set(globals()) | set(_LAZY_SUBMODULES))
+
+
+# A wildcard import resolves ``__all__`` when it is defined and the module globals
+# otherwise, so without this the lazy submodules would silently drop out of
+# ``from ctranslate2 import *``. Deriving the list keeps the wildcard surface identical
+# to what it was before they became lazy; a wildcard import asks for everything, so
+# resolving them here is expected.
+__all__ = sorted(
+    [name for name in globals() if not name.startswith("_")] + list(_LAZY_SUBMODULES)
+)
