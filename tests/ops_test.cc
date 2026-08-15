@@ -146,6 +146,27 @@ TEST_P(OpDeviceFPTest, MedianFilter) {
   expect_storage_eq(y.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, MedianFilterShortAxis) {
+  // An axis shorter than the filter rank (including a zero-size axis, as
+  // produced by Whisper align() when num_frames < 2) must pass the input
+  // through instead of crashing on an integer division by zero.
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  {
+    StorageView x({2, 0}, std::vector<float>{}, device);
+    StorageView y(dtype, device);
+    ops::MedianFilter(5)(x.to(dtype), y);
+    EXPECT_EQ(y.size(), 0);
+  }
+  {
+    StorageView x({2, 2}, std::vector<float>{0.1f, 0.2f, 0.3f, 0.4f}, device);
+    StorageView y(dtype, device);
+    ops::MedianFilter(5)(x.to(dtype), y);
+    expect_storage_eq(y.to_float32(), x, error);
+  }
+}
+
 TEST_P(OpDeviceTest, Add) {
   Device device = GetParam();
   StorageView a({4}, std::vector<float>{1, 2, 3, 4}, device);

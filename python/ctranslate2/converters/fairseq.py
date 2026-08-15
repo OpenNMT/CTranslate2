@@ -113,6 +113,7 @@ class FairseqConverter(Converter):
         fixed_dictionary: Optional[str] = None,
         no_default_special_tokens: bool = False,
         user_dir: Optional[str] = None,
+        unsafe_deserialization: bool = False,
     ):
         """Initializes the Fairseq converter.
 
@@ -125,6 +126,8 @@ class FairseqConverter(Converter):
           no_default_special_tokens: Require all special tokens to be provided by the user
             (e.g. encoder end token, decoder start token).
           user_dir: Path to the user directory containing custom extensions.
+          unsafe_deserialization: Allow unsafe pickle deserialization when loading
+            trusted legacy checkpoints.
         """
         self._model_path = model_path
         self._data_dir = data_dir
@@ -133,6 +136,7 @@ class FairseqConverter(Converter):
         self._target_lang = target_lang
         self._no_default_special_tokens = no_default_special_tokens
         self._user_dir = user_dir
+        self._unsafe_deserialization = unsafe_deserialization
 
     def _load(self):
         import fairseq
@@ -147,7 +151,9 @@ class FairseqConverter(Converter):
 
         with torch.no_grad():
             checkpoint = torch.load(
-                self._model_path, map_location=torch.device("cpu"), weights_only=False
+                self._model_path,
+                map_location=torch.device("cpu"),
+                weights_only=not self._unsafe_deserialization,
             )
             args = checkpoint["args"] or checkpoint["cfg"]["model"]
 
@@ -329,6 +335,14 @@ def main():
             "including the decoder start token."
         ),
     )
+    parser.add_argument(
+        "--unsafe_deserialization",
+        action="store_true",
+        help=(
+            "Allow loading legacy checkpoints with unsafe pickle deserialization. "
+            "Only enable this option for trusted checkpoints."
+        ),
+    )
     Converter.declare_arguments(parser)
     args = parser.parse_args()
     converter = FairseqConverter(
@@ -339,6 +353,7 @@ def main():
         fixed_dictionary=args.fixed_dictionary,
         no_default_special_tokens=args.no_default_special_tokens,
         user_dir=args.user_dir,
+        unsafe_deserialization=args.unsafe_deserialization,
     )
     converter.convert_from_args(args)
 

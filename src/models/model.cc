@@ -80,8 +80,10 @@ namespace ctranslate2 {
     template<>
     std::string consume(std::istream& in) {
       const auto str_length = consume<uint16_t>(in);
+      if (str_length == 0)
+        throw std::runtime_error("Invalid string length in " + binary_file);
       const auto c_str = consume<char>(in, str_length);
-      std::string str(c_str);
+      std::string str(c_str, str_length - 1);
       delete [] c_str;
       return str;
     }
@@ -654,6 +656,8 @@ namespace ctranslate2 {
         }
 
         StorageView variable(std::move(shape), dtype);
+        if (num_bytes != variable.size() * variable.item_size())
+          throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
         consume<char>(model_file, num_bytes, static_cast<char*>(variable.buffer()));
         if (tensor_parallel) {
           int outer_dim = 0;

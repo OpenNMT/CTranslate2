@@ -51,11 +51,14 @@ namespace ctranslate2 {
                               const dim_t axis_size,
                               StorageView& output) const {
       const int depth = static_cast<int>(axis_size);
-      const int rows = static_cast<int>(input.size() / depth);
       const int width = static_cast<int>(_width);
       const int rank = width / 2;
 
-      // Host-side guards and fallbacks.
+      // Host-side guards and fallbacks. The depth guard must run before
+      // input.size() / depth below: a zero-size axis (e.g. Whisper align()
+      // with num_frames < 2, halved to 0 by the encoder stride) would make it
+      // an integer division by zero — a native crash, not a catchable
+      // exception (0xC0000094 on Windows, SIGFPE on Linux).
       if (width <= 1) {
         if (&output != &input)
           output.copy_from(input);
@@ -70,6 +73,8 @@ namespace ctranslate2 {
           output.copy_from(input);
         return;
       }
+
+      const int rows = static_cast<int>(input.size() / depth);
 
       // Grid configuration
       const int total = rows * depth;

@@ -19,7 +19,7 @@ namespace ctranslate2 {
 
 #define GUARD_DIM(DIM, RANK)                                            \
   do {                                                                  \
-    if (DIM >= RANK)                                                    \
+    if (DIM < 0 || DIM >= RANK)                                         \
       THROW_INVALID_ARGUMENT("can't index dimension "                   \
                              + std::to_string(DIM)                      \
                              + " for a storage with rank "              \
@@ -194,7 +194,7 @@ namespace ctranslate2 {
 
     template <typename T>
     const T& at(dim_t index) const {
-      if (index >= _size)
+      if (index < 0 || index >= _size)
         THROW_INVALID_ARGUMENT("index is out of bounds ("
                                + std::to_string(index) + " >= "
                                + std::to_string(_size) + ")");
