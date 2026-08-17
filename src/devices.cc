@@ -129,11 +129,12 @@ namespace ctranslate2 {
           cuda::free_curand_states();
       }
 #endif
-#ifdef CT2_WITH_RUY
+#if defined(CT2_WITH_RUY) && defined(_WIN32)
       if (device == Device::CPU) {
-          // Release this worker thread's ruy::Context here (a normal execution
-          // context) rather than at thread exit, where joining ruy's internal
-          // threads deadlocks ThreadPool shutdown on Windows (ctranslate2-rs#64).
+          // Windows only. Release this worker thread's ruy::Context here (a normal
+          // execution context) rather than at thread exit, where joining ruy's
+          // internal threads deadlocks ThreadPool shutdown (ctranslate2-rs#64).
+          // Other platforms rely on thread_local RAII — see cpu/backend.cc.
           cpu::clear_ruy_context();
       }
 #endif

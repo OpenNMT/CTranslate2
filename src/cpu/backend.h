@@ -28,9 +28,12 @@ namespace ctranslate2 {
     bool pack_gemm_weights(ComputeType compute_type);
 #ifdef CT2_WITH_RUY
     ruy::Context *get_ruy_context();
-    // Destroy the calling thread's ruy::Context (joins ruy's thread pool). Must be
-    // called from a normal execution context, not during thread exit — see backend.cc.
+#  ifdef _WIN32
+    // Windows only. Destroy the calling thread's ruy::Context (joins ruy's thread
+    // pool). Must be called from a normal execution context, not during thread exit
+    // — see backend.cc. Other platforms rely on thread_local RAII instead.
     void clear_ruy_context();
+#  endif
 #endif
 
   }
