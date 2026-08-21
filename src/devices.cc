@@ -8,6 +8,7 @@
 #  include <unistd.h>
 #endif
 
+#include "cpu/backend.h"
 #include "device_dispatch.h"
 
 namespace ctranslate2 {
@@ -121,6 +122,11 @@ namespace ctranslate2 {
   }
 
   void destroy_context(Device device) {
+#ifdef CT2_WITH_RUY
+      if (device == Device::CPU) {
+        cpu::destroy_ruy_context();
+      }
+#endif
 #ifdef CT2_WITH_CUDA
       if (device == Device::CUDA) {
           cuda::free_curand_states();

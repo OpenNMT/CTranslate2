@@ -1,5 +1,7 @@
 #include "backend.h"
 
+#include <memory>
+
 #include "ctranslate2/utils.h"
 #include "cpu_info.h"
 #include "env.h"
@@ -106,9 +108,22 @@ namespace ctranslate2 {
     }
 
 #ifdef CT2_WITH_RUY
+    static std::unique_ptr<ruy::Context>& get_thread_local_ruy_context() {
+      static thread_local std::unique_ptr<ruy::Context> context;
+      return context;
+    }
+
     ruy::Context *get_ruy_context() {
-      static thread_local ruy::Context context;
-      return &context;
+      auto& context = get_thread_local_ruy_context();
+      if (!context)
+        context = std::make_unique<ruy::Context>();
+      return context.get();
+    }
+
+    void destroy_ruy_context() {
+      // The Ruy context owns worker threads. Destroy it before this thread
+      // enters TLS cleanup, where joining these workers can deadlock on Windows.
+      get_thread_local_ruy_context().reset();
     }
 #endif
   }

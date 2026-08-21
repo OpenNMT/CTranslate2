@@ -342,7 +342,31 @@ jobs:
         if: runner.os == 'Windows' && runner.arch == 'ARM64'
         shell: pwsh
         run: |
-          python -c "import ctranslate2; model = 'tests/data/models/transliteration-aren-all'; translator = ctranslate2.Translator(model, device='cpu', compute_type='int8', inter_threads=1, intra_threads=4); result = translator.translate_batch([['آ', 'ت', 'ز', 'م', 'و', 'ن']], beam_size=1); assert result[0].hypotheses[0] == ['a', 't', 'z', 'm', 'o', 'n']; del result, translator"
+          python -c "import ctranslate2; model = 'tests/data/models/v2/aren-transliteration-i8'; translator = ctranslate2.Translator(model, device='cpu', compute_type='int8', inter_threads=1, intra_threads=4); result = translator.translate_batch([['آ', 'ت', 'ز', 'م', 'و', 'ن']], beam_size=1); assert result[0].hypotheses[0] == ['a', 't', 'z', 'm', 'o', 'n']; del result, translator"
+
+      - name: Test multithreaded Ruy context shutdown (Windows ARM64)
+        if: runner.os == 'Windows' && runner.arch == 'ARM64'
+        timeout-minutes: 2
+        shell: pwsh
+        run: |
+          @'
+          import ctranslate2
+
+          model = "tests/data/models/v2/aren-transliteration"
+          for _ in range(3):
+              translator = ctranslate2.Translator(
+                  model,
+                  device="cpu",
+                  compute_type="float32",
+                  inter_threads=1,
+                  intra_threads=4,
+              )
+              result = translator.translate_batch(
+                  [["آ", "ت", "ز", "م", "و", "ن"]], beam_size=1
+              )
+              assert result[0].hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
+              del result, translator
+          '@ | python -
 
 
   test-legacy-converters:
