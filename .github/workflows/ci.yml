@@ -189,6 +189,9 @@ jobs:
         include:
         - os: ubuntu-22.04-arm
           arch: aarch64
+        - os: windows-11-arm
+          arch: ARM64
+          build: "cp31[2-4]-*"
         - os: macos-15
           arch: arm64
         - os: macos-15-intel
@@ -200,7 +203,7 @@ jobs:
           submodules: recursive
 
       - name: Cache MKL and oneDNN (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.arch != 'ARM64'
         uses: actions/cache@v4
         with:
           path: |
@@ -224,6 +227,7 @@ jobs:
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           CIBW_ARCHS: ${{ matrix.arch }}
+          CIBW_BUILD: ${{ matrix.build || '*' }}
           CIBW_SKIP: "*-musllinux_*"
 
       - name: Upload Python wheels
@@ -295,6 +299,11 @@ jobs:
             artifact_pattern: python-wheels-Windows-auto64
             wheel_pattern: "*cp312*win*amd64.whl"
 
+          - os: windows-11-arm
+            artifact_pattern: python-wheels-Windows-ARM64
+            wheel_pattern: "*cp312*win*arm64.whl"
+            python_arch: arm64
+
           - os: macos-15
             artifact_pattern: python-wheels-macOS-arm64
             wheel_pattern: "*cp312*macosx*arm64.whl"
@@ -304,6 +313,7 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+          architecture: ${{ matrix.python_arch }}
 
       - uses: actions/checkout@v4
 
@@ -327,6 +337,12 @@ jobs:
       - name: Test Python wheel
         run: |
           pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
+
+      - name: Test multithreaded INT8 inference (Windows ARM64)
+        if: runner.os == 'Windows' && runner.arch == 'ARM64'
+        shell: pwsh
+        run: |
+          python -c "import ctranslate2; model = 'tests/data/models/transliteration-aren-all'; translator = ctranslate2.Translator(model, device='cpu', compute_type='int8', inter_threads=1, intra_threads=4); result = translator.translate_batch([['آ', 'ت', 'ز', 'م', 'و', 'ن']], beam_size=1); assert result[0].hypotheses[0] == ['a', 't', 'z', 'm', 'o', 'n']; del result, translator"
 
 
   test-legacy-converters:

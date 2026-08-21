@@ -10,18 +10,18 @@ pip install ctranslate2
 
 The Python wheels have the following requirements:
 
-* OS: Linux (x86-64, AArch64), macOS (x86-64, ARM64), Windows (x86-64)
-* Python version: >= 3.9
+* OS: Linux (x86-64, AArch64), macOS (x86-64, ARM64), Windows (x86-64, ARM64)
+* Python version: >= 3.9 (3.12–3.14 for Windows ARM64)
 * pip version: >= 19.3 to support `manylinux2014` wheels
 
 ```{admonition} GPU support
-The Linux and Windows Python wheels support GPU execution. Install [CUDA](https://developer.nvidia.com/cuda-toolkit) 12.x to use the GPU.
+The Linux and Windows x86-64 Python wheels support GPU execution. Windows ARM64 wheels are CPU-only. Install [CUDA](https://developer.nvidia.com/cuda-toolkit) 12.x to use the GPU.
 
 If you plan to run models with convolutional layers (e.g. for speech recognition), you should also install [cuDNN 8](https://developer.nvidia.com/cudnn) for CUDA 12.x.
 ```
 
 ```{note}
-On Windows [the Visual C++ runtime](https://www.microsoft.com/en-US/download/details.aspx?id=48145) is required. It is installed in most of the systems, but if is not the case, you have to download it and install it.
+On Windows [the latest supported Visual C++ runtime](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist) is required. It is installed in most systems, but if this is not the case, you have to download and install it.
 ```
 
 ## Install with Docker

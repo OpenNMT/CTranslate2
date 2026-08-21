@@ -3,6 +3,21 @@
 set -e
 set -x
 
+NPROC=$(nproc)
+
+if [ "$CIBW_ARCHS" = "ARM64" ]; then
+    mkdir build
+    cd build
+    cmake -A ARM64 -DCMAKE_POLICY_VERSION_MINIMUM=3.5 -DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX="$CTRANSLATE2_ROOT" -DBUILD_CLI=OFF -DWITH_MKL=OFF -DWITH_DNNL=OFF -DWITH_RUY=ON -DWITH_CUDA=OFF -DOPENMP_RUNTIME=COMP ..
+    cmake --build . --config Release --target install --parallel "$NPROC" --verbose
+    cd ..
+    rm -r build
+
+    cp README.md python/
+    cp "$CTRANSLATE2_ROOT/bin/ctranslate2.dll" python/ctranslate2/
+    exit 0
+fi
+
 CUDA_ROOT="C:/Program Files/NVIDIA GPU Computing Toolkit/CUDA/v12.8"
 curl --netrc-optional -L -nv -o cuda.exe https://developer.download.nvidia.com/compute/cuda/12.8.1/local_installers/cuda_12.8.1_572.61_windows.exe
 ./cuda.exe -s nvcc_12.8 cudart_12.8 cublas_dev_12.8 curand_dev_12.8
@@ -38,7 +53,6 @@ if [ ! -d "C:/Program Files (x86)/Intel/oneAPI" ]; then
     ./webimage_extracted/bootstrapper.exe -s --action install --components="intel.oneapi.win.mkl.devel" --eula=accept -p=NEED_VS2017_INTEGRATION=0 -p=NEED_VS2019_INTEGRATION=0 --log-dir=.
 fi
 
-NPROC=$(nproc)
 ONEDNN_VERSION=3.1.1
 if [ ! -d "C:/Program Files (x86)/oneDNN" ]; then
     curl --netrc-optional -L -O https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz

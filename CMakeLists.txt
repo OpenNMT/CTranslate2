@@ -272,7 +272,7 @@ macro(ct2_compile_kernels_for_isa isa flag)
   list(APPEND SOURCES ${CMAKE_CURRENT_BINARY_DIR}/kernels_${isa}.cc)
 endmacro()
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm64)|(aarch64)"
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "(arm64)|(aarch64)|(ARM64)"
     OR (APPLE AND CMAKE_OSX_ARCHITECTURES STREQUAL "arm64"))
   add_definitions(-DCT2_ARM64_BUILD)
   set(CT2_BUILD_ARCH "arm64")
