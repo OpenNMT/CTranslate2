@@ -634,9 +634,11 @@ namespace ctranslate2 {
       StorageView layer_out(dtype, device);
 
       _embeddings(ids, layer_in);
+      // A sequence starting at step 0 only skips preprocessing on its first embedding.
+      const dim_t embedding_step = (is_sequence && step == 0 && ids.dim(-1) > 1) ? -1 : step;
       if (_start_from_zero_embedding)
-        zero_first_timestep(layer_in, step);
-      if (_embeddings_scale && (!_start_from_zero_embedding || step != 0))
+        zero_first_timestep(layer_in, embedding_step);
+      if (_embeddings_scale && (!_start_from_zero_embedding || embedding_step != 0))
         ops::Mul()(layer_in, *_embeddings_scale, layer_in);
       if (_project_in) {
         (*_project_in)(layer_in, layer_out);
