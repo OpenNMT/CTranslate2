@@ -180,11 +180,12 @@ jobs:
         run: |
           tests/ctranslate2_test tests/data
 
-  # Unlike the standard macOS runner, macos-15-xlarge exposes an Apple
-  # Silicon GPU. Keep this as a separate required job so MPS is exercised at
-  # runtime and cannot silently degrade into build-only coverage.
+  # The contributor fork uses its self-hosted Apple Silicon runner. Upstream
+  # keeps the GPU-enabled GitHub runner so this remains mergeable without
+  # depending on infrastructure owned by the contributor.
   build-and-test-mps:
-    runs-on: macos-15-xlarge
+    if: github.repository != 'TBO22/CTranslate2' || github.event_name == 'push'
+    runs-on: ${{ github.repository == 'TBO22/CTranslate2' && 'self-hosted' || 'macos-15-xlarge' }}
     env:
       CT2_VERBOSE: 1
 
