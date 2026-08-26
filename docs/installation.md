@@ -140,9 +140,11 @@ To build a native Release library with CPU and MPS execution on Apple Silicon:
 ```bash
 cmake -S . -B build-mps \
   -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
   -DWITH_MPS=ON \
   -DWITH_ACCELERATE=ON \
   -DWITH_MKL=OFF \
+  -DWITH_RUY=ON \
   -DOPENMP_RUNTIME=NONE
 cmake --build build-mps -j
 cmake --install build-mps --prefix install-mps
