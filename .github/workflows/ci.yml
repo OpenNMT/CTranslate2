@@ -210,6 +210,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release \
             -DCMAKE_INSTALL_PREFIX="$PWD/install-mps" \
             -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
             -DBUILD_TESTS=ON \
             -DWITH_MPS=ON \
             -DWITH_ACCELERATE=ON \
