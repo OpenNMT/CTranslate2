@@ -180,6 +180,78 @@ jobs:
         run: |
           tests/ctranslate2_test tests/data
 
+  # Unlike the standard macOS runner, macos-15-xlarge exposes an Apple
+  # Silicon GPU. Keep this as a separate required job so MPS is exercised at
+  # runtime and cannot silently degrade into build-only coverage.
+  build-and-test-mps:
+    runs-on: macos-15-xlarge
+    env:
+      CT2_VERBOSE: 1
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Verify Apple Silicon runner
+        run: |
+          test "$(uname -m)" = "arm64"
+          system_profiler SPHardwareDataType SPDisplaysDataType
+
+      - name: Configure MPS build
+        run: |
+          cmake -S . -B build-mps \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/install-mps" \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DBUILD_TESTS=ON \
+            -DWITH_MPS=ON \
+            -DWITH_ACCELERATE=ON \
+            -DWITH_MKL=OFF \
+            -DWITH_RUY=ON \
+            -DOPENMP_RUNTIME=NONE
+
+      - name: Build and install MPS library
+        run: |
+          cmake --build build-mps --parallel "$(sysctl -n hw.logicalcpu)"
+          cmake --install build-mps
+
+      - name: Download test data
+        working-directory: tests/data/models
+        run: |
+          curl --fail --location --output transliteration-aren-all.tar.gz \
+            https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
+          tar xf transliteration-aren-all.tar.gz
+
+      - name: Run MPS runtime test suite
+        run: |
+          build-mps/tests/ctranslate2_test tests/data \
+            --gtest_filter='MPSBackendTest.*:MPSPrimitiveTest.*:TranslatorTest.MPS*:MPS/*'
+
+      - name: Run CPU and shared test suite from MPS build
+        run: |
+          build-mps/tests/ctranslate2_test tests/data \
+            --gtest_filter='-MPSBackendTest.*:MPSPrimitiveTest.*:TranslatorTest.MPS*:MPS/*'
+
+      - name: Build MPS Python bindings
+        env:
+          CTRANSLATE2_ROOT: ${{ github.workspace }}/install-mps
+          CMAKE_BUILD_PARALLEL_LEVEL: 5
+        run: |
+          python -m pip install -r python/install_requirements.txt pytest
+          python -m pip install ./python
+
+      - name: Test Python CPU selection and explicit MPS inference
+        env:
+          CT2_TEST_MPS: 1
+        run: |
+          python -m pytest --import-mode=importlib -v python/tests/test_mps.py
+
   build-python-wheels:
     runs-on: ${{ matrix.os }}
     strategy:

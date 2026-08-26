@@ -35,10 +35,9 @@ namespace ctranslate2 {
       if (cuda::has_gpu())
         return Device::CUDA;
 #endif
-#ifdef CT2_WITH_MPS
-      if (mps::has_mps())
-        return Device::MPS;
-#endif
+      // MPS is experimental and remains an explicit opt-in backend.  In
+      // particular, compiling with CT2_WITH_MPS must not change the behavior
+      // of existing applications that use device="auto".
       return Device::CPU;
     }
     throw std::invalid_argument("unsupported device " + device);

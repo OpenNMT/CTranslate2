@@ -8,6 +8,7 @@ add_executable(ctranslate2_test
   attention_test.cc
   batching_test.cc
   decoding_test.cc
+  devices_test.cc
   layers_test.cc
   model_test.cc
   storage_view_test.cc
