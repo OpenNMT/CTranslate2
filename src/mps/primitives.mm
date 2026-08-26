@@ -442,24 +442,13 @@ namespace ctranslate2 {
                                                     bool mask_future,
                                                     bool multi_query,
                                                     int32_t* mask) {
-    // This path is host-visible by design. The mask layout depends on whether
-    // queries or heads are the merged dimension, so keep the CPU reference
-    // mapping until every attention layout has a dedicated tested GPU kernel.
-    mps::synchronize("host attention mask");
-    for (dim_t b = 0; b < batch_size; ++b) {
-      const int32_t length = lengths[b];
-      int32_t* output = mask + b * num_heads * num_queries;
-      for (dim_t i = 0; i < num_heads * num_queries; ++i) {
-        if (mask_future) {
-          const int32_t query = multi_query
-                                ? static_cast<int32_t>(i / num_heads)
-                                : static_cast<int32_t>(i % num_queries);
-          output[i] = std::min<int32_t>(length, query + 1);
-        } else {
-          output[i] = length;
-        }
-      }
-    }
+    mps::prepare_length_mask(lengths,
+                             batch_size,
+                             num_heads,
+                             num_queries,
+                             mask_future,
+                             multi_query,
+                             mask);
   }
 
   template<>

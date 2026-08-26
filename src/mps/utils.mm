@@ -122,6 +122,7 @@ namespace ctranslate2 {
     static ProfileCounters g_profile;
     static std::mutex g_kernel_profile_mutex;
     static std::unordered_map<std::string, uint64_t> g_kernel_dispatches;
+    static std::unordered_map<std::string, uint64_t> g_profile_details;
 
     static bool env_enabled(const char* name) {
       const char* value = std::getenv(name);
@@ -225,6 +226,19 @@ namespace ctranslate2 {
                      "CT2 MPS kernel: name=%s dispatches=%llu\n",
                      kernel.first.c_str(),
                      static_cast<unsigned long long>(kernel.second));
+      std::vector<std::pair<std::string, uint64_t>> details;
+      {
+        std::lock_guard<std::mutex> lock(g_kernel_profile_mutex);
+        details.assign(g_profile_details.begin(), g_profile_details.end());
+      }
+      std::sort(details.begin(), details.end(), [](const auto& left, const auto& right) {
+        return left.second > right.second;
+      });
+      for (const auto& detail : details)
+        std::fprintf(stderr,
+                     "CT2 MPS detail: %s calls=%llu\n",
+                     detail.first.c_str(),
+                     static_cast<unsigned long long>(detail.second));
     }
 
     static void record_command_buffer_error(id<MTLCommandBuffer> command_buffer) {
@@ -545,11 +559,10 @@ namespace ctranslate2 {
         if (defer)
           pending_buffer_frees().insert(ptr);
       }
-      // Keep the conservative commit for a temporary owned by this stream.
-      // Some CTranslate2 paths directly reuse shared-memory views at lifetime
-      // boundaries, so merely retaining the MTLBuffer is insufficient. The
-      // pending marker is deliberately installed before this flush to prevent
-      // the lost-completion leak described above.
+      // Some CTranslate2 paths recycle shared-memory views at StorageView
+      // lifetime boundaries. Retaining the MTLBuffer prevents destruction but
+      // does not prevent a CPU-visible alias from being reused. Commit before
+      // releasing an active allocation so later work cannot race that reuse.
       if (active_on_current_stream)
         current_stream().flush();
       if (!defer)
@@ -695,6 +708,13 @@ namespace ctranslate2 {
         ++g_profile.topk_cpu_calls;
         break;
       }
+    }
+
+    void record_profile_detail(const char* detail) {
+      if (!profile_enabled() || !detail)
+        return;
+      std::lock_guard<std::mutex> lock(g_kernel_profile_mutex);
+      ++g_profile_details[detail];
     }
 
   }

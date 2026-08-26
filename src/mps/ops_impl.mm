@@ -126,6 +126,13 @@ namespace {
     }();
     return enabled;
   }
+  static bool _css_split_enabled() {
+    static const bool enabled = []() {
+      const char* value = std::getenv("CT2_MPS_USE_FUSED_SPLIT");
+      return !value || value[0] == '\0' || value[0] != '0';
+    }();
+    return enabled;
+  }
 }
 
 template <Device D, typename T>
@@ -179,6 +186,50 @@ void Split::compute(const StorageView& input,
   const dim_t axis = _axis < 0 ? input.rank() + _axis : _axis;
   const dim_t step_size = input.dim(axis) * input.stride(axis);
   const T* in = input.data<T>();
+
+  if (_css_split_enabled() && (outputs.size() == 2 || outputs.size() == 3)) {
+    const dim_t outer_size = _css_iter_size(input, axis);
+    std::vector<dim_t> block_sizes;
+    block_sizes.reserve(outputs.size());
+    bool supported = outer_size > 0;
+    const size_t element_size = sizeof(T);
+    const size_t input_bytes = static_cast<size_t>(input.size()) * element_size;
+    for (size_t i = 0; i < outputs.size(); ++i) {
+      const dim_t block_size = _css_copy_size(*outputs[i], axis);
+      block_sizes.emplace_back(block_size);
+      const size_t output_bytes = static_cast<size_t>(outputs[i]->size()) * element_size;
+      supported = supported
+                  && block_size > 0
+                  && !_css_ranges_overlap(in, input_bytes,
+                                          outputs[i]->data<T>(), output_bytes);
+      for (size_t j = 0; supported && j < i; ++j) {
+        const size_t other_bytes =
+          static_cast<size_t>(outputs[j]->size()) * element_size;
+        supported = !_css_ranges_overlap(outputs[j]->data<T>(), other_bytes,
+                                         outputs[i]->data<T>(), output_bytes);
+      }
+    }
+    supported = supported
+                && std::accumulate(block_sizes.begin(), block_sizes.end(), dim_t(0))
+                     == step_size;
+    if (supported && outputs.size() == 2) {
+      mps::split2(DataTypeToEnum<T>::value,
+                  in,
+                  outputs[0]->data<T>(), block_sizes[0],
+                  outputs[1]->data<T>(), block_sizes[1],
+                  outer_size);
+      return;
+    }
+    if (supported && outputs.size() == 3) {
+      mps::split3(DataTypeToEnum<T>::value,
+                  in,
+                  outputs[0]->data<T>(), block_sizes[0],
+                  outputs[1]->data<T>(), block_sizes[1],
+                  outputs[2]->data<T>(), block_sizes[2],
+                  outer_size);
+      return;
+    }
+  }
 
   for (StorageView* out : outputs) {
     const dim_t copy_size = _css_copy_size(*out, axis);

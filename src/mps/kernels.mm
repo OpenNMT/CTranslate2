@@ -28,6 +28,7 @@ namespace ctranslate2 {
 
       static constexpr const char* kMetalSource = R"METAL(
 #include <metal_stdlib>
+#include <metal_simdgroup_matrix>
 using namespace metal;
 
 struct ElementwiseArgs {
@@ -66,11 +67,27 @@ struct TransposeNDArgs {
   ulong p3;
 };
 
+struct Transpose0213Args {
+  uint d1;
+  uint d2;
+  uint d3_vectors;
+};
+
 struct SoftmaxArgs {
   ulong batch_size;
   ulong depth;
   uint has_lengths;
   uint log_output;
+};
+
+struct FusedAttentionArgs {
+  uint batch_size;
+  uint query_length;
+  uint key_length;
+  uint depth_vectors;
+  uint has_lengths;
+  uint interleaved_num_heads;
+  float scale;
 };
 
 struct MeanArgs {
@@ -167,9 +184,30 @@ struct TiledGemmArgs {
   float beta;
 };
 
+struct SimdgroupGemmArgs {
+  uint m;
+  uint n;
+  uint k;
+  uint lda;
+  uint ldb;
+  uint ldc;
+  float alpha;
+  float beta;
+  uint has_bias;
+  uint has_residual;
+  int activation;
+};
+
 struct SmallTopKArgs {
   uint batch_size;
   uint depth;
+  uint k;
+};
+
+struct BeamSearchTopKArgs {
+  uint batch_size;
+  uint beam_size;
+  uint vocabulary_size;
   uint k;
 };
 
@@ -201,10 +239,30 @@ struct GatherArgs {
   ulong num_indices_per_batch;
 };
 
+struct GatherBlockArgs {
+  uint copy_vectors;
+  uint batch_stride_vectors;
+  uint num_indices;
+  uint num_indices_per_batch;
+};
+
 struct Concat2Args {
   ulong outer_size;
   ulong a_block_size;
   ulong b_block_size;
+};
+
+struct Split2Args {
+  ulong outer_size;
+  ulong a_block_size;
+  ulong b_block_size;
+};
+
+struct Split3Args {
+  ulong outer_size;
+  ulong a_block_size;
+  ulong b_block_size;
+  ulong c_block_size;
 };
 
 struct TileArgs {
@@ -241,6 +299,17 @@ struct DequantizeGemmArgs {
   uint transpose_a;
   uint transpose_b;
   uint has_bias;
+  int activation;
+};
+
+struct Int8DenseArgs {
+  uint m;
+  uint n;
+  uint k;
+  uint a_scale_size;
+  uint b_scale_size;
+  uint has_bias;
+  uint has_residual;
   int activation;
 };
 
@@ -747,6 +816,364 @@ TILED_GEMM_KERNEL(tiled_gemm_f32, float, load_value<float>, store_value<float>)
 TILED_GEMM_KERNEL(tiled_gemm_f16, half, load_value<half>, store_value<half>)
 TILED_GEMM_KERNEL(tiled_gemm_bf16, ushort, load_value_bf16, store_value_bf16)
 
+// The SIMD-group matrix layout and 64x64x16 tile are adapted from Apple
+// MLX's Steel GEMM implementation. Copyright (c) 2024 Apple Inc., licensed
+// under Apache-2.0. This specialized kernel covers CTranslate2 Dense weights,
+// which are stored output-major as B[N, K] and multiplied as A[M, K] * B^T.
+// Four SIMD groups cooperatively load one A/B tile, then each group computes
+// one 32x32 output quadrant using 8x8 SIMD-group matrix instructions.
+kernel void simdgroup_gemm_nt_f16_64x64(
+    device const half* a [[buffer(0)]],
+    device const half* b [[buffer(1)]],
+    device half* c [[buffer(2)]],
+    constant SimdgroupGemmArgs& args [[buffer(3)]],
+    device const half* bias [[buffer(4)]],
+    device const half* residual [[buffer(5)]],
+    uint3 group [[threadgroup_position_in_grid]],
+    uint lane [[thread_index_in_simdgroup]],
+    uint simd_id [[simdgroup_index_in_threadgroup]]) {
+  constexpr uint BM = 64;
+  constexpr uint BN = 64;
+  constexpr uint BK = 16;
+  // Eight-half padding prevents the SIMD matrix loads from repeatedly
+  // colliding on the same threadgroup-memory banks.
+  constexpr uint TG_LD = 24;
+  threadgroup half as[BM * TG_LD];
+  // B stays output-major in threadgroup memory. This makes both device loads
+  // and the physical CTranslate2 [N,K] weight layout contiguous.
+  threadgroup half bs[BN * TG_LD];
+  struct alignas(16) Half8Bytes { uchar bytes[16]; };
+
+  simdgroup_matrix<float, 8, 8> accum[4][4];
+  #pragma clang loop unroll(full)
+  for (uint mi = 0; mi < 4; ++mi) {
+    #pragma clang loop unroll(full)
+    for (uint nj = 0; nj < 4; ++nj) {
+      accum[mi][nj].thread_elements()[0] = 0.0f;
+      accum[mi][nj].thread_elements()[1] = 0.0f;
+    }
+  }
+
+  const uint linear_tid = simd_id * 32u + lane;
+  const uint tile_row = group.y * BM;
+  const uint tile_col = group.x * BN;
+  const uint simd_row = (simd_id >> 1) * 32u;
+  const uint simd_col = (simd_id & 1u) * 32u;
+
+  const uint quad = lane >> 2;
+  const uint frag_row = (quad & 4u) + ((lane >> 1) & 3u);
+  const uint frag_col = (quad & 2u) * 2u + (lane & 1u) * 2u;
+
+  for (uint base_k = 0; base_k < args.k; base_k += BK) {
+    for (uint index = linear_tid; index < BM * 2u; index += 128u) {
+      const uint row = index >> 1;
+      const uint kk = (index & 1u) * 8u;
+      const uint global_row = tile_row + row;
+      const uint global_k = base_k + kk;
+      threadgroup half* dst = as + row * TG_LD + kk;
+      if (global_row < args.m && global_k + 8u <= args.k) {
+        *(threadgroup Half8Bytes*)dst =
+            *(device const Half8Bytes*)(a + global_row * args.lda + global_k);
+      } else {
+        #pragma clang loop unroll(full)
+        for (uint element = 0; element < 8; ++element)
+          dst[element] = global_row < args.m && global_k + element < args.k
+                           ? a[global_row * args.lda + global_k + element]
+                           : half(0.0h);
+      }
+    }
+    for (uint index = linear_tid; index < BN * 2u; index += 128u) {
+      const uint column = index >> 1;
+      const uint kk = (index & 1u) * 8u;
+      const uint global_k = base_k + kk;
+      const uint global_column = tile_col + column;
+      threadgroup half* dst = bs + column * TG_LD + kk;
+      if (global_column < args.n && global_k + 8u <= args.k) {
+        *(threadgroup Half8Bytes*)dst =
+            *(device const Half8Bytes*)(b + global_column * args.ldb + global_k);
+      } else {
+        #pragma clang loop unroll(full)
+        for (uint element = 0; element < 8; ++element)
+          dst[element] = global_column < args.n && global_k + element < args.k
+                           ? b[global_column * args.ldb + global_k + element]
+                           : half(0.0h);
+      }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    #pragma clang loop unroll(full)
+    for (uint ki = 0; ki < 2; ++ki) {
+      simdgroup_matrix<float, 8, 8> a_frag[4];
+      simdgroup_matrix<float, 8, 8> b_frag[4];
+      #pragma clang loop unroll(full)
+      for (uint mi = 0; mi < 4; ++mi) {
+        const uint a_row = simd_row + mi * 8u + frag_row;
+        const uint a_col = ki * 8u + frag_col;
+        a_frag[mi].thread_elements()[0] = float(as[a_row * TG_LD + a_col]);
+        a_frag[mi].thread_elements()[1] = float(as[a_row * TG_LD + a_col + 1u]);
+      }
+      #pragma clang loop unroll(full)
+      for (uint nj = 0; nj < 4; ++nj) {
+        const uint b_row = ki * 8u + frag_row;
+        const uint b_col = simd_col + nj * 8u + frag_col;
+        b_frag[nj].thread_elements()[0] = float(bs[b_col * TG_LD + b_row]);
+        b_frag[nj].thread_elements()[1] = float(bs[(b_col + 1u) * TG_LD + b_row]);
+      }
+      #pragma clang loop unroll(full)
+      for (uint mi = 0; mi < 4; ++mi) {
+        #pragma clang loop unroll(full)
+        for (uint nj = 0; nj < 4; ++nj) {
+          simdgroup_multiply_accumulate(
+              accum[mi][nj], a_frag[mi], b_frag[nj], accum[mi][nj]);
+        }
+      }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+
+  #pragma clang loop unroll(full)
+  for (uint mi = 0; mi < 4; ++mi) {
+    const uint row = tile_row + simd_row + mi * 8u + frag_row;
+    if (row >= args.m)
+      continue;
+    #pragma clang loop unroll(full)
+    for (uint nj = 0; nj < 4; ++nj) {
+      const uint column0 = tile_col + simd_col + nj * 8u + frag_col;
+      #pragma clang loop unroll(full)
+      for (uint element = 0; element < 2; ++element) {
+        const uint column = column0 + element;
+        if (column >= args.n)
+          continue;
+        const uint output_index = row * args.ldc + column;
+        const float previous = args.beta == 0.0f ? 0.0f : float(c[output_index]);
+        // Preserve the established Dense numerical boundary: round the GEMM
+        // result to FP16 before applying the separately-defined epilogue.
+        float value = float(half(args.alpha * accum[mi][nj].thread_elements()[element]
+                                 + args.beta * previous));
+        if (args.has_bias)
+          value += float(bias[column]);
+        if (args.has_residual)
+          value += float(residual[output_index]);
+        if (args.activation >= 0)
+          value = apply_unary(value, uint(args.activation));
+        c[output_index] = half(value);
+      }
+    }
+  }
+}
+
+// Small-M weight-only INT8 GEMM. The 16x64x16 tile is shaped for beam and
+// small request batches: all four SIMD groups cover different output columns,
+// while SIMD-group matrix instructions provide the floating-point throughput.
+// INT8 weights are expanded only for the current K tile in threadgroup memory,
+// so the persistent model allocation remains compressed.
+kernel void simdgroup_gemm_nt_i8_f16_16x64(
+    device const half* a [[buffer(0)]],
+    device const char* b [[buffer(1)]],
+    device const float* b_scales [[buffer(2)]],
+    device const half* bias [[buffer(3)]],
+    device const half* residual [[buffer(4)]],
+    device half* output [[buffer(5)]],
+    constant Int8DenseArgs& args [[buffer(6)]],
+    uint3 group [[threadgroup_position_in_grid]],
+    uint lane [[thread_index_in_simdgroup]],
+    uint simd_id [[simdgroup_index_in_threadgroup]]) {
+  constexpr uint BM = 16;
+  constexpr uint BN = 64;
+  constexpr uint BK = 16;
+  constexpr uint TG_LD = 24;
+  threadgroup half as[BM * TG_LD];
+  threadgroup half bs[BN * TG_LD];
+
+  simdgroup_matrix<float, 8, 8> accum[2][2];
+  #pragma clang loop unroll(full)
+  for (uint mi = 0; mi < 2; ++mi) {
+    #pragma clang loop unroll(full)
+    for (uint nj = 0; nj < 2; ++nj) {
+      accum[mi][nj].thread_elements()[0] = 0.0f;
+      accum[mi][nj].thread_elements()[1] = 0.0f;
+    }
+  }
+
+  const uint linear_tid = simd_id * 32u + lane;
+  const uint tile_row = group.y * BM;
+  const uint tile_col = group.x * BN;
+  const uint simd_col = simd_id * 16u;
+  const uint quad = lane >> 2;
+  const uint frag_row = (quad & 4u) + ((lane >> 1) & 3u);
+  const uint frag_col = (quad & 2u) * 2u + (lane & 1u) * 2u;
+
+  for (uint base_k = 0; base_k < args.k; base_k += BK) {
+    for (uint index = linear_tid; index < BM * BK; index += 128u) {
+      const uint row = index / BK;
+      const uint kk = index - row * BK;
+      const uint global_row = tile_row + row;
+      const uint global_k = base_k + kk;
+      as[row * TG_LD + kk] = global_row < args.m && global_k < args.k
+                                ? a[global_row * args.k + global_k]
+                                : half(0.0h);
+    }
+    for (uint index = linear_tid; index < BN * BK; index += 128u) {
+      const uint column = index / BK;
+      const uint kk = index - column * BK;
+      const uint global_column = tile_col + column;
+      const uint global_k = base_k + kk;
+      bs[column * TG_LD + kk] = global_column < args.n && global_k < args.k
+                                  ? half(b[global_column * args.k + global_k])
+                                  : half(0.0h);
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    #pragma clang loop unroll(full)
+    for (uint ki = 0; ki < 2; ++ki) {
+      simdgroup_matrix<half, 8, 8> a_frag[2];
+      simdgroup_matrix<half, 8, 8> b_frag[2];
+      #pragma clang loop unroll(full)
+      for (uint mi = 0; mi < 2; ++mi) {
+        const uint a_row = mi * 8u + frag_row;
+        const uint a_col = ki * 8u + frag_col;
+        a_frag[mi].thread_elements()[0] = as[a_row * TG_LD + a_col];
+        a_frag[mi].thread_elements()[1] = as[a_row * TG_LD + a_col + 1u];
+      }
+      #pragma clang loop unroll(full)
+      for (uint nj = 0; nj < 2; ++nj) {
+        const uint b_row = ki * 8u + frag_row;
+        const uint b_col = simd_col + nj * 8u + frag_col;
+        b_frag[nj].thread_elements()[0] = bs[b_col * TG_LD + b_row];
+        b_frag[nj].thread_elements()[1] = bs[(b_col + 1u) * TG_LD + b_row];
+      }
+      #pragma clang loop unroll(full)
+      for (uint mi = 0; mi < 2; ++mi) {
+        #pragma clang loop unroll(full)
+        for (uint nj = 0; nj < 2; ++nj)
+          simdgroup_multiply_accumulate(
+            accum[mi][nj], a_frag[mi], b_frag[nj], accum[mi][nj]);
+      }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+
+  #pragma clang loop unroll(full)
+  for (uint mi = 0; mi < 2; ++mi) {
+    const uint row = tile_row + mi * 8u + frag_row;
+    if (row >= args.m)
+      continue;
+    #pragma clang loop unroll(full)
+    for (uint nj = 0; nj < 2; ++nj) {
+      const uint column0 = tile_col + simd_col + nj * 8u + frag_col;
+      #pragma clang loop unroll(full)
+      for (uint element = 0; element < 2; ++element) {
+        const uint column = column0 + element;
+        if (column >= args.n)
+          continue;
+        const uint bi = args.b_scale_size == 1u ? 0u : column;
+        float value = accum[mi][nj].thread_elements()[element] / b_scales[bi];
+        if (args.has_bias)
+          value += float(bias[column]);
+        if (args.activation >= 0)
+          value = apply_unary(value, uint(args.activation));
+        value = float(half(value));
+        const uint index = row * args.n + column;
+        if (args.has_residual)
+          value += float(residual[index]);
+        output[index] = half(value);
+      }
+    }
+  }
+}
+
+// Whisper beam 5 executes most decoder projections as [5,K] x [N,K]^T.
+// MPSMatrix has a large efficiency cliff at this odd row count. Each SIMD
+// group below computes two output columns for all five rows, reusing every
+// weight vector across the beam and keeping the established FP16 epilogue
+// boundary. This also keeps consecutive projections on the compute encoder.
+kernel void small_m5_gemm_nt_f16(
+    device const half* a [[buffer(0)]],
+    device const half* b [[buffer(1)]],
+    device half* c [[buffer(2)]],
+    constant SimdgroupGemmArgs& args [[buffer(3)]],
+    device const half* bias [[buffer(4)]],
+    device const half* residual [[buffer(5)]],
+    uint3 group [[threadgroup_position_in_grid]],
+    uint lane [[thread_index_in_simdgroup]],
+    uint simd_id [[simdgroup_index_in_threadgroup]],
+    uint simd_groups [[simdgroups_per_threadgroup]]) {
+  constexpr uint MaxM = 5;
+  constexpr uint OutputsPerSimdgroup = 2;
+  const uint first_output = (group.x * simd_groups + simd_id)
+                            * OutputsPerSimdgroup;
+  float sums[MaxM][OutputsPerSimdgroup];
+  #pragma clang loop unroll(full)
+  for (uint row = 0; row < MaxM; ++row) {
+    #pragma clang loop unroll(full)
+    for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta)
+      sums[row][output_delta] = 0.0f;
+  }
+
+  if ((args.k & 3u) == 0u && (args.lda & 3u) == 0u && (args.ldb & 3u) == 0u) {
+    const uint vectors = args.k >> 2;
+    for (uint p = lane; p < vectors; p += 32u) {
+      float4 weights[OutputsPerSimdgroup];
+      #pragma clang loop unroll(full)
+      for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta) {
+        const uint output = first_output + output_delta;
+        weights[output_delta] = output < args.n
+          ? float4(reinterpret_cast<device const half4*>(
+              b + output * args.ldb)[p])
+          : float4(0.0f);
+      }
+      #pragma clang loop unroll(full)
+      for (uint row = 0; row < MaxM; ++row) {
+        const float4 input = row < args.m
+          ? float4(reinterpret_cast<device const half4*>(
+              a + row * args.lda)[p])
+          : float4(0.0f);
+        #pragma clang loop unroll(full)
+        for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta)
+          sums[row][output_delta] += dot(input, weights[output_delta]);
+      }
+    }
+  } else {
+    for (uint p = lane; p < args.k; p += 32u) {
+      #pragma clang loop unroll(full)
+      for (uint row = 0; row < MaxM; ++row) {
+        const float input = row < args.m ? float(a[row * args.lda + p]) : 0.0f;
+        #pragma clang loop unroll(full)
+        for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta) {
+          const uint output = first_output + output_delta;
+          if (output < args.n)
+            sums[row][output_delta] += input * float(b[output * args.ldb + p]);
+        }
+      }
+    }
+  }
+
+  #pragma clang loop unroll(full)
+  for (uint row = 0; row < MaxM; ++row) {
+    if (row >= args.m)
+      continue;
+    #pragma clang loop unroll(full)
+    for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta) {
+      const uint output = first_output + output_delta;
+      if (output >= args.n)
+        continue;
+      const float sum = simd_sum(sums[row][output_delta]);
+      if (lane == 0u) {
+        const uint output_index = row * args.ldc + output;
+        const float previous = args.beta == 0.0f ? 0.0f : float(c[output_index]);
+        float value = float(half(args.alpha * sum + args.beta * previous));
+        if (args.has_bias)
+          value += float(bias[output]);
+        if (args.has_residual)
+          value += float(residual[output_index]);
+        if (args.activation >= 0)
+          value = apply_unary(value, uint(args.activation));
+        c[output_index] = half(value);
+      }
+    }
+  }
+}
+
 kernel void generic_gemm_i8_i32(device const char* a [[buffer(0)]],
                                 device const char* b [[buffer(1)]],
                                 device int* c [[buffer(2)]],
@@ -949,6 +1376,368 @@ SMALL_TOPK_KERNEL(small_topk_f32, float, load_value<float>, store_value<float>)
 SMALL_TOPK_KERNEL(small_topk_f16, half, load_value<half>, store_value<half>)
 SMALL_TOPK_KERNEL(small_topk_bf16, ushort, load_value_bf16, store_value_bf16)
 
+// Fused deterministic beam-search selection. One threadgroup owns a model
+// batch row and processes all beams. The FP16 rounding after log-softmax and
+// score addition intentionally matches the materialized operator sequence.
+// Keep separate 8- and 16-candidate entry points so the common beam-4 path
+// does not pay the register cost required by beam 5 (which requests k=10).
+template <uint MaxK>
+static inline void fused_beam_search_topk_impl(
+                 device const half* logits,
+                 device const half* beam_scores,
+                 device half* values,
+                 device int* indices,
+                 constant BeamSearchTopKArgs& args,
+                 threadgroup float* shared_values,
+                 threadgroup uint* shared_indices,
+                 threadgroup float* beam_candidates,
+                 threadgroup uint* beam_candidate_indices,
+                 uint batch,
+                 uint tid,
+                 uint nt) {
+  if (batch >= args.batch_size) return;
+  for (uint beam = 0; beam < args.beam_size; ++beam) {
+    const uint row = batch * args.beam_size + beam;
+    const uint row_offset = row * args.vocabulary_size;
+    float local_maximum = -INFINITY;
+    for (uint column = tid; column < args.vocabulary_size; column += nt)
+      local_maximum = max(local_maximum, float(logits[row_offset + column]));
+    shared_values[tid] = local_maximum;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+      if (tid < stride)
+        shared_values[tid] = max(shared_values[tid], shared_values[tid + stride]);
+      threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    const float maximum = shared_values[0];
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    float local_values[MaxK];
+    uint local_indices[MaxK];
+    for (uint rank = 0; rank < MaxK; ++rank) {
+      local_values[rank] = -INFINITY;
+      local_indices[rank] = UINT_MAX;
+    }
+    float local_sum = 0.0f;
+    for (uint column = tid; column < args.vocabulary_size; column += nt) {
+      const float candidate = float(logits[row_offset + column]);
+      local_sum += exp(candidate - maximum);
+      uint insert = args.k;
+      for (uint rank = 0; rank < args.k; ++rank) {
+        if (topk_better(candidate, column, local_values[rank], local_indices[rank])) {
+          insert = rank;
+          break;
+        }
+      }
+      if (insert < args.k) {
+        for (uint rank = args.k - 1; rank > insert; --rank) {
+          local_values[rank] = local_values[rank - 1];
+          local_indices[rank] = local_indices[rank - 1];
+        }
+        local_values[insert] = candidate;
+        local_indices[insert] = column;
+      }
+    }
+    shared_values[tid] = local_sum;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+      if (tid < stride) shared_values[tid] += shared_values[tid + stride];
+      threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    const float log_sum = log(shared_values[0]);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    for (uint rank = 0; rank < args.k; ++rank) {
+      const half normalized = half(local_values[0] - maximum - log_sum);
+      const half scored = half(float(normalized) + float(beam_scores[row]));
+      shared_values[tid] = float(scored);
+      shared_indices[tid] = beam * args.vocabulary_size + local_indices[0];
+      threadgroup_barrier(mem_flags::mem_threadgroup);
+      for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+        if (tid < stride
+            && topk_better(shared_values[tid + stride], shared_indices[tid + stride],
+                           shared_values[tid], shared_indices[tid])) {
+          shared_values[tid] = shared_values[tid + stride];
+          shared_indices[tid] = shared_indices[tid + stride];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+      }
+      if (tid == 0) {
+        beam_candidates[beam * args.k + rank] = shared_values[0];
+        beam_candidate_indices[beam * args.k + rank] = shared_indices[0];
+      }
+      const uint selected_column = shared_indices[0] - beam * args.vocabulary_size;
+      if (local_indices[0] == selected_column) {
+        for (uint next = 1; next < args.k; ++next) {
+          local_values[next - 1] = local_values[next];
+          local_indices[next - 1] = local_indices[next];
+        }
+        local_values[args.k - 1] = -INFINITY;
+        local_indices[args.k - 1] = UINT_MAX;
+      }
+      threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+  }
+
+  if (tid == 0) {
+    float best_values[MaxK];
+    uint best_indices[MaxK];
+    for (uint rank = 0; rank < MaxK; ++rank) {
+      best_values[rank] = -INFINITY;
+      best_indices[rank] = UINT_MAX;
+    }
+    const uint candidate_count = args.beam_size * args.k;
+    for (uint candidate_id = 0; candidate_id < candidate_count; ++candidate_id) {
+      const float candidate = beam_candidates[candidate_id];
+      const uint candidate_index = beam_candidate_indices[candidate_id];
+      uint insert = args.k;
+      for (uint rank = 0; rank < args.k; ++rank) {
+        if (topk_better(candidate, candidate_index,
+                        best_values[rank], best_indices[rank])) {
+          insert = rank;
+          break;
+        }
+      }
+      if (insert < args.k) {
+        for (uint rank = args.k - 1; rank > insert; --rank) {
+          best_values[rank] = best_values[rank - 1];
+          best_indices[rank] = best_indices[rank - 1];
+        }
+        best_values[insert] = candidate;
+        best_indices[insert] = candidate_index;
+      }
+    }
+    for (uint rank = 0; rank < args.k; ++rank) {
+      values[batch * args.k + rank] = half(best_values[rank]);
+      indices[batch * args.k + rank] = int(best_indices[rank]);
+    }
+  }
+}
+
+// The wider candidate path avoids one full threadgroup reduction per rank.
+// Each SIMD group selects its local TopK with shuffle reductions, then thread
+// zero merges the small list of SIMD-group candidates. This is substantially
+// cheaper for beam 5 (5 beams x 10 candidates) than 50 barrier-heavy
+// threadgroup reductions per decoding step.
+template <uint MaxK>
+static inline void fused_beam_search_topk_simd_impl(
+                 device const half* logits,
+                 device const half* beam_scores,
+                 device half* values,
+                 device int* indices,
+                 constant BeamSearchTopKArgs& args,
+                 threadgroup float* shared_values,
+                 threadgroup uint* shared_indices,
+                 threadgroup float* beam_candidates,
+                 threadgroup uint* beam_candidate_indices,
+                 uint batch,
+                 uint tid,
+                 uint nt,
+                 uint lane,
+                 uint simd_id) {
+  if (batch >= args.batch_size) return;
+  const uint simd_width = 32;
+  const uint num_simdgroups = nt / simd_width;
+
+  for (uint beam = 0; beam < args.beam_size; ++beam) {
+    const uint row = batch * args.beam_size + beam;
+    const uint row_offset = row * args.vocabulary_size;
+    float local_maximum = -INFINITY;
+    for (uint column = tid; column < args.vocabulary_size; column += nt)
+      local_maximum = max(local_maximum, float(logits[row_offset + column]));
+    shared_values[tid] = local_maximum;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+      if (tid < stride)
+        shared_values[tid] = max(shared_values[tid], shared_values[tid + stride]);
+      threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    const float maximum = shared_values[0];
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    float local_values[MaxK];
+    uint local_indices[MaxK];
+    for (uint rank = 0; rank < MaxK; ++rank) {
+      local_values[rank] = -INFINITY;
+      local_indices[rank] = UINT_MAX;
+    }
+    float local_sum = 0.0f;
+    for (uint column = tid; column < args.vocabulary_size; column += nt) {
+      const float candidate = float(logits[row_offset + column]);
+      local_sum += exp(candidate - maximum);
+      uint insert = args.k;
+      for (uint rank = 0; rank < args.k; ++rank) {
+        if (topk_better(candidate, column, local_values[rank], local_indices[rank])) {
+          insert = rank;
+          break;
+        }
+      }
+      if (insert < args.k) {
+        for (uint rank = args.k - 1; rank > insert; --rank) {
+          local_values[rank] = local_values[rank - 1];
+          local_indices[rank] = local_indices[rank - 1];
+        }
+        local_values[insert] = candidate;
+        local_indices[insert] = column;
+      }
+    }
+    shared_values[tid] = local_sum;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+      if (tid < stride) shared_values[tid] += shared_values[tid + stride];
+      threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    const float log_sum = log(shared_values[0]);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    for (uint rank = 0; rank < args.k; ++rank) {
+      const half normalized = half(local_values[0] - maximum - log_sum);
+      const half scored = half(float(normalized) + float(beam_scores[row]));
+      float candidate_value = float(scored);
+      uint candidate_index = local_indices[0];
+      for (uint offset = simd_width >> 1; offset > 0; offset >>= 1) {
+        const float other_value = simd_shuffle_down(candidate_value, offset);
+        const uint other_index = simd_shuffle_down(candidate_index, offset);
+        if (lane + offset < simd_width
+            && topk_better(other_value, other_index,
+                           candidate_value, candidate_index)) {
+          candidate_value = other_value;
+          candidate_index = other_index;
+        }
+      }
+      candidate_value = simd_broadcast_first(candidate_value);
+      candidate_index = simd_broadcast_first(candidate_index);
+      if (lane == 0) {
+        const uint candidate_offset = simd_id * args.k + rank;
+        shared_values[candidate_offset] = candidate_value;
+        shared_indices[candidate_offset] = candidate_index;
+      }
+      if (local_indices[0] == candidate_index) {
+        for (uint next = 1; next < args.k; ++next) {
+          local_values[next - 1] = local_values[next];
+          local_indices[next - 1] = local_indices[next];
+        }
+        local_values[args.k - 1] = -INFINITY;
+        local_indices[args.k - 1] = UINT_MAX;
+      }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+
+    if (tid == 0) {
+      float best_values[MaxK];
+      uint best_indices[MaxK];
+      for (uint rank = 0; rank < MaxK; ++rank) {
+        best_values[rank] = -INFINITY;
+        best_indices[rank] = UINT_MAX;
+      }
+      const uint candidate_count = num_simdgroups * args.k;
+      for (uint candidate_id = 0; candidate_id < candidate_count; ++candidate_id) {
+        const float candidate = shared_values[candidate_id];
+        const uint candidate_index = shared_indices[candidate_id];
+        uint insert = args.k;
+        for (uint rank = 0; rank < args.k; ++rank) {
+          if (topk_better(candidate, candidate_index,
+                          best_values[rank], best_indices[rank])) {
+            insert = rank;
+            break;
+          }
+        }
+        if (insert < args.k) {
+          for (uint rank = args.k - 1; rank > insert; --rank) {
+            best_values[rank] = best_values[rank - 1];
+            best_indices[rank] = best_indices[rank - 1];
+          }
+          best_values[insert] = candidate;
+          best_indices[insert] = candidate_index;
+        }
+      }
+      for (uint rank = 0; rank < args.k; ++rank) {
+        beam_candidates[beam * args.k + rank] = best_values[rank];
+        beam_candidate_indices[beam * args.k + rank]
+          = beam * args.vocabulary_size + best_indices[rank];
+      }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+
+  if (tid == 0) {
+    float best_values[MaxK];
+    uint best_indices[MaxK];
+    for (uint rank = 0; rank < MaxK; ++rank) {
+      best_values[rank] = -INFINITY;
+      best_indices[rank] = UINT_MAX;
+    }
+    const uint candidate_count = args.beam_size * args.k;
+    for (uint candidate_id = 0; candidate_id < candidate_count; ++candidate_id) {
+      const float candidate = beam_candidates[candidate_id];
+      const uint candidate_index = beam_candidate_indices[candidate_id];
+      uint insert = args.k;
+      for (uint rank = 0; rank < args.k; ++rank) {
+        if (topk_better(candidate, candidate_index,
+                        best_values[rank], best_indices[rank])) {
+          insert = rank;
+          break;
+        }
+      }
+      if (insert < args.k) {
+        for (uint rank = args.k - 1; rank > insert; --rank) {
+          best_values[rank] = best_values[rank - 1];
+          best_indices[rank] = best_indices[rank - 1];
+        }
+        best_values[insert] = candidate;
+        best_indices[insert] = candidate_index;
+      }
+    }
+    for (uint rank = 0; rank < args.k; ++rank) {
+      values[batch * args.k + rank] = half(best_values[rank]);
+      indices[batch * args.k + rank] = int(best_indices[rank]);
+    }
+  }
+}
+
+#define FUSED_BEAM_SEARCH_TOPK_KERNEL(NAME, MAX_K)                                    \
+kernel void NAME(device const half* logits [[buffer(0)]],                             \
+                 device const half* beam_scores [[buffer(1)]],                       \
+                 device half* values [[buffer(2)]],                                  \
+                 device int* indices [[buffer(3)]],                                  \
+                 constant BeamSearchTopKArgs& args [[buffer(4)]],                    \
+                 threadgroup float* shared_values [[threadgroup(0)]],                \
+                 threadgroup uint* shared_indices [[threadgroup(1)]],                \
+                 threadgroup float* beam_candidates [[threadgroup(2)]],              \
+                 threadgroup uint* beam_candidate_indices [[threadgroup(3)]],        \
+                 uint batch [[threadgroup_position_in_grid]],                        \
+                 uint tid [[thread_index_in_threadgroup]],                           \
+                 uint nt [[threads_per_threadgroup]]) {                              \
+  fused_beam_search_topk_impl<MAX_K>(logits, beam_scores, values, indices, args,      \
+                                      shared_values, shared_indices, beam_candidates, \
+                                      beam_candidate_indices, batch, tid, nt);        \
+}
+
+FUSED_BEAM_SEARCH_TOPK_KERNEL(fused_beam_search_topk_f16, 8)
+
+#define FUSED_BEAM_SEARCH_TOPK_SIMD_KERNEL(NAME, MAX_K)                               \
+kernel void NAME(device const half* logits [[buffer(0)]],                             \
+                 device const half* beam_scores [[buffer(1)]],                       \
+                 device half* values [[buffer(2)]],                                  \
+                 device int* indices [[buffer(3)]],                                  \
+                 constant BeamSearchTopKArgs& args [[buffer(4)]],                    \
+                 threadgroup float* shared_values [[threadgroup(0)]],                \
+                 threadgroup uint* shared_indices [[threadgroup(1)]],                \
+                 threadgroup float* beam_candidates [[threadgroup(2)]],              \
+                 threadgroup uint* beam_candidate_indices [[threadgroup(3)]],        \
+                 uint batch [[threadgroup_position_in_grid]],                        \
+                 uint tid [[thread_index_in_threadgroup]],                           \
+                 uint nt [[threads_per_threadgroup]],                                \
+                 uint lane [[thread_index_in_simdgroup]],                            \
+                 uint simd_id [[simdgroup_index_in_threadgroup]]) {                  \
+  fused_beam_search_topk_simd_impl<MAX_K>(                                            \
+    logits, beam_scores, values, indices, args, shared_values, shared_indices,        \
+    beam_candidates, beam_candidate_indices, batch, tid, nt, lane, simd_id);          \
+}
+
+FUSED_BEAM_SEARCH_TOPK_SIMD_KERNEL(fused_beam_search_topk_10_f16, 10)
+FUSED_BEAM_SEARCH_TOPK_SIMD_KERNEL(fused_beam_search_topk_16_f16, 16)
+
 #define GATHER_KERNEL(NAME, TYPE)                                                     \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                              \
                  device const int* indices [[buffer(1)]],                             \
@@ -971,6 +1760,28 @@ GATHER_KERNEL(gather_bf16, ushort)
 GATHER_KERNEL(gather_i8, char)
 GATHER_KERNEL(gather_i16, short)
 GATHER_KERNEL(gather_i32, int)
+
+// Gather rows as contiguous vector blocks. The generic one-thread-per-element
+// kernel divides by copy_size for every value, which is particularly costly
+// when beam cache rows contain tens of thousands of FP16 elements.
+#define GATHER_BLOCK_VEC4_KERNEL(NAME, TYPE4)                                        \
+kernel void NAME(device const TYPE4* input [[buffer(0)]],                            \
+                 device const int* indices [[buffer(1)]],                            \
+                 device TYPE4* output [[buffer(2)]],                                 \
+                 constant GatherBlockArgs& args [[buffer(3)]],                       \
+                 uint index_id [[threadgroup_position_in_grid]],                     \
+                 uint tid [[thread_index_in_threadgroup]],                           \
+                 uint nt [[threads_per_threadgroup]]) {                              \
+  if (index_id >= args.num_indices) return;                                          \
+  const uint batch = index_id / args.num_indices_per_batch;                          \
+  const uint source = batch * args.batch_stride_vectors                             \
+                      + uint(indices[index_id]) * args.copy_vectors;                 \
+  const uint destination = index_id * args.copy_vectors;                             \
+  for (uint v = tid; v < args.copy_vectors; v += nt)                                \
+    output[destination + v] = input[source + v];                                     \
+}
+
+GATHER_BLOCK_VEC4_KERNEL(gather_block_vec4_f16, half4)
 
 #define CONCAT2_KERNEL(NAME, TYPE)                                                    \
 kernel void NAME(device const TYPE* a [[buffer(0)]],                                 \
@@ -995,6 +1806,61 @@ CONCAT2_KERNEL(concat2_bf16, ushort)
 CONCAT2_KERNEL(concat2_i8, char)
 CONCAT2_KERNEL(concat2_i16, short)
 CONCAT2_KERNEL(concat2_i32, int)
+
+#define SPLIT2_KERNEL(NAME, TYPE)                                                    \
+kernel void NAME(device const TYPE* input [[buffer(0)]],                             \
+                 device TYPE* a [[buffer(1)]],                                       \
+                 device TYPE* b [[buffer(2)]],                                       \
+                 constant Split2Args& args [[buffer(3)]],                            \
+                 uint gid [[thread_position_in_grid]]) {                             \
+  const ulong input_block = args.a_block_size + args.b_block_size;                   \
+  const ulong total = args.outer_size * input_block;                                 \
+  const ulong index = ulong(gid);                                                    \
+  if (index >= total) return;                                                        \
+  const ulong outer = index / input_block;                                           \
+  const ulong within = index - outer * input_block;                                  \
+  if (within < args.a_block_size)                                                    \
+    a[outer * args.a_block_size + within] = input[index];                            \
+  else                                                                               \
+    b[outer * args.b_block_size + within - args.a_block_size] = input[index];        \
+}
+
+SPLIT2_KERNEL(split2_f32, float)
+SPLIT2_KERNEL(split2_f16, half)
+SPLIT2_KERNEL(split2_bf16, ushort)
+SPLIT2_KERNEL(split2_i8, char)
+SPLIT2_KERNEL(split2_i16, short)
+SPLIT2_KERNEL(split2_i32, int)
+
+#define SPLIT3_KERNEL(NAME, TYPE)                                                    \
+kernel void NAME(device const TYPE* input [[buffer(0)]],                             \
+                 device TYPE* a [[buffer(1)]],                                       \
+                 device TYPE* b [[buffer(2)]],                                       \
+                 device TYPE* c [[buffer(3)]],                                       \
+                 constant Split3Args& args [[buffer(4)]],                            \
+                 uint gid [[thread_position_in_grid]]) {                             \
+  const ulong ab_block = args.a_block_size + args.b_block_size;                      \
+  const ulong input_block = ab_block + args.c_block_size;                            \
+  const ulong total = args.outer_size * input_block;                                 \
+  const ulong index = ulong(gid);                                                    \
+  if (index >= total) return;                                                        \
+  const ulong outer = index / input_block;                                           \
+  const ulong within = index - outer * input_block;                                  \
+  if (within < args.a_block_size) {                                                  \
+    a[outer * args.a_block_size + within] = input[index];                            \
+  } else if (within < ab_block) {                                                    \
+    b[outer * args.b_block_size + within - args.a_block_size] = input[index];        \
+  } else {                                                                           \
+    c[outer * args.c_block_size + within - ab_block] = input[index];                 \
+  }                                                                                  \
+}
+
+SPLIT3_KERNEL(split3_f32, float)
+SPLIT3_KERNEL(split3_f16, half)
+SPLIT3_KERNEL(split3_bf16, ushort)
+SPLIT3_KERNEL(split3_i8, char)
+SPLIT3_KERNEL(split3_i16, short)
+SPLIT3_KERNEL(split3_i32, int)
 
 #define TILE_KERNEL(NAME, TYPE)                                                       \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                              \
@@ -1142,6 +2008,133 @@ kernel void NAME(device const int* input [[buffer(0)]],                         
 DEQUANTIZE_GEMM_KERNEL(dequantize_gemm_f32, float, load_value<float>, store_value<float>)
 DEQUANTIZE_GEMM_KERNEL(dequantize_gemm_f16, half, load_value<half>, store_value<half>)
 DEQUANTIZE_GEMM_KERNEL(dequantize_gemm_bf16, ushort, load_value_bf16, store_value_bf16)
+
+// Apple GPU arithmetic throughput is optimized for FP16/FP32 rather than
+// scalar integer dot products. For explicit int8_float16 execution, keep the
+// model weights compressed but multiply them directly by FP16 activations.
+// Weight loads are reused across all rows in the beam/request batch. Separate
+// 4/8/16-row variants avoid carrying inactive accumulators when the active
+// batch shrinks near the end of beam search.
+template <uint RowsPerBlock, uint OutputsPerSimdgroup>
+static inline void weight_only_int8_dense_f16_impl(
+    device const half* a,
+    device const char* b,
+    device const float* b_scales,
+    device const half* bias,
+    device const half* residual,
+    device half* output,
+    constant Int8DenseArgs& args,
+    uint3 group,
+    uint lane,
+    uint simd_id,
+    uint simd_groups) {
+  const uint first_row = group.y * RowsPerBlock;
+  const uint first_column = (group.x * simd_groups + simd_id)
+                            * OutputsPerSimdgroup;
+
+  float sums[RowsPerBlock][OutputsPerSimdgroup];
+  #pragma clang loop unroll(full)
+  for (uint row_delta = 0; row_delta < RowsPerBlock; ++row_delta) {
+    #pragma clang loop unroll(full)
+    for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta)
+      sums[row_delta][output_delta] = 0.0f;
+  }
+
+  if ((args.k & 3u) == 0u) {
+    const uint vectors = args.k >> 2;
+    for (uint p = lane; p < vectors; p += 32u) {
+      float4 weights[OutputsPerSimdgroup];
+      #pragma clang loop unroll(full)
+      for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta) {
+        const uint column = first_column + output_delta;
+        weights[output_delta] = column < args.n
+          ? float4(int4(reinterpret_cast<device const char4*>(
+              b + column * args.k)[p]))
+          : float4(0.0f);
+      }
+      #pragma clang loop unroll(full)
+      for (uint row_delta = 0; row_delta < RowsPerBlock; ++row_delta) {
+        const uint row = first_row + row_delta;
+        if (row < args.m) {
+          device const half4* input = reinterpret_cast<device const half4*>(
+            a + row * args.k);
+          const float4 input_value = float4(input[p]);
+          #pragma clang loop unroll(full)
+          for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta)
+            sums[row_delta][output_delta] += dot(input_value, weights[output_delta]);
+        }
+      }
+    }
+  } else {
+    for (uint p = lane; p < args.k; p += 32u) {
+      float weights[OutputsPerSimdgroup];
+      #pragma clang loop unroll(full)
+      for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta) {
+        const uint column = first_column + output_delta;
+        weights[output_delta] = column < args.n
+          ? float(b[column * args.k + p])
+          : 0.0f;
+      }
+      #pragma clang loop unroll(full)
+      for (uint row_delta = 0; row_delta < RowsPerBlock; ++row_delta) {
+        const uint row = first_row + row_delta;
+        if (row < args.m) {
+          const float input_value = float(a[row * args.k + p]);
+          #pragma clang loop unroll(full)
+          for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta)
+            sums[row_delta][output_delta] += input_value * weights[output_delta];
+        }
+      }
+    }
+  }
+
+  #pragma clang loop unroll(full)
+  for (uint row_delta = 0; row_delta < RowsPerBlock; ++row_delta) {
+    const uint row = first_row + row_delta;
+    if (row >= args.m)
+      continue;
+    #pragma clang loop unroll(full)
+    for (uint output_delta = 0; output_delta < OutputsPerSimdgroup; ++output_delta) {
+      const uint column = first_column + output_delta;
+      if (column >= args.n)
+        continue;
+      const float sum = simd_sum(sums[row_delta][output_delta]);
+      if (lane == 0u) {
+        const uint bi = args.b_scale_size == 1u ? 0u : column;
+        float value = sum / b_scales[bi];
+        if (args.has_bias)
+          value += float(bias[column]);
+        if (args.activation >= 0)
+          value = apply_unary(value, uint(args.activation));
+        value = float(half(value));
+        const uint index = row * args.n + column;
+        if (args.has_residual)
+          value += float(residual[index]);
+        output[index] = half(value);
+      }
+    }
+  }
+}
+
+#define WEIGHT_ONLY_INT8_DENSE_KERNEL(NAME, ROWS, OUTPUTS)                            \
+kernel void NAME(device const half* a [[buffer(0)]],                                  \
+                 device const char* b [[buffer(1)]],                                  \
+                 device const float* b_scales [[buffer(2)]],                          \
+                 device const half* bias [[buffer(3)]],                               \
+                 device const half* residual [[buffer(4)]],                           \
+                 device half* output [[buffer(5)]],                                   \
+                 constant Int8DenseArgs& args [[buffer(6)]],                          \
+                 uint3 group [[threadgroup_position_in_grid]],                        \
+                 uint lane [[thread_index_in_simdgroup]],                             \
+                 uint simd_id [[simdgroup_index_in_threadgroup]],                     \
+                 uint simd_groups [[simdgroups_per_threadgroup]]) {                   \
+  weight_only_int8_dense_f16_impl<ROWS, OUTPUTS>(                                     \
+    a, b, b_scales, bias, residual, output, args, group, lane, simd_id, simd_groups); \
+}
+
+WEIGHT_ONLY_INT8_DENSE_KERNEL(weight_only_int8_dense_m4_f16, 4, 2)
+WEIGHT_ONLY_INT8_DENSE_KERNEL(weight_only_int8_dense_m8_f16, 8, 2)
+WEIGHT_ONLY_INT8_DENSE_KERNEL(weight_only_int8_dense_m16_f16, 16, 1)
 
 #define MEDIAN_FILTER_KERNEL(NAME, TYPE, LOAD, STORE)                                  \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                               \
@@ -1326,6 +2319,28 @@ TRANSPOSE_4D_KERNEL(transpose_4d_f32, float)
 TRANSPOSE_4D_KERNEL(transpose_4d_f16, half)
 TRANSPOSE_4D_KERNEL(transpose_4d_bf16, ushort)
 
+// Transformer attention overwhelmingly uses [B, T, H, D] <-> [B, H, T, D].
+// Dispatch one threadgroup per contiguous D block so group coordinates replace
+// the generic kernel's multiple 64-bit divisions for every scalar value.
+#define TRANSPOSE_0213_VEC4_KERNEL(NAME, TYPE4)                                      \
+kernel void NAME(device const TYPE4* a [[buffer(0)]],                                \
+                 device TYPE4* b [[buffer(1)]],                                      \
+                 constant Transpose0213Args& args [[buffer(2)]],                     \
+                 uint block [[threadgroup_position_in_grid]],                        \
+                 uint tid [[thread_index_in_threadgroup]],                           \
+                 uint nt [[threads_per_threadgroup]]) {                              \
+  const uint blocks_per_batch = args.d2 * args.d1;                                   \
+  const uint batch = block / blocks_per_batch;                                       \
+  const uint local = block - batch * blocks_per_batch;                               \
+  const uint i2 = local / args.d1;                                                   \
+  const uint i1 = local - i2 * args.d1;                                              \
+  const uint source_block = (batch * args.d1 + i1) * args.d2 + i2;                   \
+  for (uint v = tid; v < args.d3_vectors; v += nt)                                  \
+    b[block * args.d3_vectors + v] = a[source_block * args.d3_vectors + v];          \
+}
+
+TRANSPOSE_0213_VEC4_KERNEL(transpose_0213_vec4_f16, half4)
+
 #define SOFTMAX_KERNEL(NAME, TYPE, LOAD, STORE)                                        \
 kernel void NAME(device const TYPE* x [[buffer(0)]],                                   \
                  device const int* lengths [[buffer(1)]],                              \
@@ -1380,6 +2395,101 @@ kernel void NAME(device const TYPE* x [[buffer(0)]],                            
 SOFTMAX_KERNEL(softmax_f32, float, load_value<float>, store_value<float>)
 SOFTMAX_KERNEL(softmax_f16, half, load_value<half>, store_value<half>)
 SOFTMAX_KERNEL(softmax_bf16, ushort, load_value_bf16, store_value_bf16)
+
+// Fuses the two decoder attention GEMMs and the intervening softmax. The
+// input layout is [matrix_batch, query/key_length, depth], where
+// matrix_batch is the product of the model batch and attention heads. One
+// threadgroup computes one query row. Scores and probabilities are rounded
+// to FP16 at the same boundaries as the generic GEMM -> softmax -> GEMM path.
+kernel void fused_attention_f16(
+    device const half4* queries [[buffer(0)]],
+    device const half4* keys [[buffer(1)]],
+    device const half4* values [[buffer(2)]],
+    device const int* lengths [[buffer(3)]],
+    device half4* output [[buffer(4)]],
+    constant FusedAttentionArgs& args [[buffer(5)]],
+    threadgroup float* scores [[threadgroup(0)]],
+    threadgroup float* scratch [[threadgroup(1)]],
+    uint row [[threadgroup_position_in_grid]],
+    uint tid [[thread_index_in_threadgroup]],
+    uint nt [[threads_per_threadgroup]]) {
+  const uint total_rows = args.batch_size * args.query_length;
+  if (row >= total_rows)
+    return;
+
+  const uint matrix = row / args.query_length;
+  const uint query_row = row - matrix * args.query_length;
+  uint q_offset;
+  if (args.interleaved_num_heads != 0u) {
+    const uint model_batch = matrix / args.interleaved_num_heads;
+    const uint head = matrix - model_batch * args.interleaved_num_heads;
+    q_offset = ((model_batch * args.query_length + query_row)
+                * args.interleaved_num_heads + head) * args.depth_vectors;
+  } else {
+    q_offset = (matrix * args.query_length + query_row) * args.depth_vectors;
+  }
+  const uint kv_offset = matrix * args.key_length * args.depth_vectors;
+  uint valid = args.key_length;
+  if (args.has_lengths) {
+    const int requested = lengths[row];
+    valid = requested <= 0 ? 0u : min(uint(requested), args.key_length);
+  }
+
+  if (valid == 0u) {
+    for (uint d = tid; d < args.depth_vectors; d += nt)
+      output[q_offset + d] = half4(0.0h);
+    return;
+  }
+
+  float local_maximum = -INFINITY;
+  for (uint key_row = tid; key_row < valid; key_row += nt) {
+    const uint key_offset = kv_offset + key_row * args.depth_vectors;
+    float dot_product = 0.0f;
+    for (uint d = 0; d < args.depth_vectors; ++d)
+      dot_product += dot(float4(queries[q_offset + d]),
+                         float4(keys[key_offset + d]));
+    // Preserve the materialized first GEMM's FP16 rounding.
+    const float score = float(half(dot_product * args.scale));
+    scores[key_row] = score;
+    local_maximum = max(local_maximum, score);
+  }
+
+  scratch[tid] = local_maximum;
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+  for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+    if (tid < stride)
+      scratch[tid] = max(scratch[tid], scratch[tid + stride]);
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+  const float maximum = scratch[0];
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+
+  float local_sum = 0.0f;
+  for (uint key_row = tid; key_row < valid; key_row += nt)
+    local_sum += exp(scores[key_row] - maximum);
+  scratch[tid] = local_sum;
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+  for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+    if (tid < stride)
+      scratch[tid] += scratch[tid + stride];
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+  const float log_sum = log(scratch[0]);
+  for (uint key_row = tid; key_row < valid; key_row += nt) {
+    // Preserve the materialized softmax's FP16 rounding.
+    scores[key_row] = float(half(exp(scores[key_row] - maximum - log_sum)));
+  }
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+
+  for (uint d = tid; d < args.depth_vectors; d += nt) {
+    float4 result(0.0f);
+    for (uint key_row = 0; key_row < valid; ++key_row) {
+      const uint value_offset = kv_offset + key_row * args.depth_vectors + d;
+      result += scores[key_row] * float4(values[value_offset]);
+    }
+    output[q_offset + d] = half4(result);
+  }
+}
 
 #define MEAN_KERNEL(NAME, TYPE, LOAD, STORE)                                           \
 kernel void NAME(device const TYPE* x [[buffer(0)]],                                   \
@@ -1529,6 +2639,57 @@ LAYER_NORM_KERNEL(layer_norm_f32, float, load_value<float>, store_value<float>)
 LAYER_NORM_KERNEL(layer_norm_f16, half, load_value<half>, store_value<half>)
 LAYER_NORM_KERNEL(layer_norm_bf16, ushort, load_value_bf16, store_value_bf16)
 
+// The post-norm Transformer path normally dispatches BiasAdd and LayerNorm
+// separately. Preserve the intermediate FP16 rounding performed by BiasAdd so
+// this fusion changes submission and memory traffic, not model numerics.
+kernel void fused_bias_residual_layer_norm_f16(
+                 device const half* x [[buffer(0)]],
+                 device const half* bias [[buffer(1)]],
+                 device const half* residual [[buffer(2)]],
+                 device const half* gamma [[buffer(3)]],
+                 device const half* beta [[buffer(4)]],
+                 device half* y [[buffer(5)]],
+                 constant NormArgs& args [[buffer(6)]],
+                 threadgroup float* scratch [[threadgroup(0)]],
+                 uint row [[threadgroup_position_in_grid]],
+                 uint tid [[thread_index_in_threadgroup]],
+                 uint nt [[threads_per_threadgroup]]) {
+  if ((ulong)row >= args.outer_size) return;
+  const ulong base = (ulong)row * args.axis_size;
+  float sum = 0.0f;
+  float sumsq = 0.0f;
+  for (ulong k = (ulong)tid; k < args.axis_size; k += (ulong)nt) {
+    const ulong index = base + k;
+    const half rounded = half(float(x[index]) + float(bias[k]) + float(residual[index]));
+    const float value = float(rounded);
+    sum += value;
+    sumsq += value * value;
+  }
+  scratch[tid] = sum;
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+  for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+    if (tid < stride) scratch[tid] += scratch[tid + stride];
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+  const float total_sum = scratch[0];
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+  scratch[tid] = sumsq;
+  threadgroup_barrier(mem_flags::mem_threadgroup);
+  for (uint stride = nt >> 1; stride > 0; stride >>= 1) {
+    if (tid < stride) scratch[tid] += scratch[tid + stride];
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+  }
+  const float mean = total_sum / float(args.axis_size);
+  const float variance = max(scratch[0] / float(args.axis_size) - mean * mean, 0.0f);
+  const float rstd = rsqrt(variance + args.epsilon);
+  for (ulong k = (ulong)tid; k < args.axis_size; k += (ulong)nt) {
+    const ulong index = base + k;
+    const half rounded = half(float(x[index]) + float(bias[k]) + float(residual[index]));
+    const float value = (float(rounded) - mean) * rstd;
+    y[index] = half(value * float(gamma[k]) + float(beta[k]));
+  }
+}
+
 #define RMS_NORM_KERNEL(NAME, TYPE, LOAD, STORE)                                       \
 kernel void NAME(device const TYPE* x [[buffer(0)]],                                   \
                  device const TYPE* gamma [[buffer(1)]],                               \
@@ -1666,11 +2827,27 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint64_t p3;
       };
 
+      struct Transpose0213Args {
+        uint32_t d1;
+        uint32_t d2;
+        uint32_t d3_vectors;
+      };
+
       struct SoftmaxArgs {
         uint64_t batch_size;
         uint64_t depth;
         uint32_t has_lengths;
         uint32_t log_output;
+      };
+
+      struct FusedAttentionArgs {
+        uint32_t batch_size;
+        uint32_t query_length;
+        uint32_t key_length;
+        uint32_t depth_vectors;
+        uint32_t has_lengths;
+        uint32_t interleaved_num_heads;
+        float scale;
       };
 
       struct MeanArgs {
@@ -1767,9 +2944,30 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         float beta;
       };
 
+      struct SimdgroupGemmArgs {
+        uint32_t m;
+        uint32_t n;
+        uint32_t k;
+        uint32_t lda;
+        uint32_t ldb;
+        uint32_t ldc;
+        float alpha;
+        float beta;
+        uint32_t has_bias;
+        uint32_t has_residual;
+        int32_t activation;
+      };
+
       struct SmallTopKArgs {
         uint32_t batch_size;
         uint32_t depth;
+        uint32_t k;
+      };
+
+      struct BeamSearchTopKArgs {
+        uint32_t batch_size;
+        uint32_t beam_size;
+        uint32_t vocabulary_size;
         uint32_t k;
       };
 
@@ -1801,10 +2999,30 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint64_t num_indices_per_batch;
       };
 
+      struct GatherBlockArgs {
+        uint32_t copy_vectors;
+        uint32_t batch_stride_vectors;
+        uint32_t num_indices;
+        uint32_t num_indices_per_batch;
+      };
+
       struct Concat2Args {
         uint64_t outer_size;
         uint64_t a_block_size;
         uint64_t b_block_size;
+      };
+
+      struct Split2Args {
+        uint64_t outer_size;
+        uint64_t a_block_size;
+        uint64_t b_block_size;
+      };
+
+      struct Split3Args {
+        uint64_t outer_size;
+        uint64_t a_block_size;
+        uint64_t b_block_size;
+        uint64_t c_block_size;
       };
 
       struct TileArgs {
@@ -1841,6 +3059,17 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint32_t transpose_a;
         uint32_t transpose_b;
         uint32_t has_bias;
+        int32_t activation;
+      };
+
+      struct Int8DenseArgs {
+        uint32_t m;
+        uint32_t n;
+        uint32_t k;
+        uint32_t a_scale_size;
+        uint32_t b_scale_size;
+        uint32_t has_bias;
+        uint32_t has_residual;
         int32_t activation;
       };
 
@@ -2455,6 +3684,137 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       return value >= 0 && static_cast<uint64_t>(value) <= UINT32_MAX;
     }
 
+    static bool small_m5_gemm_layout_supported(const void* a,
+                                                dim_t lda,
+                                                const void* b,
+                                                dim_t ldb,
+                                                dim_t k) {
+      const bool uses_vector_loads = k % 4 == 0 && lda % 4 == 0 && ldb % 4 == 0;
+      return !uses_vector_loads
+             || ((reinterpret_cast<uintptr_t>(a) & 7u) == 0
+                 && (reinterpret_cast<uintptr_t>(b) & 7u) == 0);
+    }
+
+    static bool simdgroup_gemm_enabled() {
+      static const bool enabled = []() {
+        const char* value = std::getenv("CT2_MPS_USE_SIMDGROUP_GEMM");
+        return value && value[0] != '\0' && value[0] != '0';
+      }();
+      return enabled;
+    }
+
+    static void simdgroup_gemm_nt_f16(dim_t m,
+                                      dim_t n,
+                                      dim_t k,
+                                      float alpha,
+                                      const void* a,
+                                      dim_t lda,
+                                      const void* b,
+                                      dim_t ldb,
+                                      float beta,
+                                      void* c,
+                                      dim_t ldc,
+                                      const void* bias = nullptr,
+                                      const void* residual = nullptr,
+                                      int activation = -1) {
+      const char* kernel = "simdgroup_gemm_nt_f16_64x64";
+      const NSUInteger tile_m = 64;
+      const NSUInteger threads = 128;
+      const SimdgroupGemmArgs args{static_cast<uint32_t>(m),
+                                   static_cast<uint32_t>(n),
+                                   static_cast<uint32_t>(k),
+                                   static_cast<uint32_t>(lda),
+                                   static_cast<uint32_t>(ldb),
+                                   static_cast<uint32_t>(ldc),
+                                   alpha,
+                                   beta,
+                                   bias ? 1u : 0u,
+                                   residual ? 1u : 0u,
+                                   activation};
+      id<MTLComputePipelineState> state = pipeline(kernel);
+      id<MTLComputeCommandEncoder> encoder =
+        (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+      [encoder setComputePipelineState:state];
+      set_buffer(encoder, a, dense_matrix_bytes(m, k, lda, sizeof(uint16_t)), 0);
+      set_buffer(encoder, b, dense_matrix_bytes(n, k, ldb, sizeof(uint16_t)), 1);
+      set_buffer(encoder, c, dense_matrix_bytes(m, n, ldc, sizeof(uint16_t)), 2);
+      [encoder setBytes:&args length:sizeof(args) atIndex:3];
+      set_buffer(encoder,
+                 bias ? bias : c,
+                 bias ? static_cast<size_t>(n) * sizeof(uint16_t) : sizeof(uint16_t),
+                 4);
+      set_buffer(encoder,
+                 residual ? residual : c,
+                 residual ? dense_matrix_bytes(m, n, ldc, sizeof(uint16_t))
+                          : sizeof(uint16_t),
+                 5);
+      [encoder dispatchThreadgroups:MTLSizeMake((static_cast<NSUInteger>(n) + 63) / 64,
+                                                (static_cast<NSUInteger>(m) + tile_m - 1) / tile_m,
+                                                1)
+               threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+      [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+      record_compute_dispatch(kernel);
+      record_profile_event(ProfileEvent::Gemm);
+    }
+
+    static void small_m5_gemm_nt_f16(dim_t m,
+                                     dim_t n,
+                                     dim_t k,
+                                     float alpha,
+                                     const void* a,
+                                     dim_t lda,
+                                     const void* b,
+                                     dim_t ldb,
+                                     float beta,
+                                     void* c,
+                                     dim_t ldc,
+                                     const void* bias = nullptr,
+                                     const void* residual = nullptr,
+                                     int activation = -1) {
+      const char* kernel = "small_m5_gemm_nt_f16";
+      const SimdgroupGemmArgs args{static_cast<uint32_t>(m),
+                                   static_cast<uint32_t>(n),
+                                   static_cast<uint32_t>(k),
+                                   static_cast<uint32_t>(lda),
+                                   static_cast<uint32_t>(ldb),
+                                   static_cast<uint32_t>(ldc),
+                                   alpha,
+                                   beta,
+                                   bias ? 1u : 0u,
+                                   residual ? 1u : 0u,
+                                   activation};
+      id<MTLComputePipelineState> state = pipeline(kernel);
+      id<MTLComputeCommandEncoder> encoder =
+        (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+      [encoder setComputePipelineState:state];
+      set_buffer(encoder, a, dense_matrix_bytes(m, k, lda, sizeof(uint16_t)), 0);
+      set_buffer(encoder, b, dense_matrix_bytes(n, k, ldb, sizeof(uint16_t)), 1);
+      set_buffer(encoder, c, dense_matrix_bytes(m, n, ldc, sizeof(uint16_t)), 2);
+      [encoder setBytes:&args length:sizeof(args) atIndex:3];
+      set_buffer(encoder,
+                 bias ? bias : c,
+                 bias ? static_cast<size_t>(n) * sizeof(uint16_t) : sizeof(uint16_t),
+                 4);
+      set_buffer(encoder,
+                 residual ? residual : c,
+                 residual ? dense_matrix_bytes(m, n, ldc, sizeof(uint16_t))
+                          : sizeof(uint16_t),
+                 5);
+      NSUInteger simd_groups = n >= 4096 ? 8 : 4;
+      while (simd_groups * 32 > state.maxTotalThreadsPerThreadgroup)
+        simd_groups >>= 1;
+      const NSUInteger outputs_per_group = simd_groups * 2;
+      [encoder dispatchThreadgroups:MTLSizeMake(
+                 (static_cast<NSUInteger>(n) + outputs_per_group - 1)
+                   / outputs_per_group,
+                 1,
+                 1)
+               threadsPerThreadgroup:MTLSizeMake(simd_groups * 32, 1, 1)];
+      [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+      record_compute_dispatch(kernel);
+      record_profile_event(ProfileEvent::Gemm);
+    }
+
     static void tiled_gemm(DataType dtype,
                            bool transpose_a,
                            bool transpose_b,
@@ -2679,6 +4039,121 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                      a, lda, 0, b, ldb, 0, beta, c, ldc, 0, 1);
     }
 
+    bool gemm_weight_only_int8_with_epilogue(const void* a,
+                                             const int8_t* b,
+                                             const float* b_scales,
+                                             dim_t b_scale_size,
+                                             const void* bias,
+                                             const void* residual,
+                                             void* output,
+                                             dim_t m,
+                                             dim_t n,
+                                             dim_t k,
+                                             int activation) {
+      static const bool enabled = []() {
+        const char* value = std::getenv("CT2_MPS_USE_WEIGHT_ONLY_INT8");
+        return !value || value[0] == '\0' || std::string(value) != "0";
+      }();
+      if (!enabled
+          || m <= 0 || m > 32 || n <= 0 || k <= 0
+          || !fits_u32(m) || !fits_u32(n) || !fits_u32(k)
+          || (b_scale_size != 1 && b_scale_size != n))
+        return false;
+      if ((k & 3) == 0
+          && ((reinterpret_cast<uintptr_t>(a) & 7u) != 0
+              || (reinterpret_cast<uintptr_t>(b) & 3u) != 0))
+        return false;
+
+      const Int8DenseArgs args{static_cast<uint32_t>(m),
+                               static_cast<uint32_t>(n),
+                               static_cast<uint32_t>(k),
+                               0,
+                               static_cast<uint32_t>(b_scale_size),
+                               bias ? 1u : 0u,
+                               residual ? 1u : 0u,
+                               activation};
+      constexpr NSUInteger threads = 128;
+      constexpr NSUInteger simdgroups = threads / 32;
+      const char* kernel = nullptr;
+      NSUInteger rows_per_block = 0;
+      NSUInteger outputs_per_simdgroup = 0;
+      static const bool use_simdgroup = []() {
+        const char* value = std::getenv("CT2_MPS_USE_INT8_SIMDGROUP");
+        return !value || value[0] == '\0' || std::string(value) != "0";
+      }();
+      if (use_simdgroup) {
+        kernel = "simdgroup_gemm_nt_i8_f16_16x64";
+        rows_per_block = 16;
+        // The four SIMD groups jointly cover one 64-column tile.
+        outputs_per_simdgroup = 16;
+      } else if (m <= 4) {
+        kernel = "weight_only_int8_dense_m4_f16";
+        rows_per_block = 4;
+        outputs_per_simdgroup = 2;
+      } else if (m <= 8) {
+        kernel = "weight_only_int8_dense_m8_f16";
+        rows_per_block = 8;
+        outputs_per_simdgroup = 2;
+      } else {
+        kernel = "weight_only_int8_dense_m16_f16";
+        rows_per_block = 16;
+        outputs_per_simdgroup = 1;
+      }
+      id<MTLComputePipelineState> state = pipeline(kernel);
+      id<MTLComputeCommandEncoder> encoder =
+        (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+      [encoder setComputePipelineState:state];
+      set_buffer(encoder, a, static_cast<size_t>(m * k) * sizeof(uint16_t), 0);
+      set_buffer(encoder, b, static_cast<size_t>(n * k), 1);
+      set_buffer(encoder,
+                 b_scales,
+                 static_cast<size_t>(b_scale_size) * sizeof(float),
+                 2);
+      set_buffer(encoder,
+                 bias ? bias : output,
+                 bias ? static_cast<size_t>(n) * sizeof(uint16_t) : sizeof(uint16_t),
+                 3);
+      set_buffer(encoder,
+                 residual ? residual : output,
+                 residual ? static_cast<size_t>(m * n) * sizeof(uint16_t)
+                          : sizeof(uint16_t),
+                 4);
+      set_buffer(encoder,
+                 output,
+                 static_cast<size_t>(m * n) * sizeof(uint16_t),
+                 5);
+      [encoder setBytes:&args length:sizeof(args) atIndex:6];
+      [encoder dispatchThreadgroups:MTLSizeMake(
+          (static_cast<NSUInteger>(n) + simdgroups * outputs_per_simdgroup - 1)
+            / (simdgroups * outputs_per_simdgroup),
+          (static_cast<NSUInteger>(m) + rows_per_block - 1) / rows_per_block,
+          1)
+               threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+      record_compute_dispatch(kernel);
+      record_profile_event(ProfileEvent::Gemm);
+      log_gemm(DataType::INT8,
+               false,
+               true,
+               m,
+               n,
+               k,
+               k,
+               k,
+               n,
+               1,
+               0,
+               0,
+               0,
+               "weight_only_f16");
+      if (profile_enabled()) {
+        const std::string detail = "int8_weight_only m=" + std::to_string(m)
+                                   + " n=" + std::to_string(n)
+                                   + " k=" + std::to_string(k);
+        record_profile_detail(detail.c_str());
+      }
+      return true;
+    }
+
     void gemm_int8_batch_strided(bool transpose_a,
                                  bool transpose_b,
                                  dim_t m,
@@ -2878,6 +4353,54 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       record_profile_event(ProfileEvent::Gemv);
     }
 
+    bool gemm_with_epilogue(DataType dtype,
+                            bool transpose_a,
+                            bool transpose_b,
+                            dim_t m,
+                            dim_t n,
+                            dim_t k,
+                            float alpha,
+                            const void* a,
+                            dim_t lda,
+                            const void* b,
+                            dim_t ldb,
+                            float beta,
+                            void* c,
+                            dim_t ldc,
+                            const void* bias,
+                            const void* residual,
+                            int activation) {
+      if (dtype == DataType::FLOAT16
+          && !transpose_a
+          && transpose_b
+          && m == 5
+          && small_m5_gemm_layout_supported(a, lda, b, ldb, k)
+          && fits_u32(n) && fits_u32(k)
+          && fits_u32(lda) && fits_u32(ldb) && fits_u32(ldc)) {
+        log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
+                 1, 0, 0, 0, "small_m5_nt_f16_epilogue");
+        small_m5_gemm_nt_f16(m, n, k, alpha,
+                             a, lda, b, ldb, beta, c, ldc,
+                             bias, residual, activation);
+        return true;
+      }
+      if (!simdgroup_gemm_enabled()
+          || dtype != DataType::FLOAT16
+          || transpose_a
+          || !transpose_b
+          || m < 64
+          || !fits_u32(m) || !fits_u32(n) || !fits_u32(k)
+          || !fits_u32(lda) || !fits_u32(ldb) || !fits_u32(ldc))
+        return false;
+
+      log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
+               1, 0, 0, 0, "simdgroup_nt_f16_epilogue");
+      simdgroup_gemm_nt_f16(m, n, k, alpha,
+                            a, lda, b, ldb, beta, c, ldc,
+                            bias, residual, activation);
+      return true;
+    }
+
     void gemm(DataType dtype,
               bool transpose_a,
               bool transpose_b,
@@ -2938,6 +4461,39 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
              ldc,
              0,
              1);
+        return;
+      }
+
+      if (dtype == DataType::FLOAT16
+          && !transpose_a
+          && transpose_b
+          && m == 5
+          && small_m5_gemm_layout_supported(a, lda, b, ldb, k)
+          && fits_u32(n) && fits_u32(k)
+          && fits_u32(lda) && fits_u32(ldb) && fits_u32(ldc)) {
+        log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
+                 1, 0, 0, 0, "small_m5_nt_f16");
+        small_m5_gemm_nt_f16(m, n, k, alpha,
+                             a, lda, b, ldb, beta, c, ldc);
+        return;
+      }
+
+      // CTranslate2 Dense weights use the output-major [N, K] layout. On
+      // Apple Silicon, MPSMatrixMultiplication leaves substantial throughput
+      // on the table for these medium-M FP16 projections (especially the
+      // vocabulary projection). Keep this opt-in while its shape thresholds
+      // are benchmarked across supported GPU generations.
+      if (simdgroup_gemm_enabled()
+          && dtype == DataType::FLOAT16
+          && !transpose_a
+          && transpose_b
+          && m >= 64
+          && fits_u32(m) && fits_u32(n) && fits_u32(k)
+          && fits_u32(lda) && fits_u32(ldb) && fits_u32(ldc)) {
+        log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
+                 1, 0, 0, 0, "simdgroup_nt_f16");
+        simdgroup_gemm_nt_f16(m, n, k, alpha,
+                              a, lda, b, ldb, beta, c, ldc);
         return;
       }
 
@@ -3430,6 +4986,67 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       }
     }
 
+    bool fused_beam_search_topk(DataType dtype,
+                                const void* logits,
+                                const void* beam_scores,
+                                void* values,
+                                int32_t* indices,
+                                dim_t batch_size,
+                                dim_t beam_size,
+                                dim_t vocabulary_size,
+                                dim_t k) {
+      if (dtype != DataType::FLOAT16
+          || !logits || !beam_scores || !values || !indices
+          || batch_size <= 0 || batch_size > UINT32_MAX
+          || beam_size <= 1 || beam_size > 8
+          || vocabulary_size <= 0 || vocabulary_size > UINT32_MAX
+          || k <= 0 || k > 16)
+        return false;
+
+      const BeamSearchTopKArgs args{static_cast<uint32_t>(batch_size),
+                                    static_cast<uint32_t>(beam_size),
+                                    static_cast<uint32_t>(vocabulary_size),
+                                    static_cast<uint32_t>(k)};
+      const size_t logits_elements = static_cast<size_t>(batch_size)
+                                     * static_cast<size_t>(beam_size)
+                                     * static_cast<size_t>(vocabulary_size);
+      const size_t score_elements = static_cast<size_t>(batch_size)
+                                    * static_cast<size_t>(beam_size);
+      const size_t output_elements = static_cast<size_t>(batch_size)
+                                     * static_cast<size_t>(k);
+      const char* kernel = k <= 8
+                             ? "fused_beam_search_topk_f16"
+                             : (k <= 10
+                                  ? "fused_beam_search_topk_10_f16"
+                                  : "fused_beam_search_topk_16_f16");
+      id<MTLComputePipelineState> state = pipeline(kernel);
+      id<MTLComputeCommandEncoder> encoder =
+        (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+      [encoder setComputePipelineState:state];
+      set_buffer(encoder, logits, logits_elements * sizeof(float16_t), 0);
+      set_buffer(encoder, beam_scores, score_elements * sizeof(float16_t), 1);
+      set_buffer(encoder, values, output_elements * sizeof(float16_t), 2);
+      set_buffer(encoder, indices, output_elements * sizeof(int32_t), 3);
+      [encoder setBytes:&args length:sizeof(args) atIndex:4];
+      NSUInteger threads = 256;
+      while (threads > state.maxTotalThreadsPerThreadgroup)
+        threads >>= 1;
+      const NSUInteger float_scratch = ((threads * sizeof(float) + 15) / 16) * 16;
+      const NSUInteger index_scratch = ((threads * sizeof(uint32_t) + 15) / 16) * 16;
+      const NSUInteger candidate_count = static_cast<NSUInteger>(beam_size * k);
+      [encoder setThreadgroupMemoryLength:float_scratch atIndex:0];
+      [encoder setThreadgroupMemoryLength:index_scratch atIndex:1];
+      [encoder setThreadgroupMemoryLength:candidate_count * sizeof(float) atIndex:2];
+      [encoder setThreadgroupMemoryLength:candidate_count * sizeof(uint32_t) atIndex:3];
+      [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(batch_size), 1, 1)
+               threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+      [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+      record_compute_dispatch(kernel);
+      record_profile_event(ProfileEvent::TopKGpu);
+      record_profile_detail(kernel);
+      return true;
+    }
+
     void fill(DataType dtype, const void* value, void* y, dim_t size) {
       if (size == 0)
         return;
@@ -3679,9 +5296,68 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                 dim_t num_indices_per_batch) {
       if (num_indices == 0 || copy_size == 0)
         return;
+      if (num_indices_per_batch <= 0 || num_indices % num_indices_per_batch != 0)
+        throw std::invalid_argument("MPS gather received invalid per-batch indices");
       const dim_t batch_size = num_indices / num_indices_per_batch;
       const size_t element_size = dtype_size(dtype);
       const uint64_t output_size = static_cast<uint64_t>(num_indices * copy_size);
+      if (profile_enabled()) {
+        const std::string detail =
+          "gather dtype=" + dtype_name(dtype)
+          + " copy=" + std::to_string(copy_size)
+          + " batch_stride=" + std::to_string(batch_stride)
+          + " indices=" + std::to_string(num_indices)
+          + " per_batch=" + std::to_string(num_indices_per_batch);
+        record_profile_detail(detail.c_str());
+      }
+      const size_t vector_bytes = 4 * element_size;
+      const bool vector_aligned = copy_size % 4 == 0
+                                  && batch_stride % 4 == 0
+                                  && reinterpret_cast<uintptr_t>(data) % vector_bytes == 0
+                                  && reinterpret_cast<uintptr_t>(output) % vector_bytes == 0;
+      const dim_t copy_vectors = copy_size / 4;
+      const dim_t batch_stride_vectors = batch_stride / 4;
+      if (dtype == DataType::FLOAT16
+          && vector_aligned
+          && fits_u32(copy_vectors)
+          && fits_u32(batch_stride_vectors)
+          && fits_u32(num_indices)
+          && fits_u32(num_indices_per_batch)) {
+        const GatherBlockArgs block_args{
+          static_cast<uint32_t>(copy_vectors),
+          static_cast<uint32_t>(batch_stride_vectors),
+          static_cast<uint32_t>(num_indices),
+          static_cast<uint32_t>(num_indices_per_batch)};
+        const std::string name = storage_kernel_name("gather_block_vec4", dtype);
+        id<MTLComputePipelineState> state = pipeline(name);
+        id<MTLComputeCommandEncoder> encoder =
+          (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+        [encoder setComputePipelineState:state];
+        set_buffer(encoder,
+                   data,
+                   static_cast<size_t>(batch_size * batch_stride) * element_size,
+                   0);
+        set_buffer(encoder,
+                   indices,
+                   static_cast<size_t>(num_indices) * sizeof(int32_t),
+                   1);
+        set_buffer(encoder,
+                   output,
+                   static_cast<size_t>(output_size) * element_size,
+                   2);
+        [encoder setBytes:&block_args length:sizeof(block_args) atIndex:3];
+        const NSUInteger simd_width = std::max<NSUInteger>(1, state.threadExecutionWidth);
+        NSUInteger threads = std::min<NSUInteger>(256, state.maxTotalThreadsPerThreadgroup);
+        threads = std::min<NSUInteger>(threads,
+                                       std::max<NSUInteger>(simd_width,
+                                         ((static_cast<NSUInteger>(copy_vectors)
+                                           + simd_width - 1) / simd_width) * simd_width));
+        [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(num_indices), 1, 1)
+                 threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+        [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+        record_compute_dispatch(name.c_str());
+        return;
+      }
       const GatherArgs args{static_cast<uint64_t>(copy_size),
                             static_cast<uint64_t>(batch_stride),
                             static_cast<uint64_t>(num_indices),
@@ -3721,6 +5397,61 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
              3);
     }
 
+    void split2(DataType dtype,
+                const void* input,
+                void* a,
+                dim_t a_block_size,
+                void* b,
+                dim_t b_block_size,
+                dim_t outer_size) {
+      if (outer_size <= 0 || a_block_size <= 0 || b_block_size <= 0)
+        return;
+      const size_t element_size = dtype_size(dtype);
+      const uint64_t input_block = static_cast<uint64_t>(a_block_size + b_block_size);
+      const uint64_t input_size = static_cast<uint64_t>(outer_size) * input_block;
+      const Split2Args args{static_cast<uint64_t>(outer_size),
+                            static_cast<uint64_t>(a_block_size),
+                            static_cast<uint64_t>(b_block_size)};
+      run_1d(storage_kernel_name("split2", dtype),
+             input_size,
+             {{input, static_cast<size_t>(input_size) * element_size},
+              {a, static_cast<size_t>(outer_size * a_block_size) * element_size},
+              {b, static_cast<size_t>(outer_size * b_block_size) * element_size}},
+             &args,
+             sizeof(args),
+             3);
+    }
+
+    void split3(DataType dtype,
+                const void* input,
+                void* a,
+                dim_t a_block_size,
+                void* b,
+                dim_t b_block_size,
+                void* c,
+                dim_t c_block_size,
+                dim_t outer_size) {
+      if (outer_size <= 0 || a_block_size <= 0 || b_block_size <= 0 || c_block_size <= 0)
+        return;
+      const size_t element_size = dtype_size(dtype);
+      const uint64_t input_block =
+        static_cast<uint64_t>(a_block_size + b_block_size + c_block_size);
+      const uint64_t input_size = static_cast<uint64_t>(outer_size) * input_block;
+      const Split3Args args{static_cast<uint64_t>(outer_size),
+                            static_cast<uint64_t>(a_block_size),
+                            static_cast<uint64_t>(b_block_size),
+                            static_cast<uint64_t>(c_block_size)};
+      run_1d(storage_kernel_name("split3", dtype),
+             input_size,
+             {{input, static_cast<size_t>(input_size) * element_size},
+              {a, static_cast<size_t>(outer_size * a_block_size) * element_size},
+              {b, static_cast<size_t>(outer_size * b_block_size) * element_size},
+              {c, static_cast<size_t>(outer_size * c_block_size) * element_size}},
+             &args,
+             sizeof(args),
+             4);
+    }
+
     void tile(DataType dtype,
               const void* input,
               void* output,
@@ -3731,6 +5462,14 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         static_cast<uint64_t>(outer_size * inner_size * num_tiles);
       if (output_size == 0)
         return;
+      if (profile_enabled()) {
+        const std::string detail =
+          "tile dtype=" + dtype_name(dtype)
+          + " outer=" + std::to_string(outer_size)
+          + " inner=" + std::to_string(inner_size)
+          + " repeats=" + std::to_string(num_tiles);
+        record_profile_detail(detail.c_str());
+      }
       const size_t element_size = dtype_size(dtype);
       const TileArgs args{static_cast<uint64_t>(outer_size),
                           static_cast<uint64_t>(inner_size),
@@ -3869,6 +5608,49 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
     void transpose_4d(DataType dtype, const void* a, const dim_t* dims, const dim_t* perm, void* b) {
       const uint64_t size = static_cast<uint64_t>(dims[0] * dims[1] * dims[2] * dims[3]);
       const size_t bytes = static_cast<size_t>(size) * dtype_size(dtype);
+      if (profile_enabled()) {
+        const std::string detail =
+          "transpose4 dtype=" + dtype_name(dtype)
+          + " dims=" + std::to_string(dims[0]) + "x" + std::to_string(dims[1])
+          + "x" + std::to_string(dims[2]) + "x" + std::to_string(dims[3])
+          + " perm=" + std::to_string(perm[0]) + std::to_string(perm[1])
+          + std::to_string(perm[2]) + std::to_string(perm[3]);
+        record_profile_detail(detail.c_str());
+      }
+      const size_t vector_bytes = 4 * dtype_size(dtype);
+      const uint64_t block_count = static_cast<uint64_t>(dims[0])
+                                   * static_cast<uint64_t>(dims[1])
+                                   * static_cast<uint64_t>(dims[2]);
+      const bool swap_middle_dimensions = perm[0] == 0 && perm[1] == 2
+                                          && perm[2] == 1 && perm[3] == 3;
+      if (dtype == DataType::FLOAT16
+          && swap_middle_dimensions
+          && dims[0] > 0 && dims[1] > 0 && dims[2] > 0 && dims[3] > 0
+          && dims[3] % 4 == 0
+          && block_count <= UINT32_MAX
+          && fits_u32(dims[1]) && fits_u32(dims[2]) && fits_u32(dims[3] / 4)
+          && reinterpret_cast<uintptr_t>(a) % vector_bytes == 0
+          && reinterpret_cast<uintptr_t>(b) % vector_bytes == 0) {
+        const Transpose0213Args fast_args{static_cast<uint32_t>(dims[1]),
+                                          static_cast<uint32_t>(dims[2]),
+                                          static_cast<uint32_t>(dims[3] / 4)};
+        const std::string name = storage_kernel_name("transpose_0213_vec4", dtype);
+        id<MTLComputePipelineState> state = pipeline(name);
+        id<MTLComputeCommandEncoder> encoder =
+          (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+        [encoder setComputePipelineState:state];
+        set_buffer(encoder, a, bytes, 0);
+        set_buffer(encoder, b, bytes, 1);
+        [encoder setBytes:&fast_args length:sizeof(fast_args) atIndex:2];
+        const NSUInteger simd_width = std::max<NSUInteger>(1, state.threadExecutionWidth);
+        NSUInteger threads = std::min<NSUInteger>(state.maxTotalThreadsPerThreadgroup,
+                                                   simd_width);
+        [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(block_count), 1, 1)
+                 threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+        [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+        record_compute_dispatch(name.c_str());
+        return;
+      }
       const TransposeNDArgs args{static_cast<uint64_t>(dims[0]),
                                  static_cast<uint64_t>(dims[1]),
                                  static_cast<uint64_t>(dims[2]),
@@ -3902,6 +5684,93 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                &args,
                sizeof(args),
                3);
+    }
+
+    bool fused_attention(DataType dtype,
+                         const void* queries,
+                         const void* keys,
+                         const void* values,
+                         const int32_t* lengths,
+                         void* output,
+                         dim_t batch_size,
+                         dim_t query_length,
+                         dim_t key_length,
+                         dim_t depth,
+                         float scale,
+                         dim_t interleaved_num_heads) {
+      if (dtype != DataType::FLOAT16
+          || batch_size <= 0
+          || query_length <= 0
+          || query_length > 8
+          || key_length <= 0
+          || key_length > 4096
+          || depth <= 0
+          || depth > 256
+          || depth % 4 != 0
+          || batch_size > UINT32_MAX
+          || query_length > UINT32_MAX
+          || key_length > UINT32_MAX
+          || depth / 4 > UINT32_MAX)
+        return false;
+      if (interleaved_num_heads < 0
+          || interleaved_num_heads > UINT32_MAX
+          || (interleaved_num_heads != 0
+              && batch_size % interleaved_num_heads != 0))
+        return false;
+
+      // The half4 kernel requires 8-byte alignment at every matrix row.
+      if ((reinterpret_cast<uintptr_t>(queries) & 7u) != 0
+          || (reinterpret_cast<uintptr_t>(keys) & 7u) != 0
+          || (reinterpret_cast<uintptr_t>(values) & 7u) != 0
+          || (reinterpret_cast<uintptr_t>(output) & 7u) != 0)
+        return false;
+
+      const FusedAttentionArgs args{
+        static_cast<uint32_t>(batch_size),
+        static_cast<uint32_t>(query_length),
+        static_cast<uint32_t>(key_length),
+        static_cast<uint32_t>(depth / 4),
+        lengths ? 1u : 0u,
+        static_cast<uint32_t>(interleaved_num_heads),
+        scale,
+      };
+      const size_t element_size = sizeof(float16_t);
+      const size_t queries_bytes = static_cast<size_t>(batch_size * query_length * depth) * element_size;
+      const size_t keys_bytes = static_cast<size_t>(batch_size * key_length * depth) * element_size;
+      const size_t output_bytes = queries_bytes;
+      const void* lengths_or_dummy = lengths ? static_cast<const void*>(lengths) : queries;
+      const size_t lengths_bytes = lengths
+                                     ? static_cast<size_t>(batch_size * query_length) * sizeof(int32_t)
+                                     : element_size;
+
+      id<MTLComputePipelineState> state = pipeline("fused_attention_f16");
+      id<MTLComputeCommandEncoder> encoder =
+        (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
+      [encoder setComputePipelineState:state];
+      set_buffer(encoder, queries, queries_bytes, 0);
+      set_buffer(encoder, keys, keys_bytes, 1);
+      set_buffer(encoder, values, keys_bytes, 2);
+      set_buffer(encoder, lengths_or_dummy, lengths_bytes, 3);
+      set_buffer(encoder, output, output_bytes, 4);
+      [encoder setBytes:&args length:sizeof(args) atIndex:5];
+
+      NSUInteger threads = 32;
+      const NSUInteger parallel_work = std::max<NSUInteger>(
+        static_cast<NSUInteger>(key_length),
+        static_cast<NSUInteger>(depth / 4));
+      while (threads < parallel_work && threads < 256)
+        threads <<= 1;
+      while (threads > state.maxTotalThreadsPerThreadgroup)
+        threads >>= 1;
+      [encoder setThreadgroupMemoryLength:static_cast<NSUInteger>(key_length) * sizeof(float)
+                                  atIndex:0];
+      [encoder setThreadgroupMemoryLength:threads * sizeof(float) atIndex:1];
+      [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(batch_size * query_length), 1, 1)
+               threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
+      [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
+      record_compute_dispatch("fused_attention_f16");
+      record_profile_detail("fused_attention_f16");
+      return true;
     }
 
     void mean(DataType dtype,
@@ -3968,6 +5837,47 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                &args,
                sizeof(args),
                4);
+    }
+
+    bool fused_bias_residual_layer_norm(DataType dtype,
+                                        const void* input,
+                                        const void* bias,
+                                        const void* residual,
+                                        const void* gamma,
+                                        const void* beta,
+                                        void* output,
+                                        dim_t rows,
+                                        dim_t depth,
+                                        float epsilon) {
+      if (dtype != DataType::FLOAT16
+          || !input || !bias || !residual || !gamma || !beta || !output
+          || rows <= 0 || depth <= 0)
+        return false;
+
+      const size_t element_size = sizeof(float16_t);
+      const size_t tensor_bytes = static_cast<size_t>(rows * depth) * element_size;
+      const size_t parameter_bytes = static_cast<size_t>(depth) * element_size;
+      const NormArgs args{static_cast<uint64_t>(rows),
+                          static_cast<uint64_t>(depth),
+                          1,
+                          epsilon,
+                          1u,
+                          1u,
+                          1u};
+      run_rows("fused_bias_residual_layer_norm_f16",
+               rows,
+               reduction_threads(depth),
+               {{input, tensor_bytes},
+                {bias, parameter_bytes},
+                {residual, tensor_bytes},
+                {gamma, parameter_bytes},
+                {beta, parameter_bytes},
+                {output, tensor_bytes}},
+               &args,
+               sizeof(args),
+               6);
+      record_profile_detail("fused_bias_residual_layer_norm_f16");
+      return true;
     }
 
     void rms_norm(DataType dtype,

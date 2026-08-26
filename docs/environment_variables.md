@@ -101,6 +101,17 @@ force the general GEMM path for correctness comparisons or benchmarking.
 Enable the MPS GPU TopK path (default). Set to `0` to use the fallback path for
 debugging or performance comparisons.
 
+## `CT2_MPS_CACHE_INT8_FP16`
+
+Expand INT8 Dense weights to FP16 once on first use so that warm MPS inference
+can use the optimized FP16 matrix kernels without dynamically quantizing every
+activation. This optimization is enabled by default for `int8` and
+`int8_float16` models. Set it to `0` to keep weights compressed in device
+memory and use the lower-memory weight-only INT8 path instead.
+
+The cache does not change the on-disk model size, but its resident memory usage
+is similar to an FP16 model after all Dense layers have run.
+
 ## `CT2_FORCE_CPU_ISA`
 
 Force CTranslate2 to select a specific instruction set architecture (ISA). Possible values are:

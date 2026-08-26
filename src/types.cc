@@ -230,16 +230,24 @@ namespace ctranslate2 {
       const DataType float_type = compute_type_to_data_type(model_compute_type).second;
       ComputeType actual_compute_type = ComputeType::INT8_FLOAT32;
 
-      switch (float_type) {
-      case DataType::FLOAT16:
+      // Generic INT8 means the backend may select its most efficient floating
+      // activation type. Apple GPUs strongly prefer FP16 arithmetic; using the
+      // saved model's FP32 type here made compute_type="int8" substantially
+      // slower than the explicit int8_float16 mode on MPS.
+      if (device == Device::MPS && support_float16) {
         actual_compute_type = ComputeType::INT8_FLOAT16;
-        break;
-      case DataType::BFLOAT16:
-        actual_compute_type = ComputeType::INT8_BFLOAT16;
-        break;
-      default:
-        actual_compute_type = ComputeType::INT8_FLOAT32;
-        break;
+      } else {
+        switch (float_type) {
+        case DataType::FLOAT16:
+          actual_compute_type = ComputeType::INT8_FLOAT16;
+          break;
+        case DataType::BFLOAT16:
+          actual_compute_type = ComputeType::INT8_BFLOAT16;
+          break;
+        default:
+          actual_compute_type = ComputeType::INT8_FLOAT32;
+          break;
+        }
       }
 
       const ComputeType resolved_compute_type = resolve_compute_type(actual_compute_type,

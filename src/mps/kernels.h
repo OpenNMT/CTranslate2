@@ -44,6 +44,26 @@ namespace ctranslate2 {
               void* c,
               dim_t ldc);
 
+    // Returns true when the optimized FP16 Dense kernel handled the complete
+    // GEMM epilogue. The activation value uses UnaryOp or -1 for none.
+    bool gemm_with_epilogue(DataType dtype,
+                            bool transpose_a,
+                            bool transpose_b,
+                            dim_t m,
+                            dim_t n,
+                            dim_t k,
+                            float alpha,
+                            const void* a,
+                            dim_t lda,
+                            const void* b,
+                            dim_t ldb,
+                            float beta,
+                            void* c,
+                            dim_t ldc,
+                            const void* bias,
+                            const void* residual,
+                            int activation);
+
     void gemm_batch_strided(DataType dtype,
                             bool transpose_a,
                             bool transpose_b,
@@ -94,6 +114,21 @@ namespace ctranslate2 {
                                  dim_t ldc,
                                  dim_t stridec,
                                  dim_t batch_size);
+
+    // Weight-only INT8 Dense for FP16 activations. Weights stay compressed in
+    // device memory and are converted in registers, avoiding dynamic
+    // activation quantization and the INT32 output tensor.
+    bool gemm_weight_only_int8_with_epilogue(const void* a,
+                                             const int8_t* b,
+                                             const float* b_scales,
+                                             dim_t b_scale_size,
+                                             const void* bias,
+                                             const void* residual,
+                                             void* output,
+                                             dim_t m,
+                                             dim_t n,
+                                             dim_t k,
+                                             int activation);
 
     void gemv(DataType dtype,
               bool transpose_a,
@@ -214,6 +249,24 @@ namespace ctranslate2 {
                  void* output,
                  dim_t outer_size);
 
+    void split2(DataType dtype,
+                const void* input,
+                void* a,
+                dim_t a_block_size,
+                void* b,
+                dim_t b_block_size,
+                dim_t outer_size);
+
+    void split3(DataType dtype,
+                const void* input,
+                void* a,
+                dim_t a_block_size,
+                void* b,
+                dim_t b_block_size,
+                void* c,
+                dim_t c_block_size,
+                dim_t outer_size);
+
     void tile(DataType dtype,
               const void* input,
               void* output,
@@ -268,6 +321,22 @@ namespace ctranslate2 {
                  dim_t depth,
                  bool log);
 
+    // Computes softmax(scale * Q * K^T) * V for contiguous FP16 attention
+    // matrices. Returns false when the shape is outside the specialized
+    // decoder path so callers can use the generic operators.
+    bool fused_attention(DataType dtype,
+                         const void* queries,
+                         const void* keys,
+                         const void* values,
+                         const int32_t* lengths,
+                         void* output,
+                         dim_t batch_size,
+                         dim_t query_length,
+                         dim_t key_length,
+                         dim_t depth,
+                         float scale,
+                         dim_t interleaved_num_heads = 0);
+
     void mean(DataType dtype,
               const void* input,
               void* output,
@@ -285,6 +354,33 @@ namespace ctranslate2 {
                     dim_t axis_size,
                     dim_t inner_size,
                     float epsilon);
+
+    // Applies the FP16 dense post-norm epilogue in one dispatch. The input is
+    // first rounded after bias and residual addition, matching the established
+    // BiasAdd -> LayerNorm path. Returns false for unsupported layouts.
+    bool fused_bias_residual_layer_norm(DataType dtype,
+                                        const void* input,
+                                        const void* bias,
+                                        const void* residual,
+                                        const void* gamma,
+                                        const void* beta,
+                                        void* output,
+                                        dim_t rows,
+                                        dim_t depth,
+                                        float epsilon);
+
+    // Fuses per-beam log-softmax, previous beam-score addition, and the
+    // cross-beam TopK used by deterministic beam search. Returns false when
+    // the shape or dtype is outside the specialized path.
+    bool fused_beam_search_topk(DataType dtype,
+                                const void* logits,
+                                const void* beam_scores,
+                                void* values,
+                                int32_t* indices,
+                                dim_t batch_size,
+                                dim_t beam_size,
+                                dim_t vocabulary_size,
+                                dim_t k);
 
     void rms_norm(DataType dtype,
                   const void* input,

@@ -50,6 +50,7 @@ namespace ctranslate2 {
 
     bool profile_enabled();
     void record_profile_event(ProfileEvent event);
+    void record_profile_detail(const char* detail);
 
   }
 }

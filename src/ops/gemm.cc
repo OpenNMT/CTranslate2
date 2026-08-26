@@ -6,6 +6,7 @@
 
 #ifdef CT2_WITH_MPS
 #  include "mps/kernels.h"
+#  include "mps/utils.h"
 #endif
 
 namespace ctranslate2 {
@@ -33,6 +34,7 @@ namespace ctranslate2 {
       }
       return -1;
     }
+
 #endif
 
     // activation_type(x + bias + residual)
@@ -79,6 +81,57 @@ namespace ctranslate2 {
       PROFILE("Gemm");
 
 #ifdef CT2_WITH_MPS
+      if (a.device() == Device::MPS && mps::profile_enabled()) {
+        const dim_t profile_k = a.dim(_trans_a ? -2 : -1);
+        const dim_t profile_n = b.dim(_trans_b ? -2 : -1);
+        const dim_t profile_m = a.size() / profile_k;
+        const std::string detail =
+          "gemm_epilogue m=" + std::to_string(profile_m)
+          + " n=" + std::to_string(profile_n)
+          + " bias=" + std::to_string(bias != nullptr)
+          + " residual=" + std::to_string(residual != nullptr)
+          + " activation=" + std::to_string(mps_activation_code(_activation_type));
+        mps::record_profile_detail(detail.c_str());
+      }
+
+      // Medium and large FP16 Dense projections use the SIMD-group GEMM when
+      // enabled. Keep bias, residual, and activation in its store epilogue so
+      // the materialized output is not read by a second full-tensor dispatch.
+      if (a.device() == Device::MPS
+          && a.dtype() == DataType::FLOAT16
+          && (!bias || bias->dtype() == DataType::FLOAT16)
+          && (!residual || residual->dtype() == DataType::FLOAT16)
+          && !a_shift_compensation) {
+        const dim_t k = a.dim(_trans_a ? -2 : -1);
+        const dim_t n = b.dim(_trans_b ? -2 : -1);
+        const dim_t m = a.size() / k;
+        if ((!bias || bias->size() == n)
+            && (!residual || residual->size() == m * n)) {
+          Shape output_shape(a.shape());
+          output_shape[output_shape.size() - 2] = a.dim(_trans_a ? -1 : -2);
+          output_shape[output_shape.size() - 1] = n;
+          c.resize(std::move(output_shape));
+          if (mps::gemm_with_epilogue(DataType::FLOAT16,
+                                      _trans_a,
+                                      _trans_b,
+                                      m,
+                                      n,
+                                      k,
+                                      _alpha,
+                                      a.data<float16_t>(),
+                                      _trans_a ? m : k,
+                                      b.data<float16_t>(),
+                                      _trans_b ? k : n,
+                                      _beta,
+                                      c.data<float16_t>(),
+                                      n,
+                                      bias ? bias->data<float16_t>() : nullptr,
+                                      residual ? residual->data<float16_t>() : nullptr,
+                                      mps_activation_code(_activation_type)))
+            return;
+        }
+      }
+
       // Decode Dense layers immediately apply bias, optional residual, and
       // optional activation to a single-row FP16 projection. Encode that
       // epilogue in the output-major matvec so the intermediate output is not
@@ -122,6 +175,7 @@ namespace ctranslate2 {
           return;
         }
       }
+
 #endif
 
       switch (a.dtype()) {
