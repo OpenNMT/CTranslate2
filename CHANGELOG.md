@@ -4,7 +4,13 @@
 
 ### Fixes and improvements
 
+## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-30)
+
+### Fixes and improvements
+
+* Import Python converters and specs lazily to avoid loading torch for inference-only use (#2080) by [@Anai-Guo](https://github.com/Anai-Guo)
 * Fix out-of-bounds reads in StorageView index validation (#2073) by [@jordimas](https://github.com/jordimas), reported by Nathan Keys (Halo Forge Labs)
+* Update cxxopts to v3.3.1 for GCC 15 compatibility (#2084) by [@bekard](https://github.com/bekard)
 
 ## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
 
