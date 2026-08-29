@@ -657,7 +657,8 @@ namespace ctranslate2 {
         }
 
         const dim_t item_size = StorageView(dtype).item_size();
-        // Check that the claimed payload fits before allocating the StorageView.
+        // The payload is the raw tensor data that follows this variable header.
+        // Check that it fits in the file before allocating the StorageView.
         const auto payload_position = model_file.tellg();
         if (payload_position == std::streampos(-1))
           throw std::runtime_error("Variable '" + name + "' has an invalid payload size");

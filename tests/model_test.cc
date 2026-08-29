@@ -1,4 +1,5 @@
 #include <ctranslate2/models/sequence_to_sequence.h>
+#include <ctranslate2/models/model_reader.h>
 
 #include <ctranslate2/decoding.h>
 
@@ -6,6 +7,22 @@
 
 TEST(ModelTest, ContainsModel) {
   ASSERT_TRUE(models::contains_model(default_model_dir()));
+}
+
+TEST(ModelTest, RejectsSerializedVariableZeroDimension) {
+  const std::string model_bin(
+    "\x06\x00\x00\x00\x0c\x00WhisperSpec\0\x03\x00\x00\x00"
+    "\x01\x00\x00\x00\x07\x00weight\0\x02\x01\x00\x00\x00"
+    "\x00\x00\x00\x00\x01\x00\x00\x00\x00", 49);
+
+  models::ModelMemoryReader reader("test_model");
+  reader.register_file("model.bin", model_bin);
+  try {
+    models::Model::load(reader);
+    FAIL() << "Expected runtime_error";
+  } catch (const std::runtime_error& e) {
+    EXPECT_NE(std::string(e.what()).find("invalid payload size"), std::string::npos);
+  }
 }
 
 TEST(ModelTest, UpdateDecoderOutputLayer) {
