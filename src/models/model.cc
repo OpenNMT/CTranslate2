@@ -2,6 +2,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <limits>
+
 #include "ctranslate2/models/model_factory.h"
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/utils.h"
@@ -619,7 +621,6 @@ namespace ctranslate2 {
 
       // Load the variables.
       const auto num_variables = consume<uint32_t>(model_file);
-      model->_variable_index.reserve(num_variables);
 
       // check config for tensor parallel
       bool multi_query_attention = false;
@@ -655,9 +656,30 @@ namespace ctranslate2 {
           num_bytes = consume<uint32_t>(model_file) * item_size;
         }
 
-        StorageView variable(std::move(shape), dtype);
-        if (num_bytes != variable.size() * variable.item_size())
+        const dim_t item_size = StorageView(dtype).item_size();
+        // Check that the claimed payload fits before allocating the StorageView.
+        const auto payload_position = model_file.tellg();
+        if (payload_position == std::streampos(-1))
           throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
+        model_file.seekg(0, std::ios::end);
+        const auto model_end = model_file.tellg();
+        model_file.clear();
+        model_file.seekg(payload_position);
+        if (model_end == std::streampos(-1) || model_end < payload_position)
+          throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
+        dim_t variable_size = 1;
+        for (const dim_t dim : shape) {
+          if (dim == 0 || variable_size > std::numeric_limits<dim_t>::max() / dim)
+            throw std::runtime_error("Variable '" + name + "' has an invalid shape");
+          variable_size *= dim;
+        }
+        if (item_size == 0
+            || variable_size > std::numeric_limits<dim_t>::max() / item_size
+            || num_bytes != variable_size * item_size
+            || static_cast<size_t>(num_bytes) > static_cast<size_t>(model_end - payload_position))
+          throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
+
+        StorageView variable(std::move(shape), dtype);
         consume<char>(model_file, num_bytes, static_cast<char*>(variable.buffer()));
         if (tensor_parallel) {
           int outer_dim = 0;
