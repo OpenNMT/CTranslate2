@@ -301,10 +301,7 @@ namespace ctranslate2 {
       decoding_options.length_penalty = options.length_penalty;
       decoding_options.repetition_penalty = options.repetition_penalty;
       decoding_options.no_repeat_ngram_size = options.no_repeat_ngram_size;
-      decoding_options.max_length = without_timestamps
-                                      ? total_max_length - start_step
-                                      : std::min(total_max_length / 2,
-                                                 total_max_length - start_step);
+      decoding_options.max_length = total_max_length - start_step;
       decoding_options.sampling_topk = options.sampling_topk;
       decoding_options.sampling_temperature = options.sampling_temperature;
       decoding_options.num_hypotheses = options.num_hypotheses;
