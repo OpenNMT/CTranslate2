@@ -1,5 +1,7 @@
 #include "ctranslate2/storage_view.h"
 
+#include <limits>
+
 #include "ctranslate2/primitives.h"
 
 #include "dispatch.h"
@@ -159,11 +161,16 @@ namespace ctranslate2 {
   }
 
   StorageView& StorageView::reserve(dim_t size) {
+    if (size < 0)
+      THROW_RUNTIME_ERROR("tensor size must be non-negative");
     if (size <= _allocated_size)
       return *this;
+    const dim_t is = item_size();
+    if (is <= 0 || size > std::numeric_limits<dim_t>::max() / is)
+      THROW_RUNTIME_ERROR("tensor byte size overflows dim_t");
     release();
     _allocator = &get_allocator(_device);
-    _data = _allocator->allocate(size * item_size(), _device_index);
+    _data = _allocator->allocate(static_cast<size_t>(size * is), _device_index);
     if (_data == nullptr)
       THROW_RUNTIME_ERROR("failed to allocated memory");
     _allocated_size = size;

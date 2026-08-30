@@ -1,3 +1,5 @@
+#include <limits>
+
 #include "test_utils.h"
 #include "ctranslate2/storage_view.h"
 
@@ -25,6 +27,61 @@ TEST(StorageViewTest, InvalidNegativeDim) {
 TEST(StorageViewTest, InvalidNegativeIndex) {
   StorageView storage({1}, std::vector<float>{0});
   EXPECT_THROW(storage.at<float>(-1), std::invalid_argument);
+}
+
+TEST(StorageViewTest, ReserveByteSizeOverflow) {
+  for (const DataType dtype : {DataType::FLOAT16, DataType::FLOAT32}) {
+    StorageView sv(dtype);
+    const dim_t max_elements = std::numeric_limits<dim_t>::max() / sv.item_size();
+    for (const dim_t size : {max_elements + 1, std::numeric_limits<dim_t>::max()}) {
+      try {
+        sv.reserve(size);
+        FAIL() << "Expected byte-size overflow rejection";
+      } catch (const std::runtime_error& e) {
+        EXPECT_NE(std::string(e.what()).find("tensor byte size overflows dim_t"),
+                  std::string::npos);
+      }
+    }
+  }
+}
+
+TEST(StorageViewTest, ReserveNegativeSize) {
+  StorageView sv(DataType::FLOAT32);
+  EXPECT_THROW(sv.reserve(-1), std::runtime_error);
+  EXPECT_THROW(sv.reserve(std::numeric_limits<dim_t>::min()), std::runtime_error);
+}
+
+TEST(StorageViewTest, InvalidReservePreservesStorage) {
+  StorageView sv({2}, std::vector<float>{1, 2});
+  const auto* data = sv.data<float>();
+  const auto reserved_memory = sv.reserved_memory();
+  EXPECT_THROW(sv.reserve(-1), std::runtime_error);
+  EXPECT_THROW(sv.reserve(std::numeric_limits<dim_t>::max()), std::runtime_error);
+  EXPECT_EQ(sv.data<float>(), data);
+  EXPECT_EQ(sv.reserved_memory(), reserved_memory);
+  EXPECT_TRUE(sv.owns_data());
+  EXPECT_EQ(sv.size(), 2);
+  ASSERT_EQ(sv.shape(), Shape({2}));
+  EXPECT_EQ(sv.at<float>(0), 1);
+  EXPECT_EQ(sv.at<float>(1), 2);
+}
+
+TEST(StorageViewTest, ReserveWithinCapacity) {
+  StorageView empty(DataType::FLOAT32);
+  EXPECT_NO_THROW(empty.reserve(0));
+  EXPECT_EQ(empty.reserved_memory(), 0);
+
+  StorageView sv({2}, std::vector<float>{1, 2});
+  const auto* data = sv.data<float>();
+  const auto reserved_memory = sv.reserved_memory();
+  EXPECT_NO_THROW(sv.reserve(0));
+  EXPECT_NO_THROW(sv.reserve(1));
+  EXPECT_NO_THROW(sv.reserve(2));
+  EXPECT_EQ(sv.data<float>(), data);
+  EXPECT_EQ(sv.reserved_memory(), reserved_memory);
+  ASSERT_EQ(sv.shape(), Shape({2}));
+  EXPECT_EQ(sv.at<float>(0), 1);
+  EXPECT_EQ(sv.at<float>(1), 2);
 }
 
 TEST(StorageViewTest, BoolOperator) {
