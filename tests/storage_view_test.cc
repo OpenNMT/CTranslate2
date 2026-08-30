@@ -1,3 +1,5 @@
+#include <limits>
+
 #include "test_utils.h"
 #include "ctranslate2/storage_view.h"
 
@@ -25,6 +27,16 @@ TEST(StorageViewTest, InvalidNegativeDim) {
 TEST(StorageViewTest, InvalidNegativeIndex) {
   StorageView storage({1}, std::vector<float>{0});
   EXPECT_THROW(storage.at<float>(-1), std::invalid_argument);
+}
+
+TEST(StorageViewTest, ReserveByteSizeOverflow) {
+  StorageView sv(DataType::FLOAT32);
+  EXPECT_THROW(sv.reserve(std::numeric_limits<dim_t>::max()), std::runtime_error);
+}
+
+TEST(StorageViewTest, ReserveNegativeSize) {
+  StorageView sv(DataType::FLOAT32);
+  EXPECT_THROW(sv.reserve(-1), std::runtime_error);
 }
 
 TEST(StorageViewTest, BoolOperator) {
