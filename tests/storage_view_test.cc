@@ -145,3 +145,20 @@ INSTANTIATE_TEST_SUITE_P(CPU, StorageViewDeviceTest, ::testing::Values(Device::C
 #ifdef CT2_WITH_CUDA
 INSTANTIATE_TEST_SUITE_P(CUDA, StorageViewDeviceTest, ::testing::Values(Device::CUDA));
 #endif
+
+TEST(StorageViewTest, OverflowingShapeThrows) {
+  // (2^62 + 1) * 8 overflows dim_t: the shape must be rejected, not wrapped
+  // to a small size that passes allocation.
+  Shape shape;
+  shape.push_back((int64_t{1} << 62) + 1);
+  shape.push_back(8);
+  EXPECT_THROW(StorageView(shape, DataType::INT32), std::invalid_argument);
+}
+
+TEST(StorageViewTest, OverflowingReshapeThrows) {
+  StorageView view(Shape{8}, DataType::INT32);
+  Shape shape;
+  shape.push_back((int64_t{1} << 62) + 1);
+  shape.push_back(8);
+  EXPECT_THROW(view.reshape(shape), std::invalid_argument);
+}
