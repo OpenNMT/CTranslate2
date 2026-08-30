@@ -292,7 +292,6 @@ namespace ctranslate2 {
       }
 
       const dim_t total_max_length = options.max_length;
-      const bool without_timestamps = prompts[0][prompt_length - 1] == _no_timestamps_id;
 
       DecodingOptions decoding_options;
       decoding_options.start_step = start_step;
@@ -330,7 +329,7 @@ namespace ctranslate2 {
         decoding_options.logits_processors.emplace_back(no_speech_probs_processor);
       }
 
-      if (!without_timestamps) {
+      if (prompts[0][prompt_length - 1] != _no_timestamps_id) {
         const size_t timestamp_begin_id = _no_timestamps_id + 1;
         const size_t timestamp_end_id = vocabulary.size() - 1;
         const size_t max_initial_timestamp_id = timestamp_begin_id + options.max_initial_timestamp_index;
