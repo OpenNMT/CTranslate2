@@ -865,7 +865,7 @@ class TestWhisper:
             assert transcription == expected_transcription
 
     @test_utils.only_on_linux
-    def test_transformers_whisper_no_timestamps_full_context(self, tmp_dir):
+    def test_transformers_whisper_full_context(self, tmp_dir):
         import transformers
 
         model_name = "openai/whisper-tiny"
@@ -907,11 +907,14 @@ class TestWhisper:
         ]
         timestamped_prompt = ["<|startoftranscript|>", "<|en|>", "<|transcribe|>"]
 
-        # With the default max_length of 448, no-timestamp decoding can use up
-        # to 445 positions (448 minus the 3-token prompt prefix), exceeding the
-        # previous 224-token cap. Timestamped decoding keeps that 224 limit.
+        # With the default max_length of 448, decoding can use the entire
+        # remaining decoder context (448 minus the prompt length), no longer
+        # capped to half of max_length. This applies to both no-timestamp and
+        # timestamped decoding, since the previous 224-token cap was not
+        # actually related to timestamps. The timestamped prompt is one
+        # token shorter, so it gets one extra position of context.
         assert _generated_length(no_timestamps_prompt) == 445
-        assert _generated_length(timestamped_prompt) == 224
+        assert _generated_length(timestamped_prompt) == 446
 
     @test_utils.only_on_linux
     @test_utils.on_available_devices
