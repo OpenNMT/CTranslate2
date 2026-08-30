@@ -21,7 +21,7 @@ TEST(ModelTest, RejectsSerializedVariableZeroDimension) {
     models::Model::load(reader);
     FAIL() << "Expected runtime_error";
   } catch (const std::runtime_error& e) {
-    EXPECT_NE(std::string(e.what()).find("invalid payload size"), std::string::npos);
+    EXPECT_NE(std::string(e.what()).find("invalid shape"), std::string::npos);
   }
 }
 
