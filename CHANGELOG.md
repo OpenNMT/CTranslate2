@@ -4,7 +4,17 @@
 
 ### Fixes and improvements
 
+
+## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-31)
+
+### Fixes and improvements
+
+* Import Python converters and specs lazily to avoid loading torch for inference-only use (#2080) by [@Anai-Guo](https://github.com/Anai-Guo)
 * Fix out-of-bounds reads in StorageView index validation (#2073) by [@jordimas](https://github.com/jordimas), reported by Nathan Keys (Halo Forge Labs)
+* Update cxxopts to v3.3.1 for GCC 15 compatibility (#2084) by [@bekard](https://github.com/bekard)
+* Validate model variable sizes before allocation (#2091) by [@jordimas](https://github.com/jordimas), reported by Hyeonbell
+* Check StorageView reserve byte size before allocation (#2094) by [@infinityscroll](https://github.com/infinityscroll)
+* Remove the runtime dependency on setuptools (#2096) by [@Ravencentric](https://github.com/Ravencentric)
 
 ## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
 
