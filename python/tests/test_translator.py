@@ -4,6 +4,9 @@ import io
 import logging
 import os
 import shutil
+import subprocess
+import sys
+import textwrap
 
 import numpy as np
 import pytest
@@ -824,3 +827,53 @@ def test_logging():
     with wurlitzer.pipes() as (_, err):
         _get_transliterator()
     assert not err.read()
+
+
+# Child process for test_shutdown_does_not_deadlock: build an int8 CPU Translator,
+# run one large translation batch to spin up the Ruy thread pool, then destroy it.
+# The deadlock (if present) happens during that destruction, so the interesting part
+# is whether the process returns at all.
+#
+# The batch is deliberately large: the hang only happens once Ruy has actually
+# spawned its internal thread pool, which it does only when the GEMM is big enough.
+# A tiny batch runs single-threaded, has no threads to join, and shuts down cleanly
+# even on an unpatched build -- so it would not catch the regression.
+_SHUTDOWN_CHILD = textwrap.dedent(
+    """
+    import sys
+    import ctranslate2
+
+    translator = ctranslate2.Translator(
+        sys.argv[1], device="cpu", compute_type="int8",
+        inter_threads=2, intra_threads=4,
+    )
+    source = [["آ", "ت", "ز", "م", "و", "ن"]] * 512
+    translator.translate_batch(source)
+    del translator
+    """
+)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Shutdown deadlock is Windows-specific (loader lock on thread exit)",
+)
+def test_shutdown_does_not_deadlock():
+    # Regression test for the Windows shutdown deadlock in the Ruy backend: the
+    # thread_local ruy::Context destructor joined ruy's internal thread pool while
+    # the owning worker thread was exiting (holding the loader lock), hanging
+    # process shutdown indefinitely. See ctranslate2-rs#64.
+    #
+    # Run the whole lifecycle in a subprocess so a hang fails via `timeout` instead
+    # of blocking the test runner. int8 selects the Ruy backend; the large batch (in
+    # the child) ensures Ruy spawns the thread pool whose join deadlocks when unpatched.
+    model_path = _get_model_path()
+    try:
+        subprocess.run(
+            [sys.executable, "-c", _SHUTDOWN_CHILD, model_path],
+            timeout=30,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("Translator did not shut down within 30s (deadlock regression)")
