@@ -4,7 +4,8 @@
 
 ### Fixes and improvements
 
-## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-30)
+
+## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-31)
 
 ### Fixes and improvements
 
@@ -13,6 +14,7 @@
 * Update cxxopts to v3.3.1 for GCC 15 compatibility (#2084) by [@bekard](https://github.com/bekard)
 * Validate model variable sizes before allocation (#2091) by [@jordimas](https://github.com/jordimas), reported by Hyeonbell
 * Check StorageView reserve byte size before allocation (#2094) by [@infinityscroll](https://github.com/infinityscroll)
+* Remove the runtime dependency on setuptools (#2096) by [@Ravencentric](https://github.com/Ravencentric)
 
 ## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
 
