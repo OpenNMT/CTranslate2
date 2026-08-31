@@ -50,6 +50,8 @@ namespace ctranslate2 {
       virtual dim_t output_size() const = 0;
     };
 
+    class LayerNorm;
+
     class Embeddings : public Layer
     {
     public:
@@ -132,6 +134,10 @@ namespace ctranslate2 {
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output, const StorageView* residual = nullptr) const;
+      void forward_with_post_layer_norm(const StorageView& input,
+                                        const StorageView& residual,
+                                        const LayerNorm& layer_norm,
+                                        StorageView& output) const;
       void select_weights(const StorageView* index, const StorageView* extra_bias = nullptr);
     private:
       bool _packed_weight;
@@ -144,6 +150,9 @@ namespace ctranslate2 {
       StorageView _partial_bias;
       StorageView _partial_qscale;
       StorageView _partial_u8_shift_compensation;
+      // MPS expands INT8 weights once to FP16 so warm execution can use the
+      // optimized SIMD-group FP16 kernels without per-token conversion.
+      mutable StorageView _mps_float16_weight;
       const DataType _output_type;
       const models::QUANTIZATION_TYPE _quant_method;
       const bool _quantized_gemm;
@@ -161,6 +170,10 @@ namespace ctranslate2 {
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output) const;
+      bool apply_fused_bias_residual(const StorageView& input,
+                                     const StorageView& bias,
+                                     const StorageView& residual,
+                                     StorageView& output) const;
     private:
       const StorageView* _beta;
       const StorageView& _gamma;

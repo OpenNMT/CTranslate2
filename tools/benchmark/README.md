@@ -34,6 +34,12 @@ Note: the script focuses on raw decoding performance so the following steps are 
 * detokenization
 * model initialization (obtained by translating an empty file)
 
+### MPS quality benchmarks
+
+The Docker benchmark cannot expose Apple Metal. Use the host-native
+[quality benchmarks](quality/README.md) to compare Whisper WER and translation
+BLEU between CPU and MPS with identical models and decoding settings.
+
 ### Reproducing the benchmark numbers from the README
 
 We use the script `benchmark_all.py` to produce the benchmark numbers in the main [README](https://github.com/OpenNMT/CTranslate2#benchmarks). The script builds all Docker images defined in subdirectories and reports the results as a Markdown table. The execution can take up to 3 hours.
