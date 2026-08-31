@@ -20,3 +20,7 @@ See the [environment variables](environment_variables.md) `CT2_USE_MKL` and `CT2
 * NVIDIA GPUs with a Compute Capability greater or equal to 3.5
 
 The driver requirement depends on the CUDA version. See the [CUDA Compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) for more information.
+
+```{note}
+**NVIDIA Jetson (aarch64):** Jetson devices are supported when building from source with `-DWITH_CUDA=ON`. The prebuilt aarch64 wheels on PyPI are CPU-only. See {ref}`installation:nvidia jetson (aarch64 + cuda)` for build instructions.
+```
