@@ -13,6 +13,7 @@ namespace ctranslate2 {
       TransformerModel(size_t num_heads = 0);
       size_t current_spec_revision() const override;
       std::unique_ptr<SequenceToSequenceReplica> as_sequence_to_sequence() const override;
+      std::unique_ptr<SequenceEncoderReplica> as_sequence_encoder() const override;
 
     protected:
       bool is_linear_weight(const std::string& variable_name) const override;
