@@ -49,6 +49,8 @@ namespace ctranslate2 {
                       "Generated sequences of token IDs.")
         .def_readonly("scores", &GenerationResult::scores,
                       "Score of each sequence (empty if :obj:`return_scores` was disabled).")
+        .def_readonly("attention", &GenerationResult::attention,
+                      "Attention matrix of each sequence (empty if :obj:`return_attention` was disabled).")
         .def_readonly("logits", &GenerationResult::logits,
                       "Logits of each sequence (empty if :obj:`return_logits_vocab` was disabled).")
 
@@ -56,6 +58,7 @@ namespace ctranslate2 {
           return "GenerationResult(sequences=" + std::string(py::repr(py::cast(result.sequences)))
             + ", sequences_ids=" + std::string(py::repr(py::cast(result.sequences_ids)))
             + ", scores=" + std::string(py::repr(py::cast(result.scores)))
+            + ", attention=" + std::string(py::repr(py::cast(result.attention)))
             + ", logits=" + std::string(py::repr(py::cast(result.logits)))
             + ")";
         })

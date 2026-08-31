@@ -53,6 +53,8 @@ namespace ctranslate2 {
 
     // Include scores in the result.
     bool return_scores = false;
+    // Store attention vectors in the GenerationResult class.
+    bool return_attention = false;
     // Include log probs of each token in the result
     bool return_logits_vocab = false;
 
@@ -81,6 +83,7 @@ namespace ctranslate2 {
     std::vector<std::vector<std::string>> sequences;
     std::vector<std::vector<size_t>> sequences_ids;
     std::vector<float> scores;
+    std::vector<std::vector<std::vector<float>>> attention;
     std::vector<std::vector<StorageView>> logits;
 
     size_t num_sequences() const {
