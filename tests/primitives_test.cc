@@ -52,6 +52,6 @@ TEST_P(PrimitiveTest, PenalizePreviousTokens) {
 }
 
 INSTANTIATE_TEST_SUITE_P(CPU, PrimitiveTest, ::testing::Values(Device::CPU));
-#ifdef CT2_WITH_CUDA
+#if defined(CT2_WITH_CUDA) || defined(CT2_USE_HIP)
 INSTANTIATE_TEST_SUITE_P(CUDA, PrimitiveTest, ::testing::Values(Device::CUDA));
 #endif

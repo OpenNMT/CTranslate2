@@ -715,7 +715,7 @@ TEST_P(BiasedDecodingDeviceFPTest, NonZeroTimestepDiverge) {
 INSTANTIATE_TEST_SUITE_P(CPU, BiasedDecodingDeviceFPTest,
                          ::testing::Values(FloatType{Device::CPU, DataType::FLOAT32}),
                          fp_test_name);
-#ifdef CT2_WITH_CUDA
+#if defined(CT2_WITH_CUDA) || defined(CT2_USE_HIP)
 INSTANTIATE_TEST_SUITE_P(CUDA, BiasedDecodingDeviceFPTest,
                          ::testing::Values(FloatType{Device::CUDA, DataType::FLOAT32},
                                            FloatType{Device::CUDA, DataType::FLOAT16}),
