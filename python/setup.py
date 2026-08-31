@@ -103,7 +103,6 @@ setup(
     ext_modules=[ctranslate2_module],
     python_requires=">=3.9",
     install_requires=[
-        "setuptools",
         "numpy",
         "pyyaml>=5.3,<7",
     ],
