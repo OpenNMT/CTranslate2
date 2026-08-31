@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Fairseq &mdash; CTranslate2 4.8.1 documentation</title>
+  <title>Fairseq &mdash; CTranslate2 4.8.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -152,8 +152,8 @@ ct2-fairseq-converter<span class="w"> </span>--model_path<span class="w"> </span
 <p>The converted model can then be used on tokenized inputs:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
 
-<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;ende_ctranslate2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[</span><span class="s2">&quot;H@@&quot;</span><span class="p">,</span> <span class="s2">&quot;ello&quot;</span><span class="p">,</span> <span class="s2">&quot;world@@&quot;</span><span class="p">,</span> <span class="s2">&quot;!&quot;</span><span class="p">]])</span>
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">"ende_ctranslate2/"</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([[</span><span class="s2">"H@@"</span><span class="p">,</span> <span class="s2">"ello"</span><span class="p">,</span> <span class="s2">"world@@"</span><span class="p">,</span> <span class="s2">"!"</span><span class="p">]])</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 </pre></div>
@@ -176,14 +176,14 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>w
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
 
-<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;wmt19_en_ct2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">"wmt19_en_ct2/"</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">)</span>
 
 <span class="c1"># Sample from the language model.</span>
-<span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([[</span><span class="s2">&quot;&lt;/s&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;The&quot;</span><span class="p">]],</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
+<span class="n">results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([[</span><span class="s2">"&lt;/s&gt;"</span><span class="p">,</span> <span class="s2">"The"</span><span class="p">]],</span> <span class="n">sampling_topk</span><span class="o">=</span><span class="mi">10</span><span class="p">,</span> <span class="n">max_length</span><span class="o">=</span><span class="mi">50</span><span class="p">)</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">sequences</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 
 <span class="c1"># Compute the perplexity for a sentence.</span>
-<span class="n">outputs</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">score_batch</span><span class="p">([[</span><span class="s2">&quot;&lt;/s&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;The&quot;</span><span class="p">,</span> <span class="s2">&quot;sky&quot;</span><span class="p">,</span> <span class="s2">&quot;is&quot;</span><span class="p">,</span> <span class="s2">&quot;blue&quot;</span><span class="p">,</span> <span class="s2">&quot;.&quot;</span><span class="p">]])</span>
+<span class="n">outputs</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">score_batch</span><span class="p">([[</span><span class="s2">"&lt;/s&gt;"</span><span class="p">,</span> <span class="s2">"The"</span><span class="p">,</span> <span class="s2">"sky"</span><span class="p">,</span> <span class="s2">"is"</span><span class="p">,</span> <span class="s2">"blue"</span><span class="p">,</span> <span class="s2">"."</span><span class="p">]])</span>
 <span class="n">perplexity</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">exp</span><span class="p">(</span><span class="o">-</span><span class="n">np</span><span class="o">.</span><span class="n">mean</span><span class="p">(</span><span class="n">outputs</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">log_probs</span><span class="p">))</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">perplexity</span><span class="p">)</span>
 </pre></div>
@@ -215,12 +215,12 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>.
 <span class="kn">import</span><span class="w"> </span><span class="nn">sentencepiece</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">spm</span>
 
 <span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">()</span>
-<span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;spm.128k.model&quot;</span><span class="p">)</span>
+<span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"spm.128k.model"</span><span class="p">)</span>
 
-<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;__en__&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;Hello world!&quot;</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
-<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;__de__&quot;</span><span class="p">]</span>
+<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"__en__"</span><span class="p">]</span> <span class="o">+</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"Hello world!"</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"__de__"</span><span class="p">]</span>
 
-<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;m2m_100_418m_ct2&quot;</span><span class="p">)</span>
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">"m2m_100_418m_ct2"</span><span class="p">)</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">],</span> <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">target_prefix</span><span class="p">])</span>
 
 <span class="n">output</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:])</span>
@@ -243,13 +243,13 @@ ct2-fairseq-converter<span class="w"> </span>--data_dir<span class="w"> </span>m
 <span class="kn">import</span><span class="w"> </span><span class="nn">sentencepiece</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">spm</span>
 
 <span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">()</span>
-<span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">&quot;mbart50.ft.nn/sentence.bpe.model&quot;</span><span class="p">)</span>
+<span class="n">sp</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="s2">"mbart50.ft.nn/sentence.bpe.model"</span><span class="p">)</span>
 
-<span class="n">source</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">&quot;UN Chief Says There Is No Military Solution in Syria&quot;</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
-<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[en_XX]&quot;</span><span class="p">]</span> <span class="o">+</span> <span class="n">source</span>
-<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;[ro_RO]&quot;</span><span class="p">]</span>
+<span class="n">source</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="s2">"UN Chief Says There Is No Military Solution in Syria"</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
+<span class="n">source</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"[en_XX]"</span><span class="p">]</span> <span class="o">+</span> <span class="n">source</span>
+<span class="n">target_prefix</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"[ro_RO]"</span><span class="p">]</span>
 
-<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">&quot;mbart50_ct2&quot;</span><span class="p">)</span>
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">"mbart50_ct2"</span><span class="p">)</span>
 <span class="n">result</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">source</span><span class="p">],</span> <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">target_prefix</span><span class="p">])</span>
 
 <span class="n">output</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">:])</span>

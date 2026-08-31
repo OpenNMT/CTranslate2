@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Decoding features &mdash; CTranslate2 4.8.1 documentation</title>
+  <title>Decoding features &mdash; CTranslate2 4.8.2 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -183,7 +183,7 @@
 <p>The <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument can be used to force the start of the translation. Let’s say we want to replace the first occurrence of <code class="docutils literal notranslate"><span class="pre">die</span></code> by <code class="docutils literal notranslate"><span class="pre">das</span></code> in the translation:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
-    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf das&quot;</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">"Dieses Projekt ist auf das"</span><span class="p">)],</span>
 <span class="p">)</span>
 
 <span class="nb">print</span><span class="p">(</span><span class="n">detokenize</span><span class="p">(</span><span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]))</span>
@@ -199,7 +199,7 @@
 <p>Instead of using <a class="reference internal" href="#autocompletion"><span class="std std-ref">Autocompletion</span></a> to force a translation to start with a <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> argument, we can “bias” a translation towards a prefix by setting <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> to a value in (0, 1).  The higher <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> is, the stronger the bias. A translation can diverge from a prefix when <code class="docutils literal notranslate"><span class="pre">prefix_bias_beta</span></code> is low and the translator is confident in decoding tokens that are different from the prefix’s tokens.  See <a class="reference external" href="https://arxiv.org/abs/1912.03393">section 4.2</a> for more details on the biasing algorithm.</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
-    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf das&quot;</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">"Dieses Projekt ist auf das"</span><span class="p">)],</span>
     <span class="n">prefix_bias_beta</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
     <span class="n">beam_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
 <span class="p">)</span>
@@ -213,7 +213,7 @@
 </div></blockquote>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
-    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf das&quot;</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">"Dieses Projekt ist auf das"</span><span class="p">)],</span>
     <span class="n">prefix_bias_beta</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span>
     <span class="n">beam_size</span><span class="o">=</span><span class="mi">4</span><span class="p">,</span>
 <span class="p">)</span>
@@ -231,7 +231,7 @@
 <p>Combining <code class="docutils literal notranslate"><span class="pre">target_prefix</span></code> with the <code class="docutils literal notranslate"><span class="pre">return_alternatives</span></code> flag returns alternative sequences just after the prefix:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">(</span>
     <span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="nb">input</span><span class="p">)],</span>
-    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">&quot;Dieses Projekt ist auf die&quot;</span><span class="p">)],</span>
+    <span class="n">target_prefix</span><span class="o">=</span><span class="p">[</span><span class="n">tokenize</span><span class="p">(</span><span class="s2">"Dieses Projekt ist auf die"</span><span class="p">)],</span>
     <span class="n">num_hypotheses</span><span class="o">=</span><span class="mi">5</span><span class="p">,</span>
     <span class="n">return_alternatives</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
 <span class="p">)</span>

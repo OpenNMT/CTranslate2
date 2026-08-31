@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 4.8.1 documentation</title>
+  <title>Quantization &mdash; CTranslate2 4.8.2 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -206,7 +206,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">bfloat16</span></code></p></li>
 </ul>
 <p>For example,</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">&quot;int8&quot;</span><span class="p">)</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="n">model_path</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">"int8"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="admonition tip">
@@ -400,7 +400,7 @@ In this mode, all model weights are stored in half precision and all layers are 
 <ul class="simple">
 <li><p>Run inference as usual with Ctranslate2:</p></li>
 </ul>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>ctranslate2.Generator<span class="o">(</span><span class="s1">&#39;ct2_model&#39;</span>,<span class="w"> </span><span class="nv">device</span><span class="o">=</span><span class="s1">&#39;cuda&#39;</span><span class="o">)</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nv">model</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>ctranslate2.Generator<span class="o">(</span><span class="s1">'ct2_model'</span>,<span class="w"> </span><span class="nv">device</span><span class="o">=</span><span class="s1">'cuda'</span><span class="o">)</span>
 <span class="nv">outputs</span><span class="w"> </span><span class="o">=</span><span class="w"> </span>model.generate_batch<span class="o">([</span>tokens<span class="o">])</span>
 </pre></div>
 </div>

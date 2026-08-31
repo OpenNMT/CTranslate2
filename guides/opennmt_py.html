@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>OpenNMT-py &mdash; CTranslate2 4.8.1 documentation</title>
+  <title>OpenNMT-py &mdash; CTranslate2 4.8.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -132,7 +132,7 @@ ct2-opennmt-py-converter<span class="w"> </span>--model_path<span class="w"> </s
 <p>Decoder-only models using the <code class="docutils literal notranslate"><span class="pre">transformer_lm</span></code> decoder type are supported and can be converted with the same command line.</p>
 <p>During generation, make sure to always include <code class="docutils literal notranslate"><span class="pre">&lt;s&gt;</span></code> in the start tokens, e.g.:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="n">model_path</span><span class="p">)</span>
-<span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([[</span><span class="s2">&quot;&lt;s&gt;&quot;</span><span class="p">,</span> <span class="s2">&quot;▁Hello&quot;</span><span class="p">]])</span>
+<span class="n">generator</span><span class="o">.</span><span class="n">generate_batch</span><span class="p">([[</span><span class="s2">"&lt;s&gt;"</span><span class="p">,</span> <span class="s2">"▁Hello"</span><span class="p">]])</span>
 </pre></div>
 </div>
 </section>

@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Text generation &mdash; CTranslate2 4.8.1 documentation</title>
+  <title>Text generation &mdash; CTranslate2 4.8.2 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -150,10 +150,10 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">sentencepiece</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">spm</span>
 
-<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;ct2_model/&quot;</span><span class="p">)</span>
-<span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">(</span><span class="s2">&quot;tokenizer.model&quot;</span><span class="p">)</span>
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">"ct2_model/"</span><span class="p">)</span>
+<span class="n">sp</span> <span class="o">=</span> <span class="n">spm</span><span class="o">.</span><span class="n">SentencePieceProcessor</span><span class="p">(</span><span class="s2">"tokenizer.model"</span><span class="p">)</span>
 
-<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;What is the meaning of life?&quot;</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">"What is the meaning of life?"</span>
 <span class="n">prompt_tokens</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">,</span> <span class="n">out_type</span><span class="o">=</span><span class="nb">str</span><span class="p">)</span>
 
 <span class="n">step_results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_tokens</span><span class="p">(</span>
@@ -166,11 +166,11 @@
 <span class="n">output_ids</span> <span class="o">=</span> <span class="p">[]</span>
 
 <span class="k">for</span> <span class="n">step_result</span> <span class="ow">in</span> <span class="n">step_results</span><span class="p">:</span>
-    <span class="n">is_new_word</span> <span class="o">=</span> <span class="n">step_result</span><span class="o">.</span><span class="n">token</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;▁&quot;</span><span class="p">)</span>
+    <span class="n">is_new_word</span> <span class="o">=</span> <span class="n">step_result</span><span class="o">.</span><span class="n">token</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">"▁"</span><span class="p">)</span>
 
     <span class="k">if</span> <span class="n">is_new_word</span> <span class="ow">and</span> <span class="n">output_ids</span><span class="p">:</span>
         <span class="n">word</span> <span class="o">=</span> <span class="n">sp</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">output_ids</span><span class="p">)</span>
-        <span class="nb">print</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">&quot; &quot;</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="nb">print</span><span class="p">(</span><span class="n">word</span><span class="p">,</span> <span class="n">end</span><span class="o">=</span><span class="s2">" "</span><span class="p">,</span> <span class="n">flush</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
         <span class="n">output_ids</span> <span class="o">=</span> <span class="p">[]</span>
 
     <span class="n">output_ids</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">step_result</span><span class="o">.</span><span class="n">token_id</span><span class="p">)</span>
@@ -200,18 +200,18 @@
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">transformers</span>
 
-<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">&quot;stablelm-ct2/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
-<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">&quot;stabilityai/stablelm-tuned-alpha-7b&quot;</span><span class="p">)</span>
+<span class="n">generator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Generator</span><span class="p">(</span><span class="s2">"stablelm-ct2/"</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">"stabilityai/stablelm-tuned-alpha-7b"</span><span class="p">)</span>
 
-<span class="n">system_prompt</span> <span class="o">=</span> <span class="s2">&quot;&quot;&quot;&lt;|SYSTEM|&gt;# StableLM Tuned (Alpha version)</span>
+<span class="n">system_prompt</span> <span class="o">=</span> <span class="s2">"""&lt;|SYSTEM|&gt;# StableLM Tuned (Alpha version)</span>
 <span class="s2">- StableLM is a helpful and harmless open-source AI language model developed by StabilityAI.</span>
 <span class="s2">- StableLM is excited to be able to help the user, but will refuse to do anything that could be considered harmful to the user.</span>
 <span class="s2">- StableLM is more than just an information source, StableLM is also able to write poetry, short stories, and make jokes.</span>
 <span class="s2">- StableLM will refuse to participate in anything that could harm a human.</span>
-<span class="s2">&quot;&quot;&quot;</span>
+<span class="s2">"""</span>
 <span class="n">system_prompt_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">system_prompt</span><span class="p">))</span>
 
-<span class="n">prompt</span> <span class="o">=</span> <span class="s2">&quot;&lt;|USER|&gt;What&#39;s your mood today?&lt;|ASSISTANT|&gt;&quot;</span>
+<span class="n">prompt</span> <span class="o">=</span> <span class="s2">"&lt;|USER|&gt;What's your mood today?&lt;|ASSISTANT|&gt;"</span>
 <span class="n">prompt_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">prompt</span><span class="p">))</span>
 
 <span class="n">step_results</span> <span class="o">=</span> <span class="n">generator</span><span class="o">.</span><span class="n">generate_tokens</span><span class="p">(</span>

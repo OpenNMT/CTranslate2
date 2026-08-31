@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Encoder &mdash; CTranslate2 4.8.1 documentation</title>
+  <title>Encoder &mdash; CTranslate2 4.8.2 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -151,8 +151,8 @@
 <em class="property"><span class="pre">class</span><span class="w"> </span></em><span class="sig-prename descclassname"><span class="pre">ctranslate2.</span></span><span class="sig-name descname"><span class="pre">Encoder</span></span><a class="headerlink" href="#ctranslate2.Encoder" title="Permalink to this definition"></a></dt>
 <dd><p>A text encoder.</p>
 <p class="rubric">Example</p>
-<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">encoder</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Encoder</span><span class="p">(</span><span class="s2">&quot;model/&quot;</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">&quot;cpu&quot;</span><span class="p">)</span>
-<span class="gp">&gt;&gt;&gt; </span><span class="n">encoder</span><span class="o">.</span><span class="n">forward_batch</span><span class="p">([[</span><span class="s2">&quot;▁Hello&quot;</span><span class="p">,</span> <span class="s2">&quot;▁world&quot;</span><span class="p">,</span> <span class="s2">&quot;!&quot;</span><span class="p">]])</span>
+<div class="doctest highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">encoder</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Encoder</span><span class="p">(</span><span class="s2">"model/"</span><span class="p">,</span> <span class="n">device</span><span class="o">=</span><span class="s2">"cpu"</span><span class="p">)</span>
+<span class="gp">&gt;&gt;&gt; </span><span class="n">encoder</span><span class="o">.</span><span class="n">forward_batch</span><span class="p">([[</span><span class="s2">"▁Hello"</span><span class="p">,</span> <span class="s2">"▁world"</span><span class="p">,</span> <span class="s2">"!"</span><span class="p">]])</span>
 </pre></div>
 </div>
 <p><strong>Inherits from:</strong> <code class="xref py py-class docutils literal notranslate"><span class="pre">pybind11_builtins.pybind11_object</span></code></p>
