@@ -30,6 +30,60 @@ def _get_transliterator():
     return ctranslate2.Translator(_get_model_path())
 
 
+def _make_scaled_transformer(tmp_dir):
+    hidden_size = 4
+    ffn_size = 8
+    vocabulary = ["<unk>", "<blank>", "<s>", "</s>", "a", "b", "c", "d"]
+    rng = np.random.default_rng(0)
+    model = ctranslate2.specs.TransformerSpec.from_config(1, 1)
+
+    def set_linear(linear, output_size, input_size):
+        linear.weight = rng.normal(size=(output_size, input_size)).astype(np.float32)
+
+    def set_norm(norm):
+        norm.gamma = np.ones(hidden_size, dtype=np.float32)
+        norm.beta = np.zeros(hidden_size, dtype=np.float32)
+
+    def set_attention(attention, self_attention):
+        set_norm(attention.layer_norm)
+        if self_attention:
+            set_linear(attention.linear[0], 3 * hidden_size, hidden_size)
+            set_linear(attention.linear[1], hidden_size, hidden_size)
+        else:
+            set_linear(attention.linear[0], hidden_size, hidden_size)
+            set_linear(attention.linear[1], 2 * hidden_size, hidden_size)
+            set_linear(attention.linear[2], hidden_size, hidden_size)
+
+    def set_ffn(ffn):
+        set_norm(ffn.layer_norm)
+        set_linear(ffn.linear_0, ffn_size, hidden_size)
+        set_linear(ffn.linear_1, hidden_size, ffn_size)
+
+    model.encoder.embeddings[0].weight = rng.normal(
+        size=(len(vocabulary), hidden_size)
+    ).astype(np.float32)
+    model.decoder.embeddings.weight = rng.normal(
+        size=(len(vocabulary), hidden_size)
+    ).astype(np.float32)
+    model.decoder.scale_embeddings = True
+    model.decoder.start_from_zero_embedding = True
+    set_norm(model.encoder.layer_norm)
+    set_norm(model.decoder.layer_norm)
+    set_attention(model.encoder.layer[0].self_attention, self_attention=True)
+    set_ffn(model.encoder.layer[0].ffn)
+    set_attention(model.decoder.layer[0].self_attention, self_attention=True)
+    set_attention(model.decoder.layer[0].attention, self_attention=False)
+    set_ffn(model.decoder.layer[0].ffn)
+    set_linear(model.decoder.projection, len(vocabulary), hidden_size)
+    model.register_source_vocabulary(vocabulary)
+    model.register_target_vocabulary(vocabulary)
+    model.validate()
+
+    model_dir = str(tmp_dir.join("scaled_transformer").ensure(dir=1))
+    model.save(model_dir)
+    return model_dir, vocabulary
+
+
 def test_invalid_model_path():
     with pytest.raises(RuntimeError, match="open file"):
         ctranslate2.Translator("xxx")
@@ -618,6 +672,37 @@ def test_return_alternatives():
     assert len(output[0].hypotheses) == 10
     assert output[0].hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
     assert output[0].hypotheses[1] == ["a", "t", "s", "u", "m", "o", "n"]
+
+
+def test_return_alternatives_with_scaled_prefix(tmp_dir):
+    # Regression test for https://github.com/OpenNMT/CTranslate2/issues/2014.
+    model_dir, vocabulary = _make_scaled_transformer(tmp_dir)
+    translator = ctranslate2.Translator(model_dir)
+    source = [["a", "b"]]
+    prefix = ["c", "d"]
+
+    greedy_result = translator.translate_batch(
+        source,
+        target_prefix=[prefix],
+        beam_size=1,
+        max_decoding_length=len(prefix) + 1,
+        return_logits_vocab=True,
+    )[0]
+
+    alternatives_result = translator.translate_batch(
+        source,
+        target_prefix=[prefix],
+        num_hypotheses=1,
+        return_alternatives=True,
+        max_decoding_length=len(prefix) + 1,
+        return_scores=True,
+    )[0]
+
+    logits = np.array(greedy_result.logits[0][-1])
+    logits[vocabulary.index("</s>")] = -np.inf
+    max_logit = np.max(logits)
+    expected_score = max_logit - (max_logit + np.log(np.exp(logits - max_logit).sum()))
+    assert alternatives_result.scores[0] == pytest.approx(expected_score, abs=1e-5)
 
 
 def test_return_alternatives_with_vmap(tmp_dir):
