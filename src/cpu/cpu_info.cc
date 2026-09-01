@@ -58,4 +58,20 @@ namespace ctranslate2 {
   }
 }
 
+#elif defined(CT2_PPC64LE_BUILD)
+
+namespace ctranslate2 {
+  namespace cpu {
+
+    const char* cpu_vendor() {
+      return "POWER";
+    }
+
+    bool cpu_supports_power10() {
+      return true;
+    }
+
+  }
+}
+
 #endif
