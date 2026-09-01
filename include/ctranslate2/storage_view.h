@@ -238,6 +238,9 @@ namespace ctranslate2 {
 
     friend std::ostream& operator<<(std::ostream& os, const StorageView& storage);
 
+    template <typename T>
+    void print_tensor(std::ostream& os, const T* data, const std::vector<dim_t>& shape, size_t dim, size_t offset, int indent) const;
+
   protected:
     DataType _dtype = DataType::FLOAT32;
     Device _device = Device::CPU;
