@@ -91,6 +91,53 @@ If you installed the C++ library in a custom directory, you should configure add
 * When running your Python application, add the CTranslate2 library path to `LD_LIBRARY_PATH`.
 ```
 
+### NVIDIA Jetson (aarch64 + CUDA)
+
+The prebuilt aarch64 wheels on PyPI are CPU-only. On NVIDIA Jetson devices (Orin Nano, Orin NX, AGX Orin) running JetPack 6.x, build from source with CUDA enabled:
+
+```bash
+sudo apt-get install -y build-essential cmake git python3-pip python3-venv
+```
+
+CUDA and cuDNN are provided by JetPack — no separate install needed.
+
+Compile the C++ library with CUDA:
+
+```bash
+git clone --recursive https://github.com/OpenNMT/CTranslate2.git
+cd CTranslate2
+mkdir build && cd build
+cmake .. -DWITH_CUDA=ON -DWITH_CUDNN=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+```{note}
+`-DWITH_MKL=OFF` is required because Intel MKL is not available on ARM. `-DOPENMP_RUNTIME=COMP` uses the compiler's OpenMP instead of Intel's.
+```
+
+Build and install the Python wheel:
+
+```bash
+cd ../python
+pip install -r install_requirements.txt
+python setup.py bdist_wheel
+pip install dist/ctranslate2*.whl
+```
+
+Verify CUDA support:
+
+```python
+import ctranslate2
+print(ctranslate2.get_supported_compute_types("cuda"))
+# {'float16', 'float32', 'int8', 'int8_float16', 'int8_float32', 'bfloat16', 'int8_bfloat16'}
+```
+
+```{tip}
+If using a virtual environment, you may need to set `LD_LIBRARY_PATH=/usr/local/cuda/lib64` at runtime.
+```
+
 ### Build options
 
 The following options can be set with `-DOPTION=VALUE` during the CMake configuration:
