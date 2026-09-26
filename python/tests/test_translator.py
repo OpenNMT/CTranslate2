@@ -71,7 +71,8 @@ def test_contains_model(tmp_dir):
 def test_get_supported_compute_types():
     compute_types = ctranslate2.get_supported_compute_types("cpu")
     assert "float32" in compute_types
-    assert "int8" in compute_types
+    if "int8" not in compute_types:
+        pytest.skip("int8 compute type is not supported by this CPU backend")
     assert "int8_float32" in compute_types
 
 
@@ -90,6 +91,9 @@ def test_compute_type():
         ctranslate2.Translator(model_path, compute_type="float64")
     with pytest.raises(TypeError, match="incompatible constructor arguments"):
         ctranslate2.Translator(model_path, compute_type=["int8", "int16"])
+
+    if "int8" not in ctranslate2.get_supported_compute_types("cpu"):
+        pytest.skip("int8 compute type is not supported by this CPU backend")
 
     translator = ctranslate2.Translator(model_path, compute_type="int8")
     assert translator.compute_type == "int8_float32"

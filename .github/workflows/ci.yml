@@ -193,6 +193,8 @@ jobs:
           arch: arm64
         - os: macos-15-intel
           arch: x86_64
+        - os: windows-11-arm
+          arch: ARM64
 
     steps:
       - uses: actions/checkout@v4
@@ -200,7 +202,7 @@ jobs:
           submodules: recursive
 
       - name: Cache MKL and oneDNN (Windows)
-        if: runner.os == 'Windows'
+        if: runner.os == 'Windows' && matrix.arch != 'ARM64'
         uses: actions/cache@v4
         with:
           path: |
@@ -219,7 +221,7 @@ jobs:
           CIBW_ENVIRONMENT_MACOS: "CTRANSLATE2_ROOT='/usr/local' MACOSX_DEPLOYMENT_TARGET=11.00"
           CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux.sh
           CIBW_BEFORE_ALL_MACOS: python/tools/prepare_build_environment_macos.sh
-          CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows.sh
+          CIBW_BEFORE_ALL_WINDOWS: bash python/tools/${{ matrix.arch == 'ARM64' && 'prepare_build_environment_windows_arm64.sh' || 'prepare_build_environment_windows.sh' }}
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
@@ -298,6 +300,10 @@ jobs:
           - os: macos-15
             artifact_pattern: python-wheels-macOS-arm64
             wheel_pattern: "*cp312*macosx*arm64.whl"
+
+          - os: windows-11-arm
+            artifact_pattern: python-wheels-Windows-ARM64
+            wheel_pattern: "*cp312*win_arm64.whl"
 
     steps:
       - name: Set up Python 3.12
