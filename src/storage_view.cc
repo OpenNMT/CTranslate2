@@ -195,6 +195,9 @@ namespace ctranslate2 {
       const dim_t dim = new_shape[i];
 
       if (dim >= 0) {
+        // a zero dimension produces an empty tensor, which cannot overflow
+        if (dim != 0 && known_size > std::numeric_limits<dim_t>::max() / dim)
+          THROW_INVALID_ARGUMENT("new shape leads to an overflowing tensor size");
         known_size *= dim;
       } else if (dim == -1) {
         if (unknown_dim >= 0)
@@ -261,6 +264,8 @@ namespace ctranslate2 {
 
   StorageView& StorageView::grow(dim_t dim, dim_t size) {
     GUARD_DIM(dim, rank());
+    if (size < 0 || _shape[dim] > std::numeric_limits<dim_t>::max() - size)
+      THROW_INVALID_ARGUMENT("new dimension size leads to an overflowing tensor size");
     return resize(dim, _shape[dim] + size);
   }
 
