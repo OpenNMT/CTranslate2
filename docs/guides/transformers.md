@@ -28,6 +28,7 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * T5
 * T5Gemma
 * T5Gemma2
+* UMT5
 * Whisper
 * XLM-RoBERTa
 
@@ -667,6 +668,72 @@ translations = [
     for t in translated_batches
 ]
 print(translations[0])
+```
+
+
+## UMT5
+
+[UMT5](https://huggingface.co/docs/transformers/model_doc/umt5) is a multilingual T5 variant
+pretrained with the UniMax sampling strategy. Unlike T5 and mT5, each UMT5 self-attention layer
+has its own relative attention bias.
+
+```{note}
+The `google/umt5-*` configurations were published before `model_type` became required by
+`AutoConfig`, so the model must be saved locally with that key added before it can be converted.
+Checkpoints that already declare `"model_type": "umt5"` can be converted directly.
+```
+
+```python
+import json
+
+import transformers
+
+model_name = "google/umt5-small"
+model_dir = "umt5-small"
+
+transformers.UMT5ForConditionalGeneration.from_pretrained(model_name).save_pretrained(model_dir)
+transformers.AutoTokenizer.from_pretrained(model_name).save_pretrained(model_dir)
+
+config_path = "%s/config.json" % model_dir
+with open(config_path) as config_file:
+    config = json.load(config_file)
+config["model_type"] = "umt5"
+with open(config_path, "w") as config_file:
+    json.dump(config, config_file, indent=2)
+```
+
+```bash
+ct2-transformers-converter --model umt5-small --output_dir umt5-small-ct2
+```
+
+```python
+import ctranslate2
+import transformers
+
+translator = ctranslate2.Translator("umt5-small-ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("umt5-small")
+
+input_text = "Translate English to French: The house is wonderful."
+input_tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(input_text))
+
+results = translator.translate_batch([input_tokens])
+
+output_tokens = results[0].hypotheses[0]
+output_text = tokenizer.decode(tokenizer.convert_tokens_to_ids(output_tokens))
+
+print(output_text)
+```
+
+```{note}
+`google/umt5-*` are pretrained-only checkpoints: they were trained on span corruption and not
+fine-tuned on any downstream task, so they respond to the prompt above with sentinel tokens
+rather than a translation. Use a fine-tuned UMT5 checkpoint for meaningful output. The
+CTranslate2 output matches Hugging Face for the same inputs in either case.
+```
+
+```{attention}
+On GPU, large T5-family models can overflow the float16 dynamic range. Use
+`compute_type="float32"` if the output degrades.
 ```
 
 

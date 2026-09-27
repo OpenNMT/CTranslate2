@@ -1137,3 +1137,88 @@ class TestWav2Vec2Bert:
         transcription = transcription[0].replace(processor.tokenizer.unk_token, "")
 
         assert transcription == expected_transcription[0]
+
+
+def _build_tiny_t5_family_model(cls, config_cls, **kwargs):
+    import torch
+
+    config = config_cls(
+        vocab_size=64,
+        d_model=16,
+        d_kv=4,
+        d_ff=32,
+        num_layers=3,
+        num_decoder_layers=3,
+        num_heads=4,
+        feed_forward_proj="gated-gelu",
+        **kwargs,
+    )
+    model = cls(config).eval()
+
+    # Make each table trivially identifiable so a mix-up is visible.
+    with torch.no_grad():
+        for stack in (model.encoder, model.decoder):
+            for i, block in enumerate(stack.block):
+                attention = block.layer[0].SelfAttention
+                if attention.has_relative_attention_bias:
+                    attention.relative_attention_bias.weight.fill_(i + 1)
+
+    return model
+
+
+def _load_stacks(loader, model):
+    from ctranslate2.specs import common_spec, transformer_spec
+
+    spec = transformer_spec.TransformerSpec.from_config(
+        (model.config.num_layers, model.config.num_decoder_layers),
+        model.config.num_heads,
+        pre_norm=True,
+        activation=common_spec.Activation.GELUTanh,
+        ffn_glu=True,
+        relative_attention_bias=True,
+        rms_norm=True,
+    )
+    loader.set_stack(spec.encoder, model.encoder)
+    loader.set_stack(spec.decoder, model.decoder, is_decoder=True)
+    return spec
+
+
+def _biases(stack_spec):
+    return [layer.self_attention.relative_attention_bias for layer in stack_spec.layer]
+
+
+@test_utils.only_on_linux
+def test_umt5_loader_keeps_one_relative_attention_bias_per_layer():
+    import transformers
+
+    from ctranslate2.converters.transformers import UMT5Loader
+
+    model = _build_tiny_t5_family_model(
+        transformers.UMT5ForConditionalGeneration, transformers.UMT5Config
+    )
+    spec = _load_stacks(UMT5Loader(), model)
+
+    for stack in (spec.encoder, spec.decoder):
+        biases = _biases(stack)
+        assert len(biases) == 3
+        assert all(bias is not None for bias in biases)
+        # UMT5 has a distinct table per layer: the values must not be copied from layer 0.
+        assert [float(bias.detach().flatten()[0]) for bias in biases] == [1.0, 2.0, 3.0]
+
+
+@test_utils.only_on_linux
+def test_t5_loader_shares_the_first_relative_attention_bias():
+    import transformers
+
+    from ctranslate2.converters.transformers import T5Loader
+
+    model = _build_tiny_t5_family_model(
+        transformers.T5ForConditionalGeneration, transformers.T5Config
+    )
+    spec = _load_stacks(T5Loader(), model)
+
+    for stack in (spec.encoder, spec.decoder):
+        biases = _biases(stack)
+        assert len(biases) == 3
+        # T5 only defines the table in the first layer and shares it with the others.
+        assert all(bias is biases[0] for bias in biases)
