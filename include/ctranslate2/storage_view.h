@@ -32,7 +32,8 @@ namespace ctranslate2 {
   inline dim_t compute_size(const Shape& shape) {
     dim_t size = 1;
     for (const dim_t dim : shape) {
-      if (dim < 0 || size > std::numeric_limits<dim_t>::max() / dim)
+      // a zero dimension produces an empty tensor, which cannot overflow
+      if (dim < 0 || (dim != 0 && size > std::numeric_limits<dim_t>::max() / dim))
         THROW_INVALID_ARGUMENT("shape leads to an overflowing tensor size");
       size *= dim;
     }

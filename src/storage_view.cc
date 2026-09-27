@@ -195,7 +195,8 @@ namespace ctranslate2 {
       const dim_t dim = new_shape[i];
 
       if (dim >= 0) {
-        if (known_size > std::numeric_limits<dim_t>::max() / dim)
+        // a zero dimension produces an empty tensor, which cannot overflow
+        if (dim != 0 && known_size > std::numeric_limits<dim_t>::max() / dim)
           THROW_INVALID_ARGUMENT("new shape leads to an overflowing tensor size");
         known_size *= dim;
       } else if (dim == -1) {

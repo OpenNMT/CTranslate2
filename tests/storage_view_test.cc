@@ -162,3 +162,15 @@ TEST(StorageViewTest, OverflowingReshapeThrows) {
   shape.push_back(8);
   EXPECT_THROW(view.reshape(shape), std::invalid_argument);
 }
+
+TEST(StorageViewTest, ZeroDimsPassOverflowGuard) {
+  // the guard must not divide by a zero dimension: on x86 this is a SIGFPE,
+  // on AArch64 the division yields 0 and every later check sees an overflow
+  Shape shape;
+  shape.push_back((int64_t{1} << 62) + 1);
+  shape.push_back(0);
+  EXPECT_EQ(compute_size(shape), 0);
+
+  StorageView empty(Shape{0}, DataType::INT32);
+  empty.reshape(Shape{0});
+}
