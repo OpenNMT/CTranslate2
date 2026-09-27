@@ -2,11 +2,16 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <memory>
 #include <numeric>
 
 #include "ctranslate2/ops/ops.h"
 #include "dispatch.h"
+
+#ifdef CT2_WITH_MPS
+#  include "mps/kernels.h"
+#endif
 
 namespace ctranslate2 {
 
@@ -533,8 +538,49 @@ namespace ctranslate2 {
           logits_vec = build_logits(logits, cur_batch_size);
       }
 
+      bool used_fused_beam_search = false;
+#ifdef CT2_WITH_MPS
+      static const bool use_fused_beam_search = []() {
+        const char* value = std::getenv("CT2_MPS_USE_FUSED_BEAM_SEARCH");
+        return value && value[0] != '\0' && value[0] != '0';
+      }();
+      if (use_fused_beam_search
+          && device == Device::MPS
+          && dtype == DataType::FLOAT16
+          && is_expanded
+          && !bias_towards_prefix
+          && dynamic_cast<const BestSampler*>(&sampler)
+          && num_candidates <= 16
+          && topk_scores) {
+        StorageView beam_scores_device = topk_scores.to(device);
+        StorageView sampled_ids_device({cur_batch_size, num_candidates},
+                                       DataType::INT32,
+                                       device);
+        StorageView sampled_scores_device({cur_batch_size, num_candidates},
+                                          dtype,
+                                          device);
+        used_fused_beam_search = mps::fused_beam_search_topk(
+          dtype,
+          logits.data<float16_t>(),
+          beam_scores_device.data<float16_t>(),
+          sampled_scores_device.data<float16_t>(),
+          sampled_ids_device.data<int32_t>(),
+          cur_batch_size,
+          _beam_size,
+          vocabulary_size,
+          num_candidates);
+        if (used_fused_beam_search) {
+          topk_ids.copy_from(sampled_ids_device);
+          topk_scores.copy_from(sampled_scores_device);
+        }
+      }
+#endif
+
       StorageView log_probs(dtype, device);
-      if (bias_towards_prefix) {
+      if (used_fused_beam_search) {
+        // The fused kernel already applied log-softmax, previous beam scores,
+        // flattening, and deterministic TopK selection.
+      } else if (bias_towards_prefix) {
         biased_decoder->decode(cur_batch_size,
                                step,
                                batch_offset,
@@ -547,7 +593,7 @@ namespace ctranslate2 {
       }
 
       // Multiply by the current beam log probs.
-      if (topk_scores) {
+      if (!used_fused_beam_search && topk_scores) {
         DEVICE_AND_TYPE_DISPATCH(log_probs.device(), log_probs.dtype(),
                                  primitives<D>::add_depth_broadcast(topk_scores.to(device).data<T>(),
                                                                     log_probs.data<T>(),
@@ -556,10 +602,12 @@ namespace ctranslate2 {
       }
 
       // Flatten the probs into a list of candidates.
-      log_probs.reshape({cur_batch_size, -1});
+      if (!used_fused_beam_search)
+        log_probs.reshape({cur_batch_size, -1});
 
       // TopK candidates.
-      sampler(log_probs, topk_ids, topk_scores, num_candidates);
+      if (!used_fused_beam_search)
+        sampler(log_probs, topk_ids, topk_scores, num_candidates);
 
       // Unflatten the ids.
       StorageView gather_indices = unflatten_ids(topk_ids, _beam_size, vocabulary_size, is_expanded);

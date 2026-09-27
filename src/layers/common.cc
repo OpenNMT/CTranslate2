@@ -1,13 +1,42 @@
 #include "ctranslate2/layers/common.h"
 
 #include <cmath>
+#include <cstdlib>
 
 #include "ctranslate2/ops/activation.h"
 #include "cpu/backend.h"
 #include "dispatch.h"
 
+#ifdef CT2_WITH_MPS
+#  include "mps/kernels.h"
+#endif
+
 namespace ctranslate2 {
   namespace layers {
+
+#ifdef CT2_WITH_MPS
+    static int dense_mps_activation_code(const ops::ActivationType* activation) {
+      if (!activation)
+        return -1;
+      switch (*activation) {
+      case ops::ActivationType::ReLU:
+        return static_cast<int>(mps::UnaryOp::RELU);
+      case ops::ActivationType::GELUTanh:
+        return static_cast<int>(mps::UnaryOp::GELU_TANH);
+      case ops::ActivationType::Swish:
+        return static_cast<int>(mps::UnaryOp::SWISH);
+      case ops::ActivationType::GELU:
+        return static_cast<int>(mps::UnaryOp::GELU);
+      case ops::ActivationType::GELUSigmoid:
+        return static_cast<int>(mps::UnaryOp::GELU_SIGMOID);
+      case ops::ActivationType::Tanh:
+        return static_cast<int>(mps::UnaryOp::TANH);
+      case ops::ActivationType::Sigmoid:
+        return static_cast<int>(mps::UnaryOp::SIGMOID);
+      }
+      return -1;
+    }
+#endif
 
     StorageView
     make_sequence_inputs(const std::vector<std::vector<size_t>>& ids,
@@ -352,9 +381,43 @@ namespace ctranslate2 {
       }
       if (_quantized_gemm) {
         const auto device = input.device();
+
+#ifdef CT2_WITH_MPS
+        if (!affected_by_tp
+            && device == Device::MPS
+            && input.dtype() == DataType::FLOAT16
+            && _weight.dtype() == DataType::INT8
+            && _output_type == DataType::FLOAT16
+            && qscale
+            && (!bias || bias->dtype() == DataType::FLOAT16)
+            && (!residual || residual->dtype() == DataType::FLOAT16)) {
+          const dim_t k = input.dim(-1);
+          const dim_t n = weight->dim(0);
+          const dim_t m = input.size() / k;
+          if ((!bias || bias->size() == n)
+              && (!residual || residual->size() == m * n)) {
+            Shape output_shape(input.shape());
+            output_shape.back() = n;
+            output.resize(std::move(output_shape));
+            if (mps::gemm_weight_only_int8_with_epilogue(
+                  input.data<float16_t>(),
+                  weight->data<int8_t>(),
+                  qscale->data<float>(),
+                  qscale->size(),
+                  bias ? bias->data<float16_t>() : nullptr,
+                  residual ? residual->data<float16_t>() : nullptr,
+                  output.data<float16_t>(),
+                  m,
+                  n,
+                  k,
+                  dense_mps_activation_code(_activation_type)))
+              return;
+          }
+        }
+#endif
+
         StorageView qinput(_weight.dtype(), device);
         StorageView qinput_scale(_qscale->dtype(), device);
-        StorageView qoutput(DataType::INT32, device);
         const StorageView* pinput = &input;
 
         if (affected_by_tp) {
@@ -389,6 +452,7 @@ namespace ctranslate2 {
           _quantize_op(input, qinput, qinput_scale);
         }
 
+        StorageView qoutput(DataType::INT32, device);
         _gemm_op(qinput, *weight, qoutput, compensation);
         _dequantize_op(qoutput,
                        qinput_scale,
@@ -441,6 +505,34 @@ namespace ctranslate2 {
       }
     }
 
+    void Dense::forward_with_post_layer_norm(const StorageView& input,
+                                             const StorageView& residual,
+                                             const LayerNorm& layer_norm,
+                                             StorageView& output) const {
+#ifdef CT2_WITH_MPS
+      static const bool use_fused_post_norm = []() {
+        const char* value = std::getenv("CT2_MPS_USE_FUSED_POST_NORM");
+        return value && value[0] != '\0' && value[0] != '0';
+      }();
+
+      const StorageView* weight = _partial_weight.empty() ? &_weight : &_partial_weight;
+      const StorageView* bias = _partial_bias.empty() ? _bias : &_partial_bias;
+      if (use_fused_post_norm
+          && input.device() == Device::MPS
+          && input.dtype() == DataType::FLOAT16
+          && !_quantized_gemm
+          && !_qzero
+          && !_activation_type
+          && bias) {
+        _gemm_op(input, *weight, output);
+        if (layer_norm.apply_fused_bias_residual(output, *bias, residual, output))
+          return;
+      }
+#endif
+      (*this)(input, output, &residual);
+      layer_norm(output, output);
+    }
+
 
     LayerNorm::LayerNorm(const models::Model& model, const std::string& scope)
       : _beta(model.get_variable_if_exists(scope + "/beta"))
@@ -469,6 +561,47 @@ namespace ctranslate2 {
         const ops::RMSNorm norm_op(_epsilon, _use_residual);
         norm_op(_gamma, input, output);
       }
+    }
+
+    bool LayerNorm::apply_fused_bias_residual(const StorageView& input,
+                                              const StorageView& bias,
+                                              const StorageView& residual,
+                                              StorageView& output) const {
+#ifdef CT2_WITH_MPS
+      if (!_beta
+          || input.device() != Device::MPS
+          || input.dtype() != DataType::FLOAT16
+          || bias.dtype() != input.dtype()
+          || residual.dtype() != input.dtype()
+          || _gamma.dtype() != input.dtype()
+          || _beta->dtype() != input.dtype()
+          || input.empty()
+          || input.rank() == 0
+          || bias.size() != input.dim(-1)
+          || residual.size() != input.size()
+          || _gamma.size() != bias.size()
+          || _beta->size() != bias.size())
+        return false;
+
+      output.resize_as(input);
+      return mps::fused_bias_residual_layer_norm(
+        input.dtype(),
+        input.data<float16_t>(),
+        bias.data<float16_t>(),
+        residual.data<float16_t>(),
+        _gamma.data<float16_t>(),
+        _beta->data<float16_t>(),
+        output.data<float16_t>(),
+        input.size() / input.dim(-1),
+        input.dim(-1),
+        _epsilon);
+#else
+      (void)input;
+      (void)bias;
+      (void)residual;
+      (void)output;
+      return false;
+#endif
     }
 
 

@@ -25,7 +25,7 @@ export PYTORCH_ROCM_ARCH="gfx1030;gfx1100;gfx1101;gfx1102;gfx1150;gfx1151;gfx120
 if [ ! -d "C:/Program Files (x86)/Intel/oneAPI" ]; then
     curl --netrc-optional -L -nv -o webimage.exe https://registrationcenter-download.intel.com/akdlm/IRC_NAS/1f18901e-877d-469d-a41a-a10f11b39336/intel-oneapi-base-toolkit-2025.3.0.372_offline.exe
     ./webimage.exe -s -x -f webimage_extracted --log extract.log
-    rm webimage.exe
+    rm -f webimage.exe || true
     ./webimage_extracted/bootstrapper.exe -s --action install --components="intel.oneapi.win.mkl.devel" --eula=accept -p=NEED_VS2017_INTEGRATION=0 -p=NEED_VS2019_INTEGRATION=0 --log-dir=.
 fi
 

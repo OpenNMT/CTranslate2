@@ -10,6 +10,14 @@ from setuptools import Extension, find_packages, setup
 base_dir = os.path.dirname(os.path.abspath(__file__))
 include_dirs = [pybind11.get_include()]
 library_dirs = []
+library_rpaths = []
+
+
+def _add_library_dir(path):
+    if path not in library_dirs:
+        library_dirs.append(path)
+    if path not in library_rpaths:
+        library_rpaths.append(path)
 
 
 def _get_long_description():
@@ -35,7 +43,7 @@ def _maybe_add_library_root(lib_name):
         for lib_dir in ("lib", "lib64"):
             path = "%s/%s" % (root, lib_dir)
             if os.path.exists(path):
-                library_dirs.append(path)
+                _add_library_dir(path)
                 break
 
 
@@ -47,12 +55,16 @@ package_data = {}
 if sys.platform == "darwin":
     # std::visit requires macOS 10.14
     cflags.append("-mmacosx-version-min=10.14")
+    for path in library_rpaths:
+        ldflags.append("-Wl,-rpath,%s" % path)
     ldflags.append("-Wl,-rpath,/usr/local/lib")
 elif sys.platform == "win32":
     cflags = ["/std:c++17", "/d2FH4-"]
     package_data["ctranslate2"] = ["*.dll"]
 elif sys.platform == "linux":
     cflags.append("-fPIC")
+    for path in library_rpaths:
+        ldflags.append("-Wl,-rpath,%s" % path)
     ldflags.append("-Wl,-rpath,/usr/local/lib64:/usr/local/lib")
 
 ctranslate2_module = Extension(

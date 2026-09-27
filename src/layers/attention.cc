@@ -5,10 +5,15 @@
 
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <numeric>
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
+
+#ifdef CT2_WITH_MPS
+#  include "mps/kernels.h"
+#endif
 
 namespace ctranslate2 {
   namespace layers {
@@ -166,6 +171,16 @@ namespace ctranslate2 {
 
     static const ops::Transpose transpose_op({0, 2, 1, 3});
 
+#ifdef CT2_WITH_MPS
+    static bool mps_fused_attention_enabled() {
+      static const bool enabled = []() {
+        const char* value = std::getenv("CT2_MPS_USE_FUSED_ATTENTION");
+        return value && value[0] != '\0' && value[0] != '0';
+      }();
+      return enabled;
+    }
+#endif
+
     static inline void save_attention(StorageView& attention, StorageView weights, dim_t beam_size) {
       if (beam_size == 1)
         attention = std::move(weights);
@@ -194,8 +209,98 @@ namespace ctranslate2 {
                                       bool with_cache = false,
                                       dim_t beam_size = 1,
                                       Alibi* alibi = nullptr,
-                                      StorageView* position_bias = nullptr) {
+                                      StorageView* position_bias = nullptr,
+                                      bool interleaved_queries = false) {
       PROFILE("dot_product_attention");
+
+#ifdef CT2_WITH_MPS
+      // During beam decoding, split_heads represents beams as the query
+      // dimension. Fuse QK, softmax, and PV for this exact contiguous layout.
+      // Keep the path opt-in while it is benchmarked against the established
+      // implementation; CT2_MPS_USE_FUSED_ATTENTION=1 enables it.
+      const bool standard_layout = !interleaved_queries
+                                   && queries.rank() == 4
+                                   && keys.rank() == 4
+                                   && values.rank() == 4
+                                   && queries.dim(0) == keys.dim(0)
+                                   && queries.dim(0) == values.dim(0)
+                                   && queries.dim(1) == keys.dim(1)
+                                   && queries.dim(1) == values.dim(1)
+                                   && keys.dim(2) == values.dim(2)
+                                   && queries.dim(3) == keys.dim(3)
+                                   && queries.dim(3) == values.dim(3);
+      const bool interleaved_layout = interleaved_queries
+                                      && queries.rank() == 4
+                                      && keys.rank() == 4
+                                      && values.rank() == 4
+                                      && queries.dim(0) == keys.dim(0)
+                                      && queries.dim(0) == values.dim(0)
+                                      && queries.dim(2) == keys.dim(1)
+                                      && queries.dim(2) == values.dim(1)
+                                      && keys.dim(2) == values.dim(2)
+                                      && queries.dim(3) == keys.dim(3)
+                                      && queries.dim(3) == values.dim(3);
+      if (mps_fused_attention_enabled()
+          && queries.device() == Device::MPS
+          && queries.dtype() == DataType::FLOAT16
+          && (standard_layout || interleaved_layout)
+          && !relative_position_keys
+          && !relative_asymmetric_position_keys
+          && !relative_position_values
+          && !relative_attention_bias
+          && !alibi
+          && !attention) {
+        output.resize_as(queries);
+        const dim_t num_heads = interleaved_layout ? queries.dim(2) : queries.dim(1);
+        const dim_t query_length = interleaved_layout ? queries.dim(1) : queries.dim(2);
+        const dim_t matrix_batch = queries.dim(0) * num_heads;
+        if (mps::fused_attention(DataType::FLOAT16,
+                                 queries.data<float16_t>(),
+                                 keys.data<float16_t>(),
+                                 values.data<float16_t>(),
+                                 values_lengths ? values_lengths->data<int32_t>() : nullptr,
+                                 output.data<float16_t>(),
+                                 matrix_batch,
+                                 query_length,
+                                 keys.dim(2),
+                                 queries.dim(3),
+                                 queries_scale,
+                                 interleaved_layout ? num_heads : 0))
+          return;
+      }
+#endif
+
+      // The interleaved layout is only selected for the fused MPS path. Keep a
+      // correct generic fallback if a future model shape falls outside the
+      // specialized kernel's limits.
+      if (interleaved_queries) {
+        StorageView standard_queries(queries.dtype(), queries.device());
+        StorageView standard_output(queries.dtype(), queries.device());
+        transpose_op(queries, standard_queries);
+        dot_product_attention(standard_queries,
+                              keys,
+                              values,
+                              values_lengths,
+                              relative_position_keys,
+                              relative_asymmetric_position_keys,
+                              relative_position_values,
+                              relative_attention_bias,
+                              relative_left_max_position,
+                              relative_right_max_position,
+                              maximum_relative_position,
+                              standard_output,
+                              attention,
+                              return_normalized_attention,
+                              queries_scale,
+                              is_decoder,
+                              with_cache,
+                              beam_size,
+                              alibi,
+                              position_bias,
+                              false);
+        transpose_op(standard_output, output);
+        return;
+      }
 
       std::unique_ptr<const StorageView> relative_positions;
       if (relative_position_keys || relative_position_values || relative_asymmetric_position_keys) {
@@ -379,7 +484,9 @@ namespace ctranslate2 {
         StorageView* cached_values,
         const Padder* queries_padder,
         const Padder* values_padder,
-        dim_t& beam_size) const {
+        dim_t& beam_size,
+        bool use_interleaved_beam_layout,
+        bool* interleaved_beam_layout) const {
 
       queries_proj = std::move(fused_proj);
 
@@ -436,7 +543,19 @@ namespace ctranslate2 {
       if (queries_proj.dim(1) == 1 && cached_keys)
         beam_size = queries_proj.dim(0) / cached_keys->dim(0);
 
-      split_heads(queries_proj, _num_heads, queries_padder, beam_size);
+      if (use_interleaved_beam_layout && beam_size > 1) {
+        // Keep the projection's natural [batch, beam, heads, depth] order.
+        // The fused attention kernel understands this layout, and its output
+        // can be flattened directly back to [batch * beam, 1, model_depth].
+        queries_proj.reshape({queries_proj.dim(0) / beam_size,
+                              beam_size,
+                              _num_heads,
+                              _d_head});
+        if (interleaved_beam_layout)
+          *interleaved_beam_layout = true;
+      } else {
+        split_heads(queries_proj, _num_heads, queries_padder, beam_size);
+      }
     }
 
     void MultiHeadAttention::operator()(const StorageView& queries,
@@ -468,14 +587,31 @@ namespace ctranslate2 {
       _linear[0](*q, fused_proj);
 
       dim_t beam_size = 1;
+      bool interleaved_beam_layout = false;
 
       bool prefilling = (_sliding_window > 0 && values_lengths);
 
       if (!_self_attention) {
 
+        bool use_interleaved_beam_layout = false;
+#ifdef CT2_WITH_MPS
+        use_interleaved_beam_layout = mps_fused_attention_enabled()
+                                      && device == Device::MPS
+                                      && dtype == DataType::FLOAT16
+                                      && !attention
+                                      && !queries_padder
+                                      && !_relative_position_keys
+                                      && !_relative_asymmetric_position_keys
+                                      && !_relative_position_values
+                                      && !_relative_attention_bias
+                                      && !_alibi;
+#endif
+
         process_cross_attention(queries, values, fused_proj, queries_proj, keys_proj,
                                 values_proj, cached_keys, cached_values,
-                                queries_padder, values_padder, beam_size);
+                                queries_padder, values_padder, beam_size,
+                                use_interleaved_beam_layout,
+                                &interleaved_beam_layout);
       } else {
 
         if (_num_heads_kv < _num_heads) {// MQA or GQA: queries stay in merged time/head format
@@ -582,7 +718,8 @@ namespace ctranslate2 {
                             bool(cached_keys),
                             beam_size,
                             _alibi,
-                            position_bias);
+                            position_bias,
+                            interleaved_beam_layout);
 
       if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
         // set only last sliding_window tokens to cached_keys and cached_values after computing attention
@@ -598,10 +735,16 @@ namespace ctranslate2 {
         context.reshape(queries.shape());
         if (queries_padder)
           queries_padder->remove_padding(context);
+      } else if (interleaved_beam_layout) {
+        context.reshape(queries.shape());
       } else {
         combine_heads(context, _num_heads, queries_padder, beam_size);
       }
-      _linear.back()(context, output, _layer_norm ? &queries : nullptr);
+      const bool fuse_post_norm = _layer_norm && !_pre_norm && !_tensor_parallel;
+      if (fuse_post_norm)
+        _linear.back().forward_with_post_layer_norm(context, queries, *_layer_norm, output);
+      else
+        _linear.back()(context, output, _layer_norm ? &queries : nullptr);
 
       if (_tensor_parallel) {
         Shape shape = output.shape();
@@ -610,7 +753,7 @@ namespace ctranslate2 {
         ops_reduce_all(output, tmp);
         output = std::move(tmp);
       }
-      if (_layer_norm && !_pre_norm)
+      if (_layer_norm && !_pre_norm && !fuse_post_norm)
         (*_layer_norm)(output, output);
     }
 
@@ -789,9 +932,13 @@ namespace ctranslate2 {
       values_matmul(attn, merged_values, context);
 
       combine_heads(context, _num_heads, queries_padder, /*beam_size=*/1);
-      _linear.back()(context, output, _layer_norm ? &queries : nullptr);
+      const bool fuse_post_norm = _layer_norm && !_pre_norm;
+      if (fuse_post_norm)
+        _linear.back().forward_with_post_layer_norm(context, queries, *_layer_norm, output);
+      else
+        _linear.back()(context, output, _layer_norm ? &queries : nullptr);
 
-      if (_layer_norm && !_pre_norm)
+      if (_layer_norm && !_pre_norm && !fuse_post_norm)
         (*_layer_norm)(output, output);
     }
 
