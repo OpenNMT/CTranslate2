@@ -1206,6 +1206,275 @@ def test_umt5_loader_keeps_one_relative_attention_bias_per_layer():
         assert [float(bias.detach().flatten()[0]) for bias in biases] == [1.0, 2.0, 3.0]
 
 
+# --- Runtime tests -----------------------------------------------------------------
+#
+# The loader tests above prove the *spec* carries one bias table per layer. They would
+# still pass if the C++ runtime read layer 0's table for every layer, so the tests below
+# exercise the runtime itself.
+#
+# Two things matter when building the synthetic model:
+#
+# 1. The tables must be non-constant. A table that is uniform over buckets adds the same
+#    value to every attention logit, which cancels in the softmax -- so a runtime that
+#    wrongly shared layer 0 would still produce identical output and the test would pass.
+#
+# 2. The rest of the weights must come from Transformers' own initializer. T5 omits the
+#    1/sqrt(head_dim) attention scaling and compensates in the `q` initialiser, so a
+#    hand-rolled 1/sqrt(fan_in) init makes the attention logits saturate and CTranslate2
+#    and Transformers then disagree by ~1e-1 for reasons unrelated to the bias tables.
+#    `initializer_factor` is kept small to stay well-conditioned through the gated FFN.
+
+
+def _tiny_umt5_vocabulary(vocab_size):
+    return ["<pad>", "</s>", "<unk>"] + ["tok%d" % i for i in range(3, vocab_size)]
+
+
+def _build_umt5_with_biases(
+    encoder_distinct,
+    decoder_distinct,
+    vocab_size=64,
+    num_layers=3,
+    initializer_factor=0.05,
+    bias_scale=5.0,
+    amplify_decoder_values=1.0,
+):
+    """Builds a tiny UMT5 whose per-layer bias tables are distinct and non-constant.
+
+    When a stack is not `distinct`, every layer gets layer 0's table, which is what a
+    T5-style shared-bias model looks like.
+    """
+    import torch
+    import transformers
+
+    torch.manual_seed(3)
+    config = transformers.UMT5Config(
+        vocab_size=vocab_size,
+        d_model=32,
+        d_kv=8,
+        d_ff=64,
+        num_layers=num_layers,
+        num_decoder_layers=num_layers,
+        num_heads=4,
+        feed_forward_proj="gated-gelu",
+        decoder_start_token_id=0,
+        pad_token_id=0,
+        eos_token_id=1,
+        initializer_factor=initializer_factor,
+    )
+
+    # Use eager attention for the reference. Under SDPA, Transformers releases
+    # v5.15.0 to v5.17.0 leave the UMT5 decoder non-causal
+    # (https://github.com/huggingface/transformers/issues/49134, fixed by #49135),
+    # which would show up here as a mismatch that has nothing to do with the bias
+    # tables. Eager materialises the mask and is correct on every release.
+    config._attn_implementation = "eager"
+
+    model = transformers.UMT5ForConditionalGeneration(config).eval()
+
+    # At this weight scale the decoder's value vectors are nearly identical across
+    # positions, so a change in attention weights barely moves the output. Amplifying
+    # only the self-attention value path makes attention differences observable without
+    # destabilising the rest of the stack.
+    if amplify_decoder_values != 1.0:
+        with torch.no_grad():
+            for block in model.decoder.block:
+                attention = block.layer[0].SelfAttention
+                attention.v.weight.mul_(amplify_decoder_values)
+                attention.o.weight.mul_(amplify_decoder_values)
+
+    generator = torch.Generator().manual_seed(99)
+    with torch.no_grad():
+        for stack, distinct in (
+            (model.encoder, encoder_distinct),
+            (model.decoder, decoder_distinct),
+        ):
+            attention = stack.block[0].layer[0].SelfAttention
+            shape = attention.relative_attention_bias.weight.shape
+            tables = [
+                (torch.rand(shape, generator=generator) * 2 - 1) * bias_scale
+                for _ in stack.block
+            ]
+            for i, block in enumerate(stack.block):
+                block.layer[0].SelfAttention.relative_attention_bias.weight.copy_(
+                    tables[i] if distinct else tables[0]
+                )
+
+    return model
+
+
+def _save_umt5(model, output_dir):
+    from ctranslate2.converters.transformers import UMT5Loader
+
+    loader = UMT5Loader()
+    spec = loader.get_model_spec(model)
+    tokens = _tiny_umt5_vocabulary(model.config.vocab_size)
+    loader.set_vocabulary(spec, tokens)
+    spec.config.bos_token = "<pad>"
+    spec.config.eos_token = "</s>"
+    spec.config.unk_token = "<unk>"
+    spec.config.decoder_start_token = "<pad>"
+
+    # Mirror Converter.convert().
+    spec.validate()
+    spec.optimize(quantization="float32")
+    os.makedirs(output_dir, exist_ok=True)
+    spec.save(output_dir)
+    return tokens
+
+
+def _save_umt5_encoder(model, output_dir):
+    from ctranslate2.converters.transformers import (
+        _SUPPORTED_ACTIVATIONS,
+        UMT5Loader,
+    )
+    from ctranslate2.specs import transformer_spec
+
+    config = model.config
+    encoder = transformer_spec.TransformerEncoderSpec(
+        config.num_layers,
+        config.num_heads,
+        pre_norm=True,
+        activation=_SUPPORTED_ACTIVATIONS[config.dense_act_fn],
+        ffn_glu=config.is_gated_act,
+        relative_attention_bias=True,
+        rms_norm=True,
+    )
+    spec = transformer_spec.TransformerEncoderModelSpec(encoder)
+    UMT5Loader().set_stack(spec.encoder, model.encoder)
+
+    tokens = _tiny_umt5_vocabulary(config.vocab_size)
+    spec.register_vocabulary(tokens)
+    spec.config.bos_token = "<pad>"
+    spec.config.eos_token = "</s>"
+    spec.config.unk_token = "<unk>"
+
+    spec.validate()
+    spec.optimize(quantization=None)
+    os.makedirs(output_dir, exist_ok=True)
+    spec.save(output_dir)
+    return tokens
+
+
+_UMT5_SOURCE = [5, 9, 14, 23, 7, 33, 41, 18, 52, 11, 27, 6, 44, 30, 21, 38]
+_UMT5_TARGET = [11, 4, 19, 30, 27, 48, 13, 36, 8, 25, 55, 17, 42, 9, 31, 20]
+
+
+def _umt5_log_probs(model_dir, tokens, source, target):
+    translator = ctranslate2.Translator(
+        model_dir,
+        device="cpu",
+        compute_type="float32",
+        inter_threads=1,
+        intra_threads=1,
+    )
+    result = translator.score_batch(
+        [[tokens[i] for i in source]], [[tokens[i] for i in target]]
+    )[0]
+    return np.array(result.log_probs)
+
+
+def _umt5_reference_log_probs(model, source, target):
+    import torch
+
+    # score_batch appends </s> to the target itself.
+    target = target + [model.config.eos_token_id]
+    with torch.no_grad():
+        outputs = model(
+            input_ids=torch.tensor([source + [model.config.eos_token_id]]),
+            decoder_input_ids=torch.tensor(
+                [[model.config.decoder_start_token_id] + target[:-1]]
+            ),
+        )
+        log_probs = torch.log_softmax(outputs.logits[0].float(), -1)
+        return log_probs[torch.arange(len(target)), torch.tensor(target)].numpy()
+
+
+@test_utils.only_on_linux
+def test_umt5_runtime_uses_per_layer_bias_in_encoder(tmp_dir):
+    """The encoder runtime must read each layer's own bias table.
+
+    Checked on the encoder output rather than on token scores: on a randomly
+    initialised model the encoder's contribution to the final scores is numerically
+    negligible (measured as exactly 0), so a score-level assertion here would be
+    vacuous. The encoder output separates the two cases by ~6 orders of magnitude.
+    """
+    import torch
+
+    # A larger scale than the decoder test can afford: the encoder alone stays
+    # well-conditioned here, and it makes the bias effect unmistakable.
+    kwargs = dict(initializer_factor=0.3, bias_scale=5.0)
+    distinct = _build_umt5_with_biases(True, True, **kwargs)
+    shared = _build_umt5_with_biases(False, False, **kwargs)
+
+    tokens = _save_umt5_encoder(distinct, str(tmp_dir.join("distinct")))
+    _save_umt5_encoder(shared, str(tmp_dir.join("shared")))
+
+    def encode(model_dir):
+        encoder = ctranslate2.Encoder(
+            model_dir,
+            device="cpu",
+            compute_type="float32",
+            inter_threads=1,
+            intra_threads=1,
+        )
+        output = encoder.forward_batch([[tokens[i] for i in _UMT5_SOURCE]])
+        return np.array(output.last_hidden_state)[0]
+
+    got_distinct = encode(str(tmp_dir.join("distinct")))
+    got_shared = encode(str(tmp_dir.join("shared")))
+
+    with torch.no_grad():
+        expected = (
+            distinct.encoder(input_ids=torch.tensor([_UMT5_SOURCE]))
+            .last_hidden_state[0]
+            .numpy()
+        )
+
+    # The runtime reproduces Transformers with one table per layer.
+    assert np.abs(got_distinct - expected).max() < 1e-5
+
+    # And the per-layer tables actually reach the kernels: a runtime that reused
+    # layer 0's table would return the shared-bias output instead.
+    assert np.abs(got_distinct - got_shared).max() > 1e-2
+
+
+@test_utils.only_on_linux
+def test_umt5_runtime_uses_per_layer_bias_in_decoder(tmp_dir):
+    """The decoder runtime must read each layer's own bias table."""
+    kwargs = dict(amplify_decoder_values=30.0)
+    distinct = _build_umt5_with_biases(False, True, **kwargs)
+    shared = _build_umt5_with_biases(False, False, **kwargs)
+
+    tokens = _save_umt5(distinct, str(tmp_dir.join("distinct")))
+    _save_umt5(shared, str(tmp_dir.join("shared")))
+
+    got_distinct = _umt5_log_probs(
+        str(tmp_dir.join("distinct")), tokens, _UMT5_SOURCE, _UMT5_TARGET
+    )
+    got_shared = _umt5_log_probs(
+        str(tmp_dir.join("shared")), tokens, _UMT5_SOURCE, _UMT5_TARGET
+    )
+    expected = _umt5_reference_log_probs(distinct, _UMT5_SOURCE, _UMT5_TARGET)
+
+    assert np.abs(got_distinct - expected).max() < 1e-4
+    assert np.abs(got_distinct - got_shared).max() > 1e-4
+
+
+@test_utils.only_on_linux
+def test_umt5_runtime_matches_transformers_with_distinct_biases_in_both_stacks(tmp_dir):
+    """Distinct tables in both stacks at once, so a scope mix-up between the
+    encoder and the decoder would show up here."""
+    model = _build_umt5_with_biases(True, True, amplify_decoder_values=30.0)
+    tokens = _save_umt5(model, str(tmp_dir.join("model")))
+
+    got = _umt5_log_probs(
+        str(tmp_dir.join("model")), tokens, _UMT5_SOURCE, _UMT5_TARGET
+    )
+    expected = _umt5_reference_log_probs(model, _UMT5_SOURCE, _UMT5_TARGET)
+
+    assert np.abs(got - expected).max() < 1e-4
+
+
 @test_utils.only_on_linux
 def test_t5_loader_shares_the_first_relative_attention_bias():
     import transformers
