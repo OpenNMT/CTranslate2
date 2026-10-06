@@ -1323,10 +1323,7 @@ def _save_umt5(model, output_dir):
 
 
 def _save_umt5_encoder(model, output_dir):
-    from ctranslate2.converters.transformers import (
-        _SUPPORTED_ACTIVATIONS,
-        UMT5Loader,
-    )
+    from ctranslate2.converters.transformers import _SUPPORTED_ACTIVATIONS, UMT5Loader
     from ctranslate2.specs import transformer_spec
 
     config = model.config
