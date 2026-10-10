@@ -631,7 +631,7 @@ namespace ctranslate2 {
             if (alive_attention)
               result.attention.emplace_back(build_attention(alive_attention, i, k, start, end));
             if (return_logits_vocab) {
-              result.logits_vocab.emplace_back(std::move(logits_vec[i * k]));
+              result.logits_vocab.emplace_back(std::vector<StorageView>{std::move(logits_vec[i * k])});
             }
 
             // Move another active beam to this position.
