@@ -2,7 +2,11 @@
 
 ### New features
 
+* Support converting UMT5 models from Hugging Face Transformers
+
 ### Fixes and improvements
+
+* Support Transformer models where each layer has its own relative attention bias
 
 
 ## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-31)

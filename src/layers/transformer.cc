@@ -402,6 +402,30 @@ namespace ctranslate2 {
     }
 
 
+    // T5-style models compute the relative attention bias in the first layer and share it
+    // with the following layers. UMT5-style models give every layer its own bias table.
+    // Identical tables are serialized as aliases resolving to the same StorageView, so
+    // comparing the resolved pointers tells the two cases apart.
+    static bool has_shared_position_bias(const models::Model& model,
+                                         const std::string& scope,
+                                         const size_t num_layers) {
+      const auto bias_name = [&scope](size_t i) {
+        return scope + "/layer_" + std::to_string(i) + "/self_attention/relative_attention_bias";
+      };
+
+      const StorageView* first = model.get_variable_if_exists(bias_name(0));
+      if (!first)
+        return true;  // no relative attention bias: the shared buffer is never filled
+
+      for (size_t i = 1; i < num_layers; ++i) {
+        if (model.get_variable_if_exists(bias_name(i)) != first)
+          return false;
+      }
+
+      return true;
+    }
+
+
     TransformerEncoder::TransformerEncoder(const models::Model& model, const std::string& scope)
       : _embeddings(model, scope + "/embeddings",
                     model.get_enum_value<EmbeddingsMerge>(scope + "/embeddings_merge"))
@@ -421,6 +445,7 @@ namespace ctranslate2 {
                           ? nullptr
                           : build_position_encoder(model, scope + "/position_encodings", _embeddings))
       , _tensor_parallel(model.tensor_parallel())
+      , _shared_position_bias(has_shared_position_bias(model, scope, _layers.size()))
     {
     }
 
@@ -458,9 +483,10 @@ namespace ctranslate2 {
       }
 
       StorageView position_bias(output.dtype(), output.device());
+      StorageView* position_bias_ptr = _shared_position_bias ? &position_bias : nullptr;
 
       for (size_t l = 0; l < _layers.size(); ++l) {
-        (*_layers[l])(input, lengths_mask.get(), output, padder.get(), &position_bias);
+        (*_layers[l])(input, lengths_mask.get(), output, padder.get(), position_bias_ptr);
         if (l + 1 < _layers.size())
           input = std::move(output);
       }
@@ -513,7 +539,8 @@ namespace ctranslate2 {
       , _proj(model, scope + "/projection")
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
       , _tensor_parallel(model.tensor_parallel())
-      , _final_logit_softcapping(model.get_attribute_with_default<float>(scope + "/final_logit_softcapping", 0.f)) {
+      , _final_logit_softcapping(model.get_attribute_with_default<float>(scope + "/final_logit_softcapping", 0.f))
+      , _shared_position_bias(has_shared_position_bias(model, scope, _layers.size())) {
 
       dim_t alignment_layer = (
         model.get_attribute_with_default<int32_t>(scope + "/alignment_layer", -1));
@@ -729,6 +756,7 @@ namespace ctranslate2 {
         alignment_heads.reserve(_layers.size());
 
       StorageView position_bias(dtype, device);
+      StorageView* position_bias_ptr = _shared_position_bias ? &position_bias : nullptr;
 
       std::vector<StorageView> layer_ins;
 
@@ -804,7 +832,7 @@ namespace ctranslate2 {
                         input_padder.get(),
                         memory_padder.get(),
                         return_normalized_attention(),
-                        &position_bias,
+                        position_bias_ptr,
                         offset);
           *layer_in_chunk = std::move(layer_out);
 

@@ -1360,6 +1360,65 @@ class MT5Loader(T5Loader):
         return "MT5ForConditionalGeneration"
 
 
+@register_loader("UMT5Config")
+class UMT5Loader(T5Loader):
+    """Loader for UMT5 (https://arxiv.org/abs/2304.09151).
+
+    UMT5 is structurally identical to mT5 except that every self-attention layer has
+    its own relative attention bias, whereas T5 and mT5 compute the bias in the first
+    layer and share it with the following layers.
+    """
+
+    @property
+    def architecture_name(self):
+        return "UMT5ForConditionalGeneration"
+
+    def get_vocabulary(self, model, tokenizer):
+        # The UMT5 tokenizer already includes the <extra_id_*> tokens, so the vocabulary
+        # is padded with placeholders instead of the sentinels added by T5Loader.
+        tokens = ModelLoader.get_vocabulary(self, model, tokenizer)
+
+        for i in range(model.config.vocab_size - len(tokens)):
+            tokens.append("<unused_%d>" % i)
+
+        if len(tokens) != model.config.vocab_size:
+            raise ValueError(
+                "The tokenizer returned %d tokens but the model embedding expects %d"
+                % (len(tokens), model.config.vocab_size)
+            )
+
+        return tokens
+
+    def set_stack(self, spec, module, is_decoder=False):
+        self.set_layer_norm(spec.layer_norm, module.final_layer_norm)
+        self.set_embeddings(
+            (
+                spec.embeddings[0]
+                if isinstance(spec.embeddings, list)
+                else spec.embeddings
+            ),
+            module.embed_tokens,
+        )
+
+        spec.scale_embeddings = False
+
+        for layer_spec, block in zip(spec.layer, module.block):
+            # Each layer has its own relative attention bias so there is no bias to
+            # reuse from the first layer, unlike T5Loader.set_stack.
+            self.set_self_attention(layer_spec.self_attention, block.layer[0])
+
+            if layer_spec.self_attention.relative_attention_bias is None:
+                raise ValueError(
+                    "Expected each UMT5 self-attention layer to define a relative "
+                    "attention bias, but one layer did not"
+                )
+
+            if is_decoder:
+                self.set_cross_attention(layer_spec.attention, block.layer[1])
+
+            self.set_ffn(layer_spec.ffn, block.layer[-1])
+
+
 @register_loader("BloomConfig")
 class BloomLoader(ModelLoader):
     @property
