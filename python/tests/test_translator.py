@@ -8,6 +8,8 @@ import subprocess
 import sys
 import textwrap
 
+from types import SimpleNamespace
+
 import numpy as np
 import pytest
 import test_utils
@@ -778,7 +780,7 @@ def test_model_unload_while_async_translation():
     assert outputs[0].result().hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
 
 
-@pytest.mark.parametrize("as_file_object", [True, False])
+@pytest.mark.parametrize("as_file_object", [True, False, "fresh"])
 def test_load_model_from_memory(as_file_object):
     model_path = _get_model_path()
     files = {}
@@ -786,8 +788,12 @@ def test_load_model_from_memory(as_file_object):
     for filename in os.listdir(model_path):
         with open(os.path.join(model_path, filename), "rb") as model_file:
             content = model_file.read()
-            if as_file_object:
+            if as_file_object is True:
                 content = io.BytesIO(content)
+            elif as_file_object == "fresh":  # PR 2110
+                content = SimpleNamespace(
+                    read=lambda data=content: memoryview(data).tobytes()
+                )
             files[filename] = content
 
     translator = ctranslate2.Translator("aren-transliteration", files=files)
@@ -796,7 +802,7 @@ def test_load_model_from_memory(as_file_object):
         output = translator.translate_batch([["آ", "ت", "ز", "م", "و", "ن"]])
         assert output[0].hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
 
-    if as_file_object:
+    if as_file_object is True:
         for handle in files.values():
             handle.close()
 

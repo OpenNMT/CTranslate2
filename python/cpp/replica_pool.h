@@ -21,7 +21,7 @@ namespace ctranslate2 {
 
       for (const auto& pair : files.cast<py::dict>()) {
         auto filename = pair.first;
-        auto content = pair.second;
+        py::object content = py::reinterpret_borrow<py::object>(pair.second);
 
         auto read = py::getattr(content, "read", py::none());
         if (!read.is_none())
