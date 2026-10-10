@@ -10,12 +10,20 @@ if sys.platform == "win32":
     module_name = sys.modules[__name__].__name__
     package_dir = str(files(module_name))
 
-    try:
-        os.add_dll_directory(package_dir)
-        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_core/bin")
-        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
-    except (FileNotFoundError, OSError):
-        pass
+    # The libraries package name differs across ROCm releases.
+    site_dir = os.path.dirname(package_dir)
+    dll_dirs = [os.path.join(site_dir, "_rocm_sdk_core", "bin")]
+    dll_dirs += sorted(glob.glob(os.path.join(site_dir, "_rocm_sdk_libraries*", "bin")))
+    dll_dirs = [path for path in dll_dirs if os.path.isdir(path)]
+    # Fallback only: the search order between DLL directories is unspecified.
+    if not dll_dirs and os.environ.get("HIP_PATH"):
+        dll_dirs = [os.path.join(os.environ["HIP_PATH"], "bin")]
+
+    for path in [package_dir] + dll_dirs:
+        try:
+            os.add_dll_directory(path)
+        except OSError:
+            pass
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
         ctypes.CDLL(library)
