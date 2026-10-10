@@ -17,6 +17,18 @@ See the [environment variables](environment_variables.md) `CT2_USE_MKL` and `CT2
 
 ## GPU
 
+### NVIDIA
+
 * NVIDIA GPUs with a Compute Capability greater or equal to 3.5
 
 The driver requirement depends on the CUDA version. See the [CUDA Compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) for more information.
+
+### AMD (ROCm)
+
+* AMD RDNA 2 and RDNA 3 GPUs (RX 6000 and RX 7000 series)
+
+Prebuilt Python wheels for ROCm are available on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/). To build from source on Windows, see the {doc}`building_rocm_windows` guide.
+
+```{note}
+The ROCm backend is exposed through the same `device="cuda"` API as NVIDIA GPUs. CTranslate2 uses a unified device abstraction for both backends.
+```
