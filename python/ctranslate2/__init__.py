@@ -1,9 +1,55 @@
+import importlib
+import os
 import sys
+
+
+def _register_nvidia_pip_dll_directories(import_module=importlib.import_module):
+    """Point Windows DLL search mechanisms at pip-installed nvidia-cublas-cu12/
+    nvidia-cudnn-cu12 packages' bin directories, if present.
+
+    The Python wheel does not bundle cuBLAS/cuDNN (see CONTRIBUTING.md,
+    "CUDA support in Python wheels"). cuBLAS is loaded with a plain
+    Win32 LoadLibraryA() call (src/cuda/cublas_stub.cc), which does NOT
+    consult directories registered with os.add_dll_directory() -- that
+    only affects loaders that opt into LOAD_LIBRARY_SEARCH_DEFAULT_DIRS,
+    which a bare LoadLibraryA() does not. Verified empirically: with
+    only os.add_dll_directory() registered, LoadLibraryA("cublas64_12.dll")
+    still fails; adding the same directory to PATH (part of the legacy
+    search order LoadLibraryA does use) is what actually makes it
+    resolve. So both are registered here, same as os.add_dll_directory()
+    is kept for any other loader in the process that does honor it.
+
+    Users who `pip install nvidia-cublas-cu12 nvidia-cudnn-cu12` for CUDA
+    execution -- the standard pip-only setup, also used by faster-whisper
+    -- get those libraries installed as sibling packages, but nothing
+    here points either mechanism at them, so on Windows they hit "Could
+    not locate cudnn_cnn_infer64_8.dll" (#1915) / the same class of
+    problem #1826 reports for Linux's LD_LIBRARY_PATH.
+
+    Only called on sys.platform == "win32" (see below); pulled out to a
+    plain function -- rather than left inline in the platform-guarded
+    module body -- so it can be unit-tested on any host OS by injecting
+    a fake `import_module` and monkeypatching os.add_dll_directory/PATH,
+    without needing a real Windows+CUDA machine.
+    """
+    for nvidia_package in ("nvidia.cublas", "nvidia.cudnn"):
+        try:
+            nvidia_module = import_module(nvidia_package)
+        except ImportError:
+            continue
+        for base in nvidia_module.__path__:
+            bin_dir = os.path.join(base, "bin")
+            if os.path.isdir(bin_dir):
+                try:
+                    os.add_dll_directory(bin_dir)
+                except OSError:
+                    pass
+                os.environ["PATH"] = bin_dir + os.pathsep + os.environ["PATH"]
+
 
 if sys.platform == "win32":
     import ctypes
     import glob
-    import os
 
     from importlib.resources import files
 
@@ -16,6 +62,8 @@ if sys.platform == "win32":
         os.add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
     except (FileNotFoundError, OSError):
         pass
+
+    _register_nvidia_pip_dll_directories()
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
         ctypes.CDLL(library)
@@ -55,8 +103,8 @@ except ImportError as e:
     else:
         raise
 
-from ctranslate2 import models
-from ctranslate2.version import __version__
+from ctranslate2 import models  # noqa: E402
+from ctranslate2.version import __version__  # noqa: E402
 
 # converters and specs import torch (and, for converters, transformers) at module level.
 # Those dependencies are only needed to convert models, not to run inference, so import
