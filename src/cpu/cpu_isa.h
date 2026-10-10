@@ -6,13 +6,15 @@ namespace ctranslate2 {
   namespace cpu {
 
     enum class CpuIsa {
-      GENERIC,
+      GENERIC,POWER10,
 #if defined(CT2_X86_BUILD)
       AVX,
       AVX2,
       AVX512,
 #elif defined(CT2_ARM64_BUILD)
       NEON,
+      /*#elif defined(CT2_PPC64LE_BUILD)
+	POWER10,*/
 #endif
     };
 
@@ -53,6 +55,11 @@ namespace ctranslate2 {
   switch (cpu::get_cpu_isa()) {                               \
     CPU_ISA_CASE(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))        \
     CPU_ISA_DEFAULT(cpu::CpuIsa::GENERIC, SINGLE_ARG(STMTS))  \
+  }
+#elif defined(CT2_PPC64LE_BUILD)
+#  define CPU_ISA_DISPATCH(STMTS)                             \
+  switch (cpu::get_cpu_isa()) {                               \
+    CPU_ISA_DEFAULT(cpu::CpuIsa::POWER10, SINGLE_ARG(STMTS))  \
   }
 #endif
 #elif defined(__AVX512F__)
