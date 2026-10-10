@@ -865,6 +865,58 @@ class TestWhisper:
             assert transcription == expected_transcription
 
     @test_utils.only_on_linux
+    def test_transformers_whisper_full_context(self, tmp_dir):
+        import transformers
+
+        model_name = "openai/whisper-tiny"
+        converter = ctranslate2.converters.TransformersConverter(model_name)
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+
+        audio_path = os.path.join(test_utils.get_data_dir(), "audio", "jfk.npy")
+        audio = np.load(audio_path)
+
+        processor = transformers.WhisperProcessor.from_pretrained(model_name)
+        # Pad after computing the log-Mel spectrogram to match the openai/whisper behavior.
+        inputs = processor(audio, padding=False, sampling_rate=16000)
+        features = inputs.input_features[0]
+        features = np.pad(features, [(0, 0), (0, 3000 - features.shape[-1])])
+        features = ctranslate2.StorageView.from_array(np.expand_dims(features, 0))
+
+        model = ctranslate2.models.Whisper(output_dir)
+
+        # Suppress <|endoftext|> so generation always runs until max_length is
+        # reached, regardless of the actual audio content.
+        eot_id = processor.tokenizer.convert_tokens_to_ids("<|endoftext|>")
+
+        def _generated_length(prompt):
+            result = model.generate(
+                features,
+                [prompt],
+                beam_size=1,
+                num_hypotheses=1,
+                suppress_tokens=[eot_id],
+            )[0]
+            return len(result.sequences_ids[0])
+
+        no_timestamps_prompt = [
+            "<|startoftranscript|>",
+            "<|en|>",
+            "<|transcribe|>",
+            "<|notimestamps|>",
+        ]
+        timestamped_prompt = ["<|startoftranscript|>", "<|en|>", "<|transcribe|>"]
+
+        # With the default max_length of 448, decoding can use the entire
+        # remaining decoder context (448 minus the prompt length), no longer
+        # capped to half of max_length. This applies to both no-timestamp and
+        # timestamped decoding, since the previous 224-token cap was not
+        # actually related to timestamps. The timestamped prompt is one
+        # token shorter, so it gets one extra position of context.
+        assert _generated_length(no_timestamps_prompt) == 445
+        assert _generated_length(timestamped_prompt) == 446
+
+    @test_utils.only_on_linux
     @test_utils.on_available_devices
     @pytest.mark.parametrize(
         "test_names", [["jfk"], ["jfk", "jfk"], ["mr_quilter", "jfk"]]
