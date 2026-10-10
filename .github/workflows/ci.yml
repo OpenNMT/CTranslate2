@@ -351,7 +351,7 @@ jobs:
         run: |
           set -euo pipefail
           shopt -s nullglob
-          wheels=(python/wheelhouse/*cp314*manylinux*x86_64.whl)
+          wheels=(python/wheelhouse/*-cp314-cp314-manylinux*x86_64.whl)
           if (( ${#wheels[@]} != 1 )); then
             echo "Expected exactly one CPython 3.14 Linux x86-64 wheel" >&2
             exit 1
