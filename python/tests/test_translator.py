@@ -790,7 +790,7 @@ def test_load_model_from_memory(as_file_object):
             content = model_file.read()
             if as_file_object is True:
                 content = io.BytesIO(content)
-            elif as_file_object == "fresh":  # PR 2110
+            elif as_file_object == "fresh":  # PR2110
                 content = SimpleNamespace(
                     read=lambda data=content: memoryview(data).tobytes()
                 )
