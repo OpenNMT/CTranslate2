@@ -209,7 +209,7 @@ jobs:
           key: windows-mkl-onednn-${{ hashFiles('python/tools/prepare_build_environment_windows.sh') }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v4.2.1
         with:
           package-dir: python
           output-dir: python/wheelhouse
@@ -253,7 +253,7 @@ jobs:
           key: windows-mkl-onednn-${{ hashFiles('python/tools/prepare_build_environment_windows_rocm.sh') }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v4.2.1
         with:
           package-dir: python
           output-dir: python/wheelhouse
