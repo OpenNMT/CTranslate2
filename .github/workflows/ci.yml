@@ -329,6 +329,39 @@ jobs:
           pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
 
 
+  test-python314-native-finalizer:
+    # CPython 3.13+ frees heap-type tp_doc via PyMem_Free. An older pybind11
+    # uses PyObject_MALLOC, which can abort during interpreter shutdown.
+    needs: [build-python-wheels]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - name: Download Linux x86-64 release wheels
+        uses: actions/download-artifact@v4
+        with:
+          name: python-wheels-Linux-auto64
+          path: python/wheelhouse
+
+      - name: Require CPython 3.14 wheel and a clean debug allocator exit
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(python/wheelhouse/*cp314*manylinux*x86_64.whl)
+          if (( ${#wheels[@]} != 1 )); then
+            echo "Expected exactly one CPython 3.14 Linux x86-64 wheel" >&2
+            exit 1
+          fi
+          python -m pip install "${wheels[0]}"
+          # Exit status is essential: the affected wheel imports successfully
+          # but aborts with exit 134 while Python releases heap types.
+          python -X dev -W error::ResourceWarning \
+            -c 'import ctranslate2; print(ctranslate2.__version__)'
+
   test-legacy-converters:
     needs: [build-python-wheels]
     runs-on: ubuntu-22.04
@@ -401,7 +434,7 @@ jobs:
 
   publish-python-wheels-on-pypi:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-    needs: [build-and-test-cpp-x86_64, build-and-test-cpp-arm64, build-python-wheels, test-python-wheels, check-python-style]
+    needs: [build-and-test-cpp-x86_64, build-and-test-cpp-arm64, build-python-wheels, test-python-wheels, test-python314-native-finalizer, check-python-style]
     runs-on: ubuntu-22.04
 
     steps:
