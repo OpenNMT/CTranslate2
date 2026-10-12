@@ -4,17 +4,19 @@
 
 ### New features
 
-* Support converting UMT5 models from Hugging Face Transformers
+* Support converting UMT5 models from Hugging Face Transformers (#2103) by [@the-cross-art](https://github.com/the-cross-art)
 
 ### Fixes and improvements
 
-* Support Transformer models where each layer has its own relative attention bias
-* Fix Windows ROCm Translator hangs and DLL loading (#2106)
-* Fix crashes when loading model files from Python file-like objects (#2110)
-* Upgrade pybind11 to 2.13.6 for CPython 3.14 allocator safety (#2108)
-* Guard exhausted candidates in CUDA TopK stage 2 (#2104)
-* Fix Windows shutdown deadlocks and memory leaks with the Ruy backend (#2076)
-* Add Clang ThreadSanitizer testing (#1986)
+* Support Transformer models where each layer has its own relative attention bias by [@the-cross-art](https://github.com/the-cross-art)
+* Fix Windows ROCm Translator hangs and DLL loading (#2106) by [@0xDELUXA](https://github.com/0xDELUXA)
+* Fix crashes when loading model files from Python file-like objects (#2110) by [@Purfview](https://github.com/Purfview)
+* Upgrade pybind11 to 2.13.6 for CPython 3.14 allocator safety (#2108) by [@cepeter](https://github.com/cepeter)
+* Guard exhausted candidates in CUDA TopK stage 2 (#2104) by [@mzggr0914](https://github.com/mzggr0914)
+* Fix Windows shutdown deadlocks and memory leaks with the Ruy backend (#2076) by [@timo9378](https://github.com/timo9378)
+* Add Clang ThreadSanitizer testing (#1986) by [@3manifold](https://github.com/3manifold)
+* Test Linux and Windows ROCm wheels, require tests and style checks before publishing, and upgrade wheel build actions to Node.js 24 (#2112) by [@jordimas](https://github.com/jordimas)
+* Add local CUDA and ROCm release validation using PR CI wheel artifacts, native and Python tests, and GitHub commit status reporting by [@jordimas](https://github.com/jordimas)
 
 
 ## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-31)
