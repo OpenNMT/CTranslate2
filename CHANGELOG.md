@@ -1,6 +1,6 @@
 ## [Unreleased]
 
-## [v4.8.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.3) (2026-10-12)
+## [v4.8.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.3) (2026-10-13)
 
 ### New features
 

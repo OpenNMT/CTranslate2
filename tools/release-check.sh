@@ -59,9 +59,10 @@ if [[ -z $run ]]; then
 fi
 echo "Downloading $artifact from https://github.com/$repo/actions/runs/$run"
 gh run download "$run" --repo "$repo" --name "$artifact" --dir "$workdir/wheels"
-python -m venv --system-site-packages "$workdir/venv"
+python -m venv "$workdir/venv"
 python="$workdir/venv/bin/python"
-"$python" -m pip install --no-index --no-deps --force-reinstall --find-links "$workdir/wheels" ctranslate2
+"$python" -m pip install -r python/tests/requirements.txt
+"$python" -m pip install --force-reinstall --find-links "$workdir/wheels" ctranslate2
 "$python" -I -c "import ctranslate2; print(ctranslate2.__file__); assert ctranslate2.get_cuda_device_count() > 0, 'No GPU available in the PR wheel; check drivers and runtime libraries'"
 if [[ -x tests/ctranslate2_test ]]; then
     tests/ctranslate2_test tests/data
