@@ -28,10 +28,23 @@ publish pending
 state=failure
 workdir=$(mktemp -d)
 trap 'result=$?; rm -rf "$workdir"; publish "$state" || exit 1; exit "$result"' EXIT
-run=$(gh run list --repo "$repo" --workflow ci.yml --event push --commit "$sha" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
 artifact=python-wheels-Linux-auto64
 [[ $backend == rocm ]] && artifact=rocm-python-wheels-Linux
-gh run download "${run:?No CI build found for the PR commit}" --repo "$repo" --name "$artifact" --dir "$workdir/wheels"
+runs=$(gh run list --repo "$repo" --workflow ci.yml --commit "$sha" --limit 100 --json databaseId --jq '.[].databaseId')
+run=
+for candidate in $runs; do
+    artifacts=$(gh api --paginate "repos/$repo/actions/runs/$candidate/artifacts" --jq '.artifacts[] | select(.expired == false) | .name')
+    if [[ $'\n'"$artifacts"$'\n' == *$'\n'"$artifact"$'\n'* ]]; then
+        run=$candidate
+        break
+    fi
+done
+if [[ -z $run ]]; then
+    echo "No CI run for commit $sha contains an available $artifact artifact." >&2
+    exit 1
+fi
+echo "Downloading $artifact from https://github.com/$repo/actions/runs/$run"
+gh run download "$run" --repo "$repo" --name "$artifact" --dir "$workdir/wheels"
 python -m venv --system-site-packages "$workdir/venv"
 python="$workdir/venv/bin/python"
 "$python" -m pip install --no-index --no-deps --force-reinstall --find-links "$workdir/wheels" ctranslate2
