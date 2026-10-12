@@ -12,15 +12,14 @@ if ! git diff HEAD --quiet; then
     echo "Commit or stash changes to tracked files before validation." >&2
     exit 1
 fi
-IFS=$'\t' read -r sha url < <(
-    gh pr view --json headRefOid,url --jq '[.headRefOid, .url] | @tsv'
-)
+repo=$(git remote get-url origin)
+repo=${repo#*github.com[:/]}
+repo=${repo%.git}
+sha=$(gh pr view "$(git branch --show-current)" --repo "$repo" --json headRefOid --jq .headRefOid)
 if [[ $(git rev-parse HEAD) != "$sha" ]]; then
     echo "Local HEAD must match the PR's latest commit." >&2
     exit 1
 fi
-repo=${url#https://github.com/}
-repo=${repo%/pull/*}
 publish() {
     gh api "repos/$repo/statuses/$sha" \
         -f "state=$1" -f "context=release/$backend" >/dev/null

@@ -12,8 +12,7 @@
 
    Replace `cuda` with `rocm` on the AMD machine.
 
-The script finds the PR for the current branch using `gh pr view`. If needed,
-select its repository first with `gh repo set-default OWNER/CTranslate2`.
+The script finds the current branch's PR in the GitHub repository named by `origin`.
 It checks that tracked files are clean and HEAD matches the PR, then
 publishes `release/cuda` or `release/rocm` as pending, then success or failure.
 The backend argument only labels the status; configure GPU execution yourself.
