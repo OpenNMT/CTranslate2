@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
-# Usage: bash release-check.sh cuda|rocm PR_NUMBER_OR_URL COMMAND [ARG...]
+# Usage: bash release-check.sh cuda|rocm
 set -euo pipefail
-if (( $# < 3 )) || [[ $1 != cuda && $1 != rocm ]]; then
-    echo "Usage: bash release-check.sh cuda|rocm PR_NUMBER_OR_URL COMMAND [ARG...]" >&2
+if (( $# != 1 )) || [[ $1 != cuda && $1 != rocm ]]; then
+    echo "Usage: bash release-check.sh cuda|rocm" >&2
     exit 2
 fi
 backend=$1
-pr=$2
-shift 2
 cd "$(git rev-parse --show-toplevel)"
 
 if ! git diff HEAD --quiet; then
@@ -15,7 +13,7 @@ if ! git diff HEAD --quiet; then
     exit 1
 fi
 IFS=$'\t' read -r sha url < <(
-    gh pr view "$pr" --json headRefOid,url --jq '[.headRefOid, .url] | @tsv'
+    gh pr view --json headRefOid,url --jq '[.headRefOid, .url] | @tsv'
 )
 if [[ $(git rev-parse HEAD) != "$sha" ]]; then
     echo "Local HEAD must match the PR's latest commit." >&2
@@ -30,5 +28,6 @@ publish() {
 publish pending
 state=failure
 trap 'result=$?; publish "$state" || exit 1; exit "$result"' EXIT
-"$@"
+tests/ctranslate2_test tests/data
+python -m pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
 state=success

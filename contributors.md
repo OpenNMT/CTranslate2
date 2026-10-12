@@ -7,15 +7,14 @@
 3. Run the native and Python tests, including GPU tests:
 
    ```bash
-   bash release-check.sh cuda PR_URL bash -ec '
-     tests/ctranslate2_test tests/data
-     python -m pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
-   '
+   bash release-check.sh cuda
    ```
 
    Replace `cuda` with `rocm` on the AMD machine.
 
-The script checks that tracked files are clean and HEAD matches the PR. It
+The script finds the PR for the current branch using `gh pr view`. If needed,
+select its repository first with `gh repo set-default OWNER/CTranslate2`.
+It checks that tracked files are clean and HEAD matches the PR, then
 publishes `release/cuda` or `release/rocm` as pending, then success or failure.
 The backend argument only labels the status; configure GPU execution yourself.
 The status succeeds only if both test commands pass. Ensure GPU tests run;
