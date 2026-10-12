@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
-# Usage: bash release-check.sh cuda|rocm
+# Usage: bash tools/release-check.sh cuda|rocm
 set -euo pipefail
 if (( $# != 1 )) || [[ $1 != cuda && $1 != rocm ]]; then
-    echo "Usage: bash release-check.sh cuda|rocm" >&2
+    echo "Usage: bash tools/release-check.sh cuda|rocm" >&2
     exit 2
 fi
 backend=$1

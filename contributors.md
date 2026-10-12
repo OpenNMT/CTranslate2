@@ -7,7 +7,7 @@
 3. Run the native and Python tests, including GPU tests:
 
    ```bash
-   bash release-check.sh cuda
+   bash tools/release-check.sh cuda
    ```
 
    Replace `cuda` with `rocm` on the AMD machine.
