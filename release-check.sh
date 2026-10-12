@@ -27,6 +27,7 @@ publish() {
 publish pending
 state=failure
 trap 'result=$?; publish "$state" || exit 1; exit "$result"' EXIT
+python -c "import ctranslate2; assert ctranslate2.get_cuda_device_count() > 0, 'No GPU available'"
 tests/ctranslate2_test tests/data
 python -m pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
 state=success

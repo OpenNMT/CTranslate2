@@ -16,8 +16,8 @@ The script finds the current branch's PR in the GitHub repository named by `orig
 It checks that tracked files are clean and HEAD matches the PR, then
 publishes `release/cuda` or `release/rocm` as pending, then success or failure.
 The backend argument only labels the status; configure GPU execution yourself.
-The status succeeds only if both test commands pass. Ensure GPU tests run;
-skipped GPU tests do not validate the backend. Detailed output stays in the terminal.
+The script requires a visible GPU and both test commands to pass.
+Detailed output stays in the terminal.
 
 Configure both statuses as required checks for release PRs. Re-run validation
 for every new commit. Publish the validated artifacts after CI and both GPU
