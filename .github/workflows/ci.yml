@@ -246,13 +246,13 @@ jobs:
           arch: x86_64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
       - name: Cache MKL and oneDNN (Windows)
         if: runner.os == 'Windows'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             C:/Program Files (x86)/Intel/oneAPI
@@ -278,7 +278,7 @@ jobs:
           CIBW_SKIP: "*-musllinux_*"
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: python-wheels-${{ runner.os }}-${{ matrix.arch }}
           path: python/wheelhouse
