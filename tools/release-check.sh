@@ -29,13 +29,9 @@ state=failure
 workdir=$(mktemp -d)
 trap 'result=$?; rm -rf "$workdir"; publish "$state" || exit 1; exit "$result"' EXIT
 run=$(gh run list --repo "$repo" --workflow ci.yml --event push --commit "$sha" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
-if [[ -z $run ]]; then
-    echo "No CI build found for the PR commit. Run CI first." >&2
-    exit 1
-fi
 artifact=python-wheels-Linux-auto64
 [[ $backend == rocm ]] && artifact=rocm-python-wheels-Linux
-gh run download "$run" --repo "$repo" --name "$artifact" --dir "$workdir/wheels"
+gh run download "${run:?No CI build found for the PR commit}" --repo "$repo" --name "$artifact" --dir "$workdir/wheels"
 python -m venv --system-site-packages "$workdir/venv"
 python="$workdir/venv/bin/python"
 "$python" -m pip install --no-index --no-deps --force-reinstall --find-links "$workdir/wheels" ctranslate2
