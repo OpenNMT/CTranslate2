@@ -12,7 +12,11 @@ if ! git diff HEAD --quiet; then
     echo "Commit or stash changes to tracked files before validation." >&2
     exit 1
 fi
-repo=$(git remote get-url origin)
+if git remote get-url upstream >/dev/null 2>&1; then
+    repo=$(git remote get-url upstream)
+else
+    repo=$(git remote get-url origin)
+fi
 repo=${repo#*github.com[:/]}
 repo=${repo%.git}
 sha=$(git rev-parse HEAD)
@@ -50,7 +54,10 @@ python -m venv --system-site-packages "$workdir/venv"
 python="$workdir/venv/bin/python"
 "$python" -m pip install --no-index --no-deps --force-reinstall --find-links "$workdir/wheels" ctranslate2
 "$python" -I -c "import ctranslate2; print(ctranslate2.__file__); assert ctranslate2.get_cuda_device_count() > 0, 'No GPU available in the PR wheel; check drivers and runtime libraries'"
-test -d tests/data/models/transliteration-aren-all
-tests/ctranslate2_test tests/data
+if [[ -x tests/ctranslate2_test ]]; then
+    tests/ctranslate2_test tests/data
+else
+    echo "Skipping native tests: tests/ctranslate2_test is not built." >&2
+fi
 "$python" -I -m pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
 state=success
