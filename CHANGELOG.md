@@ -15,8 +15,8 @@
 * Guard exhausted candidates in CUDA TopK stage 2 (#2104) by [@mzggr0914](https://github.com/mzggr0914)
 * Fix Windows shutdown deadlocks and memory leaks with the Ruy backend (#2076) by [@timo9378](https://github.com/timo9378)
 * Add Clang ThreadSanitizer testing (#1986) by [@3manifold](https://github.com/3manifold)
-* Test Linux and Windows ROCm wheels, require tests and style checks before publishing, and upgrade wheel build actions to Node.js 24 (#2112) by [@jordimas](https://github.com/jordimas)
-* Add local CUDA and ROCm release validation using PR CI wheel artifacts, native and Python tests, and GitHub commit status reporting by [@jordimas](https://github.com/jordimas)
+* Improve ROCm wheel testing and release checks; upgrade build actions to Node.js 24 (#2112) by [@jordimas](https://github.com/jordimas)
+* Add local CUDA and ROCm release validation with CI wheels and commit status reporting by [@jordimas](https://github.com/jordimas)
 
 
 ## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-31)
