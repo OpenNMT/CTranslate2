@@ -1,5 +1,7 @@
 ## [Unreleased]
 
+## [v4.8.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.3) (2026-10-12)
+
 ### New features
 
 * Support converting UMT5 models from Hugging Face Transformers
@@ -7,6 +9,12 @@
 ### Fixes and improvements
 
 * Support Transformer models where each layer has its own relative attention bias
+* Fix Windows ROCm Translator hangs and DLL loading (#2106)
+* Fix crashes when loading model files from Python file-like objects (#2110)
+* Upgrade pybind11 to 2.13.6 for CPython 3.14 allocator safety (#2108)
+* Guard exhausted candidates in CUDA TopK stage 2 (#2104)
+* Fix Windows shutdown deadlocks and memory leaks with the Ruy backend (#2076)
+* Add Clang ThreadSanitizer testing (#1986)
 
 
 ## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-31)
