@@ -26,8 +26,21 @@ publish() {
 }
 publish pending
 state=failure
-trap 'result=$?; publish "$state" || exit 1; exit "$result"' EXIT
-python -c "import ctranslate2; assert ctranslate2.get_cuda_device_count() > 0, 'No GPU available'"
+workdir=$(mktemp -d)
+trap 'result=$?; rm -rf "$workdir"; publish "$state" || exit 1; exit "$result"' EXIT
+run=$(gh run list --repo "$repo" --workflow ci.yml --event push --commit "$sha" --limit 1 --json databaseId --jq '.[0].databaseId // empty')
+if [[ -z $run ]]; then
+    echo "No CI build found for the PR commit. Run CI first." >&2
+    exit 1
+fi
+artifact=python-wheels-Linux-auto64
+[[ $backend == rocm ]] && artifact=rocm-python-wheels-Linux
+gh run download "$run" --repo "$repo" --name "$artifact" --dir "$workdir/wheels"
+python -m venv --system-site-packages "$workdir/venv"
+python="$workdir/venv/bin/python"
+"$python" -m pip install --no-index --no-deps --force-reinstall --find-links "$workdir/wheels" ctranslate2
+"$python" -I -c "import ctranslate2; print(ctranslate2.__file__); assert ctranslate2.get_cuda_device_count() > 0, 'No GPU available in the PR wheel; check drivers and runtime libraries'"
+test -d tests/data/models/transliteration-aren-all
 tests/ctranslate2_test tests/data
-python -m pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
+"$python" -I -m pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
 state=success
