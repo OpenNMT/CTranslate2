@@ -4,18 +4,22 @@
 2. On each GPU machine, check out the PR head and build/install its candidate
    wheel and native tests. Authenticate with `gh auth login` using an account
    permitted to write commit statuses.
-3. Run your validation command, including GPU tests, `../ct2-eval`, and benchmarks:
+3. Run the native and Python tests, including GPU tests:
 
    ```bash
-   bash release-check.sh cuda PR_URL COMMAND [ARG...]
-   bash release-check.sh rocm PR_URL COMMAND [ARG...]
+   bash release-check.sh cuda PR_URL bash -ec '
+     tests/ctranslate2_test tests/data
+     python -m pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
+   '
    ```
+
+   Replace `cuda` with `rocm` on the AMD machine.
 
 The script checks that tracked files are clean and HEAD matches the PR. It
 publishes `release/cuda` or `release/rocm` as pending, then success or failure.
 The backend argument only labels the status; configure GPU execution yourself.
-Your command must fail on regressions or missing GPU coverage. Compare against
-the previous release on the same hardware. Detailed output stays in the terminal.
+The status succeeds only if both test commands pass. Ensure GPU tests run;
+skipped GPU tests do not validate the backend. Detailed output stays in the terminal.
 
 Configure both statuses as required checks for release PRs. Re-run validation
 for every new commit. Publish the validated artifacts after CI and both GPU
