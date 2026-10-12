@@ -20,9 +20,10 @@ fi
 repo=${repo#*github.com[:/]}
 repo=${repo%.git}
 sha=$(git rev-parse HEAD)
-pr=$(gh api --paginate "repos/$repo/commits/$sha/pulls" --jq ".[] | select(.state == \"open\" and .head.sha == \"$sha\") | .number" | head -n 1)
+branch=$(git branch --show-current)
+pr=$(gh pr list --repo "$repo" --state open --head "$branch" --json number,headRefOid --jq ".[] | select(.headRefOid == \"$sha\") | .number" | head -n 1)
 if [[ -z $pr ]]; then
-    echo "Local HEAD is not the head commit of an open PR in $repo." >&2
+    echo "Local HEAD is not the head commit of an open PR for $branch in $repo." >&2
     exit 1
 fi
 publish() {
