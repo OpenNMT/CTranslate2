@@ -143,6 +143,7 @@ namespace ctranslate2 {
         if (_model_is_loaded)
           return;
 
+        CallingThreadContextGuard context_guard;
         std::vector<std::shared_ptr<const models::Model>> loaded_models;
         if (_cached_models.empty())
           loaded_models = _model_loader.load();
