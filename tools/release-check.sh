@@ -15,9 +15,10 @@ fi
 repo=$(git remote get-url origin)
 repo=${repo#*github.com[:/]}
 repo=${repo%.git}
-sha=$(gh pr view "$(git branch --show-current)" --repo "$repo" --json headRefOid --jq .headRefOid)
-if [[ $(git rev-parse HEAD) != "$sha" ]]; then
-    echo "Local HEAD must match the PR's latest commit." >&2
+sha=$(git rev-parse HEAD)
+pr=$(gh api --paginate "repos/$repo/commits/$sha/pulls" --jq ".[] | select(.state == \"open\" and .head.sha == \"$sha\") | .number" | head -n 1)
+if [[ -z $pr ]]; then
+    echo "Local HEAD is not the head commit of an open PR in $repo." >&2
     exit 1
 fi
 publish() {
