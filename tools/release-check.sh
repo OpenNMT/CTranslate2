@@ -35,15 +35,23 @@ workdir=$(mktemp -d)
 trap 'result=$?; rm -rf "$workdir"; publish "$state" || exit 1; exit "$result"' EXIT
 artifact=python-wheels-Linux-auto64
 [[ $backend == rocm ]] && artifact=rocm-python-wheels-Linux
-runs=$(gh run list --repo "$repo" --workflow ci.yml --commit "$sha" --limit 100 --json databaseId --jq '.[].databaseId')
-run=
-for candidate in $runs; do
-    artifacts=$(gh api --paginate "repos/$repo/actions/runs/$candidate/artifacts" --jq '.artifacts[] | select(.expired == false) | .name')
-    if [[ $'\n'"$artifacts"$'\n' == *$'\n'"$artifact"$'\n'* ]]; then
-        run=$candidate
-        break
+run=${RELEASE_CHECK_RUN_ID:-}
+if [[ -n $run ]]; then
+    artifacts=$(gh api --paginate "repos/$repo/actions/runs/$run/artifacts" --jq '.artifacts[] | select(.expired == false) | .name')
+    if [[ $'\n'"$artifacts"$'\n' != *$'\n'"$artifact"$'\n'* ]]; then
+        echo "CI run $run does not contain an available $artifact artifact." >&2
+        exit 1
     fi
-done
+else
+    runs=$(gh run list --repo "$repo" --workflow ci.yml --commit "$sha" --limit 100 --json databaseId --jq '.[].databaseId')
+    for candidate in $runs; do
+        artifacts=$(gh api --paginate "repos/$repo/actions/runs/$candidate/artifacts" --jq '.artifacts[] | select(.expired == false) | .name')
+        if [[ $'\n'"$artifacts"$'\n' == *$'\n'"$artifact"$'\n'* ]]; then
+            run=$candidate
+            break
+        fi
+    done
+fi
 if [[ -z $run ]]; then
     echo "No CI run for commit $sha contains an available $artifact artifact." >&2
     exit 1
