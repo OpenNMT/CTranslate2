@@ -165,6 +165,9 @@ namespace ctranslate2 {
       const std::vector<std::unique_ptr<const TransformerEncoderLayer>> _layers;
       const std::unique_ptr<PositionEncoder> _position_encoder;
       const bool _tensor_parallel;
+      // false when each layer has its own relative attention bias (e.g. UMT5), in which
+      // case the position bias is computed per layer instead of being shared.
+      const bool _shared_position_bias;
     };
 
     class TransformerDecoder : public Decoder
@@ -230,6 +233,9 @@ namespace ctranslate2 {
       const dim_t _sliding_window;
       const bool _tensor_parallel;
       const float _final_logit_softcapping;
+      // false when each layer has its own relative attention bias (e.g. UMT5), in which
+      // case the position bias is computed per layer instead of being shared.
+      const bool _shared_position_bias;
     };
 
   }
