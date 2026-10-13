@@ -59,7 +59,16 @@ namespace ctranslate2 {
     virtual ~Worker() = default;
 
     void start(JobQueue& job_queue, int thread_affinity = -1);
-    void join();
+
+    // Join the worker thread. If timeout_ms > 0 and the thread doesn't finish
+    // in time, the thread is detached to prevent indefinite blocking.
+    // This is critical on Windows where CUDA cleanup can hang during shutdown.
+    void join(int timeout_ms = 5000);
+
+    // Signal the worker to stop idle operations (e.g., synchronize_stream).
+    // Called BEFORE queue.close() to prevent the race where idle() blocks
+    // on CUDA synchronization while the queue is being closed.
+    virtual void prepare_shutdown() {}
 
   protected:
     // Called before the work loop.
