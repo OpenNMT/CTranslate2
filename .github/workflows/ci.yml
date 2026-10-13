@@ -260,7 +260,7 @@ jobs:
           key: windows-mkl-onednn-${{ hashFiles('python/tools/prepare_build_environment_windows.sh') }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v4.2.1
         with:
           package-dir: python
           output-dir: python/wheelhouse
@@ -272,6 +272,8 @@ jobs:
           CIBW_BEFORE_ALL_MACOS: python/tools/prepare_build_environment_macos.sh
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows.sh
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
+          # Windows DLLs are already bundled by the preparation script.
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ""
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           CIBW_ARCHS: ${{ matrix.arch }}
@@ -304,7 +306,7 @@ jobs:
           key: windows-mkl-onednn-${{ hashFiles('python/tools/prepare_build_environment_windows_rocm.sh') }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v4.2.1
         with:
           package-dir: python
           output-dir: python/wheelhouse
@@ -314,6 +316,8 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux_rocm.sh
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows_rocm.sh
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
+          # Windows DLLs are already bundled by the preparation script.
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ""
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_ARCHS: auto64
           CIBW_SKIP: "*-musllinux_*"
