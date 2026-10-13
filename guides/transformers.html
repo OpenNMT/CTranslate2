@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Transformers &mdash; CTranslate2 4.8.2 documentation</title>
+  <title>Transformers &mdash; CTranslate2 4.8.3 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -96,6 +96,7 @@
 <li class="toctree-l2"><a class="reference internal" href="#t5">T5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#t5gemma">T5Gemma</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#t5gemma2">T5Gemma2</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#umt5">UMT5</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#whisper">Whisper</a></li>
 </ul>
 </li>
@@ -164,6 +165,7 @@
 <li><p>T5</p></li>
 <li><p>T5Gemma</p></li>
 <li><p>T5Gemma2</p></li>
+<li><p>UMT5</p></li>
 <li><p>Whisper</p></li>
 <li><p>XLM-RoBERTa</p></li>
 </ul>
@@ -734,6 +736,68 @@ ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span
 <span class="p">]</span>
 <span class="nb">print</span><span class="p">(</span><span class="n">translations</span><span class="p">[</span><span class="mi">0</span><span class="p">])</span>
 </pre></div>
+</div>
+</section>
+<section id="umt5">
+<h2>UMT5<a class="headerlink" href="#umt5" title="Permalink to this heading"></a></h2>
+<p><a class="reference external" href="https://huggingface.co/docs/transformers/model_doc/umt5">UMT5</a> is a multilingual T5 variant
+pretrained with the UniMax sampling strategy. Unlike T5 and mT5, each UMT5 self-attention layer
+has its own relative attention bias.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The <code class="docutils literal notranslate"><span class="pre">google/umt5-*</span></code> configurations were published before <code class="docutils literal notranslate"><span class="pre">model_type</span></code> became required by
+<code class="docutils literal notranslate"><span class="pre">AutoConfig</span></code>, so the model must be saved locally with that key added before it can be converted.
+Checkpoints that already declare <code class="docutils literal notranslate"><span class="pre">&quot;model_type&quot;:</span> <span class="pre">&quot;umt5&quot;</span></code> can be converted directly.</p>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">json</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">transformers</span>
+
+<span class="n">model_name</span> <span class="o">=</span> <span class="s2">"google/umt5-small"</span>
+<span class="n">model_dir</span> <span class="o">=</span> <span class="s2">"umt5-small"</span>
+
+<span class="n">transformers</span><span class="o">.</span><span class="n">UMT5ForConditionalGeneration</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">model_name</span><span class="p">)</span><span class="o">.</span><span class="n">save_pretrained</span><span class="p">(</span><span class="n">model_dir</span><span class="p">)</span>
+<span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="n">model_name</span><span class="p">)</span><span class="o">.</span><span class="n">save_pretrained</span><span class="p">(</span><span class="n">model_dir</span><span class="p">)</span>
+
+<span class="n">config_path</span> <span class="o">=</span> <span class="s2">"</span><span class="si">%s</span><span class="s2">/config.json"</span> <span class="o">%</span> <span class="n">model_dir</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">config_path</span><span class="p">)</span> <span class="k">as</span> <span class="n">config_file</span><span class="p">:</span>
+    <span class="n">config</span> <span class="o">=</span> <span class="n">json</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">config_file</span><span class="p">)</span>
+<span class="n">config</span><span class="p">[</span><span class="s2">"model_type"</span><span class="p">]</span> <span class="o">=</span> <span class="s2">"umt5"</span>
+<span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">config_path</span><span class="p">,</span> <span class="s2">"w"</span><span class="p">)</span> <span class="k">as</span> <span class="n">config_file</span><span class="p">:</span>
+    <span class="n">json</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">config</span><span class="p">,</span> <span class="n">config_file</span><span class="p">,</span> <span class="n">indent</span><span class="o">=</span><span class="mi">2</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span>--model<span class="w"> </span>umt5-small<span class="w"> </span>--output_dir<span class="w"> </span>umt5-small-ct2
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">transformers</span>
+
+<span class="n">translator</span> <span class="o">=</span> <span class="n">ctranslate2</span><span class="o">.</span><span class="n">Translator</span><span class="p">(</span><span class="s2">"umt5-small-ct2"</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">transformers</span><span class="o">.</span><span class="n">AutoTokenizer</span><span class="o">.</span><span class="n">from_pretrained</span><span class="p">(</span><span class="s2">"umt5-small"</span><span class="p">)</span>
+
+<span class="n">input_text</span> <span class="o">=</span> <span class="s2">"Translate English to French: The house is wonderful."</span>
+<span class="n">input_tokens</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_ids_to_tokens</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">input_text</span><span class="p">))</span>
+
+<span class="n">results</span> <span class="o">=</span> <span class="n">translator</span><span class="o">.</span><span class="n">translate_batch</span><span class="p">([</span><span class="n">input_tokens</span><span class="p">])</span>
+
+<span class="n">output_tokens</span> <span class="o">=</span> <span class="n">results</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span><span class="o">.</span><span class="n">hypotheses</span><span class="p">[</span><span class="mi">0</span><span class="p">]</span>
+<span class="n">output_text</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">decode</span><span class="p">(</span><span class="n">tokenizer</span><span class="o">.</span><span class="n">convert_tokens_to_ids</span><span class="p">(</span><span class="n">output_tokens</span><span class="p">))</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">output_text</span><span class="p">)</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">google/umt5-*</span></code> are pretrained-only checkpoints: they were trained on span corruption and not
+fine-tuned on any downstream task, so they respond to the prompt above with sentinel tokens
+rather than a translation. Use a fine-tuned UMT5 checkpoint for meaningful output. The
+CTranslate2 output matches Hugging Face for the same inputs in either case.</p>
+</div>
+<div class="admonition attention">
+<p class="admonition-title">Attention</p>
+<p>On GPU, large T5-family models can overflow the float16 dynamic range. Use
+<code class="docutils literal notranslate"><span class="pre">compute_type=&quot;float32&quot;</span></code> if the output degrades.</p>
 </div>
 </section>
 <section id="whisper">
