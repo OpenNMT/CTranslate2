@@ -149,7 +149,9 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_MPS
     if (device == Device::MPS) {
       const ScopedDeviceSetter scoped_device_setter(device, index);
-      mps::synchronize_all();
+      // Called from ~Model, which cannot throw: a failed command buffer is
+      // logged and stays on the stream that submitted it.
+      mps::synchronize_all_nothrow();
     }
 #endif
 #if !defined(CT2_WITH_CUDA) && !defined(CT2_WITH_MPS)
@@ -172,6 +174,17 @@ namespace ctranslate2 {
     (void)device;
 #endif
   }
+
+  void synchronize_stream_nothrow(Device device) {
+#ifdef CT2_WITH_MPS
+    if (device == Device::MPS) {
+      mps::synchronize_nothrow();
+      return;
+    }
+#endif
+    synchronize_stream(device);
+  }
+
   void destroy_context(Device device) {
 #ifdef CT2_WITH_CUDA
     if (device == Device::CUDA)

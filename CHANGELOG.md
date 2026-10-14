@@ -3,6 +3,7 @@
 ### New features
 
 * Support converting UMT5 models from Hugging Face Transformers
+* Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (#2077) by [@TBO22](https://github.com/TBO22). It is opt-in at build time (`-DWITH_MPS=ON`), it is not included in the published wheels, and `device="auto"` never selects it
 
 ### Fixes and improvements
 

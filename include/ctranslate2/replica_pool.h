@@ -364,7 +364,10 @@ namespace ctranslate2 {
     void idle() override {
       // When no new jobs are immediately available, we synchronize the CUDA stream
       // so that the CudaAsyncAllocator can release some memory.
-      synchronize_stream(_device);
+      // This runs outside of any job: an exception here would end the worker
+      // thread and the process with it, so a failure of the asynchronous work
+      // is not thrown but left to the next operation on the stream.
+      synchronize_stream_nothrow(_device);
     }
 
     void finalize() override {
