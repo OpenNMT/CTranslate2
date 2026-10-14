@@ -13,6 +13,8 @@
 #define cub hipcub
 #define cudaGetDevice hipGetDevice
 #define cudaSetDevice hipSetDevice
+#define cudaFree hipFree
+#define cudaMalloc hipMalloc
 #define cudaFreeAsync hipFreeAsync
 #define cudaMallocAsync hipMallocAsync
 #define cudaDeviceGetAttribute hipDeviceGetAttribute
@@ -74,6 +76,45 @@ namespace ctranslate2 {
 
     private:
       std::unique_ptr<cub::CachingDeviceAllocator> _allocator;
+    };
+
+    // Direct cudaMalloc/cudaFree allocator — no caching, no event tracking.
+    //
+    // Exists primarily as an opt-in escape hatch for the deadlock on
+    // ROCm 7.2.1 / Windows reported in issue #2038: there, the hipcub
+    // CachingDeviceAllocator's per-block hipEventRecord / hipFree calls
+    // can hang inside the runtime during `del model` cleanup.  Falling
+    // back to a stateless allocator (no cached blocks, no ready events,
+    // no per-block streams) sidesteps every code path that the upstream
+    // bug touches.  Costs a fresh hipMalloc per allocation — fine for
+    // workloads that mostly run inference and rarely allocate.
+    //
+    // Enabled with `CT2_CUDA_ALLOCATOR=simple` (or `none`).
+    class SimpleAllocator : public Allocator {
+    public:
+      void* allocate(size_t size, int device_index) override {
+        int prev_device_index = -1;
+        if (device_index >= 0) {
+          CUDA_CHECK(cudaGetDevice(&prev_device_index));
+          CUDA_CHECK(cudaSetDevice(device_index));
+        }
+        void* ptr = nullptr;
+        CUDA_CHECK(cudaMalloc(&ptr, size));
+        if (prev_device_index >= 0)
+          CUDA_CHECK(cudaSetDevice(prev_device_index));
+        return ptr;
+      }
+
+      void free(void* ptr, int device_index) override {
+        int prev_device_index = -1;
+        if (device_index >= 0) {
+          CUDA_CHECK(cudaGetDevice(&prev_device_index));
+          CUDA_CHECK(cudaSetDevice(device_index));
+        }
+        CUDA_CHECK(cudaFree(ptr));
+        if (prev_device_index >= 0)
+          CUDA_CHECK(cudaSetDevice(prev_device_index));
+      }
     };
 
     class CudaAsyncAllocator : public Allocator {
@@ -139,6 +180,7 @@ namespace ctranslate2 {
     enum class CudaAllocator {
       CubCaching,
       MallocAsync,
+      Simple,
     };
 
     static CudaAllocator resolve_cuda_allocator() {
@@ -156,6 +198,10 @@ namespace ctranslate2 {
         if (!cuda_malloc_async_is_supported)
           throw std::runtime_error("The asynchronous CUDA allocator requires CUDA >= 11.2");
         allocator = CudaAllocator::MallocAsync;
+      } else if (allocator_name == "simple" || allocator_name == "none") {
+        // Stateless cudaMalloc/cudaFree — opt-in workaround for issue
+        // #2038 (HIP allocator free path deadlocks on ROCm 7.2.1 / Windows).
+        allocator = CudaAllocator::Simple;
       } else {
         throw std::invalid_argument("Invalid CUDA allocator " + allocator_name);
       }
@@ -177,6 +223,11 @@ namespace ctranslate2 {
     if (cuda_allocator == cuda::CudaAllocator::CubCaching) {
       // Use 1 allocator per thread for performance.
       static thread_local cuda::CubCachingAllocator allocator;
+      return allocator;
+    }
+
+    if (cuda_allocator == cuda::CudaAllocator::Simple) {
+      static cuda::SimpleAllocator allocator;
       return allocator;
     }
 
