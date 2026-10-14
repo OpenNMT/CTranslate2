@@ -1305,6 +1305,11 @@ TOP_P_MASK_KERNEL(top_p_mask_f32, float, load_value<float>, store_value<float>)
 TOP_P_MASK_KERNEL(top_p_mask_f16, half, load_value<half>, store_value<half>)
 TOP_P_MASK_KERNEL(top_p_mask_bf16, ushort, load_value_bf16, store_value_bf16)
 
+// TopK for k <= 16. A row with fewer than k finite candidates (a beam search
+// masks tokens to -inf or the lowest value) still returns every masked
+// candidate with its real value and index: the initial -INFINITY/UINT_MAX
+// slots lose to a masked candidate on index, so the exhausted ranks are filled
+// by the masked input instead of by padding.
 #define SMALL_TOPK_KERNEL(NAME, TYPE, LOAD, STORE)                                    \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                              \
                  device TYPE* values [[buffer(1)]],                                   \
@@ -1316,9 +1321,9 @@ kernel void NAME(device const TYPE* input [[buffer(0)]],                        
                  uint tid [[thread_index_in_threadgroup]],                            \
                  uint nt [[threads_per_threadgroup]]) {                               \
   if (row >= args.batch_size) return;                                                  \
-  float local_values[8];                                                              \
-  uint local_indices[8];                                                              \
-  for (uint rank = 0; rank < 8; ++rank) {                                             \
+  float local_values[16];                                                             \
+  uint local_indices[16];                                                             \
+  for (uint rank = 0; rank < 16; ++rank) {                                            \
     local_values[rank] = -INFINITY;                                                   \
     local_indices[rank] = UINT_MAX;                                                   \
   }                                                                                   \
@@ -4818,12 +4823,12 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
           || k <= 0
           || k > 16)
         return false;
-      // The custom reduction supports the search-critical k values without
-      // MPSMatrix's 16-byte result-row restriction. Larger aligned results use
-      // MPSMatrixFindTopK.
-      if (dtype == DataType::BFLOAT16)
-        return k <= 8;
-      return k <= 8 || (static_cast<size_t>(k) * dtype_size(dtype)) % 16 == 0;
+      // Every supported k goes through the custom kernels (argmax for k == 1,
+      // small_topk up to 16). MPSMatrixFindTopK is not used: when a row has
+      // fewer than k finite candidates it pads the exhausted slots with 0 and a
+      // bogus index instead of returning the masked input, and a beam search
+      // would read that 0 as the best score. It also needs 16-byte result rows.
+      return true;
     }
 
     static void argmax(DataType dtype,
@@ -4865,7 +4870,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                            dim_t batch_size,
                            dim_t depth,
                            dim_t k) {
-      if (batch_size > UINT32_MAX || depth > UINT32_MAX || k > 8)
+      if (batch_size > UINT32_MAX || depth > UINT32_MAX || k > 16)
         throw std::invalid_argument("small MPS TopK dimensions are too large");
       const size_t element_size = dtype_size(dtype);
       const SmallTopKArgs args{static_cast<uint32_t>(batch_size),
@@ -4908,91 +4913,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         argmax(dtype, input, values, indices, batch_size, depth);
         return;
       }
-      if (k <= 8) {
-        small_topk(dtype, input, values, indices, batch_size, depth, k);
-        return;
-      }
-
-      id<MTLDevice> device = (__bridge id<MTLDevice>)get_device();
-      if (!device)
-        throw std::runtime_error("MPS device/queue not available");
-
-      const size_t element_size = dtype_size(dtype);
-      NSUInteger input_offset = 0;
-      NSUInteger values_offset = 0;
-      NSUInteger indices_offset = 0;
-      id<MTLBuffer> input_buffer =
-        mtl_buffer(input, static_cast<size_t>(batch_size * depth) * element_size, input_offset);
-      id<MTLBuffer> values_buffer =
-        mtl_buffer(values, static_cast<size_t>(batch_size * k) * element_size, values_offset);
-      id<MTLBuffer> indices_buffer =
-        mtl_buffer(indices, static_cast<size_t>(batch_size * k) * sizeof(uint32_t), indices_offset);
-
-      @autoreleasepool {
-        MPSMatrixDescriptor* input_desc =
-          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
-                                                columns:static_cast<NSUInteger>(depth)
-                                               rowBytes:static_cast<NSUInteger>(depth * element_size)
-                                               dataType:mps_matrix_data_type(dtype)];
-        MPSMatrixDescriptor* values_desc =
-          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
-                                                columns:static_cast<NSUInteger>(k)
-                                               rowBytes:static_cast<NSUInteger>(k * element_size)
-                                               dataType:mps_matrix_data_type(dtype)];
-        MPSMatrixDescriptor* indices_desc =
-          [MPSMatrixDescriptor matrixDescriptorWithRows:static_cast<NSUInteger>(batch_size)
-                                                columns:static_cast<NSUInteger>(k)
-                                               rowBytes:static_cast<NSUInteger>(k * sizeof(uint32_t))
-                                               dataType:MPSDataTypeUInt32];
-        record_metal_object_use((__bridge void*)input_desc);
-        record_metal_object_use((__bridge void*)values_desc);
-        record_metal_object_use((__bridge void*)indices_desc);
-
-        MPSMatrix* input_matrix = [[MPSMatrix alloc] initWithBuffer:input_buffer
-                                                            offset:input_offset
-                                                        descriptor:input_desc];
-        MPSMatrix* values_matrix = [[MPSMatrix alloc] initWithBuffer:values_buffer
-                                                              offset:values_offset
-                                                          descriptor:values_desc];
-        MPSMatrix* indices_matrix = [[MPSMatrix alloc] initWithBuffer:indices_buffer
-                                                               offset:indices_offset
-                                                           descriptor:indices_desc];
-        record_metal_object_use((__bridge void*)input_matrix);
-        record_metal_object_use((__bridge void*)values_matrix);
-        record_metal_object_use((__bridge void*)indices_matrix);
-
-        static thread_local std::unordered_map<dim_t, MPSMatrixFindTopK*> topk_cache;
-        MPSMatrixFindTopK* topk_kernel = nil;
-        auto cache_it = topk_cache.find(k);
-        if (cache_it == topk_cache.end()) {
-          topk_kernel = [[MPSMatrixFindTopK alloc]
-            initWithDevice:device
-            numberOfTopKValues:static_cast<NSUInteger>(k)];
-          if (!topk_kernel)
-            throw std::runtime_error("failed to create MPS TopK kernel");
-          topk_cache.emplace(k, topk_kernel);
-        } else {
-          topk_kernel = cache_it->second;
-        }
-        topk_kernel.sourceRows = static_cast<NSUInteger>(batch_size);
-        topk_kernel.sourceColumns = static_cast<NSUInteger>(depth);
-
-        end_active_encoder();
-        id<MTLCommandBuffer> active_command_buffer =
-          (__bridge id<MTLCommandBuffer>)command_buffer();
-        [topk_kernel encodeToCommandBuffer:active_command_buffer
-                               inputMatrix:input_matrix
-                         resultIndexMatrix:indices_matrix
-                         resultValueMatrix:values_matrix];
-        record_compute_dispatch("mps_matrix_topk");
-        record_profile_event(ProfileEvent::TopKGpu);
-
-#if !__has_feature(objc_arc)
-        [input_matrix release];
-        [values_matrix release];
-        [indices_matrix release];
-#endif
-      }
+      small_topk(dtype, input, values, indices, batch_size, depth, k);
     }
 
     bool fused_beam_search_topk(DataType dtype,

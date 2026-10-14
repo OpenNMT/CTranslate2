@@ -2264,6 +2264,83 @@ TEST(MPSBackendTest, FusedBeamSearchTopKSupportsBeam5) {
   expect_storage_eq(actual_values.to_float32(), expected_values.to_float32(), 1e-3f);
 }
 
+TEST(MPSBackendTest, FusedBeamSearchTopKWithExhaustedCandidates) {
+  // Rows with fewer than k finite candidates must keep the masked value in the
+  // exhausted slots (never a 0 pad) and a valid index, like the materialized
+  // log-softmax + add + TopK sequence. A vocabulary smaller than the
+  // threadgroup also leaves threads without any column.
+  struct Case { dim_t beam_size; dim_t k; };
+  constexpr dim_t batch_size = 2;
+  const float neg_inf = -std::numeric_limits<float>::infinity();
+  for (const dim_t vocabulary_size : {513, 100, 20}) {
+    for (const Case c : {Case{4, 8}, Case{5, 10}, Case{8, 16}}) {
+      for (const float masked : {neg_inf, -65504.f}) {
+        SCOPED_TRACE(::testing::Message() << "vocabulary=" << vocabulary_size
+                                          << ", beam=" << c.beam_size << ", k=" << c.k
+                                          << ", masked=" << masked);
+        std::vector<float> logits_values(batch_size * c.beam_size * vocabulary_size, masked);
+        std::vector<float> beam_score_values(batch_size * c.beam_size);
+        // Every row keeps a single finite token, so a batch has beam_size < k
+        // finite candidates.
+        for (dim_t row = 0; row < batch_size * c.beam_size; ++row) {
+          logits_values[row * vocabulary_size + (7 + row) % vocabulary_size] = 2.0f - 0.1f * row;
+          beam_score_values[row] = static_cast<float>(row % c.beam_size) * -0.37f;
+        }
+
+        StorageView logits = StorageView({batch_size * c.beam_size, vocabulary_size}, logits_values)
+                               .to_float16()
+                               .to(Device::MPS);
+        const StorageView beam_scores = StorageView({batch_size * c.beam_size}, beam_score_values)
+                                          .to_float16()
+                                          .to(Device::MPS);
+        StorageView materialized(logits);
+        ops::LogSoftMax()(materialized);
+        primitives<Device::MPS>::add_depth_broadcast(
+          beam_scores.data<float16_t>(),
+          materialized.data<float16_t>(),
+          beam_scores.size(),
+          materialized.size());
+        materialized.reshape({batch_size, c.beam_size * vocabulary_size});
+        StorageView expected_values(DataType::FLOAT16, Device::MPS);
+        StorageView expected_indices(DataType::INT32, Device::MPS);
+        const ops::TopK topk(c.k);
+        topk(materialized, expected_values, expected_indices);
+
+        StorageView actual_values({batch_size, c.k}, DataType::FLOAT16, Device::MPS);
+        StorageView actual_indices({batch_size, c.k}, DataType::INT32, Device::MPS);
+        ASSERT_TRUE(mps::fused_beam_search_topk(
+          DataType::FLOAT16,
+          logits.data<float16_t>(),
+          beam_scores.data<float16_t>(),
+          actual_values.data<float16_t>(),
+          actual_indices.data<int32_t>(),
+          batch_size,
+          c.beam_size,
+          vocabulary_size,
+          c.k));
+
+        const StorageView expected_v = expected_values.to_float32().to(Device::CPU);
+        const StorageView actual_v = actual_values.to_float32().to(Device::CPU);
+        const StorageView expected_i = expected_indices.to(Device::CPU);
+        const StorageView actual_i = actual_indices.to(Device::CPU);
+        for (dim_t offset = 0; offset < batch_size * c.k; ++offset) {
+          SCOPED_TRACE(::testing::Message() << "batch=" << offset / c.k << ", rank=" << offset % c.k);
+          const float expected = expected_v.at<float>(offset);
+          if (std::isinf(expected))
+            EXPECT_EQ(actual_v.at<float>(offset), expected);
+          else
+            EXPECT_NEAR(actual_v.at<float>(offset), expected, 1e-3f);
+          // Do not prescribe the index of an exhausted slot, only that it is valid.
+          if (expected > -65504.f)
+            EXPECT_EQ(actual_i.at<int32_t>(offset), expected_i.at<int32_t>(offset));
+          EXPECT_GE(actual_i.at<int32_t>(offset), 0);
+          EXPECT_LT(actual_i.at<int32_t>(offset), c.beam_size * vocabulary_size);
+        }
+      }
+    }
+  }
+}
+
 TEST(MPSBackendTest, BatchedDecodeGemmBroadcastAndInteriorOffsets) {
   constexpr dim_t batch_size = 2;
   constexpr dim_t k = 17;
