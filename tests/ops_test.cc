@@ -1704,6 +1704,105 @@ TEST(MPSBackendTest, DeviceSynchronizeIsSafeDuringConcurrentEncoding) {
   EXPECT_GT(synchronizations.load(std::memory_order_relaxed), 0u);
 }
 
+// Every inter_threads worker of a translator runs the same GEMM shapes, so
+// several threads ask for the same MPSMatrixMultiplication at the same time.
+// An MPSKernel must not be encoded by two threads at once, so each thread
+// needs its own instance. With one instance shared by all threads this crashed
+// in MPSSetNDArraysOnComputeEncoder (SIGSEGV) within a few hundred iterations.
+static void expect_concurrent_mps_matmul_matches_cpu(DataType dtype,
+                                                     bool batched,
+                                                     float abs_diff) {
+  constexpr size_t num_threads = 4;
+  constexpr size_t iterations = 300;
+  constexpr dim_t m = 64;
+  constexpr dim_t n = 2048;
+  constexpr dim_t k = 512;
+  const dim_t batch_size = batched ? 2 : 1;
+
+  struct Result {
+    StorageView actual;
+    StorageView expected;
+  };
+
+  std::atomic<size_t> ready{0};
+  std::atomic<bool> start{false};
+
+  auto run = [&](size_t index) {
+    // Every thread has its own inputs, so a result produced through another
+    // thread's state does not match this thread's reference.
+    std::vector<float> a_values(static_cast<size_t>(batch_size * m * k));
+    std::vector<float> b_values(static_cast<size_t>(batch_size * n * k));
+    const float phase = static_cast<float>(index);
+    for (size_t i = 0; i < a_values.size(); ++i)
+      a_values[i] = std::sin(0.0137f * static_cast<float>(i % 9973) + phase);
+    for (size_t i = 0; i < b_values.size(); ++i)
+      b_values[i] = std::cos(0.0071f * static_cast<float>(i % 7919) + 0.5f * phase) * 0.05f;
+
+    const Shape a_shape = batched ? Shape{batch_size, m, k} : Shape{m, k};
+    const Shape b_shape = batched ? Shape{batch_size, n, k} : Shape{n, k};
+    // Round the inputs to the tested type first, so the reference only differs
+    // from the device result by accumulation and output rounding.
+    const StorageView a_reference = StorageView(a_shape, a_values).to(dtype).to_float32();
+    const StorageView b_reference = StorageView(b_shape, b_values).to(dtype).to_float32();
+
+    const ops::Gemm gemm(/*alpha=*/1, /*beta=*/0, false, true);
+    const ops::MatMul matmul(false, true);
+    StorageView expected(DataType::FLOAT32);
+    if (batched)
+      matmul(a_reference, b_reference, expected);
+    else
+      gemm(a_reference, b_reference, expected);
+
+    const StorageView a = a_reference.to(dtype).to(Device::MPS);
+    const StorageView b = b_reference.to(dtype).to(Device::MPS);
+    StorageView c(dtype, Device::MPS);
+
+    ready.fetch_add(1);
+    while (!start.load())
+      std::this_thread::yield();
+
+    for (size_t iteration = 0; iteration < iterations; ++iteration) {
+      if (batched)
+        matmul(a, b, c);
+      else
+        gemm(a, b, c);
+    }
+    return Result{c.to_float32().to(Device::CPU), std::move(expected)};
+  };
+
+  std::vector<std::future<Result>> workers;
+  for (size_t index = 0; index < num_threads; ++index)
+    workers.emplace_back(std::async(std::launch::async, run, index));
+
+  // Release all workers together once they have their inputs on the device.
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+  while (ready.load() < num_threads && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  start.store(true);
+
+  for (size_t index = 0; index < num_threads; ++index) {
+    try {
+      const Result result = workers[index].get();
+      SCOPED_TRACE("thread " + std::to_string(index));
+      expect_storage_eq(result.actual, result.expected, abs_diff);
+    } catch (const std::exception& error) {
+      ADD_FAILURE() << "thread " << index << " failed: " << error.what();
+    }
+  }
+}
+
+TEST(MPSBackendTest, ConcurrentGemmFloat16WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT16, /*batched=*/false, 3e-2f);
+}
+
+TEST(MPSBackendTest, ConcurrentGemmFloat32WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT32, /*batched=*/false, 1e-3f);
+}
+
+TEST(MPSBackendTest, ConcurrentBatchedMatMulFloat16WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT16, /*batched=*/true, 3e-2f);
+}
+
 TEST(MPSBackendTest, ActiveTemporaryFreesAreProcessedAfterCompletion) {
   constexpr size_t iterations = 256;
   constexpr dim_t elements = 16;

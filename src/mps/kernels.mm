@@ -3231,6 +3231,9 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       }
 
       static id<MTLComputePipelineState> pipeline(const std::string& name) {
+        // Libraries and compute pipeline states are immutable and thread safe,
+        // so one instance is shared by all threads (unlike MPSKernel objects,
+        // see gemm_kernel()).
         static std::unordered_map<std::string, id<MTLComputePipelineState>> cache;
         static std::mutex cache_mutex;
         static thread_local std::unordered_map<std::string, id<MTLComputePipelineState>> local_cache;
@@ -3537,6 +3540,23 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         return bits;
       }
 
+      // The MPSMatrixMultiplication kernels of one thread. The thread owns every
+      // kernel in the map and releases it when the thread ends.
+      struct GemmKernelCache {
+        std::unordered_map<GemmKey, MPSMatrixMultiplication*, GemmKeyHash> kernels;
+
+        GemmKernelCache() = default;
+        GemmKernelCache(const GemmKernelCache&) = delete;
+        GemmKernelCache& operator=(const GemmKernelCache&) = delete;
+
+        ~GemmKernelCache() {
+#if !__has_feature(objc_arc)
+          for (auto& entry : kernels)
+            [entry.second release];
+#endif
+        }
+      };
+
       static MPSMatrixMultiplication* gemm_kernel(id<MTLDevice> device,
                                                   DataType dtype,
                                                   bool transpose_a,
@@ -3547,11 +3567,14 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                                                   dim_t batch_size,
                                                   float alpha,
                                                   float beta) {
-        static std::unordered_map<GemmKey, MPSMatrixMultiplication*, GemmKeyHash> cache;
-        static std::mutex cache_mutex;
-        static thread_local std::unordered_map<GemmKey,
-                                               MPSMatrixMultiplication*,
-                                               GemmKeyHash> local_cache;
+        // One kernel per thread, not one per process. Apple documents MPSKernel
+        // objects as not safe to use from several threads at once (each thread
+        // should have its own copy), and encoding one builds and updates state
+        // inside it. Workers of the same translator run the same GEMM shapes,
+        // and sharing one MPSMatrixMultiplication between them crashed with a
+        // SIGSEGV inside MPSSetNDArraysOnComputeEncoder. Nothing in this map is
+        // ever visible to another thread.
+        static thread_local GemmKernelCache cache;
 
         const GemmKey key{dtype,
                           transpose_a,
@@ -3563,16 +3586,9 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                           float_bits(alpha),
                           float_bits(beta)};
 
-        auto local_it = local_cache.find(key);
-        if (local_it != local_cache.end())
-          return local_it->second;
-
-        std::lock_guard<std::mutex> lock(cache_mutex);
-        auto it = cache.find(key);
-        if (it != cache.end()) {
-          local_cache.emplace(key, it->second);
+        auto it = cache.kernels.find(key);
+        if (it != cache.kernels.end())
           return it->second;
-        }
 
         MPSMatrixMultiplication* matmul =
           [[MPSMatrixMultiplication alloc] initWithDevice:device
@@ -3583,9 +3599,11 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                                           interiorColumns:static_cast<NSUInteger>(k)
                                                     alpha:alpha
                                                      beta:beta];
+        if (!matmul)
+          throw std::runtime_error("failed to create MPS matrix multiplication kernel");
         [matmul setBatchSize:static_cast<NSUInteger>(batch_size)];
-        cache.emplace(key, matmul);
-        local_cache.emplace(key, matmul);
+        // The map takes over the reference returned by alloc.
+        cache.kernels.emplace(key, matmul);
         return matmul;
       }
 
@@ -4590,6 +4608,10 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                                                       1,
                                                       alpha,
                                                       beta);
+        // The kernel is owned by this thread's cache and goes away with the
+        // thread, possibly before the command buffer it was encoded into has
+        // run. Hold it until then, like the matrices above.
+        record_metal_object_use((__bridge void*)matmul);
 
         end_active_encoder();
         id<MTLCommandBuffer> active_command_buffer =
@@ -4796,6 +4818,8 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                                                       batch_size,
                                                       alpha,
                                                       beta);
+        // See gemm(): the kernel must outlive the encoded work, not the thread.
+        record_metal_object_use((__bridge void*)matmul);
 
         end_active_encoder();
         id<MTLCommandBuffer> active_command_buffer =
