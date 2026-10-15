@@ -30,7 +30,7 @@ int main(int argc, char* argv[]) {
      cxxopts::value<size_t>()->default_value("1"))
     ("intra_threads", "Number of computation threads (set to 0 to use the default value).",
      cxxopts::value<size_t>()->default_value("0"))
-    ("device", "Device to use (can be cpu, cuda, mps, auto).",
+    ("device", "Device to use (can be cpu, cuda, mps (experimental), auto).",
      cxxopts::value<std::string>()->default_value("cpu"))
     ("device_index", "Comma-separated list of device IDs to use.",
      cxxopts::value<std::vector<int>>()->default_value("0"))

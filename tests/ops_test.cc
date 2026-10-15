@@ -1,5 +1,7 @@
 #include <algorithm>
+#include <cmath>
 #include <cstdlib>
+#include <limits>
 #include <set>
 #include "test_utils.h"
 #include "ctranslate2/layers/attention.h"
@@ -791,6 +793,70 @@ TEST_P(OpDeviceFPTest, TopK) {
   op(input.to(dtype), values, indices);
   expect_storage_eq(values.to_float32(), expected_values, error);
   expect_storage_eq(indices, expected_indices);
+}
+
+TEST_P(OpDeviceFPTest, TopKWithExhaustedCandidates) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const dim_t rows = 4;
+  const dim_t depth = 1025;
+  const float neg_inf = -std::numeric_limits<float>::infinity();
+  const float lowest = dtype == DataType::FLOAT16 ? -65504.f
+    : dtype == DataType::BFLOAT16 ? -std::ldexp(255.f, 120)
+    : std::numeric_limits<float>::lowest();
+
+  // Cover each specialized launcher and the generic k=3 branch. Exhaustion
+  // must also be safe for non-first rows and candidates outside block lane 0.
+  for (const int k : {1, 2, 3, 4, 6, 8, 10, 16, 32, 64}) {
+    for (const float masked : {neg_inf, lowest}) {
+      SCOPED_TRACE(::testing::Message() << "k=" << k << ", masked=" << masked);
+      std::vector<float> data(rows * depth, masked);
+      data[depth + 17] = 4.f;
+      data[2 * depth + 137] = 4.f;
+      data[2 * depth + 513] = 2.f;
+      for (int i = 0; i < k; ++i)
+        data[3 * depth + 100 + 3 * i] = float(k - i);
+
+      const StorageView expected_input({rows, depth}, data);
+      StorageView input = expected_input.to(dtype).to(device);
+      StorageView values(dtype, device);
+      StorageView indices(DataType::INT32, device);
+
+      const ops::TopK topk(k);
+      // Reuse the input: stage 1 temporarily mutates it and must restore it.
+      for (int repeat = 0; repeat < 2; ++repeat) {
+        topk(input, values, indices);
+        const StorageView result_values = values.to_float32().to(Device::CPU);
+        const StorageView result_indices = indices.to(Device::CPU);
+        assert_vector_eq(result_values.shape(), {rows, dim_t(k)});
+        assert_vector_eq(result_indices.shape(), {rows, dim_t(k)});
+        expect_storage_eq(input.to_float32().to(Device::CPU), expected_input);
+
+        for (dim_t row = 0; row < rows; ++row) {
+          SCOPED_TRACE(::testing::Message() << "row=" << row << ", repeat=" << repeat);
+          const int valid = row == 0 ? 0 : row == 1 ? 1 : row == 2 ? 2 : k;
+          for (int i = 0; i < k; ++i) {
+            const dim_t offset = row * k + i;
+            const int32_t index = result_indices.at<int32_t>(offset);
+            EXPECT_GE(index, 0);
+            EXPECT_LT(index, depth);
+            if (i < valid) {
+              const int32_t expected_index = row == 1 ? 17
+                : row == 2 ? (i == 0 ? 137 : 513) : 100 + 3 * i;
+              EXPECT_EQ(index, expected_index);
+              EXPECT_FLOAT_EQ(result_values.at<float>(offset),
+                              data[row * depth + expected_index]);
+            } else {
+              // Preserve the existing CUDA sentinel value behavior without
+              // prescribing a tied/sentinel index as a public TopK contract.
+              EXPECT_FLOAT_EQ(result_values.at<float>(offset),
+                              device == Device::CUDA ? lowest : masked);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 TEST_P(OpDeviceTest, TopKVariableDepth) {
@@ -1638,6 +1704,105 @@ TEST(MPSBackendTest, DeviceSynchronizeIsSafeDuringConcurrentEncoding) {
   EXPECT_GT(synchronizations.load(std::memory_order_relaxed), 0u);
 }
 
+// Every inter_threads worker of a translator runs the same GEMM shapes, so
+// several threads ask for the same MPSMatrixMultiplication at the same time.
+// An MPSKernel must not be encoded by two threads at once, so each thread
+// needs its own instance. With one instance shared by all threads this crashed
+// in MPSSetNDArraysOnComputeEncoder (SIGSEGV) within a few hundred iterations.
+static void expect_concurrent_mps_matmul_matches_cpu(DataType dtype,
+                                                     bool batched,
+                                                     float abs_diff) {
+  constexpr size_t num_threads = 4;
+  constexpr size_t iterations = 300;
+  constexpr dim_t m = 64;
+  constexpr dim_t n = 2048;
+  constexpr dim_t k = 512;
+  const dim_t batch_size = batched ? 2 : 1;
+
+  struct Result {
+    StorageView actual;
+    StorageView expected;
+  };
+
+  std::atomic<size_t> ready{0};
+  std::atomic<bool> start{false};
+
+  auto run = [&](size_t index) {
+    // Every thread has its own inputs, so a result produced through another
+    // thread's state does not match this thread's reference.
+    std::vector<float> a_values(static_cast<size_t>(batch_size * m * k));
+    std::vector<float> b_values(static_cast<size_t>(batch_size * n * k));
+    const float phase = static_cast<float>(index);
+    for (size_t i = 0; i < a_values.size(); ++i)
+      a_values[i] = std::sin(0.0137f * static_cast<float>(i % 9973) + phase);
+    for (size_t i = 0; i < b_values.size(); ++i)
+      b_values[i] = std::cos(0.0071f * static_cast<float>(i % 7919) + 0.5f * phase) * 0.05f;
+
+    const Shape a_shape = batched ? Shape{batch_size, m, k} : Shape{m, k};
+    const Shape b_shape = batched ? Shape{batch_size, n, k} : Shape{n, k};
+    // Round the inputs to the tested type first, so the reference only differs
+    // from the device result by accumulation and output rounding.
+    const StorageView a_reference = StorageView(a_shape, a_values).to(dtype).to_float32();
+    const StorageView b_reference = StorageView(b_shape, b_values).to(dtype).to_float32();
+
+    const ops::Gemm gemm(/*alpha=*/1, /*beta=*/0, false, true);
+    const ops::MatMul matmul(false, true);
+    StorageView expected(DataType::FLOAT32);
+    if (batched)
+      matmul(a_reference, b_reference, expected);
+    else
+      gemm(a_reference, b_reference, expected);
+
+    const StorageView a = a_reference.to(dtype).to(Device::MPS);
+    const StorageView b = b_reference.to(dtype).to(Device::MPS);
+    StorageView c(dtype, Device::MPS);
+
+    ready.fetch_add(1);
+    while (!start.load())
+      std::this_thread::yield();
+
+    for (size_t iteration = 0; iteration < iterations; ++iteration) {
+      if (batched)
+        matmul(a, b, c);
+      else
+        gemm(a, b, c);
+    }
+    return Result{c.to_float32().to(Device::CPU), std::move(expected)};
+  };
+
+  std::vector<std::future<Result>> workers;
+  for (size_t index = 0; index < num_threads; ++index)
+    workers.emplace_back(std::async(std::launch::async, run, index));
+
+  // Release all workers together once they have their inputs on the device.
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+  while (ready.load() < num_threads && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  start.store(true);
+
+  for (size_t index = 0; index < num_threads; ++index) {
+    try {
+      const Result result = workers[index].get();
+      SCOPED_TRACE("thread " + std::to_string(index));
+      expect_storage_eq(result.actual, result.expected, abs_diff);
+    } catch (const std::exception& error) {
+      ADD_FAILURE() << "thread " << index << " failed: " << error.what();
+    }
+  }
+}
+
+TEST(MPSBackendTest, ConcurrentGemmFloat16WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT16, /*batched=*/false, 3e-2f);
+}
+
+TEST(MPSBackendTest, ConcurrentGemmFloat32WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT32, /*batched=*/false, 1e-3f);
+}
+
+TEST(MPSBackendTest, ConcurrentBatchedMatMulFloat16WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT16, /*batched=*/true, 3e-2f);
+}
+
 TEST(MPSBackendTest, ActiveTemporaryFreesAreProcessedAfterCompletion) {
   constexpr size_t iterations = 256;
   constexpr dim_t elements = 16;
@@ -2196,6 +2361,83 @@ TEST(MPSBackendTest, FusedBeamSearchTopKSupportsBeam5) {
 
   expect_storage_eq(actual_indices, expected_indices);
   expect_storage_eq(actual_values.to_float32(), expected_values.to_float32(), 1e-3f);
+}
+
+TEST(MPSBackendTest, FusedBeamSearchTopKWithExhaustedCandidates) {
+  // Rows with fewer than k finite candidates must keep the masked value in the
+  // exhausted slots (never a 0 pad) and a valid index, like the materialized
+  // log-softmax + add + TopK sequence. A vocabulary smaller than the
+  // threadgroup also leaves threads without any column.
+  struct Case { dim_t beam_size; dim_t k; };
+  constexpr dim_t batch_size = 2;
+  const float neg_inf = -std::numeric_limits<float>::infinity();
+  for (const dim_t vocabulary_size : {513, 100, 20}) {
+    for (const Case c : {Case{4, 8}, Case{5, 10}, Case{8, 16}}) {
+      for (const float masked : {neg_inf, -65504.f}) {
+        SCOPED_TRACE(::testing::Message() << "vocabulary=" << vocabulary_size
+                                          << ", beam=" << c.beam_size << ", k=" << c.k
+                                          << ", masked=" << masked);
+        std::vector<float> logits_values(batch_size * c.beam_size * vocabulary_size, masked);
+        std::vector<float> beam_score_values(batch_size * c.beam_size);
+        // Every row keeps a single finite token, so a batch has beam_size < k
+        // finite candidates.
+        for (dim_t row = 0; row < batch_size * c.beam_size; ++row) {
+          logits_values[row * vocabulary_size + (7 + row) % vocabulary_size] = 2.0f - 0.1f * row;
+          beam_score_values[row] = static_cast<float>(row % c.beam_size) * -0.37f;
+        }
+
+        StorageView logits = StorageView({batch_size * c.beam_size, vocabulary_size}, logits_values)
+                               .to_float16()
+                               .to(Device::MPS);
+        const StorageView beam_scores = StorageView({batch_size * c.beam_size}, beam_score_values)
+                                          .to_float16()
+                                          .to(Device::MPS);
+        StorageView materialized(logits);
+        ops::LogSoftMax()(materialized);
+        primitives<Device::MPS>::add_depth_broadcast(
+          beam_scores.data<float16_t>(),
+          materialized.data<float16_t>(),
+          beam_scores.size(),
+          materialized.size());
+        materialized.reshape({batch_size, c.beam_size * vocabulary_size});
+        StorageView expected_values(DataType::FLOAT16, Device::MPS);
+        StorageView expected_indices(DataType::INT32, Device::MPS);
+        const ops::TopK topk(c.k);
+        topk(materialized, expected_values, expected_indices);
+
+        StorageView actual_values({batch_size, c.k}, DataType::FLOAT16, Device::MPS);
+        StorageView actual_indices({batch_size, c.k}, DataType::INT32, Device::MPS);
+        ASSERT_TRUE(mps::fused_beam_search_topk(
+          DataType::FLOAT16,
+          logits.data<float16_t>(),
+          beam_scores.data<float16_t>(),
+          actual_values.data<float16_t>(),
+          actual_indices.data<int32_t>(),
+          batch_size,
+          c.beam_size,
+          vocabulary_size,
+          c.k));
+
+        const StorageView expected_v = expected_values.to_float32().to(Device::CPU);
+        const StorageView actual_v = actual_values.to_float32().to(Device::CPU);
+        const StorageView expected_i = expected_indices.to(Device::CPU);
+        const StorageView actual_i = actual_indices.to(Device::CPU);
+        for (dim_t offset = 0; offset < batch_size * c.k; ++offset) {
+          SCOPED_TRACE(::testing::Message() << "batch=" << offset / c.k << ", rank=" << offset % c.k);
+          const float expected = expected_v.at<float>(offset);
+          if (std::isinf(expected))
+            EXPECT_EQ(actual_v.at<float>(offset), expected);
+          else
+            EXPECT_NEAR(actual_v.at<float>(offset), expected, 1e-3f);
+          // Do not prescribe the index of an exhausted slot, only that it is valid.
+          if (expected > -65504.f)
+            EXPECT_EQ(actual_i.at<int32_t>(offset), expected_i.at<int32_t>(offset));
+          EXPECT_GE(actual_i.at<int32_t>(offset), 0);
+          EXPECT_LT(actual_i.at<int32_t>(offset), c.beam_size * vocabulary_size);
+        }
+      }
+    }
+  }
 }
 
 TEST(MPSBackendTest, BatchedDecodeGemmBroadcastAndInteriorOffsets) {

@@ -11,6 +11,9 @@
 #ifdef CT2_WITH_RUY
 #  include "cpu/backend.h"
 #endif
+#ifdef _WIN32
+#  include "cpu/parallel.h"
+#endif
 
 #ifdef CT2_WITH_TENSOR_PARALLEL
 #  include <unistd.h>
@@ -146,7 +149,9 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_MPS
     if (device == Device::MPS) {
       const ScopedDeviceSetter scoped_device_setter(device, index);
-      mps::synchronize_all();
+      // Called from ~Model, which cannot throw: a failed command buffer is
+      // logged and stays on the stream that submitted it.
+      mps::synchronize_all_nothrow();
     }
 #endif
 #if !defined(CT2_WITH_CUDA) && !defined(CT2_WITH_MPS)
@@ -169,6 +174,17 @@ namespace ctranslate2 {
     (void)device;
 #endif
   }
+
+  void synchronize_stream_nothrow(Device device) {
+#ifdef CT2_WITH_MPS
+    if (device == Device::MPS) {
+      mps::synchronize_nothrow();
+      return;
+    }
+#endif
+    synchronize_stream(device);
+  }
+
   void destroy_context(Device device) {
 #ifdef CT2_WITH_CUDA
     if (device == Device::CUDA)
@@ -183,6 +199,10 @@ namespace ctranslate2 {
       // Other platforms rely on thread_local RAII — see cpu/backend.cc.
       cpu::clear_ruy_context();
     }
+#endif
+#if defined(_WIN32) && !defined(_OPENMP)
+    // Same deadlock, for the thread pool used without OpenMP.
+    cpu::clear_thread_pool();
 #endif
 
     (void)device;

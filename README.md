@@ -8,7 +8,7 @@ The project implements a custom runtime that applies many performance optimizati
 
 The following model types are currently supported:
 
-* Encoder-decoder models: Transformer base/big, M2M-100, NLLB, BART, mBART, Pegasus, T5, Whisper, T5Gemma, T5Gemma2, MADLAD-400
+* Encoder-decoder models: Transformer base/big, M2M-100, NLLB, BART, mBART, Pegasus, T5, UMT5, Whisper, T5Gemma, T5Gemma2, MADLAD-400
 * Decoder-only models: GPT-2, GPT-J, GPT-NeoX, OPT, BLOOM, MPT, Llama, Mistral, Gemma, CodeGen, GPTBigCode, Falcon, Qwen2
 * Encoder-only models: BERT, DistilBERT, XLM-RoBERTa
 
@@ -59,6 +59,8 @@ generator.generate_batch(start_tokens)
 See the [documentation](https://opennmt.net/CTranslate2) for more information and examples.
 
 If you have an AMD ROCm GPU, we provide specific Python wheels on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/).
+
+**Apple Metal (experimental).** Apple Silicon GPUs can be used with `device="mps"`. This backend is opt-in: it is only available when building from source with `-DWITH_MPS=ON`, it is not included in the published wheels, and `device="auto"` never selects it. See [hardware support](docs/hardware_support.md) for the supported features.
 
 ## Web Server
 

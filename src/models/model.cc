@@ -905,6 +905,11 @@ namespace ctranslate2 {
                      compute_type_to_str(model->effective_compute_type()));
 
 #ifdef CT2_WITH_MPS
+        if (device == Device::MPS)
+          spdlog::warn("The Apple Metal (MPS) backend is experimental: it is only available "
+                       "in builds compiled with WITH_MPS=ON, and its behavior and performance "
+                       "may change in future versions.");
+
         if (device == Device::MPS
             && (model->requested_compute_type() == ComputeType::INT8
                 || model->requested_compute_type() == ComputeType::INT8_FLOAT16)

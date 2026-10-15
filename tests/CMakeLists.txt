@@ -36,6 +36,8 @@ if(NOT MSVC)
 endif()
 
 if(WITH_MPS)
+  target_sources(ctranslate2_test PRIVATE mps_error_test.cc)
+
   add_executable(benchmark_mps
     benchmark_mps.cc
     )

@@ -51,6 +51,10 @@ export CT2_CUDA_CACHING_ALLOCATOR_CONFIG=8,3,7,6291455
 
 See the description of each parameter in the [allocator implementation](https://github.com/NVIDIA/cub/blob/main/cub/util_allocator.cuh).
 
+```{attention}
+**Apple Metal (experimental).** The `CT2_MPS_*` variables below configure the experimental Apple Metal (MPS) backend. This backend is opt-in at build time (`-DWITH_MPS=ON`), it is not included in the published Python wheels, and `device="auto"` never selects it. The variables and their defaults may change.
+```
+
 ## `CT2_MPS_MAX_COMPUTE_OPS`
 
 Set the maximum number of compute operations encoded before the current MPS

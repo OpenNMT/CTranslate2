@@ -19,6 +19,14 @@ namespace ctranslate2 {
   template <typename Replica>
   class ReplicaWorker;
 
+  // Loading and replica creation can run parallel_for on the calling thread, which
+  // never reaches ReplicaWorker::finalize(), so release its context on scope exit.
+  struct CallingThreadContextGuard {
+    ~CallingThreadContextGuard() {
+      destroy_context(Device::CPU);
+    }
+  };
+
   // Base class to implement a pool of model replicas that can run in parallel.
   template <typename Replica>
   class ReplicaPool {
@@ -130,6 +138,7 @@ namespace ctranslate2 {
         throw std::invalid_argument("The number of models does not match the number "
                                     "of parallel replicas");
 
+      CallingThreadContextGuard context_guard;
       for (size_t i = 0; i < num_replicas(); ++i) {
         auto& worker = static_cast<ReplicaWorker<Replica>&>(_thread_pool->get_worker(i));
         worker.set_model(models[i]);
@@ -237,11 +246,17 @@ namespace ctranslate2 {
                          const ReplicaPoolConfig& config) {
       // The same number of computation threads should be used for loading and running model.
       set_num_threads(config.num_threads_per_replica);
-      initialize_pool(model_loader.load(), config);
+      std::vector<std::shared_ptr<const models::Model>> models;
+      {
+        CallingThreadContextGuard context_guard;
+        models = model_loader.load();
+      }
+      initialize_pool(models, config);
     }
 
     void initialize_pool(const std::vector<std::shared_ptr<const models::Model>>& models,
                          const ReplicaPoolConfig& config) {
+      CallingThreadContextGuard context_guard;
       std::vector<std::unique_ptr<Worker>> workers;
       workers.reserve(models.size());
       for (const auto& model : models) {
@@ -349,7 +364,10 @@ namespace ctranslate2 {
     void idle() override {
       // When no new jobs are immediately available, we synchronize the CUDA stream
       // so that the CudaAsyncAllocator can release some memory.
-      synchronize_stream(_device);
+      // This runs outside of any job: an exception here would end the worker
+      // thread and the process with it, so a failure of the asynchronous work
+      // is not thrown but left to the next operation on the stream.
+      synchronize_stream_nothrow(_device);
     }
 
     void finalize() override {
