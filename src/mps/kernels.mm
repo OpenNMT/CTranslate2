@@ -1310,7 +1310,7 @@ TOP_P_MASK_KERNEL(top_p_mask_bf16, ushort, load_value_bf16, store_value_bf16)
 // candidate with its real value and index: the initial -INFINITY/UINT_MAX
 // slots lose to a masked candidate on index, so the exhausted ranks are filled
 // by the masked input instead of by padding.
-#define SMALL_TOPK_KERNEL(NAME, TYPE, LOAD, STORE)                                    \
+#define SMALL_TOPK_KERNEL(NAME, TYPE, LOAD, STORE, MAX_K)                             \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                              \
                  device TYPE* values [[buffer(1)]],                                   \
                  device int* indices [[buffer(2)]],                                   \
@@ -1321,9 +1321,9 @@ kernel void NAME(device const TYPE* input [[buffer(0)]],                        
                  uint tid [[thread_index_in_threadgroup]],                            \
                  uint nt [[threads_per_threadgroup]]) {                               \
   if (row >= args.batch_size) return;                                                  \
-  float local_values[16];                                                             \
-  uint local_indices[16];                                                             \
-  for (uint rank = 0; rank < 16; ++rank) {                                            \
+  float local_values[MAX_K];                                                          \
+  uint local_indices[MAX_K];                                                          \
+  for (uint rank = 0; rank < MAX_K; ++rank) {                                         \
     local_values[rank] = -INFINITY;                                                   \
     local_indices[rank] = UINT_MAX;                                                   \
   }                                                                                   \
@@ -1377,9 +1377,12 @@ kernel void NAME(device const TYPE* input [[buffer(0)]],                        
   }                                                                                   \
 }
 
-SMALL_TOPK_KERNEL(small_topk_f32, float, load_value<float>, store_value<float>)
-SMALL_TOPK_KERNEL(small_topk_f16, half, load_value<half>, store_value<half>)
-SMALL_TOPK_KERNEL(small_topk_bf16, ushort, load_value_bf16, store_value_bf16)
+SMALL_TOPK_KERNEL(small_topk_f32, float, load_value<float>, store_value<float>, 8)
+SMALL_TOPK_KERNEL(small_topk_f16, half, load_value<half>, store_value<half>, 8)
+SMALL_TOPK_KERNEL(small_topk_bf16, ushort, load_value_bf16, store_value_bf16, 8)
+SMALL_TOPK_KERNEL(small_topk_16_f32, float, load_value<float>, store_value<float>, 16)
+SMALL_TOPK_KERNEL(small_topk_16_f16, half, load_value<half>, store_value<half>, 16)
+SMALL_TOPK_KERNEL(small_topk_16_bf16, ushort, load_value_bf16, store_value_bf16, 16)
 
 // Fused deterministic beam-search selection. One threadgroup owns a model
 // batch row and processes all beams. The FP16 rounding after log-softmax and
@@ -4900,7 +4903,11 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       const SmallTopKArgs args{static_cast<uint32_t>(batch_size),
                                static_cast<uint32_t>(depth),
                                static_cast<uint32_t>(k)};
-      id<MTLComputePipelineState> state = pipeline(storage_kernel_name("small_topk", dtype));
+      // Keep the common k <= 8 path in an 8-slot kernel. Using 16 private
+      // values for every thread increases register pressure and materially
+      // slows down beam-4 decoding, which requests k == 8.
+      const char* kernel = k <= 8 ? "small_topk" : "small_topk_16";
+      id<MTLComputePipelineState> state = pipeline(storage_kernel_name(kernel, dtype));
       id<MTLComputeCommandEncoder> encoder =
         (__bridge id<MTLComputeCommandEncoder>)compute_encoder();
       [encoder setComputePipelineState:state];
@@ -4917,7 +4924,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       [encoder dispatchThreadgroups:MTLSizeMake(static_cast<NSUInteger>(batch_size), 1, 1)
                threadsPerThreadgroup:MTLSizeMake(threads, 1, 1)];
       [encoder memoryBarrierWithScope:MTLBarrierScopeBuffers];
-      record_compute_dispatch(kernel_name("small_topk", dtype).c_str());
+      record_compute_dispatch(kernel_name(kernel, dtype).c_str());
       record_profile_event(ProfileEvent::TopKGpu);
     }
 
