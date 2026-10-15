@@ -1,0 +1,6 @@
+datasets>=4.0
+faster-whisper>=1.2
+jiwer>=3.0
+sacrebleu>=2.4
+sentencepiece>=0.2
+transformers>=4.40,<5

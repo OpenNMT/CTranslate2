@@ -17,6 +17,26 @@ See the [environment variables](environment_variables.md) `CT2_USE_MKL` and `CT2
 
 ## GPU
 
+### NVIDIA CUDA
+
 * NVIDIA GPUs with a Compute Capability greater or equal to 3.5
 
 The driver requirement depends on the CUDA version. See the [CUDA Compatibility guide](https://docs.nvidia.com/deploy/cuda-compatibility/index.html) for more information.
+
+### Apple Metal Performance Shaders
+
+The experimental MPS backend supports Apple Silicon Macs running macOS 11 or
+newer. It is not included in the prebuilt Python wheels: build from source
+with `-DWITH_MPS=ON`, then select `device="mps"` in the C++ or Python API.
+
+The backend supports FP32, FP16, BF16, and experimental signed INT8
+computation. FP16 is the recommended compute type and is selected by
+`compute_type="auto"`. Requests for `int8` and `int8_float16` also resolve to
+FP16 by default because native INT8 is slower on current Apple GPUs and can
+change decoding decisions. See [Quantization](quantization.md) for the native
+INT8 opt-in and exact type conversions, and [Installation](installation.md)
+for a build example.
+
+The MPS backend cannot be enabled together with CUDA or HIP in the same build.
+FlashAttention, AWQ INT4, INT16 GEMM, distributed collectives, and
+packed/shifted-u8 INT8 GEMM are not currently implemented on MPS.
