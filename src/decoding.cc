@@ -146,13 +146,23 @@ namespace ctranslate2 {
     if (!history)
       return {};
 
-    const auto source_length = history.dim(-1);
+    // For averaged attention: history is (batch, beam, steps, ctx)
+    // For per-head attention: history is (batch, beam, steps, heads, ctx)
+    // Compute total floats per time step (ctx or heads*ctx).
+    dim_t step_size = 1;
+    for (dim_t d = 3; d < history.rank(); ++d)
+      step_size *= history.dim(d);
 
     std::vector<std::vector<float>> attention;
     attention.reserve(end - start);
+    // Compute stride for the steps dimension: step_size floats per step.
+    // Base offset for (batch, beam) = batch * (beam_stride) + beam * (steps * step_size).
+    const dim_t steps = history.dim(2);
+    const dim_t beam_stride = steps * step_size;
+    const float* base = history.data<float>() + batch * history.dim(1) * beam_stride + beam * beam_stride;
     for (dim_t t = start; t < end; ++t) {
-      const auto* vector = history.index<float>({batch, beam, t, 0});
-      attention.emplace_back(vector, vector + source_length);
+      const float* vector = base + t * step_size;
+      attention.emplace_back(vector, vector + step_size);
     }
     return attention;
   }
@@ -911,8 +921,11 @@ namespace ctranslate2 {
             && (return_prefix || step >= prefix_length)) {
           results[batch_id].hypotheses[0].push_back(word_id);
           if (attention_step) {
-            const auto* attn = attention_step.index<float>({i, 0});
-            results[batch_id].attention[0].emplace_back(attn, attn + attention_step.dim(-1));
+            // For averaged attention: shape (batch, ctx) -> take ctx floats
+            // For per-head attention: shape (batch, heads, ctx) -> take heads*ctx floats
+            const dim_t attn_size = attention_step.size() / attention_step.dim(0);
+            const auto* attn = attention_step.data<float>() + i * attn_size;
+            results[batch_id].attention[0].emplace_back(attn, attn + attn_size);
           }
         }
 
@@ -1166,9 +1179,11 @@ namespace ctranslate2 {
         if (options.return_attention) {
           if (attention.device() != Device::CPU)
             attention = attention.to_float32().to(Device::CPU);
+          // Compute floats per time step (ctx or heads*ctx for multi-head).
+          const dim_t step_size = attention.size() / (attention.dim(0) * attention.dim(1));
           for (dim_t t = 0; t < prefix_length; ++t) {
-            const float* vector = attention.index<float>({0, t, 0});
-            result.attention[i].emplace_back(vector, vector + attention.dim(-1));
+            const float* vector = attention.data<float>() + t * step_size;
+            result.attention[i].emplace_back(vector, vector + step_size);
           }
         }
       }

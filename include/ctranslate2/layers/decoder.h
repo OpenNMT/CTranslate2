@@ -20,6 +20,11 @@ namespace ctranslate2 {
     public:
       Decoder(Device device);
 
+      // Configure which attention heads to collect when return_attention is enabled.
+      virtual void set_alignment_heads(const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) {
+        (void)alignment_heads;
+      }
+
       virtual DecoderState initial_state(bool iterative_decoding = true) const = 0;
 
       // Forwards one step.
