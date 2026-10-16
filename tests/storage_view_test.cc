@@ -149,28 +149,43 @@ INSTANTIATE_TEST_SUITE_P(CUDA, StorageViewDeviceTest, ::testing::Values(Device::
 TEST(StorageViewTest, OverflowingShapeThrows) {
   // (2^62 + 1) * 8 overflows dim_t: the shape must be rejected, not wrapped
   // to a small size that passes allocation.
-  Shape shape;
-  shape.push_back((int64_t{1} << 62) + 1);
-  shape.push_back(8);
-  EXPECT_THROW(StorageView(shape, DataType::INT32), std::invalid_argument);
+  EXPECT_THROW(StorageView(Shape{(int64_t{1} << 62) + 1, 8}, DataType::INT32),
+               std::invalid_argument);
 }
 
 TEST(StorageViewTest, OverflowingReshapeThrows) {
   StorageView view(Shape{8}, DataType::INT32);
-  Shape shape;
-  shape.push_back((int64_t{1} << 62) + 1);
-  shape.push_back(8);
-  EXPECT_THROW(view.reshape(shape), std::invalid_argument);
+  EXPECT_THROW(view.reshape(Shape{(int64_t{1} << 62) + 1, 8}), std::invalid_argument);
 }
 
-TEST(StorageViewTest, ZeroDimsPassOverflowGuard) {
-  // the guard must not divide by a zero dimension: on x86 this is a SIGFPE,
-  // on AArch64 the division yields 0 and every later check sees an overflow
-  Shape shape;
-  shape.push_back((int64_t{1} << 62) + 1);
-  shape.push_back(0);
-  EXPECT_EQ(compute_size(shape), 0);
+TEST(StorageViewTest, ZeroDimIsValidWhateverItsPosition) {
+  // The size of a shape with a zero dimension is 0, so the other dimensions are
+  // never multiplied and the overflowing prefix below is not an error. Multiplying
+  // before looking for the zero dimension made the result depend on its position.
+  EXPECT_THROW(compute_size(Shape{(int64_t{1} << 62) + 1, 8}), std::invalid_argument);
+  EXPECT_EQ(compute_size(Shape{(int64_t{1} << 62) + 1, 8, 0}), 0);
+  EXPECT_EQ(compute_size(Shape{0, (int64_t{1} << 62) + 1, 8}), 0);
 
-  StorageView empty(Shape{0}, DataType::INT32);
-  empty.reshape(Shape{0});
+  StorageView view(Shape{(int64_t{1} << 62) + 1, 8, 0}, DataType::INT32);
+  EXPECT_EQ(view.size(), 0);
+  EXPECT_EQ(view.dim(2), 0);
+  view.reshape(Shape{0, (int64_t{1} << 62) + 1, 8});
+  EXPECT_EQ(view.size(), 0);
+  EXPECT_EQ(view.dim(0), 0);
+}
+
+TEST(StorageViewTest, ZeroDimDoesNotSkipNegativeCheck) {
+  EXPECT_THROW(compute_size(Shape{0, -2}), std::invalid_argument);
+  EXPECT_THROW(compute_size(Shape{(int64_t{1} << 62) + 1, 0, -1}), std::invalid_argument);
+
+  StorageView view(Shape{0}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{0, 8, -3}), std::invalid_argument);
+}
+
+TEST(StorageViewTest, UnknownDimWithZeroDimThrows) {
+  // An unknown dimension can't be inferred from an empty shape, and the known size
+  // of 0 used to be the divisor of the compatibility check below.
+  StorageView view(Shape{8}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{0, -1}), std::invalid_argument);
+  EXPECT_THROW(view.reshape(Shape{-1, 0}), std::invalid_argument);
 }
