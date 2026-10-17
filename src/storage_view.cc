@@ -190,12 +190,15 @@ namespace ctranslate2 {
   StorageView& StorageView::reshape(Shape new_shape) {
     dim_t unknown_dim = -1;
     dim_t known_size = 1;
+    bool has_zero_dim = false;
 
     for (size_t i = 0; i < new_shape.size(); ++i) {
       const dim_t dim = new_shape[i];
 
       if (dim >= 0) {
-        known_size *= dim;
+        // the empty dimensions are only recorded here: the size is computed once
+        // the whole shape is known to contain no negative dimension
+        has_zero_dim = has_zero_dim || dim == 0;
       } else if (dim == -1) {
         if (unknown_dim >= 0)
           THROW_INVALID_ARGUMENT("only one dimension can be set to -1, got -1 for dimensions "
@@ -204,6 +207,25 @@ namespace ctranslate2 {
       } else {
         THROW_INVALID_ARGUMENT("invalid value " + std::to_string(dim)
                                + " for dimension " + std::to_string(i));
+      }
+    }
+
+    // A zero dimension makes the new size 0 whatever its position and whatever the
+    // other dimensions, so nothing is multiplied and no overflow is possible. The
+    // unknown dimension can't be recovered from an empty size, and the compatibility
+    // check below would take the modulo by 0.
+    if (has_zero_dim) {
+      if (unknown_dim >= 0)
+        THROW_INVALID_ARGUMENT("can't infer dimension " + std::to_string(unknown_dim)
+                               + " of a new shape with a zero dimension");
+      known_size = 0;
+    } else {
+      for (const dim_t dim : new_shape) {
+        if (dim <= 0)
+          continue;
+        if (known_size > std::numeric_limits<dim_t>::max() / dim)
+          THROW_INVALID_ARGUMENT("new shape leads to an overflowing tensor size");
+        known_size *= dim;
       }
     }
 
@@ -261,6 +283,8 @@ namespace ctranslate2 {
 
   StorageView& StorageView::grow(dim_t dim, dim_t size) {
     GUARD_DIM(dim, rank());
+    if (size < 0 || _shape[dim] > std::numeric_limits<dim_t>::max() - size)
+      THROW_INVALID_ARGUMENT("new dimension size leads to an overflowing tensor size");
     return resize(dim, _shape[dim] + size);
   }
 

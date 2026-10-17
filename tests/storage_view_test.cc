@@ -145,3 +145,47 @@ INSTANTIATE_TEST_SUITE_P(CPU, StorageViewDeviceTest, ::testing::Values(Device::C
 #ifdef CT2_WITH_CUDA
 INSTANTIATE_TEST_SUITE_P(CUDA, StorageViewDeviceTest, ::testing::Values(Device::CUDA));
 #endif
+
+TEST(StorageViewTest, OverflowingShapeThrows) {
+  // (2^62 + 1) * 8 overflows dim_t: the shape must be rejected, not wrapped
+  // to a small size that passes allocation.
+  EXPECT_THROW(StorageView(Shape{(int64_t{1} << 62) + 1, 8}, DataType::INT32),
+               std::invalid_argument);
+}
+
+TEST(StorageViewTest, OverflowingReshapeThrows) {
+  StorageView view(Shape{8}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{(int64_t{1} << 62) + 1, 8}), std::invalid_argument);
+}
+
+TEST(StorageViewTest, ZeroDimIsValidWhateverItsPosition) {
+  // The size of a shape with a zero dimension is 0, so the other dimensions are
+  // never multiplied and the overflowing prefix below is not an error. Multiplying
+  // before looking for the zero dimension made the result depend on its position.
+  EXPECT_THROW(compute_size(Shape{(int64_t{1} << 62) + 1, 8}), std::invalid_argument);
+  EXPECT_EQ(compute_size(Shape{(int64_t{1} << 62) + 1, 8, 0}), 0);
+  EXPECT_EQ(compute_size(Shape{0, (int64_t{1} << 62) + 1, 8}), 0);
+
+  StorageView view(Shape{(int64_t{1} << 62) + 1, 8, 0}, DataType::INT32);
+  EXPECT_EQ(view.size(), 0);
+  EXPECT_EQ(view.dim(2), 0);
+  view.reshape(Shape{0, (int64_t{1} << 62) + 1, 8});
+  EXPECT_EQ(view.size(), 0);
+  EXPECT_EQ(view.dim(0), 0);
+}
+
+TEST(StorageViewTest, ZeroDimDoesNotSkipNegativeCheck) {
+  EXPECT_THROW(compute_size(Shape{0, -2}), std::invalid_argument);
+  EXPECT_THROW(compute_size(Shape{(int64_t{1} << 62) + 1, 0, -1}), std::invalid_argument);
+
+  StorageView view(Shape{0}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{0, 8, -3}), std::invalid_argument);
+}
+
+TEST(StorageViewTest, UnknownDimWithZeroDimThrows) {
+  // An unknown dimension can't be inferred from an empty shape, and the known size
+  // of 0 used to be the divisor of the compatibility check below.
+  StorageView view(Shape{8}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{0, -1}), std::invalid_argument);
+  EXPECT_THROW(view.reshape(Shape{-1, 0}), std::invalid_argument);
+}
