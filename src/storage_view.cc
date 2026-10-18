@@ -283,7 +283,9 @@ namespace ctranslate2 {
 
   StorageView& StorageView::grow(dim_t dim, dim_t size) {
     GUARD_DIM(dim, rank());
-    if (size < 0 || _shape[dim] > std::numeric_limits<dim_t>::max() - size)
+    if (size < 0)
+      THROW_INVALID_ARGUMENT("can't grow a dimension by a negative size");
+    if (_shape[dim] > std::numeric_limits<dim_t>::max() - size)
       THROW_INVALID_ARGUMENT("new dimension size leads to an overflowing tensor size");
     return resize(dim, _shape[dim] + size);
   }
