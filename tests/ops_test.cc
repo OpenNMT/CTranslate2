@@ -1339,10 +1339,24 @@ TEST_P(OpDeviceFPTest, Conv1DPaddingAndStride) {
   expect_storage_eq(output.to_float32(), expected, error);
 }
 
+TEST(OpTest, Conv1DDilationCPU) {
+  const StorageView input({1, 1, 7}, std::vector<float>{1, 2, 3, 4, 5, 6, 7});
+  const StorageView weight({1, 1, 3}, std::vector<float>{1, 2, 3});
+  const StorageView bias({1}, std::vector<float>{1});
+  StorageView output;
+
+  ops::Conv1D(1, 0, 2)(input, weight, output);
+  expect_storage_eq(output, StorageView({1, 1, 3}, std::vector<float>{22, 28, 34}));
+
+  ops::Conv1D(1, 0, 3)(input, weight, output);
+  expect_storage_eq(output, StorageView({1, 1, 1}, std::vector<float>{30}));
+
+  ops::Conv1D(2, 2, 2)(input, weight, bias, output);
+  expect_storage_eq(output, StorageView({1, 1, 4}, std::vector<float>{12, 23, 35, 20}));
+}
+
 TEST_P(OpDeviceFPTest, Conv1DDilation) {
   const Device device = GetParam().device;
-  if (device == Device::CPU)
-      GTEST_SKIP() << "Dilated convolution is not implemented for CPU.";
   const DataType dtype = GetParam().dtype;
   const float error = GetParam().error;
   const StorageView expected({2, 4, 1}, std::vector<float>{
