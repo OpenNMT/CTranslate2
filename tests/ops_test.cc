@@ -1617,6 +1617,18 @@ TEST_P(OpDeviceTest, SnakeMatchesCpuAcrossBatchesAlphaLayoutsAndEmptyTime) {
   }
 }
 
+TEST_P(OpDeviceTest, SnakeMatchesCpuBeyondCappedGrid) {
+  const Device device = GetParam();
+  // More elements than 65535 blocks of 256 threads, with a partial final block.
+  StorageView x({1, 2, 65535 * 128 + 17}, 0.1f);
+  StorageView alpha({2}, std::vector<float>{1.f, -1.5f});
+  StorageView expected, actual(DataType::FLOAT32, device);
+  ops::Snake()(x, alpha, expected);
+  auto dx = x.to(device), da = alpha.to(device);
+  ops::Snake()(dx, da, actual);
+  expect_storage_eq(actual, expected, 2e-6f);
+}
+
 TEST_P(OpDeviceTest, SnakeValidationLeavesOutputUntouched) {
   const Device device = GetParam();
   StorageView host_x({1, 1, 1}, 1.f), host_alpha({1}, 1.f);
