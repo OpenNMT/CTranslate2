@@ -2,11 +2,9 @@
 
 #include <algorithm>
 #include <cmath>
-#include <stdexcept>
 #include <vector>
 
 #include "cpu/parallel.h"
-#include "finite_check.h"
 
 namespace ctranslate2 {
   namespace ops {
@@ -15,15 +13,6 @@ namespace ctranslate2 {
     void CausalDepthwiseConv1D::compute(const StorageView& input, const StorageView& weight,
                                       const StorageView* bias, StorageView& history,
                                       StorageView& output) const {
-      for (const StorageView* tensor :
-           {&input, &weight, bias, static_cast<const StorageView*>(&history)}) {
-        if (tensor) {
-          const auto* data = tensor->data<T>();
-          if (!all_finite(data, tensor->size()))
-            throw std::invalid_argument(
-                "CausalDepthwiseConv1D inputs and history must be finite");
-        }
-      }
       const dim_t batch = input.dim(0), steps = input.dim(1), channels = input.dim(2);
       const dim_t kernel = weight.dim(1), past = kernel - 1;
       output.resize_as(input);

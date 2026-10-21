@@ -4,11 +4,9 @@
 #include <cmath>
 #include <cstdint>
 #include <numeric>
-#include <stdexcept>
 #include <vector>
 
 #include "cpu/parallel.h"
-#include "finite_check.h"
 
 namespace ctranslate2 {
   namespace ops {
@@ -17,9 +15,6 @@ namespace ctranslate2 {
     void MoeTopK::compute(const StorageView& router_logits, StorageView& expert_indices,
                           StorageView& routing_weights) const {
       const auto* logits = router_logits.data<T>();
-      if (!all_finite(logits, router_logits.size()))
-        throw std::invalid_argument("MoeTopK logits must be finite");
-
       const dim_t rows = router_logits.dim(0);
       const dim_t experts = router_logits.dim(1);
       expert_indices.resize({rows, _k});

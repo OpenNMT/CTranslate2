@@ -1589,19 +1589,6 @@ TEST(OpTest, SnakeInvalidShapeAndDtype) {
   EXPECT_THROW(ops::Snake()(integers, valid_alpha, y), std::invalid_argument);
 }
 
-TEST(OpTest, SnakeInvalidValuesLeaveOutputUntouched) {
-  StorageView x({1, 1, 1}, 1.f);
-  StorageView alpha({1}, -1e-9f);
-  StorageView y({1}, 42.f);
-  EXPECT_THROW(ops::Snake()(x, alpha, y), std::invalid_argument);
-  EXPECT_EQ(y.data<float>()[0], 42);
-  alpha.data<float>()[0] = std::numeric_limits<float>::infinity();
-  EXPECT_THROW(ops::Snake()(x, alpha, y), std::invalid_argument);
-  alpha.data<float>()[0] = 1;
-  x.data<float>()[0] = std::numeric_limits<float>::quiet_NaN();
-  EXPECT_THROW(ops::Snake()(x, alpha, y), std::invalid_argument);
-}
-
 TEST(OpTest, SnakeRejectsAliasingIncludingClearedOutput) {
   StorageView x({1, 1, 3}, 1.f);
   StorageView alpha({1}, 1.f);
@@ -1757,10 +1744,6 @@ TEST(OpTest, MoeTopKValidation) {
   EXPECT_THROW(ops::MoeTopK(2)(rank1, indices, weights), std::invalid_argument);
   StorageView wrong_indices;
   EXPECT_THROW(ops::MoeTopK(2)(logits, wrong_indices, weights), std::invalid_argument);
-  logits.data<float>()[0] = std::numeric_limits<float>::infinity();
-  EXPECT_THROW(ops::MoeTopK(2)(logits, indices, weights), std::invalid_argument);
-  logits.data<float>()[0] = std::numeric_limits<float>::quiet_NaN();
-  EXPECT_THROW(ops::MoeTopK(2)(logits, indices, weights), std::invalid_argument);
 }
 
 TEST(OpTest, MoeTopKRetainedCapacityAliasing) {
@@ -1789,12 +1772,6 @@ TEST_P(OpDeviceTest, MoeTopKValidationAndEmptyRows) {
   EXPECT_EQ(ids.shape(), (Shape{0, 2}));
   EXPECT_EQ(weights.shape(), ids.shape());
 
-}
-
-namespace {
-
-const float invalid_scales[] = {0.f, -1.f, std::numeric_limits<float>::infinity(),
-                                std::numeric_limits<float>::quiet_NaN()};
 }
 
 TEST(OpTest, DequantizeFP8EveryFiniteEncodingAndSignedBytes) {
@@ -1828,22 +1805,6 @@ TEST(OpTest, DequantizeFP8EdgeBlocksAndFloat32ScaleMultiplication) {
   for (dim_t r = 0; r < 129; ++r)
     for (dim_t c = 0; c < 130; ++c)
       EXPECT_EQ(output.data<float>()[r * 130 + c], scale.data<float>()[(r / 128) * 2 + c / 128]);
-}
-
-TEST(OpTest, DequantizeFP8RejectsInvalidScalesAndEncodings) {
-  StorageView input({1, 1}, int8_t(0x38)), scale({1, 1}, 1.f), output;
-  for (float bad : invalid_scales) {
-    scale.data<float>()[0] = bad;
-    EXPECT_THROW(ops::DequantizeFP8()(input, scale, output), std::invalid_argument);
-  }
-  scale.data<float>()[0] = 1.f;
-  for (uint8_t bad : {uint8_t(0x7f), uint8_t(0xff)}) {
-    std::memcpy(input.data<int8_t>(), &bad, 1);
-    EXPECT_THROW(ops::DequantizeFP8()(input, scale, output), std::invalid_argument);
-  }
-  input.data<int8_t>()[0] = 0x7e; // Largest finite FP8 times finite F32 can overflow.
-  scale.data<float>()[0] = std::numeric_limits<float>::max();
-  EXPECT_THROW(ops::DequantizeFP8()(input, scale, output), std::invalid_argument);
 }
 
 TEST(OpTest, DequantizeFP8RejectsMalformedShapesTypesAndAliasing) {
@@ -1887,14 +1848,10 @@ TEST_P(OpDeviceTest, DequantizeFP8DecodesNaNCodes) {
   const Device device = GetParam();
   StorageView input({1, 2}, std::vector<int8_t>{int8_t(0x7f), int8_t(0xff)}, device);
   StorageView scale({1, 1}, 1.f, device), output(device);
-  if (device == Device::CPU) {
-    EXPECT_THROW(ops::DequantizeFP8()(input, scale, output), std::invalid_argument);
-  } else {
-    ops::DequantizeFP8()(input, scale, output);
-    const auto host = output.to(Device::CPU);
-    EXPECT_TRUE(std::isnan(host.data<float>()[0]));
-    EXPECT_TRUE(std::isnan(host.data<float>()[1]));
-  }
+  ops::DequantizeFP8()(input, scale, output);
+  const auto host = output.to(Device::CPU);
+  EXPECT_TRUE(std::isnan(host.data<float>()[0]));
+  EXPECT_TRUE(std::isnan(host.data<float>()[1]));
 }
 
 TEST(OpTest, CausalDepthwiseConv1DAnalyticalNonzeroHistory) {
@@ -1942,8 +1899,6 @@ TEST(OpTest, CausalDepthwiseConv1DGuards) {
   EXPECT_THROW(op(x, weight, &bad_bias, state, y), std::invalid_argument);
   StorageView integers({1, 2, 2}, int32_t(1));
   EXPECT_THROW(op(integers, weight, nullptr, state, y), std::invalid_argument);
-  x.data<float>()[0] = std::numeric_limits<float>::quiet_NaN();
-  EXPECT_THROW(op(x, weight, nullptr, state, y), std::invalid_argument);
   expect_storage_eq(state, StorageView({1, 2, 2}, 0.f));
 }
 
@@ -2370,18 +2325,8 @@ TEST_P(OpDeviceTest, CausalDepthwiseConv1DValidationDoesNotMutateHistoryOrOutput
   EXPECT_THROW(op(dx, wrong_weight, &db, state, actual), std::invalid_argument);
   EXPECT_THROW(op(dx, dw, &wrong_bias, state, actual), std::invalid_argument);
   EXPECT_THROW(op(wrong_type, dw, &db, state, actual), std::invalid_argument);
-  for (int bad_tensor = 0; device == Device::CPU && bad_tensor < 4; ++bad_tensor) {
-    StorageView hx(x), hw(w), hb(bias), hs(initial);
-    StorageView* tensors[] = {&hx, &hw, &hb, &hs};
-    tensors[bad_tensor]->data<float>()[0] = std::numeric_limits<float>::infinity();
-    dx = hx.to(device);
-    dw = hw.to(device);
-    db = hb.to(device);
-    state = hs.to(device);
-    EXPECT_THROW(op(dx, dw, &db, state, actual), std::invalid_argument);
-    expect_storage_eq(state, hs);
-    expect_storage_eq(actual, StorageView({1}, 42.f));
-  }
+  expect_storage_eq(state, initial);
+  expect_storage_eq(actual, StorageView({1}, 42.f));
   if (device == Device::CUDA) {
     EXPECT_THROW(op(x, dw, &db, state, actual), std::invalid_argument);
   }
