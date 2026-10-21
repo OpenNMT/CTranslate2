@@ -21,6 +21,7 @@ namespace ctranslate2 {
             for (int i = 0; i < KeyDim; ++i)
               memory[i] = destination[i * vd];
           const float scale = 1.f / sqrtf(float(kd));
+          const dim_t key_dim = KeyDim ? KeyDim : kd;
           for (dim_t t = 0; t < steps; ++t) {
             const dim_t row = (n * steps + t) * heads + h;
             const dim_t key_row = (n * steps + t) * key_heads + h / (heads / key_heads);
@@ -28,14 +29,14 @@ namespace ctranslate2 {
             const auto* kt = k + key_row * kd;
             const float decay = expf(g[row]);
             float prediction = 0.f;
-            for (dim_t i = 0; i < kd; ++i) {
+            for (dim_t i = 0; i < key_dim; ++i) {
               float& cell = KeyDim ? memory[i] : destination[i * vd];
               cell *= decay;
               prediction += kt[i] * cell;
             }
             const float residual = beta[row] * (v[row * vd + j] - prediction);
             float value = 0.f;
-            for (dim_t i = 0; i < kd; ++i) {
+            for (dim_t i = 0; i < key_dim; ++i) {
               float& cell = KeyDim ? memory[i] : destination[i * vd];
               cell += kt[i] * residual;
               value += qt[i] * scale * cell;
@@ -59,9 +60,10 @@ namespace ctranslate2 {
       if (value.empty())
         return;
       const dim_t columns = state.dim(0) * state.dim(1) * state.dim(3);
-      const dim_t blocks = std::min((columns + 127) / 128, dim_t(65535));
+      const int threads = query.dim(3) == 64 || query.dim(3) == 128 ? 32 : 128;
+      const dim_t blocks = std::min((columns + threads - 1) / threads, dim_t(65535));
 #define LAUNCH_DELTA(KD)                                                          \
-      delta<KD><<<blocks, 128, 0, cuda::get_cuda_stream()>>>(                       \
+      delta<KD><<<blocks, threads, 0, cuda::get_cuda_stream()>>>(                   \
           query.data<T>(), key.data<T>(), value.data<T>(), log_decay.data<T>(),    \
           beta.data<T>(), state.data<T>(), output.data<T>(), columns, query.dim(1), \
           query.dim(2), value.dim(2), query.dim(3), value.dim(3))
