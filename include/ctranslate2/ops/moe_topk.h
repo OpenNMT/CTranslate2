@@ -6,6 +6,7 @@ namespace ctranslate2 {
   namespace ops {
 
     // Selects the top-k experts and applies softmax to their logits.
+    // Nonfinite logits are treated as zero for selection and softmax.
     class MoeTopK : public Op {
     public:
       explicit MoeTopK(dim_t k);

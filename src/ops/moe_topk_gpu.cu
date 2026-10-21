@@ -25,6 +25,10 @@ namespace ctranslate2 {
 
       constexpr int routing_threads = 256;
 
+      __device__ float finite_value(float value) {
+        return isfinite(value) ? value : 0.f;
+      }
+
       __global__ void route(const float* logits, int32_t* indices, float* weights, dim_t experts,
                             dim_t k) {
         // Parallel selection preserves the lowest-index tie ordering. Normalization
@@ -43,7 +47,7 @@ namespace ctranslate2 {
                 selected = true;
             if (!selected) {
               const float value = values[e];
-              best = RoutingMaximum()(best, {isfinite(value) ? value : 0.f, int32_t(e)});
+              best = RoutingMaximum()(best, {finite_value(value), int32_t(e)});
             }
           }
           best = Reduction(temporary).Reduce(best, RoutingMaximum());
@@ -54,12 +58,12 @@ namespace ctranslate2 {
         }
         if (threadIdx.x)
           return;
-        const double maximum = values[ids[0]];
+        const double maximum = finite_value(values[ids[0]]);
         double sum = 0;
         for (dim_t i = 0; i < k; ++i)
-          sum += exp(double(values[ids[i]]) - maximum);
+          sum += exp(double(finite_value(values[ids[i]])) - maximum);
         for (dim_t i = 0; i < k; ++i)
-          weights[row * k + i] = float(exp(double(values[ids[i]]) - maximum) / sum);
+          weights[row * k + i] = float(exp(double(finite_value(values[ids[i]])) - maximum) / sum);
       }
 
     }
