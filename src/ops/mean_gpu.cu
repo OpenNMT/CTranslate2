@@ -37,9 +37,9 @@ namespace ctranslate2 {
       AccumT sum = BlockReduce(temp_storage).Sum(thread_sum);
 
       if (threadIdx.x == 0) {
-        if (!get_sum)
-          sum /= AccumT(axis_size);
         output[blockIdx.x] = sum;
+        if (!get_sum)
+          output[blockIdx.x] /= AccumT(axis_size);
       }
     }
 

@@ -49,7 +49,7 @@ namespace ctranslate2 {
       // Fill output
       const int input_idx = batch_offset + group_offset + channel_offset + window_i;
       const int output_idx = (batch_group * output_length + ti_idx) * k + idx;
-      output[output_idx] = window_i >= 0 && window_i < input_length ? input[input_idx] : T(0.f);
+      output[output_idx] = window_i >= 0 && window_i < input_length ? input[input_idx] : T(0);
     }
 
     // Generic template implementation
