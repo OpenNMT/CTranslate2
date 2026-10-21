@@ -2307,7 +2307,7 @@ TEST_P(OpDeviceTest, CausalDepthwiseConv1DMatchesCpuAndPreservesHistory) {
       for (bool silu : {false, true}) {
         SCOPED_TRACE("kernel=" + std::to_string(kernel) + ", steps=" + std::to_string(steps)
                      + ", silu=" + std::to_string(silu));
-        StorageView x({2, steps, 5}), w({5, kernel}), bias({5}), initial({2, 5, kernel - 1});
+        StorageView x({2, steps, 5}), w({5, kernel}), bias(Shape{5}), initial({2, 5, kernel - 1});
         for (auto* tensor : {&x, &w, &bias, &initial})
           fill_pattern(*tensor);
         ops::CausalDepthwiseConv1D op(silu);
