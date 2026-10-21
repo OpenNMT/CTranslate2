@@ -6,7 +6,8 @@ namespace ctranslate2 {
   namespace ops {
 
     // Selects the top-k experts and applies softmax to their logits.
-    // Nonfinite logits are treated as zero for selection and softmax.
+    // Ties favor the lowest index; NaNs rank below all numbers and have zero weight.
+    // Selected +inf logits share all weight equally. Rows with only -inf/NaN get zero weights.
     class MoeTopK : public Op {
     public:
       explicit MoeTopK(dim_t k);

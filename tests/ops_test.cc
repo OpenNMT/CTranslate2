@@ -1668,27 +1668,44 @@ TEST(OpTest, MoeTopKAnalyticSelectedSoftmax) {
   }
 }
 
-TEST_P(OpDeviceTest, MoeTopKNonfiniteLogitsAreZero) {
+static void check_moe_topk_nonfinite(Device device) {
   const float nan = std::numeric_limits<float>::quiet_NaN();
   const float inf = std::numeric_limits<float>::infinity();
-  StorageView logits({2, 5}, std::vector<float>{nan, inf, -inf, -1, 2, inf, nan, -inf, nan, inf},
-                     GetParam());
-  const int32_t order[] = {4, 0, 1, 2, 3};
-  const double selected[] = {2, 0, 0, 0, -1};
-  for (dim_t k : {1, 3, 5}) {
-    StorageView ids(DataType::INT32, GetParam()), weights(GetParam());
+  StorageView host({6, 4}, std::vector<float>{
+      -1, -2, -inf, -3, inf, -1, inf, -inf, nan, -inf, -1, nan,
+      -inf, -inf, -inf, -inf, nan, nan, nan, nan, nan, -inf, nan, -inf});
+  const int32_t order[][4] = {{0, 1, 3, 2}, {0, 2, 1, 3}, {2, 1, 0, 3},
+                              {0, 1, 2, 3}, {0, 1, 2, 3}, {1, 3, 0, 2}};
+  const auto logits = host.to(device);
+  for (dim_t k : {1, 2, 4}) {
+    SCOPED_TRACE(k);
+    StorageView ids(DataType::INT32, device), weights(device);
     ops::MoeTopK{k}(logits, ids, weights);
     const auto host_ids = ids.to(Device::CPU), host_weights = weights.to(Device::CPU);
-    double total = 0;
-    for (dim_t i = 0; i < k; ++i)
-      total += std::exp(selected[i]);
-    for (dim_t i = 0; i < k; ++i) {
-      EXPECT_EQ(host_ids.data<int32_t>()[i], order[i]);
-      EXPECT_NEAR(host_weights.data<float>()[i], std::exp(selected[i]) / total, 1e-7);
-      EXPECT_EQ(host_ids.data<int32_t>()[k + i], i);
-      EXPECT_NEAR(host_weights.data<float>()[k + i], 1. / k, 1e-7);
+    StorageView cpu_ids(DataType::INT32), cpu_weights;
+    ops::MoeTopK{k}(host, cpu_ids, cpu_weights);
+    expect_storage_eq(host_ids, cpu_ids);
+    expect_storage_eq(host_weights, cpu_weights);
+    for (dim_t row = 0; row < 6; ++row) {
+      for (dim_t i = 0; i < k; ++i) {
+        EXPECT_EQ(host_ids.data<int32_t>()[row * k + i], order[row][i]);
+        const double expected = row == 0
+          ? (i < 3 ? std::exp(-double(i)) : 0.)
+            / (1. + (k >= 2 ? std::exp(-1.) : 0.) + (k == 4 ? std::exp(-2.) : 0.))
+          : row == 1 ? (i < 2 ? 1. / std::min<dim_t>(k, 2) : 0.)
+          : row == 2 && i == 0 ? 1. : 0.;
+        EXPECT_NEAR(host_weights.data<float>()[row * k + i], expected, 1e-7);
+      }
     }
   }
+}
+
+TEST(OpTest, MoeTopKNonfiniteLogits) {
+  check_moe_topk_nonfinite(Device::CPU);
+}
+
+TEST_P(OpDeviceTest, MoeTopKNonfiniteLogits) {
+  check_moe_topk_nonfinite(GetParam());
 }
 
 TEST(OpTest, MoeTopKDeterministicTiesAndSingleExpert) {

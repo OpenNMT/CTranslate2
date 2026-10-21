@@ -19,14 +19,18 @@ namespace ctranslate2 {
 
       struct RoutingMaximum {
         __device__ RoutingCandidate operator()(RoutingCandidate a, RoutingCandidate b) const {
-          return b.value > a.value || (b.value == a.value && b.index < a.index) ? b : a;
+          if (isnan(a.value))
+            return !isnan(b.value) || b.index < a.index ? b : a;
+          return !isnan(b.value)
+            && (b.value > a.value || (b.value == a.value && b.index < a.index)) ? b : a;
         }
       };
 
       constexpr int routing_threads = 256;
 
-      __device__ float finite_value(float value) {
-        return isfinite(value) ? value : 0.f;
+      __device__ double routing_probability(double value, double maximum) {
+        return isnan(value) || maximum == -INFINITY ? 0.
+          : maximum == INFINITY ? double(value == maximum) : exp(value - maximum);
       }
 
       __global__ void route(const float* logits, int32_t* indices, float* weights, dim_t experts,
@@ -39,7 +43,7 @@ namespace ctranslate2 {
         const float* values = logits + row * experts;
         int32_t* ids = indices + row * k;
         for (dim_t i = 0; i < k; ++i) {
-          RoutingCandidate best{-INFINITY, INT32_MAX};
+          RoutingCandidate best{NAN, INT32_MAX};
           for (dim_t e = threadIdx.x; e < experts; e += blockDim.x) {
             bool selected = false;
             for (dim_t j = 0; j < i; ++j)
@@ -47,7 +51,7 @@ namespace ctranslate2 {
                 selected = true;
             if (!selected) {
               const float value = values[e];
-              best = RoutingMaximum()(best, {finite_value(value), int32_t(e)});
+              best = RoutingMaximum()(best, {value, int32_t(e)});
             }
           }
           best = Reduction(temporary).Reduce(best, RoutingMaximum());
@@ -58,12 +62,12 @@ namespace ctranslate2 {
         }
         if (threadIdx.x)
           return;
-        const double maximum = finite_value(values[ids[0]]);
+        const double maximum = values[ids[0]];
         double sum = 0;
         for (dim_t i = 0; i < k; ++i)
-          sum += exp(double(finite_value(values[ids[i]])) - maximum);
+          sum += routing_probability(values[ids[i]], maximum);
         for (dim_t i = 0; i < k; ++i)
-          weights[row * k + i] = float(exp(double(finite_value(values[ids[i]])) - maximum) / sum);
+          weights[row * k + i] = sum ? float(routing_probability(values[ids[i]], maximum) / sum) : 0.f;
       }
 
     }

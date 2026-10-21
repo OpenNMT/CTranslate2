@@ -26,24 +26,25 @@ namespace ctranslate2 {
         std::vector<double> probabilities(_k);
         for (dim_t row = begin; row < end; ++row) {
           const auto* values = logits + row * experts;
-          const auto finite_value = [&](int32_t e) {
-            return std::isfinite(values[e]) ? values[e] : 0.f;
-          };
           std::iota(order.begin(), order.end(), int32_t(0));
           std::partial_sort(order.begin(), order.begin() + _k, order.end(),
                             [&](int32_t a, int32_t b) {
-                              return finite_value(a) > finite_value(b)
-                                || (finite_value(a) == finite_value(b) && a < b);
+                              if (std::isnan(values[a]))
+                                return std::isnan(values[b]) && a < b;
+                              return std::isnan(values[b]) || values[a] > values[b]
+                                || (values[a] == values[b] && a < b);
                             });
-          const double maximum = finite_value(order[0]);
+          const double maximum = values[order[0]];
           double sum = 0;
           for (dim_t i = 0; i < _k; ++i) {
-            probabilities[i] = std::exp(static_cast<double>(finite_value(order[i])) - maximum);
+            const double value = values[order[i]];
+            probabilities[i] = std::isnan(value) || maximum == -INFINITY ? 0.
+              : maximum == INFINITY ? double(value == maximum) : std::exp(value - maximum);
             sum += probabilities[i];
           }
           for (dim_t i = 0; i < _k; ++i) {
             indices[row * _k + i] = order[i];
-            weights[row * _k + i] = static_cast<T>(probabilities[i] / sum);
+            weights[row * _k + i] = static_cast<T>(sum ? probabilities[i] / sum : 0.);
           }
         }
       });
