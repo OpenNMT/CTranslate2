@@ -7,7 +7,7 @@ namespace ctranslate2 {
 
       // Drama3's column-wise recurrent update, operating on the public op's
       // separate Q/K/V and precomputed gates instead of fused projections.
-      // KeyDim > 0 caches state in registers for the common 64/128-wide keys.
+      // KeyDim > 0 holds state in a per-thread array for 64/128-wide keys.
       template <int KeyDim>
       __global__ void delta(const float* q, const float* k, const float* v, const float* g,
                             const float* beta, float* state, float* out, dim_t columns,

@@ -5,8 +5,6 @@ namespace ctranslate2 {
   namespace ops {
     namespace {
 
-      // Ported from Drama3's channel-wise ring-buffer convolution. Each worker
-      // owns one batch/channel, including its chronological history.
       __global__ void conv(const float* x, const float* weight, const float* bias,
                            float* history, float* output, dim_t tasks, dim_t steps,
                            dim_t channels, dim_t kernel, bool apply_silu) {
