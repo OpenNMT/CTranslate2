@@ -100,35 +100,6 @@ audio.cpp, or GGML.
 See the [Python API reference](../python/ctranslate2.models.Drama3.rst) for
 constructor options, generation parameters and defaults, and result fields.
 
-### Concurrent and asynchronous requests
-
-Drama3 uses CTranslate2's replica pool. Set `inter_threads` to the number of
-requests that can execute concurrently; `intra_threads` controls CPU threads per
-replica. Replicas share immutable CPU checkpoint weights and own separate layers,
-GPU weight caches, and sequence state. Additional GPU replicas require additional
-VRAM; `CT2_DRAMA3_GPU_EXPERT_CACHE_GB` applies to each replica.
-
-```python
-model = Drama3(str(model_path), intra_threads=4, inter_threads=2)
-pending = model.generate(prompt_rows, max_frames=256, asynchronous=True)
-result = pending.result()  # Waits and propagates generation errors.
-print(result.sample_rate, result.audio.shape)
-
-results = model.generate_batch([prompt_rows, prompt_rows], max_frames=256)
-```
-
-`generate` returns a typed `Drama3Result`; existing dictionary-style access such
-as `result["audio"]` remains supported, and `result.to_dict()` returns a dictionary.
-`asynchronous=True` returns `Drama3ResultAsync` with `done()` and `result()` methods.
-`generate_batch` returns results in input order, or a list of async results when
-requested. Each prompt has independent sequence state and uses the supplied seed.
-Kernels still process one sequence at a time within each replica.
-
-`max_queued_batches` limits queued requests: `0` allows four per replica, and a
-negative value removes the limit. Submitting to a full queue waits for space,
-including asynchronous submissions. `num_replicas`, `num_queued_batches`, and
-`num_active_batches` expose pool activity.
-
 ### CPU execution
 
 The synthesis graph and codec use FLOAT32 activations. For FP8 storage with
@@ -148,22 +119,16 @@ model = Drama3(
 )
 ```
 
-`device="auto"` selects an available GPU. Projection types follow backend support:
-FLOAT32, FLOAT16, BFLOAT16, and supported INT8 variants. Unsupported explicit
-types raise an error; `default` and `auto` allow fallback.
+Use `device="auto"` to select an available GPU. Supported compute types depend
+on the backend; `default` and `auto` allow fallback.
 
-Hybrid execution runs backbone and tower dense projections, including routed
-experts, on GPU; attention, recurrent updates, routing, sampling, embeddings,
-and the waveform codec run on CPU. Activations transfer per projection.
-The graph is not entirely GPU-resident; tensor parallelism is unsupported.
+Backbone and tower projections, including experts, run on GPU. The remaining
+operations and waveform decoder run on CPU. Tensor parallelism is unsupported.
 
-By default, supported byte-sized host expert weights are memory-mapped on Linux,
-with other parameters loaded
-as FLOAT32 regardless of GPU precision. Weights upload on first use and stay
-cached, so GPU memory grows as new experts are selected. FLOAT32 execution
-caches FP8 expert bytes and decodes them on GPU per projection; FLOAT16/BFLOAT16
-decode once on upload, while INT8 quantizes projections on first use. Existing converted checkpoints work unchanged;
-output audio and codes remain CPU arrays.
+Expert weights upload on first use and remain cached, so GPU memory use grows
+as new experts are selected. Limit this cache with
+[`CT2_DRAMA3_GPU_EXPERT_CACHE_GB`](../environment_variables.md).
+Existing converted checkpoints work unchanged; output audio and codes are CPU arrays.
 
 ### Loading options
 
