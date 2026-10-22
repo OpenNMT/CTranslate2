@@ -78,7 +78,10 @@ namespace ctranslate2 {
       if (bias && bias->shape() != Shape{cout})
         throw std::invalid_argument("ConvTranspose1D bias must have shape [Cout]");
       for (const auto* tensor : {&input, &weight, bias}) {
-        if (tensor && (tensor == &output || storage_views_overlap(*tensor, output)))
+        if (tensor
+            && (tensor == &output
+                || storage_views_overlap(*tensor, tensor->size() * tensor->item_size(),
+                                         output, output.reserved_memory())))
           throw std::invalid_argument("ConvTranspose1D output must not alias inputs");
       }
 
