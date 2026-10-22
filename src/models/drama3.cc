@@ -44,9 +44,9 @@ namespace ctranslate2 {
       return Model::load(reader, Device::CPU, 0, compute_type);
     }
 
-    StorageView Drama3Model::load_variable(ModelReader& reader, const std::string& name,
-                                          Shape shape, DataType dtype, dim_t num_bytes,
-                                          std::istream& stream) {
+    StorageView Drama3Model::load_checkpoint_variable(ModelReader& reader, const std::string& name,
+                                                    Shape shape, DataType dtype, dim_t num_bytes,
+                                                    std::istream& stream) {
       if (const auto* checkpoint = dynamic_cast<const Drama3CheckpointReader*>(&reader))
         _checkpoint_storage = checkpoint->storage;
       if (_checkpoint_storage && dtype == DataType::INT8 && shape.size() == 2
@@ -107,8 +107,8 @@ namespace ctranslate2 {
       Model::register_variable(std::move(name), std::move(variable));
     }
 
-    void Drama3Model::prepare_weights(ComputeType& type, Device device, int index,
-                                       bool update_weight) {
+    void Drama3Model::prepare_checkpoint_weights(ComputeType& type, Device device, int index,
+                                                 bool update_weight) {
       if (_checkpoint_storage && (device != Device::CPU || tensor_parallel()))
         throw std::invalid_argument("Drama3 mapped weights require CPU loading without tensor parallelism");
       if (_checkpoint_storage && type == ComputeType::DEFAULT)

@@ -34,14 +34,18 @@ namespace ctranslate2 {
       }
 
       void register_variable(std::string name, StorageView variable) override;
-      void prepare_weights(ComputeType& type, Device device, int device_index,
-                           bool update_weight) override;
-      StorageView load_variable(ModelReader& reader, const std::string& name, Shape shape,
-                                DataType dtype, dim_t num_bytes, std::istream& stream) override;
       void initialize(ModelReader&) override;
       std::unique_ptr<Model> clone() const override;
 
     private:
+      friend class Model;
+
+      void prepare_checkpoint_weights(ComputeType& type, Device device, int device_index,
+                                      bool update_weight);
+      StorageView load_checkpoint_variable(ModelReader& reader, const std::string& name,
+                                           Shape shape, DataType dtype, dim_t num_bytes,
+                                           std::istream& stream);
+
       std::vector<std::string> _fp8_weights;
       std::shared_ptr<Drama3CheckpointStorage> _checkpoint_storage;
     };
