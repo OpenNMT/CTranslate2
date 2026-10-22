@@ -159,6 +159,18 @@ set(SOURCES
   src/ops/concat.cc
   src/ops/concat_split_slide_cpu.cc
   src/ops/conv1d.cc
+  src/ops/causal_depthwise_conv1d.cc
+  src/ops/causal_depthwise_conv1d_cpu.cc
+  src/ops/conv_transpose1d.cc
+  src/ops/conv_transpose1d_cpu.cc
+  src/ops/dequantize_fp8.cc
+  src/ops/dequantize_fp8_cpu.cc
+  src/ops/gated_delta_net.cc
+  src/ops/gated_delta_net_cpu.cc
+  src/ops/moe_topk.cc
+  src/ops/moe_topk_cpu.cc
+  src/ops/snake.cc
+  src/ops/snake_cpu.cc
   src/ops/conv1d_cpu.cc
   src/ops/cos.cc
   src/ops/dequantize.cc
@@ -229,6 +241,12 @@ set(SOURCES
   src/vocabulary_map.cc
 )
 set(CUDA_SOURCES
+  src/ops/causal_depthwise_conv1d_gpu.cu
+  src/ops/conv_transpose1d_gpu.cu
+  src/ops/gated_delta_net_gpu.cu
+  src/ops/dequantize_fp8_gpu.cu
+  src/ops/moe_topk_gpu.cu
+  src/ops/snake_gpu.cu
   src/cuda/allocator.cc
   src/cuda/primitives.cu
   src/cuda/random.cu
