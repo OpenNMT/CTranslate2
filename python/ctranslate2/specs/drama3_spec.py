@@ -41,6 +41,50 @@ class Drama3Spec(model_spec.ModelSpec):
     def name(self):
         return self._model_name
 
+    def _alias_variables(self):
+        """Find duplicate variables in spec and create aliases."""
+        # When a variable is duplicated, keep the version that comes first in
+        # the alphabetical order and alias the others.
+        variables = self.variables(ordered=True)
+        # Keep codec and quantizable model weights in separate alias groups.
+        quantizable = {}
+        for name, _ in variables:
+            scope, attr_name = model_spec._parent_scope(name)
+            quantizable[name] = hasattr(
+                model_spec.index_spec(self, scope), attr_name + "_scale"
+            )
+        candidates = {}
+        for name, value in variables:
+            if value.is_scalar():
+                continue
+            samples = ()
+            if value.num_bytes():
+                index = (0,) * (len(value.shape) - 1) + (slice(0, 8),)
+                if isinstance(value, model_spec.NumpyVariable):
+                    samples = value.array[index].tolist()
+                elif isinstance(value, model_spec.PyTorchVariable):
+                    samples = value.tensor[index].tolist()
+                # Equal signed zeros share a bucket; NaNs still reach the exact
+                # equality check, which can recognize an identical array object.
+                samples = tuple(None if x != x else x for x in samples)
+            key = (
+                type(value),
+                value.dtype,
+                tuple(value.shape),
+                quantizable[name],
+                samples,
+            )
+            bucket = candidates.setdefault(key, [])
+            scope, attr_name = model_spec._parent_scope(name)
+            if attr_name not in model_spec.SKIP_CREATING_ALIAS:
+                for other_name, other_value in bucket:
+                    if value.equal(other_value):
+                        setattr(
+                            model_spec.index_spec(self, scope), attr_name, other_name
+                        )
+                        break
+            bucket.append((name, value))
+
     def _quantize(self, quantization):
         # The CPU synthesis graph and codec retain FLOAT32 state and parameters.
         super()._quantize(quantization, lambda name: name in self._matrix_names)

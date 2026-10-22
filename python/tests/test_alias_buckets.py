@@ -3,6 +3,7 @@ import numpy as np
 import pytest
 
 from ctranslate2.specs import model_spec as m
+from ctranslate2.specs.drama3_spec import Drama3Spec
 
 
 def original_aliases(spec):
@@ -27,6 +28,8 @@ def original_aliases(spec):
 
 
 class Fixture(m.LayerSpec):
+    _alias_variables = Drama3Spec._alias_variables
+
     def __init__(self, values):
         for name, value in values.items():
             setattr(self, name, value)
@@ -157,3 +160,20 @@ def test_matching_eight_value_prefix_still_checks_full_arrays():
     original_aliases(expected)
     actual._alias_variables()
     assert aliases(actual) == aliases(expected) == {"c": "b"}
+
+
+def test_other_models_keep_cross_quantization_aliases():
+    spec = Fixture(
+        {
+            "a": Fixture({"weight": np.array([[1.0, 2.0]], np.float32)}),
+            "b": Fixture(
+                {
+                    "weight": np.array([[1.0, 2.0]], np.float32),
+                    "weight_scale": m.OPTIONAL,
+                }
+            ),
+        }
+    )
+    spec.validate()
+    m.LayerSpec._alias_variables(spec)
+    assert aliases(spec) == {"b/weight": "a/weight"}
