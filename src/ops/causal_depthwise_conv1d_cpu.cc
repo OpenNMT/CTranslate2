@@ -23,8 +23,9 @@ namespace ctranslate2 {
       const auto* b = bias ? bias->data<T>() : nullptr;
       auto* state = history.data<T>();
       auto* y = output.data<T>();
-      // The tiled path amortizes its separate vector activation on wide, long chunks.
-      if (kernel > 4 || channels < 1024 || (steps > 1 && steps < 64)) {
+      // The tiled path vectorizes across channels; the ring path wins on narrow
+      // channels or deep kernels where a single-channel inner loop fits in registers.
+      if (kernel > 4 || channels < 1024) {
         const dim_t grain = input.size() <= cpu::GRAIN_SIZE / 8 / kernel ? batch * channels : 1;
         cpu::parallel_for(0, batch * channels, grain, [&](dim_t begin, dim_t end) {
           std::vector<float> ring(past);
