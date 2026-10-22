@@ -2,7 +2,6 @@
 
 #include "ctranslate2/layers/attention_layer.h"
 #include "ctranslate2/padder.h"
-#include "ctranslate2/layers/transformer.h"
 
 namespace ctranslate2 {
   namespace layers {

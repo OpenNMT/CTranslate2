@@ -98,6 +98,32 @@ def test_layer_spec_optimize():
         spec.optimize(quantization="int32")
 
 
+@pytest.mark.parametrize("quantizable_first", [False, True])
+def test_aliases_preserve_mixed_precision_policies(quantizable_first):
+    original = np.array([[1.0001, -0.33331]], dtype=np.float32)
+
+    class MatrixSpec(ctranslate2.specs.LayerSpec):
+        def __init__(self, quantizable):
+            self.weight = original.copy()
+            if quantizable:
+                self.weight_scale = OPTIONAL
+
+    class Spec(ctranslate2.specs.LayerSpec):
+        def __init__(self):
+            self.a = MatrixSpec(quantizable_first)
+            self.b = MatrixSpec(not quantizable_first)
+            self.c = MatrixSpec(quantizable_first)
+
+    spec = Spec()
+    spec.validate()
+    spec.optimize(quantization="int8_float32")
+    quantized, preserved = (spec.a, spec.b) if quantizable_first else (spec.b, spec.a)
+    assert quantized.weight.dtype == "int8"
+    assert preserved.weight.dtype == "float32"
+    np.testing.assert_array_equal(preserved.weight.numpy(), original)
+    assert spec.c.weight == "a/weight"
+
+
 def test_int8_quantization():
     class Spec(ctranslate2.specs.LayerSpec):
         def __init__(self):
@@ -116,10 +142,13 @@ def test_int8_quantization():
     )
 
 
-def test_int8_quantization_tiny_weights():
+@pytest.mark.parametrize("tiny_weight", [1e-38, 1e-40])
+def test_int8_quantization_tiny_row_scale_is_finite(tiny_weight):
     class Spec(ctranslate2.specs.LayerSpec):
         def __init__(self):
-            self.weight = np.array([[1e-38, 0, 0, 0]], dtype=np.float32)
+            self.weight = np.array(
+                [[tiny_weight, -tiny_weight, 0, 0]], dtype=np.float32
+            )
             self.weight_scale = OPTIONAL
 
     spec = Spec()
@@ -129,6 +158,7 @@ def test_int8_quantization_tiny_weights():
     assert np.isfinite(spec.weight.numpy()).all()
     assert np.isfinite(spec.weight_scale.numpy()).all()
     assert (spec.weight_scale.numpy() > 0).all()
+    assert spec.weight.dtype == "int8"
 
 
 @pytest.mark.parametrize(

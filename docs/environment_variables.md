@@ -64,6 +64,45 @@ Force CTranslate2 to select a specific instruction set architecture (ISA). Possi
 This does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.
 ```
 
+## `CT2_DRAMA3_CPU_MMAP`
+
+Set to `1` to memory-map Drama3's byte-encoded expert weights from a local
+checkpoint on Linux or macOS when using `device="cpu"`. The default is `0`.
+Requires `compute_type="default"` or `"float32"`; INT8 and other compute types
+are rejected before loading because runtime conversion would allocate resident
+copies of the experts. The FP8 checkpoint keeps its original FP8 encoding and
+decodes one projection at a time during inference.
+Standard quantized checkpoints still follow normal compute-type conversion;
+requesting float32 for standard INT8 weights can allocate resident replacements.
+
+The operating system can reclaim clean mapped pages and read them again from
+the checkpoint, allowing models larger than physical RAM to run without keeping
+all expert bytes in private allocations. Non-expert weights, FP8 scales, decoded
+projection temporaries and generation state still require RAM. This is **not a
+hard memory limit** or a decoded expert cache. Performance depends on disk speed
+and available filesystem cache. Keep the checkpoint unchanged while it is loaded.
+
+## `CT2_DRAMA3_GPU_EXPERT_CACHE_GB`
+
+Limit Drama3's cached GPU expert weights and their quantization scales in
+**decimal GB**, for example `CT2_DRAMA3_GPU_EXPERT_CACHE_GB=8`. Unset, empty,
+or `0` keeps the existing unbounded lazy-upload behavior. Invalid values raise
+an error. This option supports both NVIDIA CUDA and AMD ROCm/HIP, with
+`device="cuda"` and any supported GPU compute type.
+
+Requires Linux and a local Drama3 checkpoint, including FP8, standard INT8,
+and floating-point checkpoints. CPU byte-encoded expert weights are mapped;
+floating-point CPU weights remain resident. GPU weights use the requested compute
+type, so FLOAT16/BFLOAT16 require more cache space than INT8. The budget is divided
+equally among backbone layers. Each layer uses LRU eviction and must fit its
+selected routed experts plus its shared expert; smaller budgets raise an error.
+Uploads and eviction synchronize with the GPU stream.
+
+**This is an expert-cache budget, not a total VRAM limit.** Other GPU weights,
+activations, generation state, upload temporaries, allocator rounding and retained
+allocator blocks require additional space. CPU mapped pages also require system
+RAM; on integrated GPUs, GPU allocations share that physical RAM. The GPU expert-cache budget does not guarantee a total RAM ceiling.
+
 ## `CT2_PACKED_GEMM`
 
 Enable or disable the packed GEMM API for Intel MKL. Packed GEMM is enabled by default when using the MKL backend and improves decoding performance by pre-packing weight matrices at model load time. Set to `0` to disable it. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.

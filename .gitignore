@@ -10,3 +10,7 @@ python/dist/
 .cache
 docs/build/
 docs/python/
+
+# Local TTS development tools, models, samples, and benchmarks.
+/tts/
+/perf.html

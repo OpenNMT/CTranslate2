@@ -14,6 +14,8 @@
 #endif
 
 #include "cpu/backend.h"
+#include "env.h"
+
 
 namespace ctranslate2 {
   namespace models {
@@ -177,10 +179,18 @@ namespace ctranslate2 {
       _device_index = index;
     }
 
+    StorageView Model::load_variable(ModelReader&, const std::string&, Shape shape,
+                                     DataType dtype, dim_t num_bytes, std::istream& stream) {
+      StorageView variable(std::move(shape), dtype);
+      consume<char>(stream, num_bytes, static_cast<char*>(variable.buffer()));
+      return variable;
+    }
+
     void Model::set_compute_type(ComputeType type, Device device, int device_index, bool update_weight) {
       if (_device != Device::CPU)
         throw std::runtime_error("set_compute_type expects the variables to be on CPU");
 
+      prepare_weights(type, device, device_index, update_weight);
       _saved_compute_type = infer_compute_type();
       _requested_compute_type = type;
       _effective_compute_type = resolve_compute_type(_requested_compute_type,
@@ -680,8 +690,8 @@ namespace ctranslate2 {
             || static_cast<size_t>(num_bytes) > static_cast<size_t>(model_end - payload_position))
           throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
 
-        StorageView variable(std::move(shape), dtype);
-        consume<char>(model_file, num_bytes, static_cast<char*>(variable.buffer()));
+        StorageView variable = model->load_variable(model_reader, name, std::move(shape),
+                                                     dtype, num_bytes, model_file);
         if (tensor_parallel) {
           int outer_dim = 0;
           int inner_dim = 1;
