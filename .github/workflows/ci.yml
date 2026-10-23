@@ -21,7 +21,7 @@ jobs:
         backend: [mkl, dnnl]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -77,7 +77,7 @@ jobs:
       CT2_VERBOSE: 1
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -128,7 +128,7 @@ jobs:
       CT2_VERBOSE: 1
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -186,7 +186,7 @@ jobs:
           - os: macos-15
             backend: ruy
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -290,13 +290,13 @@ jobs:
         os: [ubuntu-24.04, windows-2022]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
       - name: Cache MKL and oneDNN (Windows)
         if: runner.os == 'Windows'
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             C:/Program Files (x86)/Intel/oneAPI
@@ -320,7 +320,7 @@ jobs:
           CIBW_REPAIR_WHEEL_COMMAND_LINUX: 'auditwheel repair -w {dest_dir} --exclude "/opt/rocm/lib/lib*" {wheel}'
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: rocm-python-wheels-${{ runner.os }}
           path: python/wheelhouse
@@ -362,11 +362,11 @@ jobs:
 
     steps:
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Prepare test environment
         shell: bash
@@ -393,7 +393,7 @@ jobs:
             https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_libraries_custom-7.2.0.dev0-py3-none-win_amd64.whl
 
       - name: Download Python wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.artifact_pattern }}
           merge-multiple: true
@@ -416,12 +416,12 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Set up Python 3.14
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.14"
 
       - name: Download Linux x86-64 release wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           name: python-wheels-Linux-auto64
           path: python/wheelhouse
@@ -447,15 +447,15 @@ jobs:
     runs-on: ubuntu-22.04
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python 3.10
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.10"
 
       - name: Download Python wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: python-wheels-Linux-auto64
           merge-multiple: true
@@ -484,10 +484,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
 
@@ -527,7 +527,7 @@ jobs:
 
     steps:
       - name: Download Python wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: python-wheels-*
           merge-multiple: true
@@ -556,7 +556,7 @@ jobs:
         gpu: [cuda, rocm]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -589,7 +589,7 @@ jobs:
 
       - name: Login to DockerHub
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: docker/login-action@v3
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -608,13 +608,13 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
       - name: Download CTranslate2 wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: python-wheels-${{ runner.os }}-*
           merge-multiple: true
@@ -658,6 +658,6 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-zips/*.zip
