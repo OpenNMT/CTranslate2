@@ -291,6 +291,12 @@ TEST(StorageViewTest, ShrinkRejectsUnderflow) {
 
   EXPECT_EQ(view.dim(0), 4);
   EXPECT_EQ(view.size(), 4);
+
+  // Shrinking an already empty dimension by more than zero is underflow too.
+  StorageView empty_dim(Shape{0, 2}, DataType::INT32);
+  EXPECT_THROW(empty_dim.shrink(0, 1), std::invalid_argument);
+  EXPECT_EQ(empty_dim.dim(0), 0);
+  EXPECT_EQ(empty_dim.size(), 0);
 }
 
 TEST(StorageViewTest, ShrinkDecreasesShape) {
@@ -302,6 +308,11 @@ TEST(StorageViewTest, ShrinkDecreasesShape) {
   EXPECT_EQ(view.dim(1), 4);
   EXPECT_EQ(view.size(), 8);
 
+  // Shrinking by zero is a valid no-op.
+  view.shrink(1, 0);
+  EXPECT_EQ(view.dim(1), 4);
+  EXPECT_EQ(view.size(), 8);
+
   view.shrink(1, 2);
   EXPECT_EQ(view.dim(1), 2);
   EXPECT_EQ(view.size(), 4);
@@ -310,4 +321,16 @@ TEST(StorageViewTest, ShrinkDecreasesShape) {
   view.shrink(0, 2);
   EXPECT_EQ(view.dim(0), 0);
   EXPECT_EQ(view.size(), 0);
+
+  // Shrinking an already empty dimension by zero stays valid as well.
+  view.shrink(0, 0);
+  EXPECT_EQ(view.dim(0), 0);
+  EXPECT_EQ(view.size(), 0);
+
+  // Growing the emptied dimension back restores the shape (shrink/grow
+  // round-trip).
+  view.grow(0, 2);
+  EXPECT_EQ(view.dim(0), 2);
+  EXPECT_EQ(view.dim(1), 2);
+  EXPECT_EQ(view.size(), 4);
 }
