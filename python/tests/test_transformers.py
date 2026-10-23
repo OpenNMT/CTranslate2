@@ -1100,6 +1100,7 @@ class TestWav2Vec2Bert:
             output_dir + "/wav2vec2_processor"
         )
 
+        device = "cuda" if os.environ.get("CUDA_VISIBLE_DEVICES") else "cpu"
         # cpu_threads = int(os.environ.get("OMP_NUM_THREADS", 0))
         model = ctranslate2.models.Wav2Vec2Bert(
             output_dir,
