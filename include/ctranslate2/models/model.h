@@ -173,13 +173,12 @@ namespace ctranslate2 {
       virtual std::unique_ptr<Model> clone() const = 0;
 
       // Customize checkpoint storage without changing the binary reader's validation.
-      StorageView load_variable(ModelReader& reader, const std::string& name,
-                                Shape shape, DataType dtype, dim_t num_bytes,
-                                std::istream& stream);
+      virtual StorageView load_variable(ModelReader& reader, const std::string& name,
+                                        Shape shape, DataType dtype, dim_t num_bytes,
+                                        std::istream& stream);
 
       // Normalize model-specific encodings before generic precision conversion.
-      void prepare_weights(ComputeType& type, Device device, int device_index,
-                           bool update_weight);
+      virtual void prepare_weights(ComputeType&, Device, int, bool) {}
 
       void set_compute_type(ComputeType type, Device device, int device_index,
                             bool update_weight = true);

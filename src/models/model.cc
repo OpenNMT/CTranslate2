@@ -4,7 +4,6 @@
 
 #include <limits>
 
-#include "ctranslate2/models/drama3.h"
 #include "ctranslate2/models/model_factory.h"
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/utils.h"
@@ -185,12 +184,6 @@ namespace ctranslate2 {
       StorageView variable(std::move(shape), dtype);
       consume<char>(stream, num_bytes, static_cast<char*>(variable.buffer()));
       return variable;
-    }
-
-    void Model::prepare_weights(ComputeType& type, Device device, int device_index,
-                                bool update_weight) {
-      if (auto* drama = dynamic_cast<Drama3Model*>(this))
-        drama->prepare_checkpoint_weights(type, device, device_index, update_weight);
     }
 
     void Model::set_compute_type(ComputeType type, Device device, int device_index, bool update_weight) {
@@ -697,12 +690,8 @@ namespace ctranslate2 {
             || static_cast<size_t>(num_bytes) > static_cast<size_t>(model_end - payload_position))
           throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
 
-        auto* drama = dynamic_cast<Drama3Model*>(model.get());
-        StorageView variable = drama
-          ? drama->load_checkpoint_variable(model_reader, name, std::move(shape),
-                                             dtype, num_bytes, model_file)
-          : model->load_variable(model_reader, name, std::move(shape),
-                                 dtype, num_bytes, model_file);
+        StorageView variable = model->load_variable(model_reader, name, std::move(shape),
+                                                    dtype, num_bytes, model_file);
         if (tensor_parallel) {
           int outer_dim = 0;
           int inner_dim = 1;
