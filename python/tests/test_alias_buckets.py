@@ -177,3 +177,29 @@ def test_other_models_keep_cross_quantization_aliases():
     spec.validate()
     m.LayerSpec._alias_variables(spec)
     assert aliases(spec) == {"b/weight": "a/weight"}
+
+
+@pytest.mark.parametrize("quantizable_first", [False, True])
+def test_drama3_aliases_preserve_mixed_precision_policies(quantizable_first):
+    original = np.array([[1.0001, -0.33331]], dtype=np.float32)
+
+    def matrix(quantizable):
+        values = {"weight": original.copy()}
+        if quantizable:
+            values["weight_scale"] = m.OPTIONAL
+        return Fixture(values)
+
+    spec = Fixture(
+        {
+            "a": matrix(quantizable_first),
+            "b": matrix(not quantizable_first),
+            "c": matrix(quantizable_first),
+        }
+    )
+    spec.validate()
+    spec.optimize(quantization="int8_float32")
+    quantized, preserved = (spec.a, spec.b) if quantizable_first else (spec.b, spec.a)
+    assert quantized.weight.dtype == "int8"
+    assert preserved.weight.dtype == "float32"
+    np.testing.assert_array_equal(preserved.weight.numpy(), original)
+    assert spec.c.weight == "a/weight"
