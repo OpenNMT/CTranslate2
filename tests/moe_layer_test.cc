@@ -25,22 +25,23 @@ namespace {
       register_variable(name, std::move(value));
     }
 
-    void install_explicit_int8_weights() {
+    void install_explicit_int8_weights(dim_t width = 1) {
       const auto variables = get_variables();
       for (const auto& pair : variables) {
         if (pair.first.size() < 7 || pair.first.substr(pair.first.size() - 7) != "/weight")
           continue;
         const auto& original = pair.second;
-        StorageView quantized(original.shape(), DataType::INT8);
+        const dim_t rows = pair.first.find("_proj/") != std::string::npos ? width : original.dim(0);
+        StorageView quantized({rows, width}, int8_t(0));
         // These fixture weights are small integers. Scale=1 means the stored
         // INT8 value is exactly the original coefficient, independent of CT2's
         // weight-quantization implementation.
         for (dim_t i = 0; i < original.size(); ++i)
-          quantized.data<int8_t>()[i] = static_cast<int8_t>(original.data<float>()[i]);
+          quantized.data<int8_t>()[i * width] = static_cast<int8_t>(original.data<float>()[i]);
         auto compensation = ops::Gemm::compensate_u8_input(quantized, true, quantized.dim(1),
                                                            quantized.dim(0), 1.f);
         replace(pair.first, std::move(quantized));
-        register_variable(pair.first + "_scale", StorageView({original.dim(0)}, 1.f));
+        register_variable(pair.first + "_scale", StorageView({rows}, 1.f));
         register_variable(pair.first + "_compensation", std::move(compensation));
       }
       set_compute_type(ComputeType::INT8_FLOAT32, Device::CPU, 0, false);
@@ -181,20 +182,20 @@ TEST(SparseMoETest, BoundedGpuCacheEvictsAndReloadsWithoutChangingResults) {
   for (int device = 0; device < get_device_count(Device::CUDA); ++device) {
     const ScopedDeviceSetter setter(Device::CUDA, device);
     TinyMoEModel model;
-    model.install_explicit_int8_weights();
+    model.install_explicit_int8_weights(4);  // cuBLAS INT8 requires aligned input widths.
     layers::DramaExecutionOptions execution;
     execution.device = Device::CUDA;
     execution.compute_type = ComputeType::INT8_FLOAT32;
     execution.device_index = device;
     layers::SparseMoE baseline(model, "moe", 3, 1, execution);
-    // One 1x1 INT8 matrix and one float scale per projection. Two slots
+    // One 4x4 INT8 matrix and four float scales per projection. Two slots
     // fit the shared expert and exactly one routed expert, forcing eviction.
-    execution.expert_cache_bytes = 30;
+    execution.expert_cache_bytes = 192;
     layers::SparseMoE cached(model, "moe", 3, 1, execution);
     size_t expected_misses = 0;
     for (float value : {1.f, 1.f, -1.f, -1.f, 2.f}) {
       SCOPED_TRACE(value);
-      auto input = StorageView({1, 1}, value).to(Device::CUDA);
+      auto input = StorageView({1, 4}, std::vector<float>{value, 0, 0, 0}).to(Device::CUDA);
       StorageView expected(DataType::FLOAT32, Device::CUDA),
           actual(DataType::FLOAT32, Device::CUDA);
       baseline(input, expected);
@@ -202,7 +203,7 @@ TEST(SparseMoETest, BoundedGpuCacheEvictsAndReloadsWithoutChangingResults) {
       auto reference = expected.to(Device::CPU), result = actual.to(Device::CPU);
       synchronize_stream(Device::CUDA);
       expect_storage_eq(result, reference, 1e-6f);
-      EXPECT_EQ(cached.gpu_expert_cache_bytes(), 30);
+      EXPECT_EQ(cached.gpu_expert_cache_bytes(), 192);
       if (!expected_misses)
         expected_misses = 2;
       else if (value == -1.f && expected_misses == 2)
@@ -212,18 +213,18 @@ TEST(SparseMoETest, BoundedGpuCacheEvictsAndReloadsWithoutChangingResults) {
       EXPECT_EQ(cached.gpu_expert_cache_misses(), expected_misses);
     }
     // Exercise several routing decisions in one prefill and the CPU-input path.
-    StorageView input({4, 1}, std::vector<float>{1, -1, 2, -2}), expected, actual;
+    StorageView input({4, 4}, std::vector<float>{1, 0, 0, 0, -1, 0, 0, 0,
+                                               2, 0, 0, 0, -2, 0, 0, 0}), expected, actual;
     baseline(input, expected);
     cached(input, actual);
     expect_storage_eq(actual, expected, 1e-6f);
-    EXPECT_LE(cached.gpu_expert_cache_bytes(), 30);
+    EXPECT_LE(cached.gpu_expert_cache_bytes(), 192);
     EXPECT_EQ(baseline.gpu_expert_cache_bytes(), 0);
     EXPECT_EQ(baseline.gpu_expert_cache_misses(), 0);
-    execution.expert_cache_bytes = 29;
+    execution.expert_cache_bytes = 191;
     EXPECT_THROW((layers::SparseMoE(model, "moe", 3, 1, execution)), std::invalid_argument);
-    execution.expert_cache_bytes = 30;
     execution.compute_type = ComputeType::FLOAT32;
-    execution.expert_cache_bytes = 23;
+    execution.expert_cache_bytes = 383;
     EXPECT_THROW((layers::SparseMoE(model, "moe", 3, 1, execution)), std::invalid_argument);
   }
 }
