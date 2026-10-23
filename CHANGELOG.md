@@ -2,7 +2,7 @@
 
 ### New features
 
-* Build Python 3.15 wheels (#2109) by [@shaanmajid](https://github.com/shaanmajid)
+* Build Python 3.15 wheels (#2129) by [@shaanmajid](https://github.com/shaanmajid)
 
 ### Fixes and improvements
 
