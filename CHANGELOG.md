@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### Fixes and improvements
+
+* On Windows, register the DLL directories of pip-installed `nvidia-cublas-cu12`/`nvidia-cudnn-cu12` at import time -- fixes "Could not locate cublas64_12.dll" for CUDA execution via pip-installed CUDA libraries; also covers cuDNN for anyone on a cuDNN-linked build (#1915, #1826)
+
 ## [v4.8.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.3) (2026-10-13)
 
 ### New features
