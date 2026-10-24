@@ -327,6 +327,14 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(amd64)|(AMD64)")
   list(APPEND LIBRARIES cpu_features)
 endif()
 
+if(ENABLE_CPU_DISPATCH
+   AND NOT CT2_BUILD_ARCH STREQUAL "x86_64"
+   AND NOT CT2_BUILD_ARCH STREQUAL "arm64")
+  message(STATUS
+    "CPU runtime dispatch is unavailable for ${CMAKE_SYSTEM_PROCESSOR}; using generic kernels")
+  set(ENABLE_CPU_DISPATCH OFF)
+endif()
+
 if(ENABLE_CPU_DISPATCH)
   message(STATUS "Compiling for multiple CPU ISA and enabling runtime dispatch")
   add_definitions(-DCT2_WITH_CPU_DISPATCH)
