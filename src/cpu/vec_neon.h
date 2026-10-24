@@ -144,19 +144,35 @@ namespace ctranslate2 {
       }
 
       static inline value_type div(value_type a, value_type b) {
+#ifdef __aarch64__
         return vdivq_f32(a, b);
+#else
+        return a / b;
+#endif
       }
 
       static inline value_type mul_add(value_type a, value_type b, value_type c) {
+#ifdef __aarch64__
         return vfmaq_f32(c, a, b);
+#else
+        return a * b + c;
+#endif
       }
 
       static inline float reduce_add(value_type a) {
+#ifdef __aarch64__
         return vaddvq_f32(a);
+#else
+        return a[0] + a[1] + a[2] + a[3];
+#endif
       }
 
       static inline float reduce_max(value_type a) {
+#ifdef __aarch64__
         return vmaxvq_f32(a);
+#else
+        return std::max({a[0], a[1], a[2], a[3]});
+#endif
       }
 
       static inline value_type round(value_type v) {
