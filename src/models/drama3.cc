@@ -132,6 +132,16 @@ namespace ctranslate2 {
             // Finish converting this expert before decoding the next one. Keeping
             // all experts in FP32 until Model::set_compute_type runs can require
             // several times the checkpoint size in resident memory.
+            if (weight_dtype == DataType::INT8) {
+              // Decoding is complete; overwrite the original byte-sized buffer.
+              auto& quantized = const_cast<StorageView&>(get_variable(name));
+              StorageView scale;
+              ops::Quantize(ops::Quantize::ScaleType::PER_LAYER, false,
+                            round_before_cast_in_quantization())(decoded, quantized, scale);
+              register_variable(name + "_scale", std::move(scale));
+              remove_variable(name + "_scale_inv");
+              continue;
+            }
             StorageView converted(weight_dtype);
             if (is_float_type(weight_dtype)) {
               converted = decoded.to(weight_dtype);
