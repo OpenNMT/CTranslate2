@@ -1,11 +1,15 @@
 #include "ctranslate2/layers/attention.h"
+#include "layers/attention_utils.h"
 #include "ctranslate2/ops/split.h"
+#include "ctranslate2/ops/rms_norm.h"
 #include "ctranslate2/utils.h"
 
 
 #include <algorithm>
 #include <cmath>
 #include <numeric>
+#include <cstdint>
+#include <stdexcept>
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
@@ -175,26 +179,26 @@ namespace ctranslate2 {
       }
     }
 
-    static void dot_product_attention(const StorageView& queries,
-                                      const StorageView& keys,
-                                      const StorageView& values,
-                                      const StorageView* values_lengths,
-                                      const StorageView* relative_position_keys,
-                                      const StorageView* relative_asymmetric_position_keys,
-                                      const StorageView* relative_position_values,
-                                      const StorageView* relative_attention_bias,
-                                      dim_t relative_left_max_position,
-                                      dim_t relative_right_max_position,
-                                      dim_t maximum_relative_position,
-                                      StorageView& output,
-                                      StorageView* attention = nullptr,
-                                      bool return_normalized_attention = true,
-                                      float queries_scale = 1,
-                                      bool is_decoder = false,
-                                      bool with_cache = false,
-                                      dim_t beam_size = 1,
-                                      Alibi* alibi = nullptr,
-                                      StorageView* position_bias = nullptr) {
+    void dot_product_attention(const StorageView& queries,
+                               const StorageView& keys,
+                               const StorageView& values,
+                               const StorageView* values_lengths,
+                               const StorageView* relative_position_keys,
+                               const StorageView* relative_asymmetric_position_keys,
+                               const StorageView* relative_position_values,
+                               const StorageView* relative_attention_bias,
+                               dim_t relative_left_max_position,
+                               dim_t relative_right_max_position,
+                               dim_t maximum_relative_position,
+                               StorageView& output,
+                               StorageView* attention,
+                               bool return_normalized_attention,
+                               float queries_scale,
+                               bool is_decoder,
+                               bool with_cache,
+                               dim_t beam_size,
+                               Alibi* alibi,
+                               StorageView* position_bias) {
       PROFILE("dot_product_attention");
 
       std::unique_ptr<const StorageView> relative_positions;
@@ -843,5 +847,6 @@ namespace ctranslate2 {
       if (padder)
         padder->remove_padding(x);
     }
+
   }
 }
