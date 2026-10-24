@@ -125,24 +125,25 @@ namespace ctranslate2 {
         const auto resolved = resolve_compute_type(type, ComputeType::FLOAT32, device, index);
         if (update_weight && resolved != ComputeType::FLOAT32) {
           const auto weight_dtype = compute_type_to_data_type(resolved).first;
+          StorageView decoded;
           for (const auto& name : _fp8_weights) {
             is_quantizable(name); // Validate FP8 metadata before replacing it.
-            StorageView decoded;
             ops::DequantizeFP8()(get_variable(name), get_variable(name + "_scale_inv"), decoded);
             // Finish converting this expert before decoding the next one. Keeping
             // all experts in FP32 until Model::set_compute_type runs can require
             // several times the checkpoint size in resident memory.
+            StorageView converted(weight_dtype);
             if (is_float_type(weight_dtype)) {
-              decoded = decoded.to(weight_dtype);
+              converted = decoded.to(weight_dtype);
             } else {
               StorageView quantized(weight_dtype), scale;
               ops::Quantize(ops::Quantize::ScaleType::PER_LAYER, false,
                             round_before_cast_in_quantization())(decoded, quantized, scale);
               register_variable(name + "_scale", std::move(scale));
-              decoded = std::move(quantized);
+              converted = std::move(quantized);
             }
             remove_variable(name);
-            Model::register_variable(name, std::move(decoded));
+            Model::register_variable(name, std::move(converted));
             remove_variable(name + "_scale_inv");
           }
           _fp8_weights.clear();
