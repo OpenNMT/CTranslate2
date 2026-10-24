@@ -145,3 +145,192 @@ INSTANTIATE_TEST_SUITE_P(CPU, StorageViewDeviceTest, ::testing::Values(Device::C
 #ifdef CT2_WITH_CUDA
 INSTANTIATE_TEST_SUITE_P(CUDA, StorageViewDeviceTest, ::testing::Values(Device::CUDA));
 #endif
+
+TEST(StorageViewTest, OverflowingShapeThrows) {
+  // (2^62 + 1) * 8 overflows dim_t: the shape must be rejected, not wrapped
+  // to a small size that passes allocation.
+  EXPECT_THROW(StorageView(Shape{(int64_t{1} << 62) + 1, 8}, DataType::INT32),
+               std::invalid_argument);
+}
+
+TEST(StorageViewTest, OverflowingReshapeThrows) {
+  StorageView view(Shape{8}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{(int64_t{1} << 62) + 1, 8}), std::invalid_argument);
+}
+
+TEST(StorageViewTest, ZeroDimIsValidWhateverItsPosition) {
+  // The size of a shape with a zero dimension is 0, so the other dimensions are
+  // never multiplied and the overflowing prefix below is not an error. Multiplying
+  // before looking for the zero dimension made the result depend on its position.
+  EXPECT_THROW(compute_size(Shape{(int64_t{1} << 62) + 1, 8}), std::invalid_argument);
+  EXPECT_EQ(compute_size(Shape{(int64_t{1} << 62) + 1, 8, 0}), 0);
+  EXPECT_EQ(compute_size(Shape{0, (int64_t{1} << 62) + 1, 8}), 0);
+
+  StorageView view(Shape{(int64_t{1} << 62) + 1, 8, 0}, DataType::INT32);
+  EXPECT_EQ(view.size(), 0);
+  EXPECT_EQ(view.dim(2), 0);
+  view.reshape(Shape{0, (int64_t{1} << 62) + 1, 8});
+  EXPECT_EQ(view.size(), 0);
+  EXPECT_EQ(view.dim(0), 0);
+}
+
+TEST(StorageViewTest, ZeroDimDoesNotSkipNegativeCheck) {
+  EXPECT_THROW(compute_size(Shape{0, -2}), std::invalid_argument);
+  EXPECT_THROW(compute_size(Shape{(int64_t{1} << 62) + 1, 0, -1}), std::invalid_argument);
+
+  StorageView view(Shape{0}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{0, 8, -3}), std::invalid_argument);
+}
+
+TEST(StorageViewTest, UnknownDimWithZeroDimThrows) {
+  // An unknown dimension can't be inferred from an empty shape, and the known size
+  // of 0 used to be the divisor of the compatibility check below.
+  StorageView view(Shape{8}, DataType::INT32);
+  EXPECT_THROW(view.reshape(Shape{0, -1}), std::invalid_argument);
+  EXPECT_THROW(view.reshape(Shape{-1, 0}), std::invalid_argument);
+}
+
+TEST(StorageViewTest, GrowRejectsNegativeIncrement) {
+  // grow() with a negative size used to reach resize() and silently shrink the
+  // dimension, and INT64_MIN made the addition wrap.
+  StorageView view(Shape{4}, DataType::INT32);
+  for (const dim_t size : {dim_t(-1), std::numeric_limits<dim_t>::min()}) {
+    try {
+      view.grow(0, size);
+      FAIL() << "Expected a negative growth to be rejected";
+    } catch (const std::invalid_argument& e) {
+      EXPECT_NE(std::string(e.what()).find("can't grow a dimension by a negative size"),
+                std::string::npos);
+    }
+  }
+
+  // A rejected grow leaves the storage untouched.
+  EXPECT_EQ(view.dim(0), 4);
+  EXPECT_EQ(view.size(), 4);
+}
+
+TEST(StorageViewTest, GrowRejectsAdditionOverflow) {
+  // The zero dimension makes the size 0, so this overflowing first dimension costs
+  // no memory and still exercises the guard on the addition itself.
+  StorageView view(Shape{std::numeric_limits<dim_t>::max(), 0}, DataType::INT32);
+  EXPECT_EQ(view.size(), 0);
+
+  EXPECT_THROW(view.grow(0, 1), std::invalid_argument);
+  EXPECT_THROW(view.grow(0, std::numeric_limits<dim_t>::max()), std::invalid_argument);
+
+  // Growing the zero dimension by INT64_MAX doesn't overflow the addition (0 +
+  // INT64_MAX), so grow() lets it through and compute_size() rejects the resulting
+  // shape instead of wrapping it.
+  EXPECT_THROW(view.grow(1, std::numeric_limits<dim_t>::max()), std::invalid_argument);
+
+  EXPECT_EQ(view.dim(0), std::numeric_limits<dim_t>::max());
+  EXPECT_EQ(view.dim(1), 0);
+  EXPECT_EQ(view.size(), 0);
+}
+
+TEST(StorageViewTest, GrowingToAnUnallocatableSizeIsRejected) {
+  // INT64_MAX is a valid dimension and INT64_MAX elements still fit in a dim_t, so
+  // neither grow() nor compute_size() rejects it: reserve() catches the byte size
+  // before allocating. The three guards leave no path through to the allocator.
+  StorageView view(Shape{0}, DataType::INT32);
+  EXPECT_THROW(view.grow(0, std::numeric_limits<dim_t>::max()), std::runtime_error);
+  EXPECT_EQ(view.size(), 0);
+}
+
+TEST(StorageViewTest, GrowIncreasesShape) {
+  StorageView view(Shape{2, 3}, DataType::INT32);
+  EXPECT_EQ(view.size(), 6);
+
+  view.grow(0, 1);
+  EXPECT_EQ(view.dim(0), 3);
+  EXPECT_EQ(view.dim(1), 3);
+  EXPECT_EQ(view.size(), 9);
+
+  view.grow(1, 2);
+  EXPECT_EQ(view.dim(1), 5);
+  EXPECT_EQ(view.size(), 15);
+
+  // Growing an empty dimension back to a positive size stays valid.
+  StorageView empty_view(Shape{0}, DataType::INT32);
+  empty_view.grow(0, 4);
+  EXPECT_EQ(empty_view.dim(0), 4);
+  EXPECT_EQ(empty_view.size(), 4);
+}
+
+TEST(StorageViewTest, ShrinkRejectsNegativeDecrement) {
+  // shrink() with a negative size used to reach resize() and silently grow the
+  // dimension (exposing uninitialized memory), and INT64_MIN made the subtraction
+  // overflow.
+  StorageView view(Shape{4}, DataType::INT32);
+  for (const dim_t size : {dim_t(-1), std::numeric_limits<dim_t>::min()}) {
+    try {
+      view.shrink(0, size);
+      FAIL() << "Expected a negative decrement to be rejected";
+    } catch (const std::invalid_argument& e) {
+      EXPECT_NE(std::string(e.what()).find("can't shrink a dimension by a negative size"),
+                std::string::npos);
+    }
+  }
+
+  // A rejected shrink leaves the storage untouched.
+  EXPECT_EQ(view.dim(0), 4);
+  EXPECT_EQ(view.size(), 4);
+}
+
+TEST(StorageViewTest, ShrinkRejectsUnderflow) {
+  // Shrinking by more than the current size used to fail deep inside compute_size()
+  // with a generic "shape contains a negative dimension" error, far from the
+  // offending shrink() call.
+  StorageView view(Shape{4}, DataType::INT32);
+  try {
+    view.shrink(0, 5);
+    FAIL() << "Expected an over-shrink to be rejected";
+  } catch (const std::invalid_argument& e) {
+    EXPECT_NE(std::string(e.what()).find("underflowing tensor size"), std::string::npos);
+  }
+
+  EXPECT_EQ(view.dim(0), 4);
+  EXPECT_EQ(view.size(), 4);
+
+  // Shrinking an already empty dimension by more than zero is underflow too.
+  StorageView empty_dim(Shape{0, 2}, DataType::INT32);
+  EXPECT_THROW(empty_dim.shrink(0, 1), std::invalid_argument);
+  EXPECT_EQ(empty_dim.dim(0), 0);
+  EXPECT_EQ(empty_dim.size(), 0);
+}
+
+TEST(StorageViewTest, ShrinkDecreasesShape) {
+  StorageView view(Shape{3, 4}, DataType::INT32);
+  EXPECT_EQ(view.size(), 12);
+
+  view.shrink(0, 1);
+  EXPECT_EQ(view.dim(0), 2);
+  EXPECT_EQ(view.dim(1), 4);
+  EXPECT_EQ(view.size(), 8);
+
+  // Shrinking by zero is a valid no-op.
+  view.shrink(1, 0);
+  EXPECT_EQ(view.dim(1), 4);
+  EXPECT_EQ(view.size(), 8);
+
+  view.shrink(1, 2);
+  EXPECT_EQ(view.dim(1), 2);
+  EXPECT_EQ(view.size(), 4);
+
+  // Shrinking a dimension down to exactly zero stays valid.
+  view.shrink(0, 2);
+  EXPECT_EQ(view.dim(0), 0);
+  EXPECT_EQ(view.size(), 0);
+
+  // Shrinking an already empty dimension by zero stays valid as well.
+  view.shrink(0, 0);
+  EXPECT_EQ(view.dim(0), 0);
+  EXPECT_EQ(view.size(), 0);
+
+  // Growing the emptied dimension back restores the shape (shrink/grow
+  // round-trip).
+  view.grow(0, 2);
+  EXPECT_EQ(view.dim(0), 2);
+  EXPECT_EQ(view.dim(1), 2);
+  EXPECT_EQ(view.size(), 4);
+}
