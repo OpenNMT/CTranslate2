@@ -186,6 +186,10 @@ namespace ctranslate2 {
                                      model, scope + "/external_pre_encoder_attention_layer_norm"))
       , _external_post_encoder_attention_layer_norm(build_optional_layer<LayerNorm>(
                                      model, scope + "/external_post_encoder_attention_layer_norm"))
+      , _layer_scalar(model.get_attribute_with_default<float>(scope + "/layer_scalar", 1.f))
+      , _has_merged_encoder_attention(
+          !use_flash_attention
+          && static_cast<MultiHeadAttention*>(_self_attention.get())->has_merged_encoder_attention())
       {
     }
 
@@ -215,7 +219,21 @@ namespace ctranslate2 {
         StorageView context(dtype, device);
         (*_input_layer_norm)(input, hidden);
 
-        if (_self_attention)
+        if (_has_merged_encoder_attention) {
+          static_cast<MultiHeadAttention*>(_self_attention.get())->forward_merged(
+            hidden,
+            memory,
+            memory_lengths,
+            input_length,
+            context,
+            cached_self_attn_keys,
+            cached_self_attn_values,
+            cached_attn_keys,
+            cached_attn_values,
+            input_padder,
+            memory_padder,
+            offset);
+        } else if (_self_attention) {
           (*_self_attention)(hidden,
                              hidden,
                              input_length,
@@ -228,7 +246,7 @@ namespace ctranslate2 {
                              true,
                              position_bias,
                              offset);
-
+        }
         (*_post_attention_layer_norm)(context, output);
         ops::Add()(output, input, output);
 
@@ -269,6 +287,11 @@ namespace ctranslate2 {
         hidden = std::move(output);
         (*_post_feedforward_layer_norm)(hidden, output);
         ops::Add()(output, context, output);
+
+        // Gemma 4 layer scalar
+        if (_layer_scalar != 1.f)
+          ops::Mul()(output, StorageView(_layer_scalar).to(dtype), output);
+
         return;
       }
 
@@ -379,6 +402,30 @@ namespace ctranslate2 {
     }
 
 
+    // T5-style models compute the relative attention bias in the first layer and share it
+    // with the following layers. UMT5-style models give every layer its own bias table.
+    // Identical tables are serialized as aliases resolving to the same StorageView, so
+    // comparing the resolved pointers tells the two cases apart.
+    static bool has_shared_position_bias(const models::Model& model,
+                                         const std::string& scope,
+                                         const size_t num_layers) {
+      const auto bias_name = [&scope](size_t i) {
+        return scope + "/layer_" + std::to_string(i) + "/self_attention/relative_attention_bias";
+      };
+
+      const StorageView* first = model.get_variable_if_exists(bias_name(0));
+      if (!first)
+        return true;  // no relative attention bias: the shared buffer is never filled
+
+      for (size_t i = 1; i < num_layers; ++i) {
+        if (model.get_variable_if_exists(bias_name(i)) != first)
+          return false;
+      }
+
+      return true;
+    }
+
+
     TransformerEncoder::TransformerEncoder(const models::Model& model, const std::string& scope)
       : _embeddings(model, scope + "/embeddings",
                     model.get_enum_value<EmbeddingsMerge>(scope + "/embeddings_merge"))
@@ -398,6 +445,7 @@ namespace ctranslate2 {
                           ? nullptr
                           : build_position_encoder(model, scope + "/position_encodings", _embeddings))
       , _tensor_parallel(model.tensor_parallel())
+      , _shared_position_bias(has_shared_position_bias(model, scope, _layers.size()))
     {
     }
 
@@ -435,9 +483,10 @@ namespace ctranslate2 {
       }
 
       StorageView position_bias(output.dtype(), output.device());
+      StorageView* position_bias_ptr = _shared_position_bias ? &position_bias : nullptr;
 
       for (size_t l = 0; l < _layers.size(); ++l) {
-        (*_layers[l])(input, lengths_mask.get(), output, padder.get(), &position_bias);
+        (*_layers[l])(input, lengths_mask.get(), output, padder.get(), position_bias_ptr);
         if (l + 1 < _layers.size())
           input = std::move(output);
       }
@@ -489,7 +538,9 @@ namespace ctranslate2 {
       , _with_encoder_attention(_layers.front()->has_cross_attention())
       , _proj(model, scope + "/projection")
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
-      , _tensor_parallel(model.tensor_parallel()) {
+      , _tensor_parallel(model.tensor_parallel())
+      , _final_logit_softcapping(model.get_attribute_with_default<float>(scope + "/final_logit_softcapping", 0.f))
+      , _shared_position_bias(has_shared_position_bias(model, scope, _layers.size())) {
 
       dim_t alignment_layer = (
         model.get_attribute_with_default<int32_t>(scope + "/alignment_layer", -1));
@@ -705,6 +756,7 @@ namespace ctranslate2 {
         alignment_heads.reserve(_layers.size());
 
       StorageView position_bias(dtype, device);
+      StorageView* position_bias_ptr = _shared_position_bias ? &position_bias : nullptr;
 
       std::vector<StorageView> layer_ins;
 
@@ -780,7 +832,7 @@ namespace ctranslate2 {
                         input_padder.get(),
                         memory_padder.get(),
                         return_normalized_attention(),
-                        &position_bias,
+                        position_bias_ptr,
                         offset);
           *layer_in_chunk = std::move(layer_out);
 
@@ -826,9 +878,17 @@ namespace ctranslate2 {
         if (_outputs_scale)
           ops::Mul()(layer_in, *_outputs_scale, layer_in);
 
-        if (return_logits)
+        if (return_logits) {
           _proj(layer_in, *outputs);
-        else
+          if (_final_logit_softcapping != 0.f) {
+            // logits = tanh(logits / cap) * cap  — squashes logits to (-cap, cap)
+            const auto dtype = outputs->dtype();
+            const auto device = outputs->device();
+            ops::Mul()(*outputs, StorageView(1.f / _final_logit_softcapping).to(dtype), *outputs);
+            ops::Tanh()(*outputs, *outputs);
+            ops::Mul()(*outputs, StorageView(_final_logit_softcapping).to(dtype), *outputs);
+          }
+        } else
           *outputs = std::move(layer_in);
 
         if (!is_sequence)

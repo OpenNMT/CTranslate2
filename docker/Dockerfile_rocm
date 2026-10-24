@@ -1,4 +1,5 @@
-FROM rocm/dev-ubuntu-22.04:7.2 AS builder
+ARG ROCM_VERSION=7.2.1
+FROM rocm/dev-ubuntu-22.04:${ROCM_VERSION} AS builder
 
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
@@ -24,7 +25,12 @@ RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PROD
     apt-key add *.PUB && \
     rm *.PUB && \
     echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list && \
-    apt-get update && \
+    for attempt in 1 2 3; do \
+        apt-get update && break; \
+        [ "$attempt" -lt 3 ] || exit 1; \
+        rm -rf /var/lib/apt/lists/*; \
+        sleep 30; \
+    done && \
     apt-get install -y --no-install-recommends \
         intel-oneapi-mkl-devel-$ONEAPI_VERSION \
         && \
@@ -87,9 +93,14 @@ RUN cd python && \
     python3 -m pip --no-cache-dir install -r install_requirements.txt && \
     python3 setup.py bdist_wheel --dist-dir $CTRANSLATE2_ROOT
 
-FROM rocm/dev-ubuntu-22.04:7.2
+FROM rocm/dev-ubuntu-22.04:${ROCM_VERSION}
 
-RUN apt-get update && \
+RUN for attempt in 1 2 3; do \
+        apt-get update && break; \
+        [ "$attempt" -lt 3 ] || exit 1; \
+        rm -rf /var/lib/apt/lists/*; \
+        sleep 30; \
+    done && \
     apt-get install -y --no-install-recommends \
         rocm-hip-libraries \
         openmpi-bin \

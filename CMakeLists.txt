@@ -24,6 +24,7 @@ option(BUILD_SHARED_LIBS "Build shared libraries" ON)
 option(WITH_TENSOR_PARALLEL "Compile with NCCL and MPI backend" OFF)
 option(WITH_FLASH_ATTN "Compile with Flash Attention 2" OFF)
 option(ENABLE_ADDRESS_SANITIZER "ASAN" OFF)
+option(ENABLE_THREAD_SANITIZER "TSAN" OFF)
 
 MESSAGE(STATUS "Compiler Id: ${CMAKE_CXX_COMPILER_ID}")
 MESSAGE(STATUS "Compiler Version: ${CMAKE_CXX_COMPILER_VERSION}")
@@ -158,6 +159,18 @@ set(SOURCES
   src/ops/concat.cc
   src/ops/concat_split_slide_cpu.cc
   src/ops/conv1d.cc
+  src/ops/causal_depthwise_conv1d.cc
+  src/ops/causal_depthwise_conv1d_cpu.cc
+  src/ops/conv_transpose1d.cc
+  src/ops/conv_transpose1d_cpu.cc
+  src/ops/dequantize_fp8.cc
+  src/ops/dequantize_fp8_cpu.cc
+  src/ops/gated_delta_net.cc
+  src/ops/gated_delta_net_cpu.cc
+  src/ops/moe_topk.cc
+  src/ops/moe_topk_cpu.cc
+  src/ops/snake.cc
+  src/ops/snake_cpu.cc
   src/ops/conv1d_cpu.cc
   src/ops/cos.cc
   src/ops/dequantize.cc
@@ -228,6 +241,12 @@ set(SOURCES
   src/vocabulary_map.cc
 )
 set(CUDA_SOURCES
+  src/ops/causal_depthwise_conv1d_gpu.cu
+  src/ops/conv_transpose1d_gpu.cu
+  src/ops/gated_delta_net_gpu.cu
+  src/ops/dequantize_fp8_gpu.cu
+  src/ops/moe_topk_gpu.cu
+  src/ops/snake_gpu.cu
   src/cuda/allocator.cc
   src/cuda/primitives.cu
   src/cuda/random.cu
@@ -289,6 +308,14 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(amd64)|(AMD64)")
   add_subdirectory(third_party/cpu_features EXCLUDE_FROM_ALL)
   set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_SAVED}")
   list(APPEND LIBRARIES cpu_features)
+endif()
+
+if(ENABLE_CPU_DISPATCH
+   AND NOT CT2_BUILD_ARCH STREQUAL "x86_64"
+   AND NOT CT2_BUILD_ARCH STREQUAL "arm64")
+  message(STATUS
+    "CPU runtime dispatch is unavailable for ${CMAKE_SYSTEM_PROCESSOR}; using generic kernels")
+  set(ENABLE_CPU_DISPATCH OFF)
 endif()
 
 if(ENABLE_CPU_DISPATCH)
@@ -481,13 +508,20 @@ if (WITH_RUY)
   list(APPEND LIBRARIES ruy)
 endif()
 
+# sanitizers
 IF (ENABLE_ADDRESS_SANITIZER AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG"))
-  MESSAGE (STATUS "ENABLE_ADDRESS_SANITIZER: ENABLED")
+  MESSAGE (STATUS "ENABLE_ADDRESS_SANITIZER: TRUE")
   set(ASAN_FLAGS " -fsanitize=address -fno-omit-frame-pointer -fno-optimize-sibling-calls -fno-common")
   string(APPEND CMAKE_C_FLAGS ${ASAN_FLAGS})
   string(APPEND CMAKE_CXX_FLAGS ${ASAN_FLAGS})
   add_link_options(-fsanitize=address)
-ELSEIF (ENABLE_ADDRESS_SANITIZER)
+ELSEIF (ENABLE_THREAD_SANITIZER AND (CMAKE_BUILD_TYPE STREQUAL "Debug" OR CMAKE_BUILD_TYPE STREQUAL "DEBUG"))
+  MESSAGE (STATUS "ENABLE_THREAD_SANITIZER: TRUE")
+  set(TSAN_FLAGS " -fsanitize=thread")
+  string(APPEND CMAKE_C_FLAGS ${TSAN_FLAGS})
+  string(APPEND CMAKE_CXX_FLAGS ${TSAN_FLAGS})
+  add_link_options(-fsanitize=thread)
+ELSEIF (ENABLE_ADDRESS_SANITIZER OR ENABLE_THREAD_SANITIZER)
   MESSAGE(FATAL_ERROR "SANITIZER requires Debug build type")
 ENDIF ()
 
@@ -555,8 +589,9 @@ if (WITH_CUDA)
   # -I/usr/local/cuda/include for both GCC and NVCC, so that the headers
   # are coming from the submodule and not the system.
   set(THRUST_INCLUDE_DIRS
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/dependencies/cub
-    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/cub
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/thrust
+    ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/libcudacxx/include
     )
   cuda_include_directories(${THRUST_INCLUDE_DIRS})
   list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${THRUST_INCLUDE_DIRS})

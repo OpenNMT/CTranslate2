@@ -126,7 +126,7 @@ namespace ctranslate2 {
       }
 
     private:
-      const StorageView* _return_logits;
+      const bool _return_logits;
       const LayerNorm _fp_layer_norm;
       const Dense _fp_projection;
       const std::vector<std::unique_ptr<const EncoderLayer>> _encoder_layers;

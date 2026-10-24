@@ -17,8 +17,8 @@ Boolean environment variables can be enabled with `"1"` or `"true"`.
 
 Allocating memory on the GPU with `cudaMalloc` is costly and is best avoided in high-performance code. For this reason CTranslate2 integrates caching allocators which enable a fast reuse of previously allocated buffers. The following allocators are integrated:
 
-* `cuda_malloc_async` (default for CUDA >= 11.2)<br/>Uses the [asynchronous allocator with memory pools](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY__POOLS.html) introduced in CUDA 11.2.
-* `cub_caching` (default for CUDA < 11.2)<br/>Uses the caching allocator from the [CUB project](https://github.com/NVIDIA/cub).
+* `cuda_malloc_async` (default for NVIDIA CUDA >= 11.2)<br/>Uses the [asynchronous allocator with memory pools](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY__POOLS.html) introduced in CUDA 11.2.
+* `cub_caching` (default for CUDA < 11.2 and HIP/ROCm)<br/>Uses the caching allocator from the [CUB project](https://github.com/NVIDIA/cub).
 
 ## `CT2_CUDA_ALLOW_BF16`
 
@@ -64,9 +64,9 @@ Force CTranslate2 to select a specific instruction set architecture (ISA). Possi
 This does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.
 ```
 
-## `CT2_USE_EXPERIMENTAL_PACKED_GEMM`
+## `CT2_PACKED_GEMM`
 
-Enable the packed GEMM API for Intel MKL which can improve performance for single-core decoding. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
+Enable or disable the packed GEMM API for Intel MKL. Packed GEMM is enabled by default when using the MKL backend and improves decoding performance by pre-packing weight matrices at model load time. Set to `0` to disable it. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
 
 ## `CT2_USE_MKL`
 
