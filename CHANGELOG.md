@@ -1,5 +1,9 @@
 ## [Unreleased]
 
+### New features
+
+* Build Python 3.15 wheels (#2129) by [@shaanmajid](https://github.com/shaanmajid)
+
 ## [v4.8.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.3) (2026-10-13)
 
 ### New features
