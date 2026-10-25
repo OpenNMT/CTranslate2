@@ -8,7 +8,7 @@
 
 * Build Python 3.15 wheels (#2129) by [@shaanmajid](https://github.com/shaanmajid)
 
-* Add experimental Drama 3 offline text-to-speech, including model conversion and waveform decoding on CPU with optional CUDA and ROCm acceleration by [@jordimas](https://github.com/jordimas)
+* Add an **experimental implementation** of Drama 3 offline text-to-speech, including model conversion and waveform decoding on CPU with optional CUDA and ROCm acceleration by [@jordimas](https://github.com/jordimas)
 * Add CPU and GPU implementations of CausalDepthwiseConv1D, ConvTranspose1D, DequantizeFP8, GatedDeltaNet, MoeTopK, and Snake operations for audio models (#2121) by [@jordimas](https://github.com/jordimas)
 
 ### Fixes and improvements
