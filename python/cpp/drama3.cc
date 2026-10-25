@@ -86,6 +86,15 @@ namespace ctranslate2 {
                  max_queued_batches: Maximum queued requests; 0 uses four per replica,
                    a negative value allows an unlimited queue.
            )pbdoc")
+          .def_property_readonly("device", [](const models::Drama3& model) {
+            return device_to_str(model.get_first_replica().device());
+          }, "Device used for execution.")
+          .def_property_readonly("device_index", [](const models::Drama3& model) {
+            return std::vector<int>{model.get_first_replica().device_index()};
+          }, "Device IDs where this model executes.")
+          .def_property_readonly("compute_type", [](const models::Drama3& model) {
+            return compute_type_to_str(model.get_first_replica().compute_type());
+          }, "Resolved computation type used for execution.")
           .def_property_readonly("num_replicas", &models::Drama3::num_replicas)
           .def_property_readonly("num_queued_batches", &models::Drama3::num_queued_batches)
           .def_property_readonly("num_active_batches", &models::Drama3::num_active_batches)

@@ -83,6 +83,10 @@ namespace ctranslate2 {
     public:
       static std::unique_ptr<Drama3Replica> create_from_model(const Model& model);
       ~Drama3Replica() override;
+      // Execution settings can differ from the CPU checkpoint storage.
+      Device device() const;
+      int device_index() const;
+      ComputeType compute_type() const;
       Drama3Result generate(const StorageView& prompt, const Drama3Options& options);
 
     private:
