@@ -218,8 +218,10 @@ class Drama3RuntimeTest(unittest.TestCase):
         for requested in ("int8", "auto"):
             with self.subTest(compute_type=requested):
                 model = ctranslate2.models.Drama3(
-                    self.directory.name, intra_threads=1,
-                    device="cpu", compute_type=requested,
+                    self.directory.name,
+                    intra_threads=1,
+                    device="cpu",
+                    compute_type=requested,
                 )
                 self.assertEqual(model.compute_type, "int8_float32")
                 self.assertEqual(
@@ -237,12 +239,16 @@ class Drama3RuntimeTest(unittest.TestCase):
         self.assertEqual(model.compute_type, "float32")
         if "float16" in ctranslate2.get_supported_compute_types("cuda"):
             model = ctranslate2.models.Drama3(
-                self.directory.name, intra_threads=1, device="cuda", compute_type="float16"
+                self.directory.name,
+                intra_threads=1,
+                device="cuda",
+                compute_type="float16",
             )
             # Checkpoint storage remains float32 on CPU for this GPU model.
             self.assertEqual(model.compute_type, "float16")
             self.assertEqual(
-                model.generate(self.prompt, max_frames=1, greedy=True).codes.shape, (1, 10)
+                model.generate(self.prompt, max_frames=1, greedy=True).codes.shape,
+                (1, 10),
             )
 
     def test_sync_async_and_batch_preserve_results(self):
