@@ -447,6 +447,18 @@ namespace ctranslate2 {
       , _impl(std::move(impl)) {
     }
 
+    Device Drama3Replica::device() const {
+      return _impl->options.device;
+    }
+
+    int Drama3Replica::device_index() const {
+      return _impl->options.device_index;
+    }
+
+    ComputeType Drama3Replica::compute_type() const {
+      return _impl->options.compute_type;
+    }
+
     Drama3Replica::~Drama3Replica() {
       const auto device = _impl->options.device;
       const ScopedDeviceSetter setter(device, _impl->options.device_index);

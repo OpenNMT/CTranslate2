@@ -202,6 +202,55 @@ class Drama3RuntimeTest(unittest.TestCase):
         self.prompt = np.zeros((2, 11), dtype=np.int32)
         self.prompt[:, 0] = 1
 
+    def test_resolved_execution_properties(self):
+        self.assertEqual(self.model.device, "cpu")
+        self.assertEqual(self.model.device_index, [0])
+        self.assertEqual(self.model.compute_type, "float32")
+        for name in ("device", "device_index", "compute_type"):
+            with self.subTest(property=name), self.assertRaises(AttributeError):
+                setattr(self.model, name, None)
+
+    @unittest.skipUnless(
+        "int8_float32" in ctranslate2.get_supported_compute_types("cpu"),
+        "CPU INT8 unavailable",
+    )
+    def test_requested_precision_is_resolved(self):
+        for requested in ("int8", "auto"):
+            with self.subTest(compute_type=requested):
+                model = ctranslate2.models.Drama3(
+                    self.directory.name,
+                    intra_threads=1,
+                    device="cpu",
+                    compute_type=requested,
+                )
+                self.assertEqual(model.compute_type, "int8_float32")
+                self.assertEqual(
+                    model.generate(self.prompt, max_frames=1, greedy=True).codes.shape,
+                    (1, 10),
+                )
+
+    @unittest.skipUnless(ctranslate2.get_cuda_device_count(), "GPU unavailable")
+    def test_auto_device_reports_execution_device(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, device="auto", compute_type="float32"
+        )
+        self.assertEqual(model.device, "cuda")
+        self.assertEqual(model.device_index, [0])
+        self.assertEqual(model.compute_type, "float32")
+        if "float16" in ctranslate2.get_supported_compute_types("cuda"):
+            model = ctranslate2.models.Drama3(
+                self.directory.name,
+                intra_threads=1,
+                device="cuda",
+                compute_type="float16",
+            )
+            # Checkpoint storage remains float32 on CPU for this GPU model.
+            self.assertEqual(model.compute_type, "float16")
+            self.assertEqual(
+                model.generate(self.prompt, max_frames=1, greedy=True).codes.shape,
+                (1, 10),
+            )
+
     def test_sync_async_and_batch_preserve_results(self):
         self.assertEqual(self.model.num_replicas, 2)
         expected = self.model.generate(self.prompt, max_frames=2, greedy=True)

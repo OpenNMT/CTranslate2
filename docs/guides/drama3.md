@@ -122,6 +122,11 @@ model = Drama3(
 Use `device="auto"` to select an available GPU. Supported compute types depend
 on the backend; `default` and `auto` allow fallback.
 
+Read `model.device`, `model.device_index`, and `model.compute_type` to inspect
+the resolved execution settings. As with Whisper, `device_index` is a list
+(for example, `[0]`). The compute type describes execution precision, independently
+of the CPU checkpoint storage; some stages still use FLOAT32 activations.
+
 Backbone and tower projections, including experts, run on GPU. The remaining
 operations and waveform decoder run on CPU. Tensor parallelism is unsupported.
 
