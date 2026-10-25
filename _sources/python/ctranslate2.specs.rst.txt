@@ -6,6 +6,7 @@ ctranslate2.specs
 .. toctree::
 
    ctranslate2.specs.Activation
+   ctranslate2.specs.Drama3Spec
    ctranslate2.specs.EmbeddingsMerge
    ctranslate2.specs.LanguageModelSpec
    ctranslate2.specs.LayerSpec

@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Index &mdash; CTranslate2 4.8.3 documentation</title>
+  <title>Index &mdash; CTranslate2 4.8.4 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -52,6 +52,7 @@
 <li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="encoding.html">Text encoding</a></li>
 <li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_synthesis.html">Speech synthesis</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Developer guides</span></p>
 <ul>
@@ -65,6 +66,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/drama3.html">Drama 3</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
 <li class="toctree-l1"><a class="reference internal" href="guides/opennmt_py.html">OpenNMT-py</a></li>
@@ -183,6 +185,8 @@
 </li>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.__init__">(ctranslate2.Generator method)</a>
 </li>
+        <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.__init__">(ctranslate2.models.Drama3 method)</a>
+</li>
         <li><a href="python/ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.__init__">(ctranslate2.models.Wav2Vec2 method)</a>
 </li>
         <li><a href="python/ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.__init__">(ctranslate2.models.Wav2Vec2Bert method)</a>
@@ -190,6 +194,8 @@
         <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.__init__">(ctranslate2.models.Whisper method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.__init__">(ctranslate2.specs.Activation method)</a>
+</li>
+        <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.__init__">(ctranslate2.specs.Drama3Spec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.__init__">(ctranslate2.specs.EmbeddingsMerge method)</a>
 </li>
@@ -278,12 +284,16 @@
 </li>
       <li><a href="python/ctranslate2.TranslationResult.html#ctranslate2.TranslationResult.attention">attention (ctranslate2.TranslationResult property)</a>
 </li>
+      <li><a href="python/ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.audio">audio (ctranslate2.models.Drama3Result property)</a>
+</li>
   </ul></td>
 </tr></table>
 
 <h2 id="B">B</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.backbone_decode_seconds">backbone_decode_seconds (ctranslate2.models.Drama3Timings property)</a>
+</li>
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.batch_id">batch_id (ctranslate2.GenerationStepResult property)</a>
 </li>
       <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.bfloat16">bfloat16 (ctranslate2.DataType attribute)</a>
@@ -312,10 +322,16 @@
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.codec_seconds">codec_seconds (ctranslate2.models.Drama3Timings property)</a>
+</li>
+      <li><a href="python/ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.codes">codes (ctranslate2.models.Drama3Result property)</a>
+</li>
       <li><a href="python/ctranslate2.Encoder.html#ctranslate2.Encoder.compute_type">compute_type (ctranslate2.Encoder property)</a>
 
       <ul>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.compute_type">(ctranslate2.Generator property)</a>
+</li>
+        <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.compute_type">(ctranslate2.models.Drama3 property)</a>
 </li>
         <li><a href="python/ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.compute_type">(ctranslate2.models.Wav2Vec2 property)</a>
 </li>
@@ -328,9 +344,11 @@
       </ul></li>
       <li><a href="python/ctranslate2.specs.EmbeddingsMerge.html#ctranslate2.specs.EmbeddingsMerge.CONCAT">CONCAT (ctranslate2.specs.EmbeddingsMerge attribute)</a>
 </li>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.config">config (ctranslate2.specs.LanguageModelSpec property)</a>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.config">config (ctranslate2.specs.Drama3Spec property)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.config">(ctranslate2.specs.LanguageModelSpec property)</a>
+</li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.config">(ctranslate2.specs.ModelSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.config">(ctranslate2.specs.SequenceToSequenceModelSpec property)</a>
@@ -475,6 +493,8 @@
       <ul>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.device">(ctranslate2.Generator property)</a>
 </li>
+        <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.device">(ctranslate2.models.Drama3 property)</a>
+</li>
         <li><a href="python/ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.device">(ctranslate2.models.Wav2Vec2 property)</a>
 </li>
         <li><a href="python/ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.device">(ctranslate2.models.Wav2Vec2Bert property)</a>
@@ -492,6 +512,8 @@
 
       <ul>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.device_index">(ctranslate2.Generator property)</a>
+</li>
+        <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.device_index">(ctranslate2.models.Drama3 property)</a>
 </li>
         <li><a href="python/ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.device_index">(ctranslate2.models.Wav2Vec2 property)</a>
 </li>
@@ -511,9 +533,21 @@
 </li>
         <li><a href="python/ctranslate2.AsyncTranslationResult.html#ctranslate2.AsyncTranslationResult.done">(ctranslate2.AsyncTranslationResult method)</a>
 </li>
+        <li><a href="python/ctranslate2.models.Drama3ResultAsync.html#ctranslate2.models.Drama3ResultAsync.done">(ctranslate2.models.Drama3ResultAsync method)</a>
+</li>
         <li><a href="python/ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync.done">(ctranslate2.models.WhisperGenerationResultAsync method)</a>
 </li>
       </ul></li>
+      <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3">Drama3 (class in ctranslate2.models)</a>
+</li>
+      <li><a href="python/ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result">Drama3Result (class in ctranslate2.models)</a>
+</li>
+      <li><a href="python/ctranslate2.models.Drama3ResultAsync.html#ctranslate2.models.Drama3ResultAsync">Drama3ResultAsync (class in ctranslate2.models)</a>
+</li>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec">Drama3Spec (class in ctranslate2.specs)</a>
+</li>
+      <li><a href="python/ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings">Drama3Timings (class in ctranslate2.models)</a>
+</li>
       <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.dtype">dtype (ctranslate2.StorageView property)</a>
 </li>
   </ul></td>
@@ -548,6 +582,8 @@
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.converters.FairseqConverter.html#ctranslate2.converters.FairseqConverter">FairseqConverter (class in ctranslate2.converters)</a>
 </li>
+      <li><a href="python/ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.finish_reason">finish_reason (ctranslate2.models.Drama3Result property)</a>
+</li>
       <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.float16">float16 (ctranslate2.DataType attribute)</a>
 </li>
       <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.float32">float32 (ctranslate2.DataType attribute)</a>
@@ -558,10 +594,10 @@
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.forward_batch">(ctranslate2.Generator method)</a>
 </li>
       </ul></li>
-      <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.from_array">from_array() (ctranslate2.StorageView static method)</a>
-</li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.from_array">from_array() (ctranslate2.StorageView static method)</a>
+</li>
       <li><a href="python/ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.from_bytes">from_bytes() (ctranslate2.specs.Activation method)</a>
 
       <ul>
@@ -590,10 +626,18 @@
 </li>
       <li><a href="python/ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.GELUTanh">GELUTanh (ctranslate2.specs.Activation attribute)</a>
 </li>
-      <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.generate">generate() (ctranslate2.models.Whisper method)</a>
+      <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.generate">generate() (ctranslate2.models.Drama3 method)</a>
+
+      <ul>
+        <li><a href="python/ctranslate2.models.Whisper.html#ctranslate2.models.Whisper.generate">(ctranslate2.models.Whisper method)</a>
 </li>
+      </ul></li>
       <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.generate_batch">generate_batch() (ctranslate2.Generator method)</a>
+
+      <ul>
+        <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.generate_batch">(ctranslate2.models.Drama3 method)</a>
 </li>
+      </ul></li>
       <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.generate_iterable">generate_iterable() (ctranslate2.Generator method)</a>
 </li>
       <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.generate_tokens">generate_tokens() (ctranslate2.Generator method)</a>
@@ -610,9 +654,11 @@
 </li>
       <li><a href="python/ctranslate2.get_cuda_device_count.html#ctranslate2.get_cuda_device_count">get_cuda_device_count() (in module ctranslate2)</a>
 </li>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.get_default_config">get_default_config() (ctranslate2.specs.LanguageModelSpec method)</a>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.get_default_config">get_default_config() (ctranslate2.specs.Drama3Spec method)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.get_default_config">(ctranslate2.specs.LanguageModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.get_default_config">(ctranslate2.specs.ModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.get_default_config">(ctranslate2.specs.SequenceToSequenceModelSpec method)</a>
@@ -696,6 +742,8 @@
         <li><a href="python/ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.imag">(ctranslate2.specs.RotaryScalingType attribute)</a>
 </li>
       </ul></li>
+      <li><a href="python/ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.inspect">inspect() (ctranslate2.converters.TransformersConverter method)</a>
+</li>
       <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.int16">int16 (ctranslate2.DataType attribute)</a>
 </li>
       <li><a href="python/ctranslate2.DataType.html#ctranslate2.DataType.int32">int32 (ctranslate2.DataType attribute)</a>
@@ -820,6 +868,8 @@
       <ul>
         <li><a href="python/ctranslate2.Device.html#ctranslate2.Device.name">(ctranslate2.Device property)</a>
 </li>
+        <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.name">(ctranslate2.specs.Drama3Spec property)</a>
+</li>
         <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.name">(ctranslate2.specs.LanguageModelSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.name">(ctranslate2.specs.ModelSpec property)</a>
@@ -846,6 +896,8 @@
       <ul>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.num_active_batches">(ctranslate2.Generator property)</a>
 </li>
+        <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.num_active_batches">(ctranslate2.models.Drama3 property)</a>
+</li>
         <li><a href="python/ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_active_batches">(ctranslate2.models.Wav2Vec2 property)</a>
 </li>
         <li><a href="python/ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_active_batches">(ctranslate2.models.Wav2Vec2Bert property)</a>
@@ -870,6 +922,8 @@
       <ul>
         <li><a href="python/ctranslate2.Generator.html#ctranslate2.Generator.num_queued_batches">(ctranslate2.Generator property)</a>
 </li>
+        <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.num_queued_batches">(ctranslate2.models.Drama3 property)</a>
+</li>
         <li><a href="python/ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.num_queued_batches">(ctranslate2.models.Wav2Vec2 property)</a>
 </li>
         <li><a href="python/ctranslate2.models.Wav2Vec2Bert.html#ctranslate2.models.Wav2Vec2Bert.num_queued_batches">(ctranslate2.models.Wav2Vec2Bert property)</a>
@@ -879,6 +933,8 @@
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.num_queued_batches">(ctranslate2.Translator property)</a>
 </li>
       </ul></li>
+      <li><a href="python/ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.num_replicas">num_replicas (ctranslate2.models.Drama3 property)</a>
+</li>
       <li><a href="python/ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats.num_tokens">num_tokens (ctranslate2.ExecutionStats property)</a>
 </li>
       <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.num_translators">num_translators (ctranslate2.Translator property)</a>
@@ -911,9 +967,11 @@
 </li>
       <li><a href="python/ctranslate2.converters.OpenNMTTFConverter.html#ctranslate2.converters.OpenNMTTFConverter">OpenNMTTFConverter (class in ctranslate2.converters)</a>
 </li>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.optimize">optimize() (ctranslate2.specs.LanguageModelSpec method)</a>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.optimize">optimize() (ctranslate2.specs.Drama3Spec method)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.optimize">(ctranslate2.specs.LanguageModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec.optimize">(ctranslate2.specs.LayerSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.optimize">(ctranslate2.specs.ModelSpec method)</a>
@@ -950,6 +1008,10 @@
       <li><a href="python/ctranslate2.EncoderForwardOutput.html#ctranslate2.EncoderForwardOutput.pooler_output">pooler_output (ctranslate2.EncoderForwardOutput property)</a>
 </li>
   </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="python/ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.prefill_seconds">prefill_seconds (ctranslate2.models.Drama3Timings property)</a>
+</li>
+  </ul></td>
 </tr></table>
 
 <h2 id="R">R</h2>
@@ -963,9 +1025,11 @@
         <li><a href="python/ctranslate2.specs.RotaryScalingType.html#ctranslate2.specs.RotaryScalingType.real">(ctranslate2.specs.RotaryScalingType attribute)</a>
 </li>
       </ul></li>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.register_file">register_file() (ctranslate2.specs.LanguageModelSpec method)</a>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.register_file">register_file() (ctranslate2.specs.Drama3Spec method)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.register_file">(ctranslate2.specs.LanguageModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.register_file">(ctranslate2.specs.ModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.register_file">(ctranslate2.specs.SequenceToSequenceModelSpec method)</a>
@@ -1026,12 +1090,16 @@
 </li>
         <li><a href="python/ctranslate2.AsyncTranslationResult.html#ctranslate2.AsyncTranslationResult.result">(ctranslate2.AsyncTranslationResult method)</a>
 </li>
+        <li><a href="python/ctranslate2.models.Drama3ResultAsync.html#ctranslate2.models.Drama3ResultAsync.result">(ctranslate2.models.Drama3ResultAsync method)</a>
+</li>
         <li><a href="python/ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync.result">(ctranslate2.models.WhisperGenerationResultAsync method)</a>
 </li>
       </ul></li>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.revision">revision (ctranslate2.specs.LanguageModelSpec property)</a>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.revision">revision (ctranslate2.specs.Drama3Spec property)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.revision">(ctranslate2.specs.LanguageModelSpec property)</a>
+</li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.revision">(ctranslate2.specs.ModelSpec property)</a>
 </li>
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.revision">(ctranslate2.specs.SequenceToSequenceModelSpec property)</a>
@@ -1057,9 +1125,13 @@
 <h2 id="S">S</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.save">save() (ctranslate2.specs.LanguageModelSpec method)</a>
+      <li><a href="python/ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.sample_rate">sample_rate (ctranslate2.models.Drama3Result property)</a>
+</li>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.save">save() (ctranslate2.specs.Drama3Spec method)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.save">(ctranslate2.specs.LanguageModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.save">(ctranslate2.specs.ModelSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.SequenceToSequenceModelSpec.html#ctranslate2.specs.SequenceToSequenceModelSpec.save">(ctranslate2.specs.SequenceToSequenceModelSpec method)</a>
@@ -1091,6 +1163,8 @@
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.score_iterable">(ctranslate2.Translator method)</a>
 </li>
       </ul></li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.GenerationResult.html#ctranslate2.GenerationResult.scores">scores (ctranslate2.GenerationResult property)</a>
 
       <ul>
@@ -1099,8 +1173,6 @@
         <li><a href="python/ctranslate2.TranslationResult.html#ctranslate2.TranslationResult.scores">(ctranslate2.TranslationResult property)</a>
 </li>
       </ul></li>
-  </ul></td>
-  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="python/ctranslate2.ScoringResult.html#ctranslate2.ScoringResult">ScoringResult (class in ctranslate2)</a>
 </li>
       <li><a href="python/ctranslate2.GenerationResult.html#ctranslate2.GenerationResult.sequences">sequences (ctranslate2.GenerationResult property)</a>
@@ -1155,6 +1227,8 @@
         <li><a href="python/ctranslate2.Translator.html#ctranslate2.Translator.tensor_parallel">(ctranslate2.Translator property)</a>
 </li>
       </ul></li>
+      <li><a href="python/ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.timings">timings (ctranslate2.models.Drama3Result property)</a>
+</li>
       <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.to">to() (ctranslate2.StorageView method)</a>
 </li>
       <li><a href="python/ctranslate2.specs.Activation.html#ctranslate2.specs.Activation.to_bytes">to_bytes() (ctranslate2.specs.Activation method)</a>
@@ -1167,6 +1241,8 @@
       </ul></li>
       <li><a href="python/ctranslate2.StorageView.html#ctranslate2.StorageView.to_device">to_device() (ctranslate2.StorageView method)</a>
 </li>
+      <li><a href="python/ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.to_dict">to_dict() (ctranslate2.models.Drama3Result method)</a>
+</li>
       <li><a href="python/ctranslate2.GenerationStepResult.html#ctranslate2.GenerationStepResult.token">token (ctranslate2.GenerationStepResult property)</a>
 </li>
   </ul></td>
@@ -1175,7 +1251,11 @@
 </li>
       <li><a href="python/ctranslate2.ScoringResult.html#ctranslate2.ScoringResult.tokens">tokens (ctranslate2.ScoringResult property)</a>
 </li>
+      <li><a href="python/ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.total_native_seconds">total_native_seconds (ctranslate2.models.Drama3Timings property)</a>
+</li>
       <li><a href="python/ctranslate2.ExecutionStats.html#ctranslate2.ExecutionStats.total_time_in_ms">total_time_in_ms (ctranslate2.ExecutionStats property)</a>
+</li>
+      <li><a href="python/ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.tower_decode_seconds">tower_decode_seconds (ctranslate2.models.Drama3Timings property)</a>
 </li>
       <li><a href="python/ctranslate2.specs.TransformerDecoderModelSpec.html#ctranslate2.specs.TransformerDecoderModelSpec">TransformerDecoderModelSpec (class in ctranslate2.specs)</a>
 </li>
@@ -1225,9 +1305,11 @@
 <h2 id="V">V</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.validate">validate() (ctranslate2.specs.LanguageModelSpec method)</a>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.validate">validate() (ctranslate2.specs.Drama3Spec method)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.validate">(ctranslate2.specs.LanguageModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec.validate">(ctranslate2.specs.LayerSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.validate">(ctranslate2.specs.ModelSpec method)</a>
@@ -1259,9 +1341,11 @@
       </ul></li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
-      <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.variables">variables() (ctranslate2.specs.LanguageModelSpec method)</a>
+      <li><a href="python/ctranslate2.specs.Drama3Spec.html#ctranslate2.specs.Drama3Spec.variables">variables() (ctranslate2.specs.Drama3Spec method)</a>
 
       <ul>
+        <li><a href="python/ctranslate2.specs.LanguageModelSpec.html#ctranslate2.specs.LanguageModelSpec.variables">(ctranslate2.specs.LanguageModelSpec method)</a>
+</li>
         <li><a href="python/ctranslate2.specs.LayerSpec.html#ctranslate2.specs.LayerSpec.variables">(ctranslate2.specs.LayerSpec method)</a>
 </li>
         <li><a href="python/ctranslate2.specs.ModelSpec.html#ctranslate2.specs.ModelSpec.variables">(ctranslate2.specs.ModelSpec method)</a>
@@ -1308,6 +1392,8 @@
       <li><a href="python/ctranslate2.models.WhisperGenerationResultAsync.html#ctranslate2.models.WhisperGenerationResultAsync">WhisperGenerationResultAsync (class in ctranslate2.models)</a>
 </li>
       <li><a href="python/ctranslate2.specs.WhisperSpec.html#ctranslate2.specs.WhisperSpec">WhisperSpec (class in ctranslate2.specs)</a>
+</li>
+      <li><a href="python/ctranslate2.converters.TransformersConverter.html#ctranslate2.converters.TransformersConverter.write_report">write_report() (ctranslate2.converters.TransformersConverter method)</a>
 </li>
   </ul></td>
 </tr></table>

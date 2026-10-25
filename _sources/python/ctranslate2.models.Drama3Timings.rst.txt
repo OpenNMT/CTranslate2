@@ -1,0 +1,17 @@
+Drama3Timings
+=============
+
+.. autoclass:: ctranslate2.models.Drama3Timings
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.models.Drama3Timings.backbone_decode_seconds`
+    - :obj:`~ctranslate2.models.Drama3Timings.codec_seconds`
+    - :obj:`~ctranslate2.models.Drama3Timings.prefill_seconds`
+    - :obj:`~ctranslate2.models.Drama3Timings.total_native_seconds`
+    - :obj:`~ctranslate2.models.Drama3Timings.tower_decode_seconds`

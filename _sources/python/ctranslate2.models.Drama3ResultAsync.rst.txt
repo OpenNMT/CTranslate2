@@ -1,0 +1,14 @@
+Drama3ResultAsync
+=================
+
+.. autoclass:: ctranslate2.models.Drama3ResultAsync
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.models.Drama3ResultAsync.done`
+    - :obj:`~ctranslate2.models.Drama3ResultAsync.result`

@@ -1,0 +1,21 @@
+Drama3Result
+============
+
+.. autoclass:: ctranslate2.models.Drama3Result
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.models.Drama3Result.audio`
+    - :obj:`~ctranslate2.models.Drama3Result.codes`
+    - :obj:`~ctranslate2.models.Drama3Result.finish_reason`
+    - :obj:`~ctranslate2.models.Drama3Result.sample_rate`
+    - :obj:`~ctranslate2.models.Drama3Result.timings`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.models.Drama3Result.to_dict`

@@ -10,6 +10,7 @@ ModelSpec
 
     **Extended by:**
 
+    - :class:`ctranslate2.specs.Drama3Spec`
     - :class:`ctranslate2.specs.LanguageModelSpec`
     - :class:`ctranslate2.specs.SequenceToSequenceModelSpec`
 

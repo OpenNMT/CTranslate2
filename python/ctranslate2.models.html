@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ctranslate2.models &mdash; CTranslate2 4.8.3 documentation</title>
+  <title>ctranslate2.models &mdash; CTranslate2 4.8.4 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -22,7 +22,7 @@
     <script src="../_static/js/theme.js"></script>
     <link rel="index" title="Index" href="../genindex.html" />
     <link rel="search" title="Search" href="../search.html" />
-    <link rel="next" title="Wav2Vec2" href="ctranslate2.models.Wav2Vec2.html" />
+    <link rel="next" title="Drama3" href="ctranslate2.models.Drama3.html" />
     <link rel="prev" title="TransformersConverter" href="ctranslate2.converters.TransformersConverter.html" /> 
 </head>
 
@@ -55,6 +55,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../encoding.html">Text encoding</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_synthesis.html">Speech synthesis</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Developer guides</span></p>
 <ul>
@@ -68,6 +69,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../guides/drama3.html">Drama 3</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/fairseq.html">Fairseq</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/marian.html">Marian</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/opennmt_py.html">OpenNMT-py</a></li>
@@ -81,6 +83,10 @@
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.html">ctranslate2</a></li>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.converters.html">ctranslate2.converters</a></li>
 <li class="toctree-l2 current"><a class="current reference internal" href="#">ctranslate2.models</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html">Drama3</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Result.html">Drama3Result</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3ResultAsync.html">Drama3ResultAsync</a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html">Drama3Timings</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html">Wav2Vec2</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2Bert.html">Wav2Vec2Bert</a></li>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Whisper.html">Whisper</a></li>
@@ -129,6 +135,52 @@
 and <a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.Generator" title="ctranslate2.Generator"><code class="xref py py-class docutils literal notranslate"><span class="pre">ctranslate2.Generator</span></code></a>.</p>
 <div class="toctree-wrapper compound">
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Drama3.html">Drama3</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3"><code class="docutils literal notranslate"><span class="pre">Drama3</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.__init__"><code class="docutils literal notranslate"><span class="pre">Drama3.__init__()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.generate"><code class="docutils literal notranslate"><span class="pre">Drama3.generate()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.generate_batch"><code class="docutils literal notranslate"><span class="pre">Drama3.generate_batch()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.compute_type"><code class="docutils literal notranslate"><span class="pre">Drama3.compute_type</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.device"><code class="docutils literal notranslate"><span class="pre">Drama3.device</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.device_index"><code class="docutils literal notranslate"><span class="pre">Drama3.device_index</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.num_active_batches"><code class="docutils literal notranslate"><span class="pre">Drama3.num_active_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.num_queued_batches"><code class="docutils literal notranslate"><span class="pre">Drama3.num_queued_batches</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3.html#ctranslate2.models.Drama3.num_replicas"><code class="docutils literal notranslate"><span class="pre">Drama3.num_replicas</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Drama3Result.html">Drama3Result</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result"><code class="docutils literal notranslate"><span class="pre">Drama3Result</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.to_dict"><code class="docutils literal notranslate"><span class="pre">Drama3Result.to_dict()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.audio"><code class="docutils literal notranslate"><span class="pre">Drama3Result.audio</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.codes"><code class="docutils literal notranslate"><span class="pre">Drama3Result.codes</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.finish_reason"><code class="docutils literal notranslate"><span class="pre">Drama3Result.finish_reason</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.sample_rate"><code class="docutils literal notranslate"><span class="pre">Drama3Result.sample_rate</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Result.html#ctranslate2.models.Drama3Result.timings"><code class="docutils literal notranslate"><span class="pre">Drama3Result.timings</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Drama3ResultAsync.html">Drama3ResultAsync</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Drama3ResultAsync.html#ctranslate2.models.Drama3ResultAsync"><code class="docutils literal notranslate"><span class="pre">Drama3ResultAsync</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3ResultAsync.html#ctranslate2.models.Drama3ResultAsync.done"><code class="docutils literal notranslate"><span class="pre">Drama3ResultAsync.done()</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3ResultAsync.html#ctranslate2.models.Drama3ResultAsync.result"><code class="docutils literal notranslate"><span class="pre">Drama3ResultAsync.result()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html">Drama3Timings</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings"><code class="docutils literal notranslate"><span class="pre">Drama3Timings</span></code></a><ul>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.backbone_decode_seconds"><code class="docutils literal notranslate"><span class="pre">Drama3Timings.backbone_decode_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.codec_seconds"><code class="docutils literal notranslate"><span class="pre">Drama3Timings.codec_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.prefill_seconds"><code class="docutils literal notranslate"><span class="pre">Drama3Timings.prefill_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.total_native_seconds"><code class="docutils literal notranslate"><span class="pre">Drama3Timings.total_native_seconds</span></code></a></li>
+<li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Drama3Timings.html#ctranslate2.models.Drama3Timings.tower_decode_seconds"><code class="docutils literal notranslate"><span class="pre">Drama3Timings.tower_decode_seconds</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
 <li class="toctree-l1"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html">Wav2Vec2</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2</span></code></a><ul>
 <li class="toctree-l3"><a class="reference internal" href="ctranslate2.models.Wav2Vec2.html#ctranslate2.models.Wav2Vec2.__init__"><code class="docutils literal notranslate"><span class="pre">Wav2Vec2.__init__()</span></code></a></li>
@@ -217,7 +269,7 @@ and <a class="reference internal" href="ctranslate2.Generator.html#ctranslate2.G
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="ctranslate2.converters.TransformersConverter.html" class="btn btn-neutral float-left" title="TransformersConverter" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="ctranslate2.models.Wav2Vec2.html" class="btn btn-neutral float-right" title="Wav2Vec2" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="ctranslate2.models.Drama3.html" class="btn btn-neutral float-right" title="Drama3" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>

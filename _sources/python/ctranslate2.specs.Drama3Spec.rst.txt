@@ -1,0 +1,24 @@
+Drama3Spec
+==========
+
+.. autoclass:: ctranslate2.specs.Drama3Spec
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`ctranslate2.specs.ModelSpec`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.specs.Drama3Spec.config`
+    - :obj:`~ctranslate2.specs.Drama3Spec.name`
+    - :obj:`~ctranslate2.specs.Drama3Spec.revision`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.specs.Drama3Spec.get_default_config`
+    - :obj:`~ctranslate2.specs.Drama3Spec.optimize`
+    - :obj:`~ctranslate2.specs.Drama3Spec.register_file`
+    - :obj:`~ctranslate2.specs.Drama3Spec.save`
+    - :obj:`~ctranslate2.specs.Drama3Spec.validate`
+    - :obj:`~ctranslate2.specs.Drama3Spec.variables`

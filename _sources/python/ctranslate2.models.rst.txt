@@ -5,6 +5,10 @@ ctranslate2.models
 
 .. toctree::
 
+   ctranslate2.models.Drama3
+   ctranslate2.models.Drama3Result
+   ctranslate2.models.Drama3ResultAsync
+   ctranslate2.models.Drama3Timings
    ctranslate2.models.Wav2Vec2
    ctranslate2.models.Wav2Vec2Bert
    ctranslate2.models.Whisper

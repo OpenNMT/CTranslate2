@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>TransformersConverter &mdash; CTranslate2 4.8.3 documentation</title>
+  <title>TransformersConverter &mdash; CTranslate2 4.8.4 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -55,6 +55,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../encoding.html">Text encoding</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_synthesis.html">Speech synthesis</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Developer guides</span></p>
 <ul>
@@ -68,6 +69,7 @@
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
 <ul>
+<li class="toctree-l1"><a class="reference internal" href="../guides/drama3.html">Drama 3</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/fairseq.html">Fairseq</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/marian.html">Marian</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../guides/opennmt_py.html">OpenNMT-py</a></li>
@@ -143,8 +145,10 @@
 <li><p><a class="reference internal" href="#ctranslate2.converters.TransformersConverter.convert_from_args" title="ctranslate2.converters.TransformersConverter.convert_from_args"><code class="xref py py-obj docutils literal notranslate"><span class="pre">convert_from_args</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.converters.TransformersConverter.declare_arguments" title="ctranslate2.converters.TransformersConverter.declare_arguments"><code class="xref py py-obj docutils literal notranslate"><span class="pre">declare_arguments</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.converters.TransformersConverter.get_model_file" title="ctranslate2.converters.TransformersConverter.get_model_file"><code class="xref py py-obj docutils literal notranslate"><span class="pre">get_model_file</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.converters.TransformersConverter.inspect" title="ctranslate2.converters.TransformersConverter.inspect"><code class="xref py py-obj docutils literal notranslate"><span class="pre">inspect</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.converters.TransformersConverter.load_model" title="ctranslate2.converters.TransformersConverter.load_model"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_model</span></code></a></p></li>
 <li><p><a class="reference internal" href="#ctranslate2.converters.TransformersConverter.load_tokenizer" title="ctranslate2.converters.TransformersConverter.load_tokenizer"><code class="xref py py-obj docutils literal notranslate"><span class="pre">load_tokenizer</span></code></a></p></li>
+<li><p><a class="reference internal" href="#ctranslate2.converters.TransformersConverter.write_report" title="ctranslate2.converters.TransformersConverter.write_report"><code class="xref py py-obj docutils literal notranslate"><span class="pre">write_report</span></code></a></p></li>
 </ul>
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.converters.TransformersConverter.__init__">
@@ -174,7 +178,7 @@ with <code class="docutils literal notranslate"><span class="pre">from_pretraine
 
 <dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.converters.TransformersConverter.convert">
-<span class="sig-name descname"><span class="pre">convert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">str</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vmap</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantization</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Optional</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">]</span></span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">bool</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">str</span></span></span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.convert" title="Permalink to this definition"></a></dt>
+<span class="sig-name descname"><span class="pre">convert</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">output_dir</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">vmap</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">quantization</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">force</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">False</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.convert" title="Permalink to this definition"></a></dt>
 <dd><p>Converts the model to the CTranslate2 format.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters</dt>
@@ -233,6 +237,12 @@ with the parsed command line options.</p>
 <dd></dd></dl>
 
 <dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.converters.TransformersConverter.inspect">
+<span class="sig-name descname"><span class="pre">inspect</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">quantization</span></span><span class="o"><span class="pre">=</span></span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.inspect" title="Permalink to this definition"></a></dt>
+<dd><p>Audit a local Drama 3 checkpoint without loading weight payloads.</p>
+</dd></dl>
+
+<dl class="py method">
 <dt class="sig sig-object py" id="ctranslate2.converters.TransformersConverter.load_model">
 <span class="sig-name descname"><span class="pre">load_model</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">model_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name_or_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.load_model" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
@@ -241,6 +251,12 @@ with the parsed command line options.</p>
 <dt class="sig sig-object py" id="ctranslate2.converters.TransformersConverter.load_tokenizer">
 <span class="sig-name descname"><span class="pre">load_tokenizer</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">tokenizer_class</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">model_name_or_path</span></span></em>, <em class="sig-param"><span class="o"><span class="pre">**</span></span><span class="n"><span class="pre">kwargs</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.load_tokenizer" title="Permalink to this definition"></a></dt>
 <dd></dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="ctranslate2.converters.TransformersConverter.write_report">
+<span class="sig-name descname"><span class="pre">write_report</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">path</span></span></em><span class="sig-paren">)</span><a class="headerlink" href="#ctranslate2.converters.TransformersConverter.write_report" title="Permalink to this definition"></a></dt>
+<dd><p>Write the current inspection or conversion report as JSON.</p>
+</dd></dl>
 
 </dd></dl>
 

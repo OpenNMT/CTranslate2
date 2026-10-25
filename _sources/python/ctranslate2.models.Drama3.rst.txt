@@ -1,0 +1,23 @@
+Drama3
+======
+
+.. autoclass:: ctranslate2.models.Drama3
+    :members:
+    :undoc-members:
+    :inherited-members:
+
+    **Inherits from:** :class:`pybind11_builtins.pybind11_object`
+
+    **Attributes:**
+
+    - :obj:`~ctranslate2.models.Drama3.compute_type`
+    - :obj:`~ctranslate2.models.Drama3.device`
+    - :obj:`~ctranslate2.models.Drama3.device_index`
+    - :obj:`~ctranslate2.models.Drama3.num_active_batches`
+    - :obj:`~ctranslate2.models.Drama3.num_queued_batches`
+    - :obj:`~ctranslate2.models.Drama3.num_replicas`
+
+    **Methods:**
+
+    - :obj:`~ctranslate2.models.Drama3.generate`
+    - :obj:`~ctranslate2.models.Drama3.generate_batch`

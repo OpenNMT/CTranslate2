@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Drama 3 &mdash; CTranslate2 4.8.4 documentation</title>
+      <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="../_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="../_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="../" id="documentation_options" src="../_static/documentation_options.js"></script>
+        <script src="../_static/jquery.js"></script>
+        <script src="../_static/underscore.js"></script>
+        <script src="../_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="../_static/doctools.js"></script>
+        <script src="../_static/sphinx_highlight.js"></script>
+    <script src="../_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="../genindex.html" />
+    <link rel="search" title="Search" href="../search.html" />
+    <link rel="next" title="Fairseq" href="fairseq.html" />
+    <link rel="prev" title="Environment variables" href="../environment_variables.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="../index.html" class="icon icon-home"> CTranslate2
+          </a>
+              <div class="version">
+                4.8
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="../search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../translation.html">Text translation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../encoding.html">Text encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_recognition.html">Speech recognition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../speech_synthesis.html">Speech synthesis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../conversion.html">Model conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../quantization.html">Quantization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../decoding.html">Decoding features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../parallel.html">Multithreading and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../memory.html">Memory management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../performance.html">Performance tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../environment_variables.html">Environment variables</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
+<ul class="current">
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Drama 3</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#supported-scope">Supported scope</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#model-conversion">Model conversion</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#text-to-speech">Text-to-speech</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#cpu-execution">CPU execution</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#cuda-and-rocm">CUDA and ROCm</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#loading-options">Loading options</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#memory-configuration">Memory configuration</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toctree-l1"><a class="reference internal" href="fairseq.html">Fairseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="marian.html">Marian</a></li>
+<li class="toctree-l1"><a class="reference internal" href="opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l1"><a class="reference internal" href="opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="transformers.html">Transformers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../python/overview.html">Python</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Other information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../hardware_support.html">Hardware support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../versioning.html">Versioning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="../index.html">CTranslate2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="../index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Drama 3</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="drama-3">
+<h1>Drama 3<a class="headerlink" href="#drama-3" title="Permalink to this heading"></a></h1>
+<p>Drama 3 provides experimental offline text-to-speech on CPU, with optional
+CUDA or ROCm acceleration for backbone and tower projections. The native runtime
+generates audio codes and decodes them to a mono waveform.</p>
+<section id="supported-scope">
+<h2>Supported scope<a class="headerlink" href="#supported-scope" title="Permalink to this heading"></a></h2>
+<p>Supported: offline synthesis and waveform decoding. Unsupported: reference-audio
+voice cloning, audio encoding, voice design, a dedicated multi-speaker API,
+speech editing or history, automatic long-text splitting, public streaming,
+and tensor batching. Independent requests can be submitted together and scheduled
+across execution replicas. Transcription is a separate speech-recognition task.</p>
+<p>Voice cloning requires a reference-audio encoder and reference-conditioned
+prompt preparation; the waveform decoder cannot encode reference recordings.</p>
+</section>
+<section id="model-conversion">
+<h2>Model conversion<a class="headerlink" href="#model-conversion" title="Permalink to this heading"></a></h2>
+<p>Convert the official Drama 3 checkpoint with the Transformers converter:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>ct2-transformers-converter<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--model<span class="w"> </span>/path/to/drama-3-official<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--output_dir<span class="w"> </span>/path/to/drama-3-ct2<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>--quantization<span class="w"> </span>float32<span class="w"> </span>--dry-run
+</pre></div>
+</div>
+<p>Remove <code class="docutils literal notranslate"><span class="pre">--dry-run</span></code> to convert. A dry run audits mappings and shapes without
+loading weights or creating the output directory; <code class="docutils literal notranslate"><span class="pre">--report</span> <span class="pre">plan.json</span></code> saves
+the audit. No files are downloaded. Use <code class="docutils literal notranslate"><span class="pre">--force</span></code> to replace an existing directory.</p>
+<p>The Python API uses the standard CTranslate2 <code class="docutils literal notranslate"><span class="pre">Converter</span></code> interface:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">ctranslate2.converters</span><span class="w"> </span><span class="kn">import</span> <span class="n">TransformersConverter</span>
+
+<span class="n">converter</span> <span class="o">=</span> <span class="n">TransformersConverter</span><span class="p">(</span><span class="s2">"/path/to/drama-3-official"</span><span class="p">)</span>
+<span class="n">converter</span><span class="o">.</span><span class="n">convert</span><span class="p">(</span><span class="s2">"/path/to/drama-3-ct2"</span><span class="p">,</span> <span class="n">quantization</span><span class="o">=</span><span class="s2">"float32"</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Fish Speech is not required. Use <code class="docutils literal notranslate"><span class="pre">--quantization</span> <span class="pre">int8_float32</span></code> for INT8 weights
+with FLOAT32 activations; codec weights remain FLOAT32. See the
+<a class="reference internal" href="../quantization.html"><span class="doc std std-doc">quantization guide</span></a> for other options. Vocabulary mapping
+is unsupported.</p>
+<p>Conversion holds model and codec weights in RAM before saving. A dry run does
+not verify speech quality.</p>
+</section>
+<section id="text-to-speech">
+<h2>Text-to-speech<a class="headerlink" href="#text-to-speech" title="Permalink to this heading"></a></h2>
+<p>See the <a class="reference external" href="https://docs.fish.audio/features/text-to-speech/drama-3">official prompting guide</a>
+for speaker tags, bracketed performance directions, paired delivery tags, and
+phoneme markers. Bracketed directions are ordinary text, not a fixed token
+vocabulary. The guide describes the upstream model; CT2’s supported scope is above.</p>
+<p>Install <code class="docutils literal notranslate"><span class="pre">tokenizers</span></code> for this single-speaker example. It prepares text-only
+prompt rows with the converted model’s local tokenizer and saves a mono PCM16 WAV:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">pathlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">Path</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">wave</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">numpy</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">np</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">tokenizers</span><span class="w"> </span><span class="kn">import</span> <span class="n">Tokenizer</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">ctranslate2.models</span><span class="w"> </span><span class="kn">import</span> <span class="n">Drama3</span>
+
+<span class="n">model_path</span> <span class="o">=</span> <span class="n">Path</span><span class="p">(</span><span class="s2">"/path/to/drama-3-ct2"</span><span class="p">)</span>
+<span class="n">tokenizer</span> <span class="o">=</span> <span class="n">Tokenizer</span><span class="o">.</span><span class="n">from_file</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">model_path</span> <span class="o">/</span> <span class="s2">"tokenizer.json"</span><span class="p">))</span>
+<span class="n">tokenizer</span><span class="o">.</span><span class="n">no_padding</span><span class="p">()</span>
+<span class="n">tokenizer</span><span class="o">.</span><span class="n">no_truncation</span><span class="p">()</span>
+<span class="n">text</span> <span class="o">=</span> <span class="s2">"Hello. This is a speech synthesis test."</span>
+<span class="n">segments</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"&lt;|im_start|&gt;system</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"convert the provided text to speech"</span><span class="p">,</span>
+    <span class="s2">"&lt;|im_end|&gt;</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"&lt;|im_start|&gt;user</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"&lt;|speaker:0|&gt; "</span> <span class="o">+</span> <span class="n">text</span><span class="p">,</span>
+    <span class="s2">"&lt;|im_end|&gt;</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"&lt;|im_start|&gt;assistant</span><span class="se">\n</span><span class="s2">&lt;|voice|&gt;"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">ids</span> <span class="o">=</span> <span class="p">[</span><span class="n">token</span> <span class="k">for</span> <span class="n">segment</span> <span class="ow">in</span> <span class="n">segments</span> <span class="k">for</span> <span class="n">token</span> <span class="ow">in</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">segment</span><span class="p">)</span><span class="o">.</span><span class="n">ids</span><span class="p">]</span>
+<span class="n">prompt_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">),</span> <span class="mi">11</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">prompt_rows</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ids</span>
+
+<span class="n">model</span> <span class="o">=</span> <span class="n">Drama3</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="n">intra_threads</span><span class="o">=</span><span class="mi">8</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">"default"</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">prompt_rows</span><span class="p">,</span> <span class="n">max_frames</span><span class="o">=</span><span class="mi">256</span><span class="p">,</span> <span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">"sample_rate"</span><span class="p">],</span> <span class="n">result</span><span class="p">[</span><span class="s2">"audio"</span><span class="p">]</span><span class="o">.</span><span class="n">shape</span><span class="p">,</span> <span class="n">result</span><span class="p">[</span><span class="s2">"finish_reason"</span><span class="p">])</span>
+<span class="n">pcm</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">rint</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">clip</span><span class="p">(</span><span class="n">result</span><span class="p">[</span><span class="s2">"audio"</span><span class="p">],</span> <span class="o">-</span><span class="mi">1</span><span class="p">,</span> <span class="mi">1</span><span class="p">)</span> <span class="o">*</span> <span class="mi">32767</span><span class="p">)</span><span class="o">.</span><span class="n">astype</span><span class="p">(</span><span class="s2">"&lt;i2"</span><span class="p">)</span>
+<span class="k">with</span> <span class="n">wave</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"hello.wav"</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">wav</span><span class="p">:</span>
+    <span class="n">wav</span><span class="o">.</span><span class="n">setparams</span><span class="p">((</span><span class="mi">1</span><span class="p">,</span> <span class="mi">2</span><span class="p">,</span> <span class="n">result</span><span class="p">[</span><span class="s2">"sample_rate"</span><span class="p">],</span> <span class="mi">0</span><span class="p">,</span> <span class="s2">"NONE"</span><span class="p">,</span> <span class="s2">"not compressed"</span><span class="p">))</span>
+    <span class="n">wav</span><span class="o">.</span><span class="n">writeframes</span><span class="p">(</span><span class="n">pcm</span><span class="o">.</span><span class="n">tobytes</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>Encode segments separately to preserve token boundaries; the generic chat
+template cannot replace this prompt. Input text must not contain reserved prompt
+tokens or speaker tags. <code class="docutils literal notranslate"><span class="pre">prompt_rows</span></code> must be contiguous INT32 <code class="docutils literal notranslate"><span class="pre">[rows,</span> <span class="pre">11]</span></code>:
+tokenizer IDs in column 0 and zeros in the ten codec columns for text rows.
+The native API does not accept plain text strings or encode reference audio.</p>
+<p>Local paths trigger no downloads. Synthesis requires no PyTorch, Transformers,
+audio.cpp, or GGML.</p>
+<p>See the <a class="reference internal" href="../python/ctranslate2.models.Drama3.html"><span class="doc std std-doc">Python API reference</span></a> for
+constructor options, generation parameters and defaults, and result fields.</p>
+<section id="cpu-execution">
+<h3>CPU execution<a class="headerlink" href="#cpu-execution" title="Permalink to this heading"></a></h3>
+<p>The synthesis graph and codec use FLOAT32 activations. For FP8 storage with
+FLOAT32 execution, selected experts are decoded on demand. INT8/INT16 execution
+decodes and quantizes matrices at load time, requiring temporary memory.
+All experts remain resident in RAM; sparse selection reduces computation,
+not storage.</p>
+</section>
+<section id="cuda-and-rocm">
+<h3>CUDA and ROCm<a class="headerlink" href="#cuda-and-rocm" title="Permalink to this heading"></a></h3>
+<p>Build with <code class="docutils literal notranslate"><span class="pre">WITH_CUDA=ON</span></code> for NVIDIA or <code class="docutils literal notranslate"><span class="pre">WITH_HIP=ON</span></code> for AMD (see
+<a class="reference internal" href="../installation.html"><span class="doc std std-doc">installation</span></a>). Both use <code class="docutils literal notranslate"><span class="pre">device=&quot;cuda&quot;</span></code>:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">model</span> <span class="o">=</span> <span class="n">Drama3</span><span class="p">(</span>
+    <span class="nb">str</span><span class="p">(</span><span class="n">model_path</span><span class="p">),</span> <span class="n">device</span><span class="o">=</span><span class="s2">"cuda"</span><span class="p">,</span> <span class="n">device_index</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span> <span class="n">compute_type</span><span class="o">=</span><span class="s2">"float16"</span>
+<span class="p">)</span>
+</pre></div>
+</div>
+<p>Use <code class="docutils literal notranslate"><span class="pre">device=&quot;auto&quot;</span></code> to select an available GPU. Supported compute types depend
+on the backend; <code class="docutils literal notranslate"><span class="pre">default</span></code> and <code class="docutils literal notranslate"><span class="pre">auto</span></code> allow fallback.</p>
+<p>Read <code class="docutils literal notranslate"><span class="pre">model.device</span></code>, <code class="docutils literal notranslate"><span class="pre">model.device_index</span></code>, and <code class="docutils literal notranslate"><span class="pre">model.compute_type</span></code> to inspect
+the resolved execution settings. As with Whisper, <code class="docutils literal notranslate"><span class="pre">device_index</span></code> is a list
+(for example, <code class="docutils literal notranslate"><span class="pre">[0]</span></code>). The compute type describes execution precision, independently
+of the CPU checkpoint storage; some stages still use FLOAT32 activations.</p>
+<p>Backbone and tower projections, including experts, run on GPU. The remaining
+operations and waveform decoder run on CPU. Tensor parallelism is unsupported.</p>
+<p>Expert weights upload on first use and remain cached, so GPU memory use grows
+as new experts are selected. Limit this cache with
+<a class="reference internal" href="../environment_variables.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">CT2_DRAMA3_GPU_EXPERT_CACHE_GB</span></code></span></a>.
+Existing converted checkpoints work unchanged; output audio and codes are CPU arrays.</p>
+</section>
+<section id="loading-options">
+<h3>Loading options<a class="headerlink" href="#loading-options" title="Permalink to this heading"></a></h3>
+<p>CPU inference loads weights into allocated RAM. On Linux, the optional GPU
+expert cache maps supported INT8 and FP8 expert weights from local checkpoints;
+see <code class="docutils literal notranslate"><span class="pre">CT2_DRAMA3_GPU_EXPERT_CACHE_GB</span></code> above.</p>
+</section>
+<section id="memory-configuration">
+<h3>Memory configuration<a class="headerlink" href="#memory-configuration" title="Permalink to this heading"></a></h3>
+<p>Memory use is controlled by checkpoint quantization and the sizes of individual
+allocations, without a guaranteed total RAM ceiling:</p>
+<ul class="simple">
+<li><p>The default FP8 checkpoint is supported directly; no separate INT8 model is
+required. Compute type and checkpoint quantization affect weight allocations.
+Selecting INT8 compute for FP8 weights performs runtime conversion and allocates
+the converted tensors.</p></li>
+<li><p>Limit prompt and history length and <code class="docutils literal notranslate"><span class="pre">max_frames</span></code> to bound generated context
+and output allocations. The checkpoint’s maximum context remains the upper bound.</p></li>
+<li><p>Lower <code class="docutils literal notranslate"><span class="pre">prefill_chunk_size</span></code> to reduce prompt-processing intermediate allocations.
+It does not reduce retained history or enable streaming. Generation accepts one
+sequence per replica at a time; independent calls use the replica pool.</p></li>
+<li><p><a class="reference internal" href="../environment_variables.html"><span class="doc std std-doc"><code class="docutils literal notranslate"><span class="pre">CT2_DRAMA3_GPU_EXPERT_CACHE_GB</span></code></span></a>
+bounds cached GPU expert weights, rather than total VRAM, on CUDA and ROCm.
+Other allocations require additional memory.</p></li>
+</ul>
+<p>Drama3 currently has no independent KV-cache precision setting. Compute type does
+not imply that its attention cache uses that precision. CT2 does not create
+systemd scopes or configure process memory limits.</p>
+</section>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="../environment_variables.html" class="btn btn-neutral float-left" title="Environment variables" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="fairseq.html" class="btn btn-neutral float-right" title="Fairseq" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p></p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>
