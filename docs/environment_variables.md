@@ -64,6 +64,32 @@ Force CTranslate2 to select a specific instruction set architecture (ISA). Possi
 This does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.
 ```
 
+## `CT2_DRAMA3_CPU_MMAP`
+
+Set to `1` to memory-map Drama3's byte-encoded expert weights from a local
+checkpoint on Linux or macOS with `device="cpu"`. Default: `0`.
+Requires `compute_type="default"` or `"float32"`. FP8 projections decode on demand;
+standard quantized weights may allocate converted copies.
+
+Mapped pages are reclaimable, but other weights and inference state still use
+RAM. This does not set a memory limit. Performance depends on disk speed and
+filesystem cache. Keep the checkpoint unchanged while loaded.
+
+## `CT2_DRAMA3_GPU_EXPERT_CACHE_GB`
+
+Limit Drama3's GPU expert weights and quantization scales in decimal GB
+(e.g. `CT2_DRAMA3_GPU_EXPERT_CACHE_GB=8`). Unset, empty, or `0` means unlimited;
+invalid values raise an error. Requires Linux, a local checkpoint, and
+`device="cuda"` (CUDA or ROCm).
+
+The budget is split equally across backbone layers, each with LRU eviction.
+Each layer must fit its selected routed experts and shared expert; smaller
+budgets raise an error. Cache size depends on compute type. Byte-encoded CPU experts are
+memory-mapped; floating-point CPU weights remain resident.
+
+This limits the expert cache, not total VRAM or RAM. Other weights, inference
+state, temporary allocations, and allocator overhead require additional memory.
+
 ## `CT2_PACKED_GEMM`
 
 Enable or disable the packed GEMM API for Intel MKL. Packed GEMM is enabled by default when using the MKL backend and improves decoding performance by pre-packing weight matrices at model load time. Set to `0` to disable it. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.

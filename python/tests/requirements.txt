@@ -4,3 +4,4 @@ protobuf;platform_system=='Linux'
 pytest
 wurlitzer==3.1.*;sys_platform=='linux'
 torch==2.12
+safetensors
