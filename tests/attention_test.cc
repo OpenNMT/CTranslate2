@@ -1,5 +1,40 @@
 #include "test_utils.h"
 #include "ctranslate2/layers/attention.h"
+#include "layers/attention_utils.h"
+
+#ifdef CT2_WITH_CUDA
+#  include "cuda/utils.h"
+
+TEST(AttentionTest, Float16ScoreAccumulation) {
+  const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(true);
+  // The unscaled dot product is 160000, outside FP16's range, while
+  // the scaled score (20000) and the expected probabilities are representable.
+  // Cover single and strided-batched GEMMs, relative keys, and optional weights.
+  for (const dim_t heads : {1, 2}) {
+    StorageView queries = StorageView({1, heads, 1, 64}, 50.f).to(Device::CUDA).to_float16();
+    StorageView values = StorageView({1, heads, 2, 64}, 2.f).to(Device::CUDA).to_float16();
+    StorageView relative_keys = StorageView({3, 64}, 50.f).to(Device::CUDA).to_float16();
+    for (const bool use_relative_keys : {false, true}) {
+      StorageView keys = StorageView({1, heads, 2, 64}, use_relative_keys ? 0.f : 50.f)
+        .to(Device::CUDA).to_float16();
+      for (const bool return_attention : {false, true}) {
+        StorageView output(DataType::FLOAT16, Device::CUDA);
+        StorageView attention(DataType::FLOAT16, Device::CUDA);
+        layers::dot_product_attention(queries, keys, values, nullptr,
+                                      use_relative_keys ? &relative_keys : nullptr,
+                                      nullptr, nullptr, nullptr,
+                                      0, 0, 1, output,
+                                      return_attention ? &attention : nullptr,
+                                      true, 0.125f);
+        EXPECT_TRUE(cuda::use_true_fp16_gemm());
+        expect_storage_eq(output.to_float32(), StorageView({1, heads, 1, 64}, 2.f));
+        if (return_attention)
+          expect_storage_eq(attention.to_float32(), StorageView({1, heads, 1, 2}, 0.5f));
+      }
+    }
+  }
+}
+#endif
 
 class MockModel : public models::Model {
 public:
