@@ -352,6 +352,21 @@ class Drama3RuntimeTest(unittest.TestCase):
         self.assertEqual(stats["hits"], 1)
         self.assertEqual(stats["misses"], 1)
 
+    def test_static_prefix_cache_uses_current_request_capacity(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        model.generate(self.prompt, max_frames=1, greedy=True, static_prompt_rows=1)
+        for prompt, max_frames in ((self.prompt, 5), (np.tile(self.prompt, (3, 1)), 2)):
+            with self.subTest(rows=len(prompt), max_frames=max_frames):
+                baseline = model.generate(prompt, max_frames=max_frames, greedy=True)
+                cached = model.generate(
+                    prompt, max_frames=max_frames, greedy=True, static_prompt_rows=1
+                )
+                np.testing.assert_array_equal(cached.codes, baseline.codes)
+                np.testing.assert_array_equal(cached.audio, baseline.audio)
+        self.assertEqual(model.prefix_cache_stats["hits"], 2)
+
     def test_static_prefix_cache_distinguishes_keys(self):
         model = ctranslate2.models.Drama3(
             self.directory.name, intra_threads=1, inter_threads=1

@@ -22,6 +22,7 @@ namespace ctranslate2 {
     struct Drama3StateSnapshot {
       layers::DramaBackboneState backbone;
       layers::DramaTowerState tower;
+      StorageView last_hidden;
     };
 
     Drama3StateCache::Drama3StateCache() = default;
@@ -253,6 +254,23 @@ namespace ctranslate2 {
                                           source.data<T>() + (first + count) * columns));
       }
 
+      void restore_attention_cache(const layers::GatedSelfAttentionCache& source,
+                                   layers::GatedSelfAttentionCache& target) {
+        // Keep the newly allocated capacity and copy only initialized prefix rows.
+        if (source.length > 0) {
+          const ScopedDeviceSetter setter(target.keys.device(), target.keys.device_index());
+          auto shape = target.keys.shape();
+          shape[0] = source.length;
+          for (const auto tensors : {std::make_pair(&source.keys, &target.keys),
+                                    std::make_pair(&source.values, &target.values)}) {
+            StorageView prefix(shape, tensors.second->data<float>(), tensors.second->device());
+            prefix.copy_from(tensors.first->data<float>(), prefix.size(),
+                             tensors.first->device());
+          }
+        }
+        target.length = source.length;
+      }
+
     }
 
     struct Drama3Replica::Impl : ModelReplica {
@@ -442,18 +460,36 @@ namespace ctranslate2 {
             key.assign(prompt.data<int32_t>(),
                        prompt.data<int32_t>() + static_n * 11);
             if (const auto* snap = cache->get(key)) {
-              // StorageView copy constructor deep-copies the KV tensors.
-              state.backbone_state = snap->backbone;
-              state.tower_state = snap->tower;
+              for (size_t i = 0; i < snap->backbone.layers.size(); ++i) {
+                const auto& source = snap->backbone.layers[i];
+                auto& target = state.backbone_state.layers[i];
+                target.recurrent = source.recurrent;
+                target.history = source.history;
+                restore_attention_cache(source.attention, target.attention);
+              }
+              state.backbone_state.length = snap->backbone.length;
+              for (size_t i = 0; i < snap->tower.shared.size(); ++i)
+                restore_attention_cache(snap->tower.shared[i], state.tower_state.shared[i]);
+              for (size_t i = 0; i < snap->tower.residual.size(); ++i)
+                restore_attention_cache(snap->tower.residual[i], state.tower_state.residual[i]);
+              state.tower_state.length = snap->tower.length;
+              state.hidden = snap->last_hidden;
               start = static_n;
             }
           }
         }
         if (start == 0 && cache) {
           prefill_rows(prompt, 0, static_n, chunk_size, state);
-          cache->save(std::move(key), {state.backbone_state, state.tower_state});
+          state.hidden = rows<float>(state.hidden, state.hidden.dim(0) - 1, 1);
+          cache->save(std::move(key),
+                      {state.backbone_state, state.tower_state, state.hidden});
           start = static_n;
         }
+        // The prefix tower state stops one row before the backbone because its
+        // last hidden row must be paired with the first, request-specific suffix row.
+        if (start > 0)
+          tower->prefill(state.hidden, rows<int32_t>(prompt, start - 1, 1),
+                         rows<int32_t>(prompt, start, 1), state.tower_state);
         prefill_rows(prompt, start, total, chunk_size, state);
         state.hidden = rows<float>(state.hidden, state.hidden.dim(0) - 1, 1);
         state.logits = rows<float>(state.logits, state.logits.dim(0) - 1, 1);
