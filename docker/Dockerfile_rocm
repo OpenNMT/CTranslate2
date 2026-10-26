@@ -25,7 +25,12 @@ RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PROD
     apt-key add *.PUB && \
     rm *.PUB && \
     echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list && \
-    apt-get update && \
+    for attempt in 1 2 3; do \
+        apt-get update && break; \
+        [ "$attempt" -lt 3 ] || exit 1; \
+        rm -rf /var/lib/apt/lists/*; \
+        sleep 30; \
+    done && \
     apt-get install -y --no-install-recommends \
         intel-oneapi-mkl-devel-$ONEAPI_VERSION \
         && \
@@ -90,7 +95,12 @@ RUN cd python && \
 
 FROM rocm/dev-ubuntu-22.04:${ROCM_VERSION}
 
-RUN apt-get update && \
+RUN for attempt in 1 2 3; do \
+        apt-get update && break; \
+        [ "$attempt" -lt 3 ] || exit 1; \
+        rm -rf /var/lib/apt/lists/*; \
+        sleep 30; \
+    done && \
     apt-get install -y --no-install-recommends \
         rocm-hip-libraries \
         openmpi-bin \

@@ -292,6 +292,10 @@ namespace ctranslate2 {
 
   StorageView& StorageView::shrink(dim_t dim, dim_t size) {
     GUARD_DIM(dim, rank());
+    if (size < 0)
+      THROW_INVALID_ARGUMENT("can't shrink a dimension by a negative size");
+    if (size > _shape[dim])
+      THROW_INVALID_ARGUMENT("new dimension size leads to an underflowing tensor size");
     return resize(dim, _shape[dim] - size);
   }
 

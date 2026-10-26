@@ -259,3 +259,81 @@ TEST(StorageViewTest, GrowIncreasesShape) {
   EXPECT_EQ(empty_view.dim(0), 4);
   EXPECT_EQ(empty_view.size(), 4);
 }
+
+TEST(StorageViewTest, ShrinkRejectsNegativeDecrement) {
+  // shrink() with a negative size used to reach resize() and silently grow the
+  // dimension (exposing uninitialized memory), and INT64_MIN made the subtraction
+  // overflow.
+  StorageView view(Shape{4}, DataType::INT32);
+  for (const dim_t size : {dim_t(-1), std::numeric_limits<dim_t>::min()}) {
+    try {
+      view.shrink(0, size);
+      FAIL() << "Expected a negative decrement to be rejected";
+    } catch (const std::invalid_argument& e) {
+      EXPECT_NE(std::string(e.what()).find("can't shrink a dimension by a negative size"),
+                std::string::npos);
+    }
+  }
+
+  // A rejected shrink leaves the storage untouched.
+  EXPECT_EQ(view.dim(0), 4);
+  EXPECT_EQ(view.size(), 4);
+}
+
+TEST(StorageViewTest, ShrinkRejectsUnderflow) {
+  // Shrinking by more than the current size used to fail deep inside compute_size()
+  // with a generic "shape contains a negative dimension" error, far from the
+  // offending shrink() call.
+  StorageView view(Shape{4}, DataType::INT32);
+  try {
+    view.shrink(0, 5);
+    FAIL() << "Expected an over-shrink to be rejected";
+  } catch (const std::invalid_argument& e) {
+    EXPECT_NE(std::string(e.what()).find("underflowing tensor size"), std::string::npos);
+  }
+
+  EXPECT_EQ(view.dim(0), 4);
+  EXPECT_EQ(view.size(), 4);
+
+  // Shrinking an already empty dimension by more than zero is underflow too.
+  StorageView empty_dim(Shape{0, 2}, DataType::INT32);
+  EXPECT_THROW(empty_dim.shrink(0, 1), std::invalid_argument);
+  EXPECT_EQ(empty_dim.dim(0), 0);
+  EXPECT_EQ(empty_dim.size(), 0);
+}
+
+TEST(StorageViewTest, ShrinkDecreasesShape) {
+  StorageView view(Shape{3, 4}, DataType::INT32);
+  EXPECT_EQ(view.size(), 12);
+
+  view.shrink(0, 1);
+  EXPECT_EQ(view.dim(0), 2);
+  EXPECT_EQ(view.dim(1), 4);
+  EXPECT_EQ(view.size(), 8);
+
+  // Shrinking by zero is a valid no-op.
+  view.shrink(1, 0);
+  EXPECT_EQ(view.dim(1), 4);
+  EXPECT_EQ(view.size(), 8);
+
+  view.shrink(1, 2);
+  EXPECT_EQ(view.dim(1), 2);
+  EXPECT_EQ(view.size(), 4);
+
+  // Shrinking a dimension down to exactly zero stays valid.
+  view.shrink(0, 2);
+  EXPECT_EQ(view.dim(0), 0);
+  EXPECT_EQ(view.size(), 0);
+
+  // Shrinking an already empty dimension by zero stays valid as well.
+  view.shrink(0, 0);
+  EXPECT_EQ(view.dim(0), 0);
+  EXPECT_EQ(view.size(), 0);
+
+  // Growing the emptied dimension back restores the shape (shrink/grow
+  // round-trip).
+  view.grow(0, 2);
+  EXPECT_EQ(view.dim(0), 2);
+  EXPECT_EQ(view.dim(1), 2);
+  EXPECT_EQ(view.size(), 4);
+}

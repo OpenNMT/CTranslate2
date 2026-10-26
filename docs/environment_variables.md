@@ -17,8 +17,8 @@ Boolean environment variables can be enabled with `"1"` or `"true"`.
 
 Allocating memory on the GPU with `cudaMalloc` is costly and is best avoided in high-performance code. For this reason CTranslate2 integrates caching allocators which enable a fast reuse of previously allocated buffers. The following allocators are integrated:
 
-* `cuda_malloc_async` (default for CUDA >= 11.2)<br/>Uses the [asynchronous allocator with memory pools](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY__POOLS.html) introduced in CUDA 11.2.
-* `cub_caching` (default for CUDA < 11.2)<br/>Uses the caching allocator from the [CUB project](https://github.com/NVIDIA/cub).
+* `cuda_malloc_async` (default for NVIDIA CUDA >= 11.2)<br/>Uses the [asynchronous allocator with memory pools](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY__POOLS.html) introduced in CUDA 11.2.
+* `cub_caching` (default for CUDA < 11.2 and HIP/ROCm)<br/>Uses the caching allocator from the [CUB project](https://github.com/NVIDIA/cub).
 
 ## `CT2_CUDA_ALLOW_BF16`
 
@@ -128,6 +128,32 @@ Force CTranslate2 to select a specific instruction set architecture (ISA). Possi
 ```{attention}
 This does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.
 ```
+
+## `CT2_DRAMA3_CPU_MMAP`
+
+Set to `1` to memory-map Drama3's byte-encoded expert weights from a local
+checkpoint on Linux or macOS with `device="cpu"`. Default: `0`.
+Requires `compute_type="default"` or `"float32"`. FP8 projections decode on demand;
+standard quantized weights may allocate converted copies.
+
+Mapped pages are reclaimable, but other weights and inference state still use
+RAM. This does not set a memory limit. Performance depends on disk speed and
+filesystem cache. Keep the checkpoint unchanged while loaded.
+
+## `CT2_DRAMA3_GPU_EXPERT_CACHE_GB`
+
+Limit Drama3's GPU expert weights and quantization scales in decimal GB
+(e.g. `CT2_DRAMA3_GPU_EXPERT_CACHE_GB=8`). Unset, empty, or `0` means unlimited;
+invalid values raise an error. Requires Linux, a local checkpoint, and
+`device="cuda"` (CUDA or ROCm).
+
+The budget is split equally across backbone layers, each with LRU eviction.
+Each layer must fit its selected routed experts and shared expert; smaller
+budgets raise an error. Cache size depends on compute type. Byte-encoded CPU experts are
+memory-mapped; floating-point CPU weights remain resident.
+
+This limits the expert cache, not total VRAM or RAM. Other weights, inference
+state, temporary allocations, and allocator overhead require additional memory.
 
 ## `CT2_PACKED_GEMM`
 

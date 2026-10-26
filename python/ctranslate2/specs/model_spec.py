@@ -188,7 +188,7 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                     setattr(spec, attr_name, other_name)
                     break
 
-    def _quantize(self, quantization):
+    def _quantize(self, quantization, variable_filter=None):
         """Possibly quantizes the variable of the layer."""
         if quantization is not None and quantization not in ACCEPTED_MODEL_TYPES:
             raise ValueError(
@@ -197,6 +197,8 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
             )
 
         def _quantize(spec, name, value):
+            if variable_filter is not None and not variable_filter(name):
+                return
             if not isinstance(value, Variable) or value.is_scalar():
                 return
 

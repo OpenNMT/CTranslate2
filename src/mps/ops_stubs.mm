@@ -30,6 +30,12 @@
 #include "ctranslate2/ops/gemm.h"
 #include "ctranslate2/ops/nccl_ops.h"
 #include "ctranslate2/ops/topp_mask.h"
+#include "ctranslate2/ops/causal_depthwise_conv1d.h"
+#include "ctranslate2/ops/conv_transpose1d.h"
+#include "ctranslate2/ops/dequantize_fp8.h"
+#include "ctranslate2/ops/gated_delta_net.h"
+#include "ctranslate2/ops/moe_topk.h"
+#include "ctranslate2/ops/snake.h"
 
 // --- AWQ Ops (Corrected Paths) ---
 #include "ctranslate2/ops/awq/gemm.h"
@@ -295,6 +301,59 @@ INST_TOPP(float16_t)
 INST_TOPP(bfloat16_t)
 
 template<> dim_t TopPMask::max_num_classes<Device::MPS>() { return mps::max_top_p_classes(); }
+
+// These operations were added for the experimental Drama 3 backend after the
+// initial MPS implementation. Define explicit MPS specializations so shared
+// device dispatch links successfully, but reject execution until native Metal
+// implementations are available.
+template<>
+void DequantizeFP8::compute<Device::MPS>(const StorageView&,
+                                         const StorageView&,
+                                         StorageView&) const {
+  THROW_MPS(DequantizeFP8)
+}
+
+template<>
+void GatedDeltaNet::compute<Device::MPS, float>(const StorageView&,
+                                                const StorageView&,
+                                                const StorageView&,
+                                                const StorageView&,
+                                                const StorageView&,
+                                                StorageView&,
+                                                StorageView&) const {
+  THROW_MPS(GatedDeltaNet)
+}
+
+template<>
+void ConvTranspose1D::compute<Device::MPS, float>(const StorageView&,
+                                                  const StorageView&,
+                                                  const StorageView*,
+                                                  StorageView&) const {
+  THROW_MPS(ConvTranspose1D)
+}
+
+template<>
+void CausalDepthwiseConv1D::compute<Device::MPS, float>(const StorageView&,
+                                                        const StorageView&,
+                                                        const StorageView*,
+                                                        StorageView&,
+                                                        StorageView&) const {
+  THROW_MPS(CausalDepthwiseConv1D)
+}
+
+template<>
+void Snake::compute<Device::MPS, float>(const StorageView&,
+                                        const StorageView&,
+                                        StorageView&) const {
+  THROW_MPS(Snake)
+}
+
+template<>
+void MoeTopK::compute<Device::MPS, float>(const StorageView&,
+                                          StorageView&,
+                                          StorageView&) const {
+  THROW_MPS(MoeTopK)
+}
 
 } // namespace ops
 } // namespace ctranslate2

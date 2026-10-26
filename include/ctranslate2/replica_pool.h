@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <future>
 
 #include "batch_reader.h"
@@ -162,6 +163,8 @@ namespace ctranslate2 {
     }
 
   protected:
+    ReplicaPool() = default;
+
     template <typename Result, typename Func>
     std::vector<std::future<Result>>
     post_examples(const std::vector<Example>& examples,
@@ -254,13 +257,17 @@ namespace ctranslate2 {
       initialize_pool(models, config);
     }
 
+  protected:
+    // A factory can configure replica execution independently of checkpoint storage.
     void initialize_pool(const std::vector<std::shared_ptr<const models::Model>>& models,
-                         const ReplicaPoolConfig& config) {
+                         const ReplicaPoolConfig& config,
+                         std::function<std::unique_ptr<Replica>(const models::Model&)> factory = {}) {
       CallingThreadContextGuard context_guard;
       std::vector<std::unique_ptr<Worker>> workers;
       workers.reserve(models.size());
       for (const auto& model : models) {
-        workers.emplace_back(std::make_unique<ReplicaWorker<Replica>>(model, config.num_threads_per_replica));
+        workers.emplace_back(std::make_unique<ReplicaWorker<Replica>>(
+            model, config.num_threads_per_replica, factory));
       }
 
       size_t max_queue_size = std::numeric_limits<size_t>::max();
@@ -274,6 +281,7 @@ namespace ctranslate2 {
                                                   config.cpu_core_offset);
     }
 
+  private:
     template <typename Result, typename Func>
     void post_func(Func func, std::vector<std::promise<Result>> promises) {
       _thread_pool->post(std::make_unique<BatchJob<Result, Func>>(std::move(promises),
@@ -319,11 +327,13 @@ namespace ctranslate2 {
   template <typename Replica>
   class ReplicaWorker : public Worker {
   public:
-    ReplicaWorker(const std::shared_ptr<const models::Model>& model, size_t num_threads)
+    ReplicaWorker(const std::shared_ptr<const models::Model>& model, size_t num_threads,
+                  std::function<std::unique_ptr<Replica>(const models::Model&)> factory = {})
       : _device(model->device())
       , _device_index(model->device_index())
       , _num_threads(num_threads)
       , _allocator(nullptr)
+      , _factory(std::move(factory))
     {
       set_model(model);
     }
@@ -335,7 +345,7 @@ namespace ctranslate2 {
     }
 
     void set_model(const std::shared_ptr<const models::Model>& model) {
-      _replica = Replica::create_from_model(*model);
+      _replica = _factory ? _factory(*model) : Replica::create_from_model(*model);
     }
 
     std::shared_ptr<const models::Model> detach_model() {
@@ -381,6 +391,7 @@ namespace ctranslate2 {
     const int _device_index;
     const size_t _num_threads;
     Allocator* _allocator;
+    const std::function<std::unique_ptr<Replica>(const models::Model&)> _factory;
     std::unique_ptr<Replica> _replica;
   };
 

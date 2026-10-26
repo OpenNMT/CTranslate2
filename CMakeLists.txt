@@ -140,8 +140,19 @@ set(SOURCES
   src/generator.cc
   src/layers/attention_layer.cc
   src/layers/attention.cc
+  src/layers/drama/gated_self_attention.cc
   src/layers/flash_attention.cc
   src/layers/common.cc
+  src/layers/drama/drama_projection.cc
+  src/layers/drama/moe.cc
+  src/layers/drama/gated_delta.cc
+  src/layers/drama/drama_block.cc
+  src/layers/drama/drama_backbone.cc
+  src/layers/drama/drama_tower.cc
+  src/layers/drama/fish_dac.cc
+  src/layers/drama/fish_dac_codebooks.cc
+  src/layers/drama/fish_dac_transformer.cc
+  src/layers/drama/fish_dac_upsample.cc
   src/layers/decoder.cc
   src/layers/transformer.cc
   src/layers/wav2vec2.cc
@@ -150,6 +161,9 @@ set(SOURCES
   src/logging.cc
   src/models/language_model.cc
   src/models/model.cc
+  src/models/drama3_checkpoint.cc
+  src/models/drama3.cc
+  src/models/drama3_memory.cc
   src/models/model_factory.cc
   src/models/model_reader.cc
   src/models/sequence_to_sequence.cc
@@ -166,6 +180,18 @@ set(SOURCES
   src/ops/concat.cc
   src/ops/concat_split_slide_cpu.cc
   src/ops/conv1d.cc
+  src/ops/causal_depthwise_conv1d.cc
+  src/ops/causal_depthwise_conv1d_cpu.cc
+  src/ops/conv_transpose1d.cc
+  src/ops/conv_transpose1d_cpu.cc
+  src/ops/dequantize_fp8.cc
+  src/ops/dequantize_fp8_cpu.cc
+  src/ops/gated_delta_net.cc
+  src/ops/gated_delta_net_cpu.cc
+  src/ops/moe_topk.cc
+  src/ops/moe_topk_cpu.cc
+  src/ops/snake.cc
+  src/ops/snake_cpu.cc
   src/ops/conv1d_cpu.cc
   src/ops/cos.cc
   src/ops/dequantize.cc
@@ -236,6 +262,12 @@ set(SOURCES
   src/vocabulary_map.cc
 )
 set(CUDA_SOURCES
+  src/ops/causal_depthwise_conv1d_gpu.cu
+  src/ops/conv_transpose1d_gpu.cu
+  src/ops/gated_delta_net_gpu.cu
+  src/ops/dequantize_fp8_gpu.cu
+  src/ops/moe_topk_gpu.cu
+  src/ops/snake_gpu.cu
   src/cuda/allocator.cc
   src/cuda/primitives.cu
   src/cuda/random.cu
@@ -245,6 +277,9 @@ set(CUDA_SOURCES
   src/ops/concat_split_slide_gpu.cu
   src/ops/conv1d_gpu.cu
   src/ops/dequantize_gpu.cu
+  src/ops/drama/grouped_moe_gpu.cu
+  src/ops/drama/drama_gpu.cu
+  src/ops/drama/fish_dac_gpu.cu
   src/ops/flash_attention_gpu.cu
   src/ops/gather_gpu.cu
   src/ops/gumbel_max_gpu.cu
@@ -297,6 +332,14 @@ elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86_64)|(amd64)|(AMD64)")
   add_subdirectory(third_party/cpu_features EXCLUDE_FROM_ALL)
   set(BUILD_SHARED_LIBS "${BUILD_SHARED_LIBS_SAVED}")
   list(APPEND LIBRARIES cpu_features)
+endif()
+
+if(ENABLE_CPU_DISPATCH
+   AND NOT CT2_BUILD_ARCH STREQUAL "x86_64"
+   AND NOT CT2_BUILD_ARCH STREQUAL "arm64")
+  message(STATUS
+    "CPU runtime dispatch is unavailable for ${CMAKE_SYSTEM_PROCESSOR}; using generic kernels")
+  set(ENABLE_CPU_DISPATCH OFF)
 endif()
 
 if(ENABLE_CPU_DISPATCH)
