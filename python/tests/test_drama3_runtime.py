@@ -318,3 +318,62 @@ class Drama3RuntimeTest(unittest.TestCase):
         del self.model
         for result in pending:
             self.assertEqual(result.result().codes.shape, (1, 10))
+
+    def test_static_prefix_cache_preserves_output(self):
+        # Isolate the cache from the pool shared across other tests.
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        baseline = model.generate(
+            self.prompt, max_frames=2, greedy=True, cache_static_prompt=False
+        )
+        first = model.generate(
+            self.prompt, max_frames=2, greedy=True,
+            static_prompt_rows=1, cache_static_prompt=True,
+        )
+        second = model.generate(
+            self.prompt, max_frames=2, greedy=True,
+            static_prompt_rows=1, cache_static_prompt=True,
+        )
+        np.testing.assert_array_equal(first.codes, baseline.codes)
+        np.testing.assert_array_equal(first.audio, baseline.audio)
+        np.testing.assert_array_equal(second.codes, baseline.codes)
+        np.testing.assert_array_equal(second.audio, baseline.audio)
+        stats = model.prefix_cache_stats
+        # First call: miss + save. Second call: hit. Baseline bypasses the cache.
+        self.assertEqual(stats["entries"], 1)
+        self.assertEqual(stats["hits"], 1)
+        self.assertEqual(stats["misses"], 1)
+
+    def test_static_prefix_cache_distinguishes_keys(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        prompt_a = self.prompt.copy()
+        prompt_b = self.prompt.copy()
+        prompt_b[0, 0] = 2  # different static-prefix bytes
+        baseline_a = model.generate(prompt_a, max_frames=2, greedy=True,
+                                    cache_static_prompt=False)
+        baseline_b = model.generate(prompt_b, max_frames=2, greedy=True,
+                                    cache_static_prompt=False)
+        cached_a = model.generate(prompt_a, max_frames=2, greedy=True,
+                                  static_prompt_rows=1, cache_static_prompt=True)
+        cached_b = model.generate(prompt_b, max_frames=2, greedy=True,
+                                  static_prompt_rows=1, cache_static_prompt=True)
+        np.testing.assert_array_equal(cached_a.codes, baseline_a.codes)
+        np.testing.assert_array_equal(cached_b.codes, baseline_b.codes)
+        stats = model.prefix_cache_stats
+        self.assertEqual(stats["entries"], 2)
+        self.assertEqual(stats["hits"], 0)
+        self.assertEqual(stats["misses"], 2)
+
+    def test_static_prompt_rows_bounds_are_validated(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        with self.assertRaises(ValueError):
+            model.generate(self.prompt, max_frames=1, greedy=True,
+                           static_prompt_rows=-1)
+        with self.assertRaises(ValueError):
+            model.generate(self.prompt, max_frames=1, greedy=True,
+                           static_prompt_rows=self.prompt.shape[0])

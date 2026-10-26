@@ -1,4 +1,5 @@
 #include "ctranslate2/models/drama3.h"
+#include <mutex>
 #include <regex>
 #include <stdexcept>
 #include "layers/drama/drama_backbone.h"
@@ -17,6 +18,46 @@
 
 namespace ctranslate2 {
   namespace models {
+
+    struct Drama3StateSnapshot {
+      layers::DramaBackboneState backbone;
+      layers::DramaTowerState tower;
+    };
+
+    Drama3StateCache::Drama3StateCache() = default;
+    Drama3StateCache::~Drama3StateCache() = default;
+
+    const Drama3StateSnapshot* Drama3StateCache::get(const std::vector<int32_t>& key) const {
+      std::lock_guard<std::mutex> lock(_mutex);
+      auto it = _cache.find(key);
+      if (it == _cache.end()) {
+        ++_misses;
+        return nullptr;
+      }
+      ++_hits;
+      return &it->second;
+    }
+
+    void Drama3StateCache::save(std::vector<int32_t> key, Drama3StateSnapshot snapshot) {
+      std::lock_guard<std::mutex> lock(_mutex);
+      _cache.emplace(std::move(key), std::move(snapshot));
+    }
+
+    size_t Drama3StateCache::hits() const {
+      std::lock_guard<std::mutex> lock(_mutex);
+      return _hits;
+    }
+
+    size_t Drama3StateCache::misses() const {
+      std::lock_guard<std::mutex> lock(_mutex);
+      return _misses;
+    }
+
+    size_t Drama3StateCache::entries() const {
+      std::lock_guard<std::mutex> lock(_mutex);
+      return _cache.size();
+    }
+
     namespace {
 
       constexpr dim_t max_drama3_sequence_length = 8192;
@@ -358,31 +399,62 @@ namespace ctranslate2 {
 
       void validate_generation(const StorageView& prompt, dim_t max_frames,
                                dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                               float top_p) const {
+                               float top_p, dim_t static_prompt_rows) const {
         if (prompt.device() != Device::CPU || prompt.dtype() != DataType::INT32
             || prompt.rank() != 2 || prompt.dim(1) != 11 || prompt.dim(0) <= 0
             || prompt.dim(0) > max_drama3_sequence_length || max_frames <= 0
             || max_frames > max_drama3_sequence_length || prefill_chunk_size <= 0
             || max_frames > max_context - prompt.dim(0) || !std::isfinite(temperature)
-            || temperature <= 0 || top_k <= 0 || !std::isfinite(top_p) || top_p <= 0 || top_p > 1)
+            || temperature <= 0 || top_k <= 0 || !std::isfinite(top_p) || top_p <= 0 || top_p > 1
+            || static_prompt_rows < 0 || static_prompt_rows >= prompt.dim(0))
           throw std::invalid_argument("Invalid Drama3 prompt, frame budget or prefill chunk size");
         for (dim_t t = 0; t < prompt.dim(0); ++t)
           if (prompt.data<int32_t>()[t * 11] < 0 || prompt.data<int32_t>()[t * 11] >= vocabulary)
             throw std::invalid_argument("Drama3 prompt token outside vocabulary");
       }
 
-      void prefill(const StorageView& prompt, dim_t chunk_size, GenerationState& state) const {
-        for (dim_t start = 0; start < prompt.dim(0); start += chunk_size) {
-          const dim_t count = std::min(chunk_size, prompt.dim(0) - start);
+      void prefill_rows(const StorageView& prompt, dim_t row_offset, dim_t total_rows,
+                        dim_t chunk_size, GenerationState& state) const {
+        for (dim_t start = row_offset; start < total_rows; start += chunk_size) {
+          const dim_t count = std::min(chunk_size, total_rows - start);
           auto frames = rows<int32_t>(prompt, start, count);
           auto embedded = embed(frames);
           (*backbone)(embedded, state.backbone_state, state.hidden, state.logits);
-          const dim_t paired = std::min(count, prompt.dim(0) - 1 - start);
+          const dim_t paired = std::min(count, total_rows - 1 - start);
           if (paired > 0)
             tower->prefill(rows<float>(state.hidden, 0, paired),
                            rows<int32_t>(prompt, start, paired),
                            rows<int32_t>(prompt, start + 1, paired), state.tower_state);
         }
+      }
+
+      void prefill(const StorageView& prompt, dim_t chunk_size,
+                   const Drama3Options& opts, GenerationState& state) const {
+        const dim_t total = prompt.dim(0);
+        const dim_t static_n = opts.static_prompt_rows;
+        dim_t start = 0;
+        Drama3StateCache* cache = nullptr;
+        std::vector<int32_t> key;
+        if (opts.cache_static_prompt && static_n > 0 && static_n < total) {
+          const auto* checkpoint = dynamic_cast<const Drama3Model*>(this->model().get());
+          if (checkpoint) {
+            cache = &checkpoint->state_cache();
+            key.assign(prompt.data<int32_t>(),
+                       prompt.data<int32_t>() + static_n * 11);
+            if (const auto* snap = cache->get(key)) {
+              // StorageView copy constructor deep-copies the KV tensors.
+              state.backbone_state = snap->backbone;
+              state.tower_state = snap->tower;
+              start = static_n;
+            }
+          }
+        }
+        if (start == 0 && cache) {
+          prefill_rows(prompt, 0, static_n, chunk_size, state);
+          cache->save(std::move(key), {state.backbone_state, state.tower_state});
+          start = static_n;
+        }
+        prefill_rows(prompt, start, total, chunk_size, state);
         state.hidden = rows<float>(state.hidden, state.hidden.dim(0) - 1, 1);
         state.logits = rows<float>(state.logits, state.logits.dim(0) - 1, 1);
       }
@@ -505,9 +577,11 @@ namespace ctranslate2 {
 
     Drama3Result Drama3::generate(const StorageView& prompt, dim_t max_frames,
                                   dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                                  float top_p, uint64_t seed, bool greedy) {
+                                  float top_p, uint64_t seed, bool greedy,
+                                  dim_t static_prompt_rows, bool cache_static_prompt) {
       return generate_async(prompt, {max_frames, prefill_chunk_size, temperature,
-                                     top_k, top_p, seed, greedy}).get();
+                                     top_k, top_p, seed, greedy,
+                                     static_prompt_rows, cache_static_prompt}).get();
     }
 
     std::future<Drama3Result> Drama3::generate_async(const StorageView& prompt,
@@ -537,7 +611,8 @@ namespace ctranslate2 {
       const auto greedy = options.greedy;
       const auto total_start = Clock::now();
       const ScopedDeviceSetter setter(_impl->options.device, _impl->options.device_index);
-      _impl->validate_generation(prompt, max_frames, prefill_chunk_size, temperature, top_k, top_p);
+      _impl->validate_generation(prompt, max_frames, prefill_chunk_size, temperature, top_k,
+                                 top_p, options.static_prompt_rows);
 
       Impl::GenerationState state;
       const dim_t capacity = prompt.dim(0) + max_frames;
@@ -546,7 +621,7 @@ namespace ctranslate2 {
 
       Drama3Result result;
       const auto prefill_start = Clock::now();
-      _impl->prefill(prompt, prefill_chunk_size, state);
+      _impl->prefill(prompt, prefill_chunk_size, options, state);
       result.timings.prefill_seconds = seconds_since(prefill_start);
 
       layers::DramaSamplingOptions sampling;
