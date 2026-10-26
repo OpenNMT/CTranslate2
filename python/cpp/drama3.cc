@@ -112,9 +112,8 @@ namespace ctranslate2 {
               [copy_prompt](models::Drama3& model,
                  py::array_t<int32_t, py::array::c_style> prompt,
                  dim_t max_frames, dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                 float top_p, uint64_t seed, bool greedy,
-                 dim_t static_prompt_rows, bool cache_static_prompt,
-                 bool asynchronous) -> py::object {
+                 float top_p, uint64_t seed, bool greedy, bool asynchronous,
+                 dim_t static_prompt_rows, bool cache_static_prompt) -> py::object {
                 auto input = copy_prompt(prompt);
                 std::future<models::Drama3Result> future;
                 {
@@ -135,9 +134,8 @@ namespace ctranslate2 {
               py::arg("prompt_rows"), py::arg("max_frames") = 512,
               py::arg("prefill_chunk_size") = 16, py::arg("temperature") = .8f,
               py::arg("top_k") = 30, py::arg("top_p") = .8f, py::arg("seed") = 0,
-              py::arg("greedy") = false,
+              py::arg("greedy") = false, py::arg("asynchronous") = false,
               py::arg("static_prompt_rows") = 0, py::arg("cache_static_prompt") = true,
-              py::arg("asynchronous") = false,
               R"pbdoc(
              Generates offline speech on the first available replica.
 
@@ -162,9 +160,8 @@ namespace ctranslate2 {
               [copy_prompt](models::Drama3& model,
                  const std::vector<py::array_t<int32_t, py::array::c_style>>& prompts,
                  dim_t max_frames, dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                 float top_p, uint64_t seed, bool greedy,
-                 dim_t static_prompt_rows, bool cache_static_prompt,
-                 bool asynchronous) {
+                 float top_p, uint64_t seed, bool greedy, bool asynchronous,
+                 dim_t static_prompt_rows, bool cache_static_prompt) {
                 std::vector<StorageView> inputs;
                 inputs.reserve(prompts.size());
                 for (const auto& prompt : prompts)
@@ -189,9 +186,8 @@ namespace ctranslate2 {
               py::arg("prompts"), py::arg("max_frames") = 512,
               py::arg("prefill_chunk_size") = 16, py::arg("temperature") = .8f,
               py::arg("top_k") = 30, py::arg("top_p") = .8f, py::arg("seed") = 0,
-              py::arg("greedy") = false,
+              py::arg("greedy") = false, py::arg("asynchronous") = false,
               py::arg("static_prompt_rows") = 0, py::arg("cache_static_prompt") = true,
-              py::arg("asynchronous") = false,
               R"pbdoc(
              Schedules independent prompts across the replica pool in input order.
              Options match generate. Returns a list of Drama3Result objects, or
