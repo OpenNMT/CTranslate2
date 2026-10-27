@@ -38,7 +38,7 @@ namespace ctranslate2 {
                  cpu::cpu_supports_avx(),
                  cpu::cpu_supports_avx2(),
                  cpu::cpu_supports_avx512());
-#elif defined(CT2_ARM64_BUILD)
+#elif defined(CT2_ARM_BUILD)
     spdlog::info("CPU: {} (NEON={})",
                  cpu::cpu_vendor(),
                  cpu::cpu_supports_neon());
