@@ -259,7 +259,9 @@ namespace fastertransformer {
 
       if (tid == 0) {
         topks[ite] = total;
-        s_val[total.p] = cub::FpLimits<T>::Lowest();
+        // An exhausted reduction has no value to invalidate.
+        if (total.p != NOT_FOUND)
+          s_val[total.p] = cub::FpLimits<T>::Lowest();
       }
       __syncthreads();
     }

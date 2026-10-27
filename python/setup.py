@@ -89,6 +89,7 @@ setup(
         "Programming Language :: Python :: 3.12",
         "Programming Language :: Python :: 3.13",
         "Programming Language :: Python :: 3.14",
+        "Programming Language :: Python :: 3.15",
         "Topic :: Scientific/Engineering :: Artificial Intelligence",
     ],
     project_urls={
@@ -103,7 +104,6 @@ setup(
     ext_modules=[ctranslate2_module],
     python_requires=">=3.9",
     install_requires=[
-        "setuptools",
         "numpy",
         "pyyaml>=5.3,<7",
     ],

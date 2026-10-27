@@ -1,5 +1,33 @@
 #include "test_utils.h"
 #include "ctranslate2/layers/attention.h"
+#include "layers/attention_utils.h"
+
+#ifdef CT2_WITH_CUDA
+#  include "cuda/utils.h"
+
+TEST(AttentionTest, Float16ScoreAccumulation) {
+  const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(true);
+  // The unscaled dot product (160000) overflows FP16; the scaled score (20000) fits.
+  for (const dim_t heads : {1, 2}) {
+    StorageView queries = StorageView({1, heads, 1, 64}, 50.f).to(Device::CUDA).to_float16();
+    StorageView values = StorageView({1, heads, 2, 64}, 2.f).to(Device::CUDA).to_float16();
+    StorageView relative_keys = StorageView({3, 64}, 50.f).to(Device::CUDA).to_float16();
+    for (const bool use_relative_keys : {false, true}) {
+      StorageView keys = StorageView({1, heads, 2, 64}, use_relative_keys ? 0.f : 50.f)
+        .to(Device::CUDA).to_float16();
+      StorageView output(DataType::FLOAT16, Device::CUDA);
+      StorageView attention(DataType::FLOAT16, Device::CUDA);
+      layers::dot_product_attention(queries, keys, values, nullptr,
+                                    use_relative_keys ? &relative_keys : nullptr,
+                                    nullptr, nullptr, nullptr,
+                                    0, 0, 1, output, &attention, true, 0.125f);
+      EXPECT_TRUE(cuda::use_true_fp16_gemm());
+      expect_storage_eq(output.to_float32(), StorageView({1, heads, 1, 64}, 2.f));
+      expect_storage_eq(attention.to_float32(), StorageView({1, heads, 1, 2}, 0.5f));
+    }
+  }
+}
+#endif
 
 class MockModel : public models::Model {
 public:
@@ -121,6 +149,53 @@ TEST_F(CrossAttentionTest, GroupedQueryAttention) {
       EXPECT_EQ(get_4d(cached_values, 0, h, 0, 0), v_group);
     }
   }
+}
+
+// Merged self+cross attention (T5Gemma2 style): self-attention layer also
+// projects encoder memory through a separate `memory_kv` linear and concatenates
+// the result onto the self-attention K/V before softmax.
+TEST(MergedAttentionTest, ForwardMergedProducesOutput) {
+  constexpr dim_t NUM_HEADS = 4, NUM_KV = 1, D_HEAD = 16;
+  constexpr dim_t D_MODEL = NUM_HEADS * D_HEAD;
+  constexpr dim_t QKV_ROWS = (NUM_HEADS + 2 * NUM_KV) * D_HEAD;
+  constexpr dim_t KV_ROWS = 2 * NUM_KV * D_HEAD;
+
+  class MergedMockModel : public models::Model {
+  public:
+    MergedMockModel() {
+      register_variable("attn/linear_0/weight",
+                        StorageView({QKV_ROWS, D_MODEL}, std::vector<float>(QKV_ROWS * D_MODEL, 0.01f)));
+      register_variable("attn/linear_1/weight",
+                        StorageView({D_MODEL, NUM_HEADS * D_HEAD},
+                                    std::vector<float>(D_MODEL * NUM_HEADS * D_HEAD, 0.01f)));
+      register_variable("attn/memory_kv/weight",
+                        StorageView({KV_ROWS, D_MODEL}, std::vector<float>(KV_ROWS * D_MODEL, 0.01f)));
+      register_variable("attn/q_norm/gamma", StorageView({D_HEAD}, std::vector<float>(D_HEAD, 1.0f)));
+      register_variable("attn/k_norm/gamma", StorageView({D_HEAD}, std::vector<float>(D_HEAD, 1.0f)));
+      register_variable("attn/num_heads_kv", StorageView(static_cast<int32_t>(NUM_KV)));
+      set_compute_type(ComputeType::FLOAT32, Device::CPU, 0, false);
+    }
+  protected:
+    std::unique_ptr<Model> clone() const override { return nullptr; }
+  };
+
+  MergedMockModel model;
+  layers::MultiHeadAttention attention(model, "attn", NUM_HEADS, /*self_attention=*/true);
+  ASSERT_TRUE(attention.has_merged_encoder_attention());
+
+  constexpr dim_t B = 1, Q_LEN = 1, MEM_LEN = 5;
+  StorageView queries({B, Q_LEN, D_MODEL}, std::vector<float>(B * Q_LEN * D_MODEL, 1.0f));
+  StorageView memory({B, MEM_LEN, D_MODEL}, std::vector<float>(B * MEM_LEN * D_MODEL, 1.0f));
+  StorageView output(DataType::FLOAT32);
+  StorageView self_k(DataType::FLOAT32), self_v(DataType::FLOAT32);
+  StorageView mem_k(DataType::FLOAT32), mem_v(DataType::FLOAT32);
+
+  attention.forward_merged(queries, &memory, nullptr, nullptr, output,
+                           &self_k, &self_v, &mem_k, &mem_v, nullptr, nullptr, /*offset=*/0);
+
+  EXPECT_EQ(output.shape(), (Shape{B, Q_LEN, D_MODEL}));
+  EXPECT_EQ(mem_k.shape(), (Shape{B, NUM_HEADS, MEM_LEN, D_HEAD}));
+  EXPECT_EQ(self_k.shape(), (Shape{B, NUM_HEADS, Q_LEN, D_HEAD}));
 }
 
 // MHA: Each head has independent K/V

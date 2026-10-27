@@ -144,9 +144,13 @@ namespace ctranslate2 {
     static CudaAllocator resolve_cuda_allocator() {
       const bool cuda_malloc_async_is_supported = support_cuda_malloc_async();
       const auto allocator_name = read_string_from_env("CT2_CUDA_ALLOCATOR",
+                                                       // Avoid HIP asynchronous allocator exit crashes.
+#ifndef CT2_USE_HIP
                                                        cuda_malloc_async_is_supported
                                                        ? "cuda_malloc_async"
-                                                       : "cub_caching");
+                                                       :
+#endif
+                                                       "cub_caching");
 
       CudaAllocator allocator = CudaAllocator::MallocAsync;
 

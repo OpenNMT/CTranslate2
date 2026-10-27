@@ -2,8 +2,12 @@ import abc
 import argparse
 import gc
 import itertools
+import json
+import math
 import os
+import re
 
+from pathlib import Path
 from typing import List, Optional
 
 import numpy as np
@@ -26,6 +30,7 @@ from ctranslate2.specs import (
     wav2vec2bert_spec,
     whisper_spec,
 )
+from ctranslate2.specs.model_spec import ACCEPTED_MODEL_TYPES, OPTIONAL
 
 _SUPPORTED_ACTIVATIONS = {
     "gelu": common_spec.Activation.GELU,
@@ -103,7 +108,80 @@ class TransformersConverter(Converter):
         self._low_cpu_mem_usage = low_cpu_mem_usage
         self._trust_remote_code = trust_remote_code
 
+    def _get_drama3_path(self):
+        # Fish Speech checkpoints are not Transformers AutoModel classes, but
+        # can still use this converter's public API and command-line interface.
+        path = Path(self._model_name_or_path)
+        config_path = path / "config.json"
+        if not config_path.is_file():
+            return None
+        with config_path.open(encoding="utf-8") as config_file:
+            config = json.load(config_file)
+        if config.get("model_type") != "fish_omni":
+            return None
+        if (
+            self._activation_scales
+            or self._copy_files
+            or self._load_as_float16
+            or self._low_cpu_mem_usage
+        ):
+            raise ValueError(
+                "Drama 3 does not support activation_scales, copy_files, "
+                "load_as_float16, or low_cpu_mem_usage"
+            )
+        return path
+
+    def inspect(self, quantization=None):
+        """Audit a local Drama 3 checkpoint without loading weight payloads."""
+        path = self._get_drama3_path()
+        if path is None:
+            raise ValueError(
+                "Dry-run inspection is only supported for local Drama 3 checkpoints"
+            )
+        self.conversion_report = Drama3Loader.inspect_checkpoint(
+            path,
+            quantization=quantization,
+        )[-1]
+        return self.conversion_report
+
+    def convert(self, output_dir, vmap=None, quantization=None, force=False):
+        path = self._get_drama3_path()
+        self.conversion_report = None
+        if path is not None:
+            output_dir = str(output_dir)
+            if vmap is not None:
+                raise ValueError("Drama 3 does not support vocabulary mapping")
+            quantization = quantization or "float32"
+            Drama3Loader.resolve_quantization(Drama3Loader.FP8_POLICY, quantization)
+            self._drama3_quantization = quantization
+            if path.resolve().is_relative_to(Path(output_dir).resolve()):
+                raise ValueError(
+                    "output directory must not contain the source checkpoint"
+                )
+        output_dir = super().convert(
+            output_dir, vmap=vmap, quantization=quantization, force=force
+        )
+        if self.conversion_report is not None:
+            self.conversion_report.update(
+                output=str(output_dir),
+                output_bytes=(Path(output_dir) / "model.bin").stat().st_size,
+            )
+            self.write_report(Path(output_dir) / "conversion.json")
+        return output_dir
+
+    def write_report(self, path):
+        """Write the current inspection or conversion report as JSON."""
+        Path(path).write_text(json.dumps(self.conversion_report, indent=2) + "\n")
+
     def _load(self):
+        path = self._get_drama3_path()
+        if path is not None:
+            loader = Drama3Loader(
+                quantization=getattr(self, "_drama3_quantization", None)
+            )
+            spec = loader(path, None)
+            self.conversion_report = loader.conversion_report
+            return spec
         with torch.no_grad():
             config = transformers.AutoConfig.from_pretrained(
                 self._model_name_or_path, trust_remote_code=self._trust_remote_code
@@ -284,6 +362,487 @@ class ModelLoader(abc.ABC):
             rope_theta = getattr(config, "rope_theta", default_rope_theta)
 
         return rotary_scaling_type, rotary_scaling_factor, rope_theta
+
+
+class Drama3Loader(ModelLoader):
+    """Load Fish Speech checkpoints directly into a Drama3 model specification.
+
+    The checkpoint has no Transformers AutoModel implementation. Reuse the
+    ModelLoader specification and vocabulary flow with a local checkpoint path.
+    """
+
+    SOURCE_REVISION = "dd64a85cd82e9521f7202610ede97b367fc83946"
+    FP8_POLICY = "experts_fp8_sensitive_float32"
+    STANDARD_POLICY = "standard"
+    ASSETS = (
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "special_tokens_map.json",
+        "chat_template.jinja",
+        "LICENSE",
+        "README.md",
+    )
+
+    def __init__(self, quantization=None):
+        self.quantization = quantization
+        self.conversion_report = None
+
+    def get_model_spec(self, model):
+        spec, self.conversion_report = self.load_spec(
+            model, quantization=self.quantization
+        )
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        # Drama3 registers the original tokenizer assets in load_spec.
+        return []
+
+    @staticmethod
+    def unique_json(path):
+        from ctranslate2.converters import drama3_weights as READERS
+
+        return json.loads(
+            Path(path).read_text(encoding="utf-8"),
+            object_pairs_hook=READERS._unique_object,
+        )
+
+    @staticmethod
+    def source_file(root, name):
+        if (
+            not isinstance(name, str)
+            or Path(name).name != name
+            or "\\" in name
+            or name in ("", ".", "..")
+        ):
+            raise ValueError("checkpoint asset must be a plain filename")
+        path = root / name
+        if (
+            path.resolve().parent != root.resolve()
+            or not path.is_file()
+            or path.is_symlink()
+        ):
+            raise ValueError("missing or unsafe checkpoint asset: " + name)
+        return path
+
+    @classmethod
+    def inspect_shards(cls, root):
+        from ctranslate2.converters import drama3_weights as READERS
+
+        root = Path(root)
+        index = cls.unique_json(cls.source_file(root, "model.safetensors.index.json"))
+        mapping = index.get("weight_map")
+        if not isinstance(mapping, dict) or not mapping:
+            raise ValueError("checkpoint index needs a nonempty weight_map")
+        readers, tensors = {}, {}
+        for name, shard in mapping.items():
+            if (
+                not isinstance(name, str)
+                or not isinstance(shard, str)
+                or not re.fullmatch(r"model-\d+-of-\d+\.safetensors", shard)
+            ):
+                raise ValueError("invalid checkpoint index name/shard")
+            if shard not in readers:
+                readers[shard] = READERS.SafeTensorMatrixReader(
+                    cls.source_file(root, shard)
+                )
+        actual_shards = {p.name for p in root.glob("*.safetensors")}
+        if actual_shards != set(readers):
+            raise ValueError("checkpoint index and actual shard set differ")
+        for shard, reader in readers.items():
+            for name, tensor in reader.tensors.items():
+                if name in tensors or mapping.get(name) != shard:
+                    raise ValueError(
+                        "duplicate tensor or shard/index mismatch: " + name
+                    )
+                tensors[name] = {**tensor, "shard": shard}
+        if set(tensors) != set(mapping):
+            raise ValueError("checkpoint index names absent from shard headers")
+        return readers, tensors
+
+    @staticmethod
+    def canonical_name(source):
+        if source == "model.language_model.embed_tokens.weight":
+            return "backbone/embeddings/weight"
+        if source == "model.language_model.norm.weight":
+            return "backbone/norm/weight"
+        if source == "lm_head.weight":
+            return "backbone/lm_head/weight"
+        match = re.fullmatch(r"model\.language_model\.layers\.(\d+)\.(.+)", source)
+        if match:
+            tail = re.sub(r"^mlp\.gate\.", "mlp.router.", match[2])
+            tail = re.sub(r"\.experts\.(\d+)\.", r".experts_\1.", tail)
+            return "backbone/layers_" + match[1] + "/" + tail.replace(".", "/")
+        if source == "audio_decoder.codebook_embeddings.weight":
+            return "tower/codebook_embeddings/weight"
+        match = re.fullmatch(
+            r"audio_decoder_mtp(_shared)?\.layers\.(\d+)\.(.+)", source
+        )
+        if match:
+            tail = match[3].replace("attention.wo.", "attention.o_proj.")
+            tail = tail.replace("feed_forward.w1.", "feed_forward.gate_proj.")
+            tail = tail.replace("feed_forward.w3.", "feed_forward.up_proj.")
+            tail = tail.replace("feed_forward.w2.", "feed_forward.down_proj.")
+            kind = "shared_layers_" if match[1] else "residual_layers_"
+            return "tower/" + kind + match[2] + "/" + tail.replace(".", "/")
+        match = re.fullmatch(r"audio_decoder_mtp\.heads\.(\d+)\.weight", source)
+        if match:
+            return "tower/heads_" + match[1] + "/weight"
+        raise ValueError("unmapped official checkpoint tensor: " + source)
+
+    @classmethod
+    def resolve_quantization(cls, policy, quantization=None):
+        if policy not in (cls.FP8_POLICY, cls.STANDARD_POLICY):
+            raise ValueError("unknown Drama3 quantization policy: " + repr(policy))
+        quantization = quantization or "float32"
+        if quantization not in ACCEPTED_MODEL_TYPES:
+            raise ValueError("Invalid Drama3 quantization: " + repr(quantization))
+        return quantization
+
+    @staticmethod
+    def routed_expert_matrix(target):
+        return (
+            re.fullmatch(
+                r"backbone/layers_[0-9]+/mlp/experts_[0-9]+/(gate_proj|up_proj|down_proj)/weight",
+                target,
+            )
+            is not None
+        )
+
+    @classmethod
+    def build_plan(cls, tensors, config, quantization_policy=FP8_POLICY):
+        cls.resolve_quantization(quantization_policy)
+        audio = config["audio_decoder_config"]
+        heads, kv_heads, head_dim = (
+            audio["n_head"],
+            audio["n_local_heads"],
+            audio["head_dim"],
+        )
+        if (
+            any(type(d) is not int or d <= 0 for d in (heads, kv_heads, head_dim))
+            or heads % kv_heads
+        ):
+            raise ValueError("invalid tower attention dimensions")
+        block_size = config["quantization_config"]["weight_block_size"]
+        if (
+            not isinstance(block_size, list)
+            or len(block_size) != 2
+            or any(type(d) is not int or d <= 0 for d in block_size)
+        ):
+            raise ValueError("invalid explicit FP8 block dimensions")
+        if block_size != [128, 128] or config["quantization_config"].get(
+            "quant_method"
+        ) not in ("fp8", "bsgemm-moe"):
+            raise ValueError(
+                "lossless FP8 requires a supported quant_method and 128x128 blocks"
+            )
+        result, destinations, consumed_scales = [], set(), set()
+        for source, tensor in sorted(tensors.items()):
+            if source.endswith(".weight_scale_inv"):
+                continue
+            shape, dtype = tensor["shape"], tensor["dtype"]
+            if not shape or any(d <= 0 for d in shape):
+                raise ValueError("model tensors must have positive dimensions")
+            target = cls.canonical_name(source)
+            variants = [(target, None, tuple(shape))]
+            if source.endswith(".attention.wqkv.weight") and source.startswith(
+                "audio_decoder_mtp"
+            ):
+                if len(shape) != 2 or shape[0] != 2 * (heads + kv_heads) * head_dim:
+                    raise ValueError("tower fused projection shape mismatch")
+                if dtype not in ("BF16", "F16", "F32"):
+                    raise ValueError("FP8 fused tower source slicing is unsupported")
+                prefix = target[: -len("wqkv/weight")]
+                variants = [
+                    (
+                        prefix + kind + "/weight",
+                        kind,
+                        (
+                            (
+                                2 * heads * head_dim
+                                if kind == "q_proj"
+                                else kv_heads * head_dim
+                            ),
+                            shape[1],
+                        ),
+                    )
+                    for kind in ("q_proj", "k_proj", "v_proj")
+                ]
+            inverse_scale = None
+            if dtype.startswith("F8_"):
+                if len(shape) != 2:
+                    raise ValueError("FP8 source must be an explicitly scaled matrix")
+                inverse_scale = source + "_scale_inv"
+                if inverse_scale not in tensors:
+                    raise ValueError(
+                        "FP8 matrix has no explicit inverse scale: " + source
+                    )
+                scale = tensors[inverse_scale]
+                expected = tuple(
+                    (size + block - 1) // block
+                    for size, block in zip(shape, block_size)
+                )
+                if (
+                    scale["dtype"] not in ("F32", "F16", "BF16")
+                    or tuple(scale["shape"]) != expected
+                ):
+                    raise ValueError(
+                        "invalid source FP8 inverse-scale shape/type: " + source
+                    )
+                consumed_scales.add(inverse_scale)
+            elif source + "_scale_inv" in tensors:
+                raise ValueError("inverse scale accompanies a non-FP8 matrix")
+            for target, kind, output_shape in variants:
+                matrix = len(output_shape) == 2
+                if matrix and not target.endswith("/weight"):
+                    raise ValueError("matrix target must use canonical /weight naming")
+                if not matrix and (
+                    len(output_shape) not in (1, 3) or dtype.startswith("F8_")
+                ):
+                    raise ValueError("unsupported non-matrix model tensor")
+                fp8 = (
+                    quantization_policy == cls.FP8_POLICY
+                    and cls.routed_expert_matrix(target)
+                )
+                if fp8 and (
+                    dtype not in ("F8_E4M3", "F8_E4M3FN") or scale["dtype"] != "F32"
+                ):
+                    raise ValueError(
+                        "lossless FP8 experts require E4M3FN weights and F32 inverse scales"
+                    )
+                emitted = [target, target + "_scale_inv"] if fp8 else [target]
+                if destinations.intersection(emitted):
+                    raise ValueError("duplicate converted tensor target")
+                destinations.update(emitted)
+                result.append(
+                    {
+                        "source": source,
+                        "shard": tensor["shard"],
+                        "target": target,
+                        "shape": list(output_shape),
+                        "dtype": "fp8" if fp8 else "float32",
+                        "inverse_scale": inverse_scale,
+                        "scale_shard": (
+                            tensors[inverse_scale]["shard"] if inverse_scale else None
+                        ),
+                        "tower_slice": kind,
+                    }
+                )
+        if {
+            name for name in tensors if name.endswith(".weight_scale_inv")
+        } != consumed_scales:
+            raise ValueError("orphan source inverse-scale tensors")
+        return result
+
+    @staticmethod
+    def float_chunks(reader, name, chunk_elements=1048576):
+        from ctranslate2.converters import drama3_weights as READERS
+
+        if type(chunk_elements) is not int or chunk_elements <= 0:
+            raise ValueError("chunk_elements must be positive")
+        tensor = reader.tensors[name]
+        if tensor["dtype"].startswith("F8_"):
+            raise ValueError("unscaled FP8 raw tensor conversion is forbidden")
+        raw = reader._map(name).reshape(-1)
+        for start in range(0, len(raw), chunk_elements):
+            values = READERS._float32(
+                raw[start : start + chunk_elements], tensor["dtype"]
+            )
+            if not np.isfinite(values).all():
+                raise ValueError("nonfinite source vector/convolution")
+            yield np.ascontiguousarray(values, dtype=np.float32)
+
+    @staticmethod
+    def tower_matrix_chunks(reader, item, audio, chunk_rows):
+        """Read a planned Q/G/K/V slice without decoding the full fused matrix."""
+        from ctranslate2.converters import drama3_weights as weights
+
+        raw = reader._map(item["source"])
+        dim = audio["head_dim"]
+        width, kv_width = audio["n_head"] * dim, audio["n_local_heads"] * dim
+        for start in range(0, item["shape"][0], chunk_rows):
+            rows = np.arange(start, min(start + chunk_rows, item["shape"][0]))
+            kind = item["tower_slice"]
+            if kind == "q_proj":
+                within = rows % (2 * dim)
+                rows = rows // (2 * dim) * dim + within % dim + (within >= dim) * width
+            elif kind in ("k_proj", "v_proj"):
+                rows += 2 * width + (kv_width if kind == "v_proj" else 0)
+            else:
+                raise ValueError("invalid tower attention projection")
+            yield weights._float32(raw[rows], reader.tensors[item["source"]]["dtype"])
+
+    @classmethod
+    def load_model_tensors(cls, plan, readers, config, chunk_rows=128):
+        """Preserve source FP8 experts and load other weights as float32."""
+        audio = config["audio_decoder_config"]
+        variables = {}
+        for index, item in enumerate(plan):
+            source = readers[item["shard"]]
+            if item["dtype"] == "fp8":
+                raw = source._map(item["source"])
+                if np.any((raw & 0x7F) == 0x7F):
+                    raise ValueError(
+                        "nonfinite E4M3FN source weight: " + item["source"]
+                    )
+                scale = np.array(
+                    readers[item["scale_shard"]]._map(item["inverse_scale"]), copy=True
+                )
+                if not np.isfinite(scale).all() or np.any(scale <= 0):
+                    raise ValueError("FP8 inverse scales must be finite and positive")
+                variables[item["target"]] = np.array(raw, copy=True).view(np.int8)
+                variables[item["target"] + "_scale_inv"] = scale
+                continue
+            if item["tower_slice"]:
+                chunks = cls.tower_matrix_chunks(source, item, audio, chunk_rows)
+            elif len(item["shape"]) == 2:
+                chunks = source.iter_matrix_rows(
+                    item["source"],
+                    chunk_rows=chunk_rows,
+                    inverse_scale=item["inverse_scale"],
+                    scale_reader=(
+                        readers[item["scale_shard"]] if item["scale_shard"] else None
+                    ),
+                    block_size=config["quantization_config"]["weight_block_size"],
+                )
+            else:
+                chunks = cls.float_chunks(source, item["source"])
+            value = np.empty(item["shape"], dtype=np.float32)
+            flat = value.reshape(-1)
+            offset = 0
+            for chunk in chunks:
+                if not np.isfinite(chunk).all():
+                    raise ValueError("nonfinite source matrix")
+                flat[offset : offset + chunk.size] = chunk.reshape(-1)
+                offset += chunk.size
+            variables[item["target"]] = value
+            if (index + 1) % 1000 == 0:
+                print(f"Loaded {index + 1}/{len(plan)} model tensors", flush=True)
+        return variables
+
+    @classmethod
+    def inspect_checkpoint(
+        cls,
+        source,
+        chunk_rows=128,
+        source_revision=SOURCE_REVISION,
+        quantization_policy=FP8_POLICY,
+        quantization=None,
+    ):
+        from ctranslate2.converters import drama3_codec as codec
+
+        quantization = cls.resolve_quantization(quantization_policy, quantization)
+        if quantization != "float32":
+            quantization_policy = cls.STANDARD_POLICY
+        if type(chunk_rows) is not int or chunk_rows < 1:
+            raise ValueError("chunk_rows must be positive")
+        source = Path(source)
+        config = cls.unique_json(cls.source_file(source, "config.json"))
+        if config.get("model_type") != "fish_omni":
+            raise ValueError("expected official Fish Omni checkpoint")
+        for name in cls.ASSETS:
+            cls.source_file(source, name)
+        cls.source_file(source, "codec.pth")
+        readers, tensors = cls.inspect_shards(source)
+        plan = cls.build_plan(tensors, config, quantization_policy)
+        codec_plan = codec.conversion_plan(
+            codec.state_schema(codec.load_checkpoint(source / "codec.pth"))
+        )
+        codec_count = len(codec_plan)
+        codec_bytes = sum(math.prod(t["shape"]) * 4 for t in codec_plan)
+        count = codec_count
+        payload_bytes = loading_bytes = float32_bytes = codec_bytes
+        for item in plan:
+            elements = math.prod(item["shape"])
+            float32_bytes += elements * 4
+            count += 1
+            if item["dtype"] == "fp8":
+                size = elements + 4 * math.prod(tensors[item["inverse_scale"]]["shape"])
+                count += 1
+            elif len(item["shape"]) != 2 or quantization == "float32":
+                size = elements * 4
+            elif quantization.startswith("int8"):
+                size = elements + item["shape"][0] * 4
+                count += 1
+            elif quantization == "int16":
+                size = elements * 2 + 4
+                count += 1
+            else:
+                size = elements * 2
+            payload_bytes += size
+            loading_bytes += size if item["dtype"] == "fp8" else elements * 4
+        result = {
+            "estimated_float32_loading_bytes": float32_bytes,
+            "estimated_loading_bytes": loading_bytes,
+            "quantization": quantization,
+            "model_name": "Drama3Spec",
+            "ct2_layout_version": 1,
+            "source_revision": source_revision,
+            "source_shards": len(readers),
+            "source_tensor_count": len(tensors),
+            "model_mapping_count": len(plan),
+            "codec_parameter_count": codec_count,
+            "variable_count": count,
+            "estimated_payload_bytes": payload_bytes,
+            "dry_run": True,
+            "mappings": plan,
+            "quantization_policy": quantization_policy,
+            "matrix_counts": {
+                dtype: sum(
+                    len(item["shape"]) == 2 and item["dtype"] == dtype for item in plan
+                )
+                for dtype in ("fp8", "float32")
+            },
+        }
+        if quantization_policy == cls.FP8_POLICY:
+            result["fp8_format"] = "e4m3fn_block128"
+        return config, readers, plan, codec_plan, result
+
+    @classmethod
+    def load_spec(
+        cls,
+        model_path,
+        quantization=None,
+        chunk_rows=128,
+        source_revision=SOURCE_REVISION,
+        quantization_policy=FP8_POLICY,
+    ):
+        """Load Drama3 weights into the standard model specification."""
+        from ctranslate2.converters import drama3_codec as codec
+        from ctranslate2.specs.drama3_spec import Drama3Spec
+
+        model_path = Path(model_path)
+        config, readers, plan, codec_plan, result = cls.inspect_checkpoint(
+            model_path, chunk_rows, source_revision, quantization_policy, quantization
+        )
+        quantization = result["quantization"]
+        state = codec.load_checkpoint(model_path / "codec.pth")
+        codec_variables = codec.load_codec_tensors(
+            state, plan=codec_plan, chunk_rows=min(chunk_rows, 32)
+        )
+        variables = cls.load_model_tensors(plan, readers, config, chunk_rows)
+        variables.update(codec_variables)
+        quantization_policy = result["quantization_policy"]
+        for item in plan:
+            if len(item["shape"]) == 2 and item["dtype"] != "fp8":
+                variables[item["target"] + "_scale"] = OPTIONAL
+        package_config = {
+            "model_type": "drama3",
+            "ct2_layout_version": 1,
+            "source_config": config,
+            "source_revision": source_revision,
+            "activation_dtype": "float32",
+            "matrix_dtype": "fp8_float32"
+            if quantization_policy == cls.FP8_POLICY
+            else quantization,
+            "quantization_policy": quantization_policy,
+        }
+        if quantization_policy == cls.FP8_POLICY:
+            package_config["fp8_format"] = "e4m3fn_block128"
+        spec = Drama3Spec(variables, package_config)
+        spec.register_file(model_path / "config.json", "source_config.json")
+        for name in cls.ASSETS:
+            spec.register_file(cls.source_file(model_path, name))
+        return spec, dict(result, dry_run=False)
 
 
 @register_loader("BartConfig")
@@ -1360,6 +1919,65 @@ class MT5Loader(T5Loader):
         return "MT5ForConditionalGeneration"
 
 
+@register_loader("UMT5Config")
+class UMT5Loader(T5Loader):
+    """Loader for UMT5 (https://arxiv.org/abs/2304.09151).
+
+    UMT5 is structurally identical to mT5 except that every self-attention layer has
+    its own relative attention bias, whereas T5 and mT5 compute the bias in the first
+    layer and share it with the following layers.
+    """
+
+    @property
+    def architecture_name(self):
+        return "UMT5ForConditionalGeneration"
+
+    def get_vocabulary(self, model, tokenizer):
+        # The UMT5 tokenizer already includes the <extra_id_*> tokens, so the vocabulary
+        # is padded with placeholders instead of the sentinels added by T5Loader.
+        tokens = ModelLoader.get_vocabulary(self, model, tokenizer)
+
+        for i in range(model.config.vocab_size - len(tokens)):
+            tokens.append("<unused_%d>" % i)
+
+        if len(tokens) != model.config.vocab_size:
+            raise ValueError(
+                "The tokenizer returned %d tokens but the model embedding expects %d"
+                % (len(tokens), model.config.vocab_size)
+            )
+
+        return tokens
+
+    def set_stack(self, spec, module, is_decoder=False):
+        self.set_layer_norm(spec.layer_norm, module.final_layer_norm)
+        self.set_embeddings(
+            (
+                spec.embeddings[0]
+                if isinstance(spec.embeddings, list)
+                else spec.embeddings
+            ),
+            module.embed_tokens,
+        )
+
+        spec.scale_embeddings = False
+
+        for layer_spec, block in zip(spec.layer, module.block):
+            # Each layer has its own relative attention bias so there is no bias to
+            # reuse from the first layer, unlike T5Loader.set_stack.
+            self.set_self_attention(layer_spec.self_attention, block.layer[0])
+
+            if layer_spec.self_attention.relative_attention_bias is None:
+                raise ValueError(
+                    "Expected each UMT5 self-attention layer to define a relative "
+                    "attention bias, but one layer did not"
+                )
+
+            if is_decoder:
+                self.set_cross_attention(layer_spec.attention, block.layer[1])
+
+            self.set_ffn(layer_spec.ffn, block.layer[-1])
+
+
 @register_loader("BloomConfig")
 class BloomLoader(ModelLoader):
     @property
@@ -1886,9 +2504,11 @@ class Gemma3Loader(ModelLoader):
             )
             if sliding_window_pattern is not None:
                 layer_types = [
-                    "full_attention"
-                    if (i + 1) % sliding_window_pattern == 0
-                    else "sliding_attention"
+                    (
+                        "full_attention"
+                        if (i + 1) % sliding_window_pattern == 0
+                        else "sliding_attention"
+                    )
                     for i in range(num_layers)
                 ]
 
@@ -2052,6 +2672,320 @@ class Gemma3Loader(ModelLoader):
             self.set_linear(
                 layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
             )
+
+            delattr(layer, "self_attn")
+            delattr(layer, "mlp")
+            gc.collect()
+
+
+@register_loader("Gemma4UnifiedTextConfig")
+@register_loader("Gemma4UnifiedConfig")
+@register_loader("Gemma4TextConfig")
+@register_loader("Gemma4Config")
+class Gemma4Loader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "Gemma4ForCausalLM"
+
+    def get_model_class(self, config, default_class):
+        if config.__class__.__name__ == "Gemma4Config":
+            return transformers.Gemma4ForConditionalGeneration
+        if config.__class__.__name__ == "Gemma4UnifiedConfig":
+            return transformers.Gemma4UnifiedForConditionalGeneration
+        return default_class
+
+    def get_model_spec(self, model):
+        text_config = getattr(model.config, "text_config", model.config)
+        num_layers = text_config.num_hidden_layers
+        num_heads = text_config.num_attention_heads
+        num_heads_kv = getattr(text_config, "num_key_value_heads", num_heads)
+        if num_heads_kv == num_heads:
+            num_heads_kv = None
+
+        # KV-sharing is not yet supported (E2B/E4B)
+        num_kv_shared_layers = getattr(text_config, "num_kv_shared_layers", 0)
+        if num_kv_shared_layers > 0:
+            raise NotImplementedError(
+                "Gemma 4 KV-shared layers (num_kv_shared_layers=%d) are not yet "
+                "supported. Use the 31B model which has no KV sharing."
+                % num_kv_shared_layers
+            )
+
+        # Sliding layers use head_dim, global (full) attention layers use global_head_dim
+        head_dim = text_config.head_dim
+        global_head_dim = getattr(text_config, "global_head_dim", head_dim)
+
+        # num_global_key_value_heads overrides num_key_value_heads for full-attention layers
+        num_global_kv_heads = getattr(text_config, "num_global_key_value_heads", None)
+
+        # attention_k_eq_v: full-attention layers reuse key projection as value projection
+        attention_k_eq_v = getattr(text_config, "attention_k_eq_v", False)
+
+        activation_config = getattr(
+            text_config, "hidden_activation", "gelu_pytorch_tanh"
+        )
+
+        # RoPE parameters are in a nested dict keyed by layer type
+        rope_params = getattr(text_config, "rope_parameters", None) or {}
+        sliding_rope = rope_params.get("sliding_attention", {})
+        global_rope = rope_params.get("full_attention", {})
+
+        rope_local_base_freq = float(sliding_rope.get("rope_theta", 10_000))
+        rope_theta = float(global_rope.get("rope_theta", 1_000_000))
+
+        # Proportional RoPE (HF `rope_type="proportional"`, currently Gemma4-only):
+        # halves on full head_dim and zero-pads trailing freqs, unlike GPT-NeoX-style
+        # partial RoPE which halves on rotary_dim. HF: `1 / rope_theta^(2i/head_dim)`;
+        # CT2's RotaryEmbeddings: `1 / base^(2i/rotary_dim)`. Rescale base to match.
+        global_partial_factor = float(global_rope.get("partial_rotary_factor", 1.0))
+        global_rotary_dim = int(global_head_dim * global_partial_factor)
+        global_rope_base = (
+            rope_theta ** (global_rotary_dim / global_head_dim)
+            if 0 < global_rotary_dim < global_head_dim
+            else rope_theta
+        )
+
+        sliding_window = getattr(text_config, "sliding_window", 512)
+        layer_types = getattr(text_config, "layer_types", None)
+        if layer_types is None:
+            sliding_window_pattern = 6
+            layer_types = [
+                (
+                    "sliding_attention"
+                    if bool((i + 1) % sliding_window_pattern)
+                    else "full_attention"
+                )
+                for i in range(num_layers)
+            ]
+
+        quantization_config = getattr(text_config, "quantization_config", None)
+        if quantization_config:
+            if quantization_config.quant_method == "awq":
+                quant_type = _SUPPORTED_QUANTIZATION.get(quantization_config.version)
+            if quant_type is None:
+                raise NotImplementedError(
+                    "Quantization type '%s' is not yet implemented."
+                    % quantization_config.quant_method
+                )
+            quant_group_size = quantization_config.group_size
+            quant_bits = quantization_config.bits
+        else:
+            quant_type = common_spec.Quantization.CT2
+            quant_group_size = None
+            quant_bits = None
+
+        # Build spec with sliding-attention defaults; global layers overridden per-layer below.
+        spec = transformer_spec.TransformerDecoderModelSpec.from_config(
+            num_layers,
+            num_heads,
+            activation=(
+                common_spec.Activation.GELU
+                if activation_config == "gelu"
+                else common_spec.Activation.GELUTanh
+            ),
+            pre_norm=True,
+            ffn_glu=True,
+            rms_norm=True,
+            rotary_dim=head_dim,
+            rotary_interleave=False,
+            rotary_base=rope_local_base_freq,
+            num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
+            sliding_window=sliding_window,
+            pre_post_layer_norm=True,
+            quant_type=quant_type,
+            quant_group_size=quant_group_size,
+            quant_bits=quant_bits,
+            qk_norm=True,
+            v_norm=True,
+        )
+
+        # Set it to 0 so the decoder processes all tokens at once; per-layer sliding_window
+        # set below handles KV-cache trimming for sliding-attention layers.
+        spec.decoder.sliding_window = np.dtype("int32").type(0)
+
+        self._layer_types = layer_types
+        self._attention_k_eq_v = attention_k_eq_v
+        self._global_head_dim = global_head_dim
+        self._global_rotary_dim = global_rotary_dim
+
+        # Per-layer overrides for full-attention layers
+        for i, layer_type in enumerate(layer_types):
+            layer = spec.decoder.layer[i]
+            # Gemma4 uses scaling=1.0 (no 1/sqrt(d_head) scaling)
+            layer.self_attention.queries_scale = np.dtype("float32").type(1.0)
+            if layer_type == "full_attention":
+                layer.self_attention.rotary_dim = np.dtype("int32").type(
+                    global_rotary_dim
+                )
+                layer.self_attention.rotary_base = np.dtype("float32").type(
+                    global_rope_base
+                )
+                layer.self_attention.sliding_window = np.dtype("int32").type(0)
+                layer.self_attention.head_dim = np.dtype("int32").type(global_head_dim)
+                if num_global_kv_heads is not None:
+                    layer.self_attention.num_heads_kv = np.dtype("int32").type(
+                        num_global_kv_heads
+                    )
+            elif layer_type == "sliding_attention":
+                layer.self_attention.rotary_base = np.dtype("float32").type(
+                    rope_local_base_freq
+                )
+                layer.self_attention.sliding_window = np.dtype("int32").type(
+                    sliding_window
+                )
+
+        text_config = getattr(model.config, "text_config", model.config)
+        final_softcap = getattr(text_config, "final_logit_softcapping", None)
+        if final_softcap:
+            spec.decoder.final_logit_softcapping = np.dtype("float32").type(
+                final_softcap
+            )
+
+        text_model = getattr(model.model, "language_model", model.model)
+        self.set_decoder(spec.decoder, text_model, quant_type)
+        self.set_linear(spec.decoder.projection, model.lm_head)
+        return spec
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+        text_config = getattr(model.config, "text_config", model.config)
+        extra_ids = text_config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+        if text_config.vocab_size < len(tokens):
+            tokens = tokens[: text_config.vocab_size]
+        return tokens
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_vocabulary(tokens)
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = tokenizer.bos_token
+        config.unk_token = tokenizer.unk_token
+        if (
+            hasattr(tokenizer, "chat_template")
+            and isinstance(tokenizer.chat_template, str)
+            and tokenizer.chat_template.strip()
+        ):
+            if "<turn|>" in tokenizer.chat_template:
+                config.eos_token = "<turn|>"
+            else:
+                config.eos_token = "<end_of_turn>"
+        else:
+            config.eos_token = tokenizer.eos_token
+
+    def set_layer_norm(self, spec, layer_norm):
+        spec.gamma = layer_norm.weight
+        # Gemma4 uses output * gamma (ones-initialized), not output * (1 + gamma)
+
+    def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
+        spec.scale_embeddings = True
+        spec.start_from_zero_embedding = False
+        self.set_embeddings(spec.embeddings, module.embed_tokens)
+        self.set_layer_norm(spec.layer_norm, module.norm)
+
+        attention_k_eq_v = getattr(self, "_attention_k_eq_v", False)
+        ghd = getattr(self, "_global_head_dim", None)
+        grd = getattr(self, "_global_rotary_dim", None)
+        # HF's proportional partial-RoPE pairs channels [0:R/2]↔[HD/2:HD/2+R/2];
+        # CT2's RotaryEmbeddings pairs [0:R/2]↔[R/2:R]. Permute Q/K accordingly.
+        partial_perm = None
+        if ghd and grd and 0 < grd < ghd:
+            partial_perm = (
+                list(range(0, grd // 2))
+                + list(range(ghd // 2, ghd // 2 + grd // 2))
+                + list(range(grd // 2, ghd // 2))
+                + list(range(ghd // 2 + grd // 2, ghd))
+            )
+
+        for layer_spec, layer in zip(spec.layer, module.layers):
+            self.set_layer_norm(layer_spec.input_layer_norm, layer.input_layernorm)
+            self.set_layer_norm(
+                layer_spec.post_attention_layer_norm, layer.post_attention_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.q_norm, layer.self_attn.q_norm
+            )
+            self.set_layer_norm(
+                layer_spec.self_attention.k_norm, layer.self_attn.k_norm
+            )
+
+            # v_norm has no learnable scale; supply all-ones gamma (pure RMS norm)
+            layer_spec.self_attention.v_norm.gamma = (
+                torch.ones_like(layer.self_attn.k_norm.weight).float().numpy()
+            )
+
+            # When attention_k_eq_v is set, full-attention layers have no v_proj —
+            # values are the same as keys, so we reuse k_proj weights.
+            is_full_attn = layer.self_attn.layer_type == "full_attention"
+            use_k_as_v = attention_k_eq_v and is_full_attn
+
+            split_layers = [common_spec.LinearSpec() for _ in range(3)]
+            self.set_linear(
+                split_layers[0], layer.self_attn.q_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                split_layers[1], layer.self_attn.k_proj, quant_type=quant_type
+            )
+            if use_k_as_v:
+                self.set_linear(
+                    split_layers[2], layer.self_attn.k_proj, quant_type=quant_type
+                )
+            else:
+                self.set_linear(
+                    split_layers[2], layer.self_attn.v_proj, quant_type=quant_type
+                )
+
+            if quant_type == common_spec.Quantization.CT2:
+                utils.fuse_linear(layer_spec.self_attention.linear[0], split_layers)
+            else:
+                cc_dim = 1 if quant_type == common_spec.Quantization.AWQ_GEMM else 0
+                utils.fuse_linear_prequant(
+                    layer_spec.self_attention.linear[0], split_layers, cc_dim
+                )
+
+            # Apply the partial-RoPE permutation to Q/K rows of the fused QKV (and
+            # the norm gammas); V rows are left untouched (V is not RoPE-rotated).
+            if is_full_attn and partial_perm is not None:
+                fused = layer_spec.self_attention.linear[0].weight
+                q_rows = split_layers[0].weight.shape[0]
+                k_rows = split_layers[1].weight.shape[0]
+                qk = fused[: q_rows + k_rows].view(-1, ghd, fused.shape[1])
+                fused[: q_rows + k_rows] = qk[:, partial_perm, :].reshape(
+                    q_rows + k_rows, fused.shape[1]
+                )
+                for norm_spec in (
+                    layer_spec.self_attention.q_norm,
+                    layer_spec.self_attention.k_norm,
+                ):
+                    norm_spec.gamma = norm_spec.gamma[partial_perm]
+
+            self.set_linear(
+                layer_spec.self_attention.linear[1],
+                layer.self_attn.o_proj,
+                quant_type=quant_type,
+            )
+
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
+
+            ls = getattr(layer, "layer_scalar", None)
+            if ls is not None:
+                layer_spec.layer_scalar = np.dtype("float32").type(ls.float().item())
 
             delattr(layer, "self_attn")
             delattr(layer, "mlp")
@@ -3339,6 +4273,14 @@ def main():
     )
 
     Converter.declare_arguments(parser)
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Audit a local Drama 3 checkpoint without loading weights.",
+    )
+    parser.add_argument(
+        "--report", type=Path, help="Write a Drama 3 conversion report as JSON."
+    )
     args = parser.parse_args()
     converter = TransformersConverter(
         args.model,
@@ -3349,7 +4291,23 @@ def main():
         low_cpu_mem_usage=args.low_cpu_mem_usage,
         trust_remote_code=args.trust_remote_code,
     )
-    converter.convert_from_args(args)
+    if args.dry_run or args.report:
+        if converter._get_drama3_path() is None:
+            parser.error("--dry-run and --report require a local Drama 3 checkpoint")
+    if args.dry_run:
+        if args.vocab_mapping:
+            parser.error("Drama 3 does not support vocabulary mapping")
+        report = converter.inspect(args.quantization)
+        print(
+            json.dumps(
+                {key: value for key, value in report.items() if key != "mappings"},
+                indent=2,
+            )
+        )
+    else:
+        converter.convert_from_args(args)
+    if args.report:
+        converter.write_report(args.report)
 
 
 if __name__ == "__main__":
@@ -3495,7 +4453,7 @@ class T5GemmaLoader(ModelLoader):
         return "T5GemmaForConditionalGeneration"
 
     def set_layer_norm(self, spec, layer_norm):
-        spec.gamma = layer_norm.weight.data + 1.0
+        spec.gamma = (layer_norm.weight.data + 1.0).float()
 
     def get_model_spec(self, model):
         encoder_config = model.config.encoder
@@ -3748,3 +4706,202 @@ class T5GemmaLoader(ModelLoader):
             delattr(layer, "cross_attn")
             delattr(layer, "mlp")
             gc.collect()
+
+
+@register_loader("T5Gemma2Config")
+class T5Gemma2Loader(ModelLoader):
+    @property
+    def architecture_name(self):
+        return "T5Gemma2ForConditionalGeneration"
+
+    def _side_kwargs(self, side_config):
+        num_heads = side_config.num_attention_heads
+        num_heads_kv = getattr(side_config, "num_key_value_heads", num_heads)
+        if num_heads_kv == num_heads:
+            num_heads_kv = None
+        head_dim = side_config.head_dim
+        rope_params = getattr(side_config, "rope_parameters", {}) or {}
+        global_theta = rope_params.get("full_attention", {}).get(
+            "rope_theta", getattr(side_config, "rope_theta", 1_000_000)
+        )
+        return dict(
+            num_layers=side_config.num_hidden_layers,
+            num_heads=num_heads,
+            pre_norm=True,
+            activation=_SUPPORTED_ACTIVATIONS[side_config.hidden_activation],
+            ffn_glu=True,
+            rms_norm=True,
+            rotary_dim=head_dim,
+            rotary_interleave=False,
+            rotary_scaling_type=attention_spec.RotaryScalingType.Linear,
+            rotary_scaling_factor=1,
+            rotary_base=global_theta,
+            sliding_window=getattr(side_config, "sliding_window", 0),
+            num_heads_kv=num_heads_kv,
+            head_dim=head_dim,
+            qk_norm=True,
+            pre_post_layer_norm=True,
+        )
+
+    def _apply_layer_types(self, side_config, spec_layers):
+        layer_types = getattr(side_config, "layer_types", None)
+        if not layer_types:
+            return
+        rope_params = getattr(side_config, "rope_parameters", {}) or {}
+        global_theta = rope_params.get("full_attention", {}).get(
+            "rope_theta", 1_000_000
+        )
+        local_theta = rope_params.get("sliding_attention", {}).get("rope_theta", 10_000)
+        sliding_window = getattr(side_config, "sliding_window", 0)
+        full_attn_params = rope_params.get("full_attention", {})
+        full_rope_type = full_attn_params.get("rope_type", "default")
+        full_rope_factor = full_attn_params.get("factor", 1.0)
+        for layer_type, layer_spec in zip(layer_types, spec_layers):
+            attn = layer_spec.self_attention
+            if layer_type == "full_attention":
+                attn.rotary_base = np.dtype("float32").type(global_theta)
+                attn.sliding_window = np.dtype("int32").type(0)
+                if full_rope_type == "linear":
+                    attn.rotary_scaling_factor = np.dtype("float32").type(
+                        full_rope_factor
+                    )
+            else:
+                attn.rotary_base = np.dtype("float32").type(local_theta)
+                attn.sliding_window = np.dtype("int32").type(sliding_window)
+
+    def get_model_spec(self, model):
+        encoder_config = model.config.encoder.text_config
+        decoder_config = model.config.decoder
+
+        encoder = transformer_spec.TransformerEncoderSpec(
+            **self._side_kwargs(encoder_config)
+        )
+        decoder = transformer_spec.TransformerDecoderSpec(
+            **self._side_kwargs(decoder_config),
+            with_encoder_attention=True,
+            merged_encoder_attention=True,
+        )
+        spec = transformer_spec.TransformerSpec(encoder, decoder)
+
+        self.set_encoder(spec.encoder, model.model.encoder.text_model)
+        self._apply_layer_types(encoder_config, spec.encoder.layer)
+
+        self.set_decoder(spec.decoder, model.model.decoder)
+        self._apply_layer_types(decoder_config, spec.decoder.layer)
+
+        if hasattr(model.lm_head, "weight"):
+            self.set_linear(spec.decoder.projection, model.lm_head)
+        else:
+            self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
+        return spec
+
+    def set_vocabulary(self, spec, tokens):
+        spec.register_source_vocabulary(tokens)
+        spec.register_target_vocabulary(tokens)
+
+    def get_vocabulary(self, model, tokenizer):
+        tokens = super().get_vocabulary(model, tokenizer)
+        extra_ids = model.config.vocab_size - len(tokens)
+        for i in range(extra_ids):
+            tokens.append("<extra_id_%d>" % i)
+        return tokens
+
+    def set_config(self, config, model, tokenizer):
+        config.bos_token = getattr(tokenizer, "bos_token", None)
+        config.eos_token = getattr(tokenizer, "eos_token", None)
+        config.unk_token = getattr(tokenizer, "unk_token", None)
+        config.decoder_start_token = getattr(tokenizer, "bos_token", None)
+        config.layer_norm_epsilon = model.config.encoder.text_config.rms_norm_eps
+
+    def set_encoder(self, spec, encoder):
+        encoder_emb_spec = (
+            spec.embeddings[0] if isinstance(spec.embeddings, list) else spec.embeddings
+        )
+        self.set_embeddings(encoder_emb_spec, encoder.embed_tokens)
+        self.set_layer_norm(spec.layer_norm, encoder.norm)
+        embed_scale = getattr(encoder.embed_tokens, "embed_scale", None)
+        spec.scale_embeddings = float(embed_scale) if embed_scale is not None else False
+
+        for layer_spec, layer in zip(spec.layer, encoder.layers):
+            self.set_layer_norm(
+                layer_spec.input_layer_norm, layer.pre_self_attn_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_attention_layer_norm, layer.post_self_attn_layernorm
+            )
+            self._set_self_attention(layer_spec.self_attention, layer)
+            self.set_layer_norm(
+                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
+            )
+            self.set_linear(layer_spec.ffn.linear_0, layer.mlp.gate_proj)
+            self.set_linear(layer_spec.ffn.linear_0_noact, layer.mlp.up_proj)
+            self.set_linear(layer_spec.ffn.linear_1, layer.mlp.down_proj)
+            delattr(layer, "self_attn")
+            delattr(layer, "mlp")
+            gc.collect()
+
+    def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
+        embed_scale = getattr(module.embed_tokens, "embed_scale", None)
+        spec.scale_embeddings = float(embed_scale) if embed_scale is not None else False
+        spec.start_from_zero_embedding = False
+        self.set_embeddings(spec.embeddings, module.embed_tokens)
+        self.set_layer_norm(spec.layer_norm, module.norm)
+
+        for layer_spec, layer in zip(spec.layer, module.layers):
+            attn_spec = layer_spec.self_attention
+            self.set_layer_norm(
+                layer_spec.input_layer_norm, layer.pre_self_attn_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_attention_layer_norm, layer.post_self_attn_layernorm
+            )
+            # Merged attention: same K/V projections feed both self-attn and cross-attn.
+            # Save them again as a fused memory_kv linear so the runtime can project
+            # encoder memory through them at inference time.
+            kv_split = [common_spec.LinearSpec() for _ in range(2)]
+            self.set_linear(kv_split[0], layer.self_attn.k_proj, quant_type=quant_type)
+            self.set_linear(kv_split[1], layer.self_attn.v_proj, quant_type=quant_type)
+            utils.fuse_linear(attn_spec.memory_kv, kv_split)
+
+            self._set_self_attention(attn_spec, layer, quant_type=quant_type)
+
+            self.set_layer_norm(
+                layer_spec.pre_feedforward_layer_norm, layer.pre_feedforward_layernorm
+            )
+            self.set_layer_norm(
+                layer_spec.post_feedforward_layer_norm, layer.post_feedforward_layernorm
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0, layer.mlp.gate_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_0_noact, layer.mlp.up_proj, quant_type=quant_type
+            )
+            self.set_linear(
+                layer_spec.ffn.linear_1, layer.mlp.down_proj, quant_type=quant_type
+            )
+            delattr(layer, "self_attn")
+            delattr(layer, "mlp")
+            gc.collect()
+
+    def _set_self_attention(
+        self, attn_spec, layer, quant_type=common_spec.Quantization.CT2
+    ):
+        # T5Gemma2 wraps self-attn pre/post norms on the layer (not inside attention).
+        # We map them via input_layer_norm/post_attention_layer_norm on the layer spec.
+        qkv_split = [common_spec.LinearSpec() for _ in range(3)]
+        self.set_linear(qkv_split[0], layer.self_attn.q_proj, quant_type=quant_type)
+        self.set_linear(qkv_split[1], layer.self_attn.k_proj, quant_type=quant_type)
+        self.set_linear(qkv_split[2], layer.self_attn.v_proj, quant_type=quant_type)
+        utils.fuse_linear(attn_spec.linear[0], qkv_split)
+        self.set_linear(
+            attn_spec.linear[1], layer.self_attn.o_proj, quant_type=quant_type
+        )
+        self.set_layer_norm(attn_spec.q_norm, layer.self_attn.q_norm)
+        self.set_layer_norm(attn_spec.k_norm, layer.self_attn.k_norm)
+
+    def set_layer_norm(self, spec, layer_norm):
+        spec.gamma = (layer_norm.weight.data + 1.0).float()

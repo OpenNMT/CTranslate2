@@ -1,6 +1,7 @@
 #pragma once
 
 #include <chrono>
+#include <functional>
 #include <future>
 
 #include "batch_reader.h"
@@ -18,6 +19,14 @@ namespace ctranslate2 {
 
   template <typename Replica>
   class ReplicaWorker;
+
+  // Loading and replica creation can run parallel_for on the calling thread, which
+  // never reaches ReplicaWorker::finalize(), so release its context on scope exit.
+  struct CallingThreadContextGuard {
+    ~CallingThreadContextGuard() {
+      destroy_context(Device::CPU);
+    }
+  };
 
   // Base class to implement a pool of model replicas that can run in parallel.
   template <typename Replica>
@@ -130,6 +139,7 @@ namespace ctranslate2 {
         throw std::invalid_argument("The number of models does not match the number "
                                     "of parallel replicas");
 
+      CallingThreadContextGuard context_guard;
       for (size_t i = 0; i < num_replicas(); ++i) {
         auto& worker = static_cast<ReplicaWorker<Replica>&>(_thread_pool->get_worker(i));
         worker.set_model(models[i]);
@@ -153,6 +163,8 @@ namespace ctranslate2 {
     }
 
   protected:
+    ReplicaPool() = default;
+
     template <typename Result, typename Func>
     std::vector<std::future<Result>>
     post_examples(const std::vector<Example>& examples,
@@ -237,15 +249,25 @@ namespace ctranslate2 {
                          const ReplicaPoolConfig& config) {
       // The same number of computation threads should be used for loading and running model.
       set_num_threads(config.num_threads_per_replica);
-      initialize_pool(model_loader.load(), config);
+      std::vector<std::shared_ptr<const models::Model>> models;
+      {
+        CallingThreadContextGuard context_guard;
+        models = model_loader.load();
+      }
+      initialize_pool(models, config);
     }
 
+  protected:
+    // A factory can configure replica execution independently of checkpoint storage.
     void initialize_pool(const std::vector<std::shared_ptr<const models::Model>>& models,
-                         const ReplicaPoolConfig& config) {
+                         const ReplicaPoolConfig& config,
+                         std::function<std::unique_ptr<Replica>(const models::Model&)> factory = {}) {
+      CallingThreadContextGuard context_guard;
       std::vector<std::unique_ptr<Worker>> workers;
       workers.reserve(models.size());
       for (const auto& model : models) {
-        workers.emplace_back(std::make_unique<ReplicaWorker<Replica>>(model, config.num_threads_per_replica));
+        workers.emplace_back(std::make_unique<ReplicaWorker<Replica>>(
+            model, config.num_threads_per_replica, factory));
       }
 
       size_t max_queue_size = std::numeric_limits<size_t>::max();
@@ -259,6 +281,7 @@ namespace ctranslate2 {
                                                   config.cpu_core_offset);
     }
 
+  private:
     template <typename Result, typename Func>
     void post_func(Func func, std::vector<std::promise<Result>> promises) {
       _thread_pool->post(std::make_unique<BatchJob<Result, Func>>(std::move(promises),
@@ -304,11 +327,13 @@ namespace ctranslate2 {
   template <typename Replica>
   class ReplicaWorker : public Worker {
   public:
-    ReplicaWorker(const std::shared_ptr<const models::Model>& model, size_t num_threads)
+    ReplicaWorker(const std::shared_ptr<const models::Model>& model, size_t num_threads,
+                  std::function<std::unique_ptr<Replica>(const models::Model&)> factory = {})
       : _device(model->device())
       , _device_index(model->device_index())
       , _num_threads(num_threads)
       , _allocator(nullptr)
+      , _factory(std::move(factory))
     {
       set_model(model);
     }
@@ -320,7 +345,7 @@ namespace ctranslate2 {
     }
 
     void set_model(const std::shared_ptr<const models::Model>& model) {
-      _replica = Replica::create_from_model(*model);
+      _replica = _factory ? _factory(*model) : Replica::create_from_model(*model);
     }
 
     std::shared_ptr<const models::Model> detach_model() {
@@ -354,6 +379,8 @@ namespace ctranslate2 {
 
     void finalize() override {
       _replica.reset();
+
+      destroy_context(_device);
     }
 
   private:
@@ -361,6 +388,7 @@ namespace ctranslate2 {
     const int _device_index;
     const size_t _num_threads;
     Allocator* _allocator;
+    const std::function<std::unique_ptr<Replica>(const models::Model&)> _factory;
     std::unique_ptr<Replica> _replica;
   };
 

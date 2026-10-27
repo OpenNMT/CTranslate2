@@ -10,12 +10,20 @@ if sys.platform == "win32":
     module_name = sys.modules[__name__].__name__
     package_dir = str(files(module_name))
 
-    try:
-        os.add_dll_directory(package_dir)
-        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_core/bin")
-        os.add_dll_directory(f"{package_dir}/../_rocm_sdk_libraries_custom/bin")
-    except (FileNotFoundError, OSError):
-        pass
+    # The libraries package name differs across ROCm releases.
+    site_dir = os.path.dirname(package_dir)
+    dll_dirs = [os.path.join(site_dir, "_rocm_sdk_core", "bin")]
+    dll_dirs += sorted(glob.glob(os.path.join(site_dir, "_rocm_sdk_libraries*", "bin")))
+    dll_dirs = [path for path in dll_dirs if os.path.isdir(path)]
+    # Fallback only: the search order between DLL directories is unspecified.
+    if not dll_dirs and os.environ.get("HIP_PATH"):
+        dll_dirs = [os.path.join(os.environ["HIP_PATH"], "bin")]
+
+    for path in [package_dir] + dll_dirs:
+        try:
+            os.add_dll_directory(path)
+        except OSError:
+            pass
 
     for library in glob.glob(os.path.join(package_dir, "*.dll")):
         ctypes.CDLL(library)
@@ -55,5 +63,35 @@ except ImportError as e:
     else:
         raise
 
-from ctranslate2 import converters, models, specs
+from ctranslate2 import models
 from ctranslate2.version import __version__
+
+# converters and specs import torch (and, for converters, transformers) at module level.
+# Those dependencies are only needed to convert models, not to run inference, so import
+# these submodules on first use to keep "import ctranslate2" free of them.
+_LAZY_SUBMODULES = ("converters", "specs")
+
+
+def __getattr__(name):
+    if name in _LAZY_SUBMODULES:
+        import importlib
+
+        module = importlib.import_module(f"{__name__}.{name}")
+        globals()[name] = module
+        return module
+
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def __dir__():
+    return sorted(set(globals()) | set(_LAZY_SUBMODULES))
+
+
+# A wildcard import resolves ``__all__`` when it is defined and the module globals
+# otherwise, so without this the lazy submodules would silently drop out of
+# ``from ctranslate2 import *``. Deriving the list keeps the wildcard surface identical
+# to what it was before they became lazy; a wildcard import asks for everything, so
+# resolving them here is expected.
+__all__ = sorted(
+    [name for name in globals() if not name.startswith("_")] + list(_LAZY_SUBMODULES)
+)

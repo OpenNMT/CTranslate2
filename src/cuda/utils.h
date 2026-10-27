@@ -24,6 +24,7 @@
 
 #define cudaGetDevice hipGetDevice
 #define cudaSetDevice hipSetDevice
+#define cudaGetLastError hipGetLastError
 #define cudaDeviceSynchronize hipDeviceSynchronize
 #define cudaStreamSynchronize hipStreamSynchronize
 
