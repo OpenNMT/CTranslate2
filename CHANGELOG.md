@@ -4,6 +4,10 @@
 
 * Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (#2077) by [@TBO22](https://github.com/TBO22). It is opt-in at build time (`-DWITH_MPS=ON`), it is not included in the published wheels, and `device="auto"` never selects it
 
+### Fixes and improvements
+
+* Fix the eole converter scale for relative position keys (#2134) by [@maksimcialehin](https://github.com/maksimcialehin)
+
 ## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-24)
 
 ### New features
