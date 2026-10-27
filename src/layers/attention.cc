@@ -15,6 +15,10 @@
 #include "dispatch.h"
 #include "cpu/parallel.h"
 
+#ifdef CT2_WITH_CUDA
+#  include "cuda/utils.h"
+#endif
+
 #ifdef CT2_WITH_MPS
 #  include "mps/kernels.h"
 #endif
@@ -322,21 +326,28 @@ namespace ctranslate2 {
                                        maximum_relative_position).to(queries.device()));
       }
 
-      const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
-      keys_matmul(queries, keys, output);
-      if (relative_position_keys)
-        add_relative_representations(queries,
-                                     *relative_positions,
-                                     *relative_position_keys,
-                                     keys_matmul,
-                                     output);
+      {
+#ifdef CT2_WITH_CUDA
+        // Accumulate attention scores in FP32: the unscaled dot product can
+        // overflow FP16 even when the scaled score is representable.
+        const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(false);
+#endif
+        const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
+        keys_matmul(queries, keys, output);
+        if (relative_position_keys)
+          add_relative_representations(queries,
+                                       *relative_positions,
+                                       *relative_position_keys,
+                                       keys_matmul,
+                                       output);
 
-      if (relative_asymmetric_position_keys)
-        add_relative_representations(queries,
-                                     *relative_positions,
-                                     *relative_asymmetric_position_keys,
-                                     keys_matmul,
-                                     output);
+        if (relative_asymmetric_position_keys)
+          add_relative_representations(queries,
+                                       *relative_positions,
+                                       *relative_asymmetric_position_keys,
+                                       keys_matmul,
+                                       output);
+      }
       if (relative_attention_bias) {
         StorageView local_position_bias(output.dtype(), output.device());
 
