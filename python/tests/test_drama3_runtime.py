@@ -411,12 +411,17 @@ class Drama3RuntimeTest(unittest.TestCase):
             with self.subTest(rows=rows, max_frames=max_frames):
                 prompt = np.tile(self.prompt[:1], (rows, 1))
                 baseline = model.generate(
-                    prompt, max_frames=max_frames, greedy=True,
+                    prompt,
+                    max_frames=max_frames,
+                    greedy=True,
                     prefill_chunk_size=chunk_size,
                 )
                 cached = model.generate(
-                    prompt, max_frames=max_frames, greedy=True,
-                    prefill_chunk_size=chunk_size, static_prompt_rows=3,
+                    prompt,
+                    max_frames=max_frames,
+                    greedy=True,
+                    prefill_chunk_size=chunk_size,
+                    static_prompt_rows=3,
                 )
                 np.testing.assert_array_equal(cached.codes, baseline.codes)
                 np.testing.assert_array_equal(cached.audio, baseline.audio)
