@@ -481,8 +481,11 @@ namespace ctranslate2 {
         if (start == 0 && cache) {
           prefill_rows(prompt, 0, static_n, chunk_size, state);
           state.hidden = rows<float>(state.hidden, state.hidden.dim(0) - 1, 1);
-          cache->save(std::move(key),
-                      {state.backbone_state, state.tower_state, state.hidden});
+          Drama3StateSnapshot snapshot{
+              state.backbone_state, state.tower_state, state.hidden};
+          // Finish GPU copies before another replica can read the snapshot.
+          synchronize_stream(options.device);
+          cache->save(std::move(key), std::move(snapshot));
           start = static_n;
         }
         // The prefix tower state stops one row before the backbone because its
