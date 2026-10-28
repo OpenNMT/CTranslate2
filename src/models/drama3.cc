@@ -271,6 +271,20 @@ namespace ctranslate2 {
         target.length = source.length;
       }
 
+      layers::GatedSelfAttentionCache snapshot_attention_cache(
+          const layers::GatedSelfAttentionCache& source) {
+        layers::GatedSelfAttentionCache snapshot;
+        if (source.length > 0) {
+          const ScopedDeviceSetter setter(source.keys.device(), source.keys.device_index());
+          auto shape = source.keys.shape();
+          shape[0] = source.length;
+          snapshot.keys = StorageView(shape, DataType::FLOAT32, source.keys.device());
+          snapshot.values = StorageView(shape, DataType::FLOAT32, source.values.device());
+          restore_attention_cache(source, snapshot);
+        }
+        return snapshot;
+      }
+
     }
 
     struct Drama3Replica::Impl : ModelReplica {
@@ -481,8 +495,17 @@ namespace ctranslate2 {
         if (start == 0 && cache) {
           prefill_rows(prompt, 0, static_n, chunk_size, state);
           state.hidden = rows<float>(state.hidden, state.hidden.dim(0) - 1, 1);
-          Drama3StateSnapshot snapshot{
-              state.backbone_state, state.tower_state, state.hidden};
+          Drama3StateSnapshot snapshot;
+          snapshot.backbone.length = snapshot.backbone.capacity = state.backbone_state.length;
+          for (const auto& layer : state.backbone_state.layers)
+            snapshot.backbone.layers.push_back(
+                {layer.recurrent, layer.history, snapshot_attention_cache(layer.attention)});
+          snapshot.tower.length = snapshot.tower.capacity = state.tower_state.length;
+          for (const auto& attention : state.tower_state.shared)
+            snapshot.tower.shared.push_back(snapshot_attention_cache(attention));
+          for (const auto& attention : state.tower_state.residual)
+            snapshot.tower.residual.push_back(snapshot_attention_cache(attention));
+          snapshot.last_hidden = state.hidden;
           // Finish GPU copies before another replica can read the snapshot.
           synchronize_stream(options.device);
           cache->save(std::move(key), std::move(snapshot));

@@ -401,6 +401,27 @@ class Drama3RuntimeTest(unittest.TestCase):
         self.assertEqual(stats["hits"], 0)
         self.assertEqual(stats["misses"], 2)
 
+    def test_static_prefix_cache_restores_populated_tower_caches(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        # Three prefix rows populate both backbone and tower caches. Warm with
+        # a larger request, then reuse the prefix with smaller/larger capacities.
+        for rows, max_frames, chunk_size in ((8, 5, 2), (4, 1, 1), (10, 6, 4)):
+            with self.subTest(rows=rows, max_frames=max_frames):
+                prompt = np.tile(self.prompt[:1], (rows, 1))
+                baseline = model.generate(
+                    prompt, max_frames=max_frames, greedy=True,
+                    prefill_chunk_size=chunk_size,
+                )
+                cached = model.generate(
+                    prompt, max_frames=max_frames, greedy=True,
+                    prefill_chunk_size=chunk_size, static_prompt_rows=3,
+                )
+                np.testing.assert_array_equal(cached.codes, baseline.codes)
+                np.testing.assert_array_equal(cached.audio, baseline.audio)
+        self.assertEqual(model.prefix_cache_stats["hits"], 2)
+
     def test_static_prompt_rows_bounds_are_validated(self):
         model = ctranslate2.models.Drama3(
             self.directory.name, intra_threads=1, inter_threads=1
