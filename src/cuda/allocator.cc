@@ -1,5 +1,6 @@
 #include "ctranslate2/allocator.h"
 
+#include <atomic>
 #include <memory>
 #include <mutex>
 
@@ -61,18 +62,34 @@ namespace ctranslate2 {
       void* allocate(size_t size, int device_index) override {
         void* ptr = nullptr;
         CUDA_CHECK(_allocator->DeviceAllocate(device_index, &ptr, size, cuda::get_cuda_stream()));
+        _ref_count.fetch_add(1, std::memory_order_relaxed);
         return ptr;
       }
 
       void free(void* ptr, int device_index) override {
         _allocator->DeviceFree(device_index, ptr);
+        release();
       }
 
       void clear_cache() override {
         _allocator->FreeAllCached();
       }
 
+      // One reference belongs to the allocating thread and one to each live
+      // allocation. Buffers can be released after the allocating thread exits.
+      void release() {
+        if (_ref_count.fetch_sub(1, std::memory_order_acq_rel) == 1)
+          delete this;
+      }
+
+      void release_thread() {
+        // Late frees must not record cache events on the thread's destroyed stream.
+        _allocator->SetMaxCachedBytes(0);
+        release();
+      }
+
     private:
+      std::atomic<size_t> _ref_count{1};
       std::unique_ptr<cub::CachingDeviceAllocator> _allocator;
     };
 
@@ -179,9 +196,14 @@ namespace ctranslate2 {
     static const cuda::CudaAllocator cuda_allocator = cuda::resolve_cuda_allocator();
 
     if (cuda_allocator == cuda::CudaAllocator::CubCaching) {
+      // Initialize the stream first so it outlives the thread's allocator reference.
+      cuda::get_cuda_stream();
       // Use 1 allocator per thread for performance.
-      static thread_local cuda::CubCachingAllocator allocator;
-      return allocator;
+      static thread_local std::unique_ptr<cuda::CubCachingAllocator,
+                                         void (*)(cuda::CubCachingAllocator*)> allocator(
+        new cuda::CubCachingAllocator(),
+        [](cuda::CubCachingAllocator* allocator) { allocator->release_thread(); });
+      return *allocator;
     }
 
     static cuda::CudaAsyncAllocator allocator;
