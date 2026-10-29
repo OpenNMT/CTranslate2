@@ -99,7 +99,7 @@ namespace ctranslate2 {
 
     struct Drama3Options {
       dim_t max_frames = 512;
-      dim_t prefill_chunk_size = 16;
+      dim_t prefill_chunk_size = 128;
       float temperature = .8f;
       dim_t top_k = 30;
       float top_p = .8f;
@@ -143,7 +143,7 @@ namespace ctranslate2 {
                       size_t inter_threads = 1, long max_queued_batches = 0);
       // Synchronous compatibility entry point. Async and batch calls use the same pool.
       Drama3Result generate(const StorageView& prompt, dim_t max_frames = 512,
-                            dim_t prefill_chunk_size = 16, float temperature = .8f,
+                            dim_t prefill_chunk_size = 128, float temperature = .8f,
                             dim_t top_k = 30, float top_p = .8f, uint64_t seed = 0,
                             bool greedy = false, dim_t static_prompt_rows = 0,
                             bool cache_static_prompt = true);

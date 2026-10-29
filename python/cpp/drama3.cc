@@ -132,7 +132,7 @@ namespace ctranslate2 {
                 return py::cast(std::move(result));
               },
               py::arg("prompt_rows"), py::arg("max_frames") = 512,
-              py::arg("prefill_chunk_size") = 16, py::arg("temperature") = .8f,
+              py::arg("prefill_chunk_size") = 128, py::arg("temperature") = .8f,
               py::arg("top_k") = 30, py::arg("top_p") = .8f, py::arg("seed") = 0,
               py::arg("greedy") = false, py::arg("asynchronous") = false,
               py::arg("static_prompt_rows") = 0, py::arg("cache_static_prompt") = true,
@@ -184,7 +184,7 @@ namespace ctranslate2 {
                 return py::cast(std::move(results));
               },
               py::arg("prompts"), py::arg("max_frames") = 512,
-              py::arg("prefill_chunk_size") = 16, py::arg("temperature") = .8f,
+              py::arg("prefill_chunk_size") = 128, py::arg("temperature") = .8f,
               py::arg("top_k") = 30, py::arg("top_p") = .8f, py::arg("seed") = 0,
               py::arg("greedy") = false, py::arg("asynchronous") = false,
               py::arg("static_prompt_rows") = 0, py::arg("cache_static_prompt") = true,
