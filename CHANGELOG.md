@@ -15,7 +15,7 @@
 * Fix FP16 overflow in CUDA attention score accumulation (#2131) by [@jordimas](https://github.com/jordimas)
 * Fix the eole converter scale for relative position keys (#2134) by [@maksimcialehin](https://github.com/maksimcialehin)
 * Add a Windows ROCm/HIP build guide and document AMD GPU support (#2041) by T0nd3 and [@jordimas](https://github.com/jordimas)
-* Add CUDA build instructions for NVIDIA Jetson devices (#2019) by Vimal Kumar
+* Add CUDA build instructions for NVIDIA Jetson devices (#2019) by [@vimalk78](https://github.com/vimalk78)
 
 ## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-24)
 
