@@ -6,6 +6,9 @@ namespace ctranslate2 {
   namespace ops {
 
 #ifdef CT2_WITH_CUDA
+    // Single-token, bias-free projections with float accumulation; false otherwise.
+    bool drama_paired_projection_gpu(const StorageView& input, const StorageView& weight_a,
+                                     const StorageView& weight_b, StorageView& a, StorageView& b);
     void drama_conv_gpu(const StorageView&, const StorageView&, const StorageView*, StorageView&,
                         StorageView&);
     void drama_delta_gpu(StorageView& mixed, const StorageView& a, const StorageView& b,

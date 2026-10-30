@@ -191,8 +191,15 @@ namespace ctranslate2 {
       ops::drama_conv_gpu(projected, _gpu_conv, _conv_bias ? &_gpu_conv_bias : nullptr, history,
                           mixed);
       _z(input, z);
-      _a(input, a);
-      _b(input, b);
+      bool paired = false;
+      if (input.dim(0) == 1) {
+        const auto wa = _a.device_weights(), wb = _b.device_weights();
+        paired = ops::drama_paired_projection_gpu(input, wa.weight, wb.weight, a, b);
+      }
+      if (!paired) {
+        _a(input, a);
+        _b(input, b);
+      }
       StorageView core(DataType::FLOAT32, Device::CUDA);
       ops::drama_delta_gpu(mixed, a, b, _gpu_a_log, _gpu_dt_bias, state, _key_heads, _value_heads,
                            _key_dim, _value_dim, core);
