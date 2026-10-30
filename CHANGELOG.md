@@ -2,6 +2,10 @@
 
 ### New features
 
+### Fixes and improvements
+
+* Fix the eole converter scale for relative position keys (#2134) by [@maksimcialehin](https://github.com/maksimcialehin)
+
 ## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-24)
 
 ### New features

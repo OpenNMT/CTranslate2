@@ -1,4 +1,5 @@
 #include <limits>
+#include <thread>
 
 #include "test_utils.h"
 #include "ctranslate2/storage_view.h"
@@ -130,6 +131,27 @@ TEST(StorageViewTest, ExpandDimsAndSqueeze) {
 
 class StorageViewDeviceTest : public ::testing::TestWithParam<Device> {
 };
+
+TEST_P(StorageViewDeviceTest, StorageOutlivesAllocatingThread) {
+  const Device device = GetParam();
+  StorageView storage(device);
+  // Initialize the main thread's stream so the worker uses a nondefault stream.
+  synchronize_stream(device);
+  std::thread worker([&] {
+    StorageView local({4}, std::vector<float>{1, 2, 3, 4}, device);
+    synchronize_stream(device);
+    storage = std::move(local);
+  });
+  worker.join();
+
+  // The worker has exited, but its allocator must survive until the buffer is freed.
+  EXPECT_TRUE(storage.owns_data());
+  StorageView moved(std::move(storage));
+  EXPECT_FALSE(storage.owns_data());
+  expect_storage_eq(moved, StorageView({4}, std::vector<float>{1, 2, 3, 4}));
+  moved.release();
+  EXPECT_FALSE(moved.owns_data());
+}
 
 TEST_P(StorageViewDeviceTest, HalfConversion) {
   const Device device = GetParam();
