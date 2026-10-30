@@ -28,9 +28,7 @@ namespace ctranslate2 {
       const Drama3StateSnapshot* get(const std::vector<int32_t>& key) const;
       void save(std::vector<int32_t> key, Drama3StateSnapshot snapshot);
       // Counters are observational only, intended for tests and diagnostics.
-      size_t hits() const;
-      size_t misses() const;
-      size_t entries() const;
+      std::map<std::string, size_t> stats() const;
 
     private:
       std::map<std::vector<int32_t>, Drama3StateSnapshot> _cache;

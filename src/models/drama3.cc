@@ -44,19 +44,9 @@ namespace ctranslate2 {
       _cache.emplace(std::move(key), std::move(snapshot));
     }
 
-    size_t Drama3StateCache::hits() const {
+    std::map<std::string, size_t> Drama3StateCache::stats() const {
       std::lock_guard<std::mutex> lock(_mutex);
-      return _hits;
-    }
-
-    size_t Drama3StateCache::misses() const {
-      std::lock_guard<std::mutex> lock(_mutex);
-      return _misses;
-    }
-
-    size_t Drama3StateCache::entries() const {
-      std::lock_guard<std::mutex> lock(_mutex);
-      return _cache.size();
+      return {{"entries", _cache.size()}, {"hits", _hits}, {"misses", _misses}};
     }
 
     namespace {

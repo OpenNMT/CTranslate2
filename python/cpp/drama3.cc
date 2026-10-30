@@ -100,12 +100,7 @@ namespace ctranslate2 {
           .def_property_readonly("num_active_batches", &models::Drama3::num_active_batches)
           .def_property_readonly("prefix_cache_stats", [](const models::Drama3& model) {
             const auto& base = *model.get_first_replica().model();
-            const auto& cache = dynamic_cast<const models::Drama3Model&>(base).state_cache();
-            py::dict stats;
-            stats["entries"] = cache.entries();
-            stats["hits"] = cache.hits();
-            stats["misses"] = cache.misses();
-            return stats;
+            return dynamic_cast<const models::Drama3Model&>(base).state_cache().stats();
           }, "Static-prefix cache diagnostics: {entries, hits, misses}.")
           .def(
               "generate",
