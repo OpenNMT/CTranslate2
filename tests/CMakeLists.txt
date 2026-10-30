@@ -62,6 +62,7 @@ if(WITH_CUDA)
 
 elseif(WITH_HIP)
   enable_language(HIP)
+  # attention_test includes cuda/utils.h, whose ROCm headers require HIP mode.
   set_source_files_properties(attention_test.cc PROPERTIES LANGUAGE HIP)
   list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH})
   link_directories(${ROCM_PATH}/lib)
