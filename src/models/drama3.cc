@@ -1,4 +1,5 @@
 #include "ctranslate2/models/drama3.h"
+#include <mutex>
 #include <regex>
 #include <stdexcept>
 #include "layers/drama/drama_backbone.h"
@@ -17,6 +18,37 @@
 
 namespace ctranslate2 {
   namespace models {
+
+    struct Drama3StateSnapshot {
+      layers::DramaBackboneState backbone;
+      layers::DramaTowerState tower;
+      StorageView last_hidden;
+    };
+
+    Drama3StateCache::Drama3StateCache() = default;
+    Drama3StateCache::~Drama3StateCache() = default;
+
+    const Drama3StateSnapshot* Drama3StateCache::get(const std::vector<int32_t>& key) const {
+      std::lock_guard<std::mutex> lock(_mutex);
+      auto it = _cache.find(key);
+      if (it == _cache.end()) {
+        ++_misses;
+        return nullptr;
+      }
+      ++_hits;
+      return &it->second;
+    }
+
+    void Drama3StateCache::save(std::vector<int32_t> key, Drama3StateSnapshot snapshot) {
+      std::lock_guard<std::mutex> lock(_mutex);
+      _cache.emplace(std::move(key), std::move(snapshot));
+    }
+
+    std::map<std::string, size_t> Drama3StateCache::stats() const {
+      std::lock_guard<std::mutex> lock(_mutex);
+      return {{"entries", _cache.size()}, {"hits", _hits}, {"misses", _misses}};
+    }
+
     namespace {
 
       constexpr dim_t max_drama3_sequence_length = 8192;
@@ -212,6 +244,37 @@ namespace ctranslate2 {
                                           source.data<T>() + (first + count) * columns));
       }
 
+      void restore_attention_cache(const layers::GatedSelfAttentionCache& source,
+                                   layers::GatedSelfAttentionCache& target) {
+        // Keep the newly allocated capacity and copy only initialized prefix rows.
+        if (source.length > 0) {
+          const ScopedDeviceSetter setter(target.keys.device(), target.keys.device_index());
+          auto shape = target.keys.shape();
+          shape[0] = source.length;
+          for (const auto tensors : {std::make_pair(&source.keys, &target.keys),
+                                    std::make_pair(&source.values, &target.values)}) {
+            StorageView prefix(shape, tensors.second->data<float>(), tensors.second->device());
+            prefix.copy_from(tensors.first->data<float>(), prefix.size(),
+                             tensors.first->device());
+          }
+        }
+        target.length = source.length;
+      }
+
+      layers::GatedSelfAttentionCache snapshot_attention_cache(
+          const layers::GatedSelfAttentionCache& source) {
+        layers::GatedSelfAttentionCache snapshot;
+        if (source.length > 0) {
+          const ScopedDeviceSetter setter(source.keys.device(), source.keys.device_index());
+          auto shape = source.keys.shape();
+          shape[0] = source.length;
+          snapshot.keys = StorageView(shape, DataType::FLOAT32, source.keys.device());
+          snapshot.values = StorageView(shape, DataType::FLOAT32, source.values.device());
+          restore_attention_cache(source, snapshot);
+        }
+        return snapshot;
+      }
+
     }
 
     struct Drama3Replica::Impl : ModelReplica {
@@ -358,31 +421,92 @@ namespace ctranslate2 {
 
       void validate_generation(const StorageView& prompt, dim_t max_frames,
                                dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                               float top_p) const {
+                               float top_p, dim_t static_prompt_rows) const {
         if (prompt.device() != Device::CPU || prompt.dtype() != DataType::INT32
             || prompt.rank() != 2 || prompt.dim(1) != 11 || prompt.dim(0) <= 0
             || prompt.dim(0) > max_drama3_sequence_length || max_frames <= 0
             || max_frames > max_drama3_sequence_length || prefill_chunk_size <= 0
             || max_frames > max_context - prompt.dim(0) || !std::isfinite(temperature)
-            || temperature <= 0 || top_k <= 0 || !std::isfinite(top_p) || top_p <= 0 || top_p > 1)
+            || temperature <= 0 || top_k <= 0 || !std::isfinite(top_p) || top_p <= 0 || top_p > 1
+            || static_prompt_rows < 0 || static_prompt_rows >= prompt.dim(0))
           throw std::invalid_argument("Invalid Drama3 prompt, frame budget or prefill chunk size");
         for (dim_t t = 0; t < prompt.dim(0); ++t)
           if (prompt.data<int32_t>()[t * 11] < 0 || prompt.data<int32_t>()[t * 11] >= vocabulary)
             throw std::invalid_argument("Drama3 prompt token outside vocabulary");
       }
 
-      void prefill(const StorageView& prompt, dim_t chunk_size, GenerationState& state) const {
-        for (dim_t start = 0; start < prompt.dim(0); start += chunk_size) {
-          const dim_t count = std::min(chunk_size, prompt.dim(0) - start);
+      void prefill_rows(const StorageView& prompt, dim_t row_offset, dim_t total_rows,
+                        dim_t chunk_size, GenerationState& state) const {
+        for (dim_t start = row_offset; start < total_rows; start += chunk_size) {
+          const dim_t count = std::min(chunk_size, total_rows - start);
           auto frames = rows<int32_t>(prompt, start, count);
           auto embedded = embed(frames);
           (*backbone)(embedded, state.backbone_state, state.hidden, state.logits);
-          const dim_t paired = std::min(count, prompt.dim(0) - 1 - start);
+          const dim_t paired = std::min(count, total_rows - 1 - start);
           if (paired > 0)
             tower->prefill(rows<float>(state.hidden, 0, paired),
                            rows<int32_t>(prompt, start, paired),
                            rows<int32_t>(prompt, start + 1, paired), state.tower_state);
         }
+      }
+
+      void prefill(const StorageView& prompt, dim_t chunk_size,
+                   const Drama3Options& opts, GenerationState& state) const {
+        const dim_t total = prompt.dim(0);
+        const dim_t static_n = opts.static_prompt_rows;
+        dim_t start = 0;
+        Drama3StateCache* cache = nullptr;
+        std::vector<int32_t> key;
+        if (opts.cache_static_prompt && static_n > 0 && static_n < total) {
+          const auto* checkpoint = dynamic_cast<const Drama3Model*>(this->model().get());
+          if (checkpoint) {
+            cache = &checkpoint->state_cache();
+            key.assign(prompt.data<int32_t>(),
+                       prompt.data<int32_t>() + static_n * 11);
+            if (const auto* snap = cache->get(key)) {
+              for (size_t i = 0; i < snap->backbone.layers.size(); ++i) {
+                const auto& source = snap->backbone.layers[i];
+                auto& target = state.backbone_state.layers[i];
+                target.recurrent = source.recurrent;
+                target.history = source.history;
+                restore_attention_cache(source.attention, target.attention);
+              }
+              state.backbone_state.length = snap->backbone.length;
+              for (size_t i = 0; i < snap->tower.shared.size(); ++i)
+                restore_attention_cache(snap->tower.shared[i], state.tower_state.shared[i]);
+              for (size_t i = 0; i < snap->tower.residual.size(); ++i)
+                restore_attention_cache(snap->tower.residual[i], state.tower_state.residual[i]);
+              state.tower_state.length = snap->tower.length;
+              state.hidden = snap->last_hidden;
+              start = static_n;
+            }
+          }
+        }
+        if (start == 0 && cache) {
+          prefill_rows(prompt, 0, static_n, chunk_size, state);
+          state.hidden = rows<float>(state.hidden, state.hidden.dim(0) - 1, 1);
+          Drama3StateSnapshot snapshot;
+          snapshot.backbone.length = snapshot.backbone.capacity = state.backbone_state.length;
+          for (const auto& layer : state.backbone_state.layers)
+            snapshot.backbone.layers.push_back(
+                {layer.recurrent, layer.history, snapshot_attention_cache(layer.attention)});
+          snapshot.tower.length = snapshot.tower.capacity = state.tower_state.length;
+          for (const auto& attention : state.tower_state.shared)
+            snapshot.tower.shared.push_back(snapshot_attention_cache(attention));
+          for (const auto& attention : state.tower_state.residual)
+            snapshot.tower.residual.push_back(snapshot_attention_cache(attention));
+          snapshot.last_hidden = state.hidden;
+          // Finish GPU copies before another replica can read the snapshot.
+          synchronize_stream(options.device);
+          cache->save(std::move(key), std::move(snapshot));
+          start = static_n;
+        }
+        // The prefix tower state stops one row before the backbone because its
+        // last hidden row must be paired with the first, request-specific suffix row.
+        if (start > 0)
+          tower->prefill(state.hidden, rows<int32_t>(prompt, start - 1, 1),
+                         rows<int32_t>(prompt, start, 1), state.tower_state);
+        prefill_rows(prompt, start, total, chunk_size, state);
         state.hidden = rows<float>(state.hidden, state.hidden.dim(0) - 1, 1);
         state.logits = rows<float>(state.logits, state.logits.dim(0) - 1, 1);
       }
@@ -505,9 +629,11 @@ namespace ctranslate2 {
 
     Drama3Result Drama3::generate(const StorageView& prompt, dim_t max_frames,
                                   dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                                  float top_p, uint64_t seed, bool greedy) {
+                                  float top_p, uint64_t seed, bool greedy,
+                                  dim_t static_prompt_rows, bool cache_static_prompt) {
       return generate_async(prompt, {max_frames, prefill_chunk_size, temperature,
-                                     top_k, top_p, seed, greedy}).get();
+                                     top_k, top_p, seed, greedy,
+                                     static_prompt_rows, cache_static_prompt}).get();
     }
 
     std::future<Drama3Result> Drama3::generate_async(const StorageView& prompt,
@@ -537,7 +663,8 @@ namespace ctranslate2 {
       const auto greedy = options.greedy;
       const auto total_start = Clock::now();
       const ScopedDeviceSetter setter(_impl->options.device, _impl->options.device_index);
-      _impl->validate_generation(prompt, max_frames, prefill_chunk_size, temperature, top_k, top_p);
+      _impl->validate_generation(prompt, max_frames, prefill_chunk_size, temperature, top_k,
+                                 top_p, options.static_prompt_rows);
 
       Impl::GenerationState state;
       const dim_t capacity = prompt.dim(0) + max_frames;
@@ -546,7 +673,7 @@ namespace ctranslate2 {
 
       Drama3Result result;
       const auto prefill_start = Clock::now();
-      _impl->prefill(prompt, prefill_chunk_size, state);
+      _impl->prefill(prompt, prefill_chunk_size, options, state);
       result.timings.prefill_seconds = seconds_since(prefill_start);
 
       layers::DramaSamplingOptions sampling;
