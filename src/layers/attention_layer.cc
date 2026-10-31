@@ -364,6 +364,7 @@ namespace ctranslate2 {
         _alibi = build_alibi(num_heads, new_length, _use_positive_positions, _scale_alibi ? scale : 1);
       }
 
+      // Attention score dtype can change between calls even when the cached length is unchanged.
       _alibi.move_to(x.device(), x.dtype());
       _alibi_op(x, _alibi, x);
     }

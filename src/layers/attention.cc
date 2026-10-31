@@ -245,20 +245,20 @@ namespace ctranslate2 {
         const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(false);
 #endif
         const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
-        StorageView converted_queries, converted_keys;
+        StorageView converted_queries, converted_keys, converted_rel_keys, converted_asym_keys;
         const StorageView& score_queries = as_dtype(queries, scores.dtype(), converted_queries);
         keys_matmul(score_queries, as_dtype(keys, scores.dtype(), converted_keys), scores);
         if (relative_position_keys)
           add_relative_representations(score_queries,
                                        *relative_positions,
-                                       as_dtype(*relative_position_keys, scores.dtype(), converted_keys),
+                                       as_dtype(*relative_position_keys, scores.dtype(), converted_rel_keys),
                                        keys_matmul,
                                        scores);
 
         if (relative_asymmetric_position_keys)
           add_relative_representations(score_queries,
                                        *relative_positions,
-                                       as_dtype(*relative_asymmetric_position_keys, scores.dtype(), converted_keys),
+                                       as_dtype(*relative_asymmetric_position_keys, scores.dtype(), converted_asym_keys),
                                        keys_matmul,
                                        scores);
       }
@@ -303,6 +303,8 @@ namespace ctranslate2 {
       StorageView attn(scores.dtype(), scores.device());
       if (attention && !return_normalized_attention) {
         ops::SoftMax()(scores, values_lengths, attn);
+        if (fp32_scores)
+          scores = scores.to(values.dtype());
         save_attention(*attention, std::move(scores), beam_size);
       } else {
         attn = std::move(scores);

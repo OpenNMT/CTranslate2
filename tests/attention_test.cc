@@ -97,9 +97,9 @@ TEST(AttentionTest, AlignmentScorePrecision) {
             expected.insert(expected.end(), scores.begin(), scores.end());
           }
           expect_storage_eq(attention.to_float32(),
-                            StorageView({beam, heads, 1, 3}, expected), type.error);
+                            StorageView({beam, heads, 1, 3}, expected).to(dtype).to_float32(), type.error);
           EXPECT_EQ(output.dtype(), dtype);
-          EXPECT_EQ(attention.dtype(), normalized ? dtype : DataType::FLOAT32);
+          EXPECT_EQ(attention.dtype(), dtype);
         }
       }
     }
