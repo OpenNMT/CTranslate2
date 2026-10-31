@@ -178,6 +178,8 @@ namespace ctranslate2 {
       if (beam_size == 1)
         attention = std::move(weights);
       else {
+        if (attention.dtype() != weights.dtype())
+          attention = StorageView(weights.dtype(), weights.device());
         transpose_op(weights, attention);
         attention.reshape({-1, weights.dim(1), 1, weights.dim(-1)});
       }
