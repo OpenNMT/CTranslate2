@@ -362,9 +362,9 @@ namespace ctranslate2 {
         const dim_t num_heads = x.dim(1);
         const dim_t new_length = cur_length + _num_initial_positions;
         _alibi = build_alibi(num_heads, new_length, _use_positive_positions, _scale_alibi ? scale : 1);
-        _alibi.move_to(x.device(), x.dtype());
       }
 
+      _alibi.move_to(x.device(), x.dtype());
       _alibi_op(x, _alibi, x);
     }
 

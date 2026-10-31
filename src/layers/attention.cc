@@ -221,6 +221,12 @@ namespace ctranslate2 {
                                        maximum_relative_position).to(queries.device()));
       }
 
+      // Keep alignment scores in FP32 until after softmax: FP16 rounding can
+      // turn large, distinct scores into equal probabilities.
+      const bool fp32_scores = attention && queries.device() == Device::CUDA
+        && queries.dtype() == DataType::FLOAT16;
+      StorageView float_scores(DataType::FLOAT32, queries.device());
+      StorageView& scores = fp32_scores ? float_scores : output;
       {
 #ifdef CT2_WITH_CUDA
         // Accumulate attention scores in FP32: the unscaled dot product can
@@ -228,23 +234,37 @@ namespace ctranslate2 {
         const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(false);
 #endif
         const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
-        keys_matmul(queries, keys, output);
-        if (relative_position_keys)
-          add_relative_representations(queries,
+        StorageView float_queries(DataType::FLOAT32, queries.device());
+        if (fp32_scores)
+          float_queries = queries.to_float32();
+        const StorageView& score_queries = fp32_scores ? float_queries : queries;
+        if (fp32_scores)
+          keys_matmul(score_queries, keys.to_float32(), scores);
+        else
+          keys_matmul(score_queries, keys, scores);
+        StorageView float_relative_keys(DataType::FLOAT32, queries.device());
+        if (relative_position_keys) {
+          if (fp32_scores)
+            float_relative_keys = relative_position_keys->to_float32();
+          add_relative_representations(score_queries,
                                        *relative_positions,
-                                       *relative_position_keys,
+                                       fp32_scores ? float_relative_keys : *relative_position_keys,
                                        keys_matmul,
-                                       output);
+                                       scores);
+        }
 
-        if (relative_asymmetric_position_keys)
-          add_relative_representations(queries,
+        if (relative_asymmetric_position_keys) {
+          if (fp32_scores)
+            float_relative_keys = relative_asymmetric_position_keys->to_float32();
+          add_relative_representations(score_queries,
                                        *relative_positions,
-                                       *relative_asymmetric_position_keys,
+                                       fp32_scores ? float_relative_keys : *relative_asymmetric_position_keys,
                                        keys_matmul,
-                                       output);
+                                       scores);
+        }
       }
       if (relative_attention_bias) {
-        StorageView local_position_bias(output.dtype(), output.device());
+        StorageView local_position_bias(scores.dtype(), scores.device());
 
         if (!position_bias)
           position_bias = &local_position_bias;
@@ -269,24 +289,32 @@ namespace ctranslate2 {
           position_bias_per_gpu = &position_bias_tmp;
         }
 
-        DEVICE_AND_TYPE_DISPATCH(output.device(), output.dtype(),
+        StorageView float_position_bias(DataType::FLOAT32, scores.device());
+        if (fp32_scores) {
+          float_position_bias = position_bias_per_gpu->to_float32();
+          position_bias_per_gpu = &float_position_bias;
+        }
+        DEVICE_AND_TYPE_DISPATCH(scores.device(), scores.dtype(),
                                  primitives<D>::add_batch_broadcast(position_bias_per_gpu->data<T>(),
-                                                                    output.data<T>(),
+                                                                    scores.data<T>(),
                                                                     position_bias_per_gpu->size(),
-                                                                    output.size()));
+                                                                    scores.size()));
       }
 
       if (alibi)
-        alibi->apply(output, queries_scale);
+        alibi->apply(scores, queries_scale);
 
-      StorageView attn(values.dtype(), values.device());
+      StorageView attn(scores.dtype(), scores.device());
       if (attention && !return_normalized_attention) {
-        ops::SoftMax()(output, values_lengths, attn);
-        save_attention(*attention, std::move(output), beam_size);
+        ops::SoftMax()(scores, values_lengths, attn);
+        save_attention(*attention, std::move(scores), beam_size);
       } else {
-        attn = std::move(output);
+        attn = std::move(scores);
         ops::SoftMax()(attn, values_lengths, attn);
       }
+
+      if (fp32_scores)
+        attn = attn.to(values.dtype());
 
       const ops::MatMul values_matmul;
       values_matmul(attn, values, output);
