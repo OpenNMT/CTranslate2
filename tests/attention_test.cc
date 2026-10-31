@@ -31,35 +31,41 @@ TEST(AttentionTest, Float16ScoreAccumulation) {
   }
 }
 
-TEST(AttentionTest, Float16AlignmentWithCachedAlibi) {
-  StorageView queries = StorageView({1, 1, 1, 64}, 1.f).to(Device::CUDA).to_float16();
-  StorageView keys = StorageView({1, 1, 2, 64}, 1.f).to(Device::CUDA).to_float16();
-  StorageView values = StorageView({1, 1, 2, 64}, 2.f).to(Device::CUDA).to_float16();
-  layers::Alibi alibi;
-  for (const bool return_attention : {false, true, false, true}) {
-    StorageView output(DataType::FLOAT16, Device::CUDA);
-    StorageView attention(DataType::FLOAT16, Device::CUDA);
-    layers::dot_product_attention(queries, keys, values, nullptr,
-                                  nullptr, nullptr, nullptr, nullptr,
-                                  0, 0, 0, output,
-                                  return_attention ? &attention : nullptr,
-                                  true, 0.125f, true, true, 1, &alibi);
-    expect_storage_eq(output.to_float32(), StorageView({1, 1, 1, 64}, 2.f), 0.002f);
+TEST(AttentionTest, LowPrecisionAlignmentWithCachedAlibi) {
+  for (const DataType dtype : {DataType::FLOAT16, DataType::BFLOAT16}) {
+    SCOPED_TRACE(dtype_name(dtype));
+    StorageView queries = StorageView({1, 1, 1, 64}, 1.f).to(Device::CUDA).to(dtype);
+    StorageView keys = StorageView({1, 1, 2, 64}, 1.f).to(Device::CUDA).to(dtype);
+    StorageView values = StorageView({1, 1, 2, 64}, 2.f).to(Device::CUDA).to(dtype);
+    layers::Alibi alibi;
+    for (const bool return_attention : {false, true, false, true}) {
+      StorageView output(dtype, Device::CUDA);
+      StorageView attention(dtype, Device::CUDA);
+      layers::dot_product_attention(queries, keys, values, nullptr,
+                                    nullptr, nullptr, nullptr, nullptr,
+                                    0, 0, 0, output,
+                                    return_attention ? &attention : nullptr,
+                                    true, 0.125f, true, true, 1, &alibi);
+      expect_storage_eq(output.to_float32(), StorageView({1, 1, 1, 64}, 2.f), 0.02f);
+    }
   }
 }
 
 #endif
 
 TEST(AttentionTest, AlignmentScorePrecision) {
-  std::vector<Device> devices{Device::CPU};
+  std::vector<FloatType> types{{Device::CPU, DataType::FLOAT32, 0.001f}};
 #ifdef CT2_WITH_CUDA
-  devices.push_back(Device::CUDA);
+  types.push_back({Device::CUDA, DataType::FLOAT16, 0.001f});
+  types.push_back({Device::CUDA, DataType::BFLOAT16, 0.002f});
 #endif
-  for (const Device device : devices) {
-    const DataType dtype = device == Device::CUDA ? DataType::FLOAT16 : DataType::FLOAT32;
+  for (const auto& type : types) {
+    const Device device = type.device;
+    const DataType dtype = type.dtype;
+    SCOPED_TRACE(dtype_name(dtype));
     for (const dim_t heads : {1, 2}) {
       for (const dim_t beam : {1, 2}) {
-        // Scores 32768 and 32764 round to the same FP16 number before softmax.
+        // Scores 32768 and 32764 round to the same FP16/BF16 number before softmax.
         StorageView queries({1, heads, beam, 64}, 64.f);
         std::vector<float> keys_data(heads * 3 * 64, 64.f);
         std::vector<float> values_data(heads * 3 * 64, 0.f);
@@ -82,7 +88,7 @@ TEST(AttentionTest, AlignmentScorePrecision) {
                                         0.125f, true, true, beam);
           const float winner = 1.f / (1.f + std::exp(-4.f));
           expect_storage_eq(output.to_float32(),
-                            StorageView({1, heads, beam, 64}, winner), 0.001f);
+                            StorageView({1, heads, beam, 64}, winner), type.error);
           std::vector<float> expected;
           for (dim_t row = 0; row < heads * beam; ++row) {
             const std::vector<float> scores = normalized
@@ -91,7 +97,7 @@ TEST(AttentionTest, AlignmentScorePrecision) {
             expected.insert(expected.end(), scores.begin(), scores.end());
           }
           expect_storage_eq(attention.to_float32(),
-                            StorageView({beam, heads, 1, 3}, expected), 0.001f);
+                            StorageView({beam, heads, 1, 3}, expected), type.error);
           EXPECT_EQ(output.dtype(), dtype);
           EXPECT_EQ(attention.dtype(), normalized ? dtype : DataType::FLOAT32);
         }

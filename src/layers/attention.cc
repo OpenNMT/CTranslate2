@@ -221,10 +221,10 @@ namespace ctranslate2 {
                                        maximum_relative_position).to(queries.device()));
       }
 
-      // Keep alignment scores in FP32 until after softmax: FP16 rounding can
+      // Keep alignment scores in FP32 until after softmax: low-precision rounding can
       // turn large, distinct scores into equal probabilities.
       const bool fp32_scores = attention && queries.device() == Device::CUDA
-        && queries.dtype() == DataType::FLOAT16;
+        && (queries.dtype() == DataType::FLOAT16 || queries.dtype() == DataType::BFLOAT16);
       StorageView float_scores(DataType::FLOAT32, queries.device());
       StorageView& scores = fp32_scores ? float_scores : output;
       {
