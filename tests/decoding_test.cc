@@ -14,3 +14,17 @@ TEST(DecodingTest, DisableTokens) {
 
   expect_storage_eq(input, expected);
 }
+
+TEST(BiasDecodingTest, BiasTokens) {
+  StorageView input({2, 5}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+  StorageView expected({2, 5}, std::vector<float>{1, 3, 6, 4, 5, 6, 7, 48, 27, 10});
+  BiasTokens bias_tokens(input);
+
+  bias_tokens.add(2, 2.0);
+  bias_tokens.add(0, 1, 1.5);
+  bias_tokens.add(1, 3, 3.0);
+  bias_tokens.add(1, 2, 3.0);
+  bias_tokens.apply();
+
+  expect_storage_eq(input, expected);
+}
