@@ -203,6 +203,23 @@ class Drama3RuntimeTest(unittest.TestCase):
         self.prompt = np.zeros((2, 11), dtype=np.int32)
         self.prompt[:, 0] = 1
 
+    def test_reference_encoding_requires_encoder_weights(self):
+        with self.assertRaisesRegex(RuntimeError, "no reference encoder"):
+            self.model.encode_reference(np.zeros(2048, dtype=np.float32))
+        # A failed encoding job must leave the replica pool usable.
+        self.model.generate(self.prompt, max_frames=1, greedy=True)
+
+    def test_reference_encoding_rejects_invalid_arrays(self):
+        for waveform in (
+            np.zeros((1, 8), dtype=np.float32),
+            np.zeros(0, dtype=np.float32),
+        ):
+            with self.subTest(shape=waveform.shape):
+                with self.assertRaises(ValueError):
+                    self.model.encode_reference(waveform)
+        with self.assertRaises(TypeError):
+            self.model.encode_reference(np.zeros(8, dtype=np.float64))
+
     def test_resolved_execution_properties(self):
         self.assertEqual(self.model.device, "cpu")
         self.assertEqual(self.model.device_index, [0])
