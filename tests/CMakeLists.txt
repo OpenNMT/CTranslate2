@@ -8,6 +8,7 @@ add_executable(ctranslate2_test
   attention_test.cc
   batching_test.cc
   decoding_test.cc
+  devices_test.cc
   gated_delta_layer_test.cc
   moe_layer_test.cc
   drama3_serialization_test.cc
@@ -55,6 +56,17 @@ target_link_libraries(benchmark_ops PRIVATE
   )
 if(NOT MSVC)
   target_compile_options(benchmark_ops PRIVATE -Wno-unused-result)
+endif()
+
+if(WITH_MPS)
+  target_sources(ctranslate2_test PRIVATE mps_error_test.cc)
+
+  add_executable(benchmark_mps
+    benchmark_mps.cc
+    )
+  target_link_libraries(benchmark_mps
+    ${PROJECT_NAME}
+    )
 endif()
 
 if(WITH_CUDA)

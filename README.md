@@ -61,6 +61,8 @@ See the [documentation](https://opennmt.net/CTranslate2) for more information an
 
 If you have an AMD ROCm GPU, we provide specific Python wheels on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/).
 
+**Apple Metal (experimental).** Apple Silicon GPUs can be used with `device="mps"`. This backend is opt-in: it is only available when building from source with `-DWITH_MPS=ON`, it is not included in the published wheels, and `device="auto"` never selects it. See [hardware support](docs/hardware_support.md) for the supported features.
+
 ## Recommended libraries
 
 * [ctranslate2-web-server](https://github.com/jordimas/ctranslate2-web-server): a web server exposing an OpenAI-compatible REST API for CTranslate2 models.
