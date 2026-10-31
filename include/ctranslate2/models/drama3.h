@@ -124,6 +124,7 @@ namespace ctranslate2 {
       int device_index() const;
       ComputeType compute_type() const;
       Drama3Result generate(const StorageView& prompt, const Drama3Options& options);
+      StorageView encode_reference(const StorageView& waveform);
 
     private:
       struct Impl;
@@ -139,6 +140,8 @@ namespace ctranslate2 {
                       const std::string& compute_type = "default",
                       const std::string& device = "cpu", int device_index = 0,
                       size_t inter_threads = 1, long max_queued_batches = 0);
+      // Mono FLOAT32 CPU PCM at 44100 Hz -> CPU INT32 [frames,10].
+      std::future<StorageView> encode_reference(const StorageView& waveform);
       // Synchronous compatibility entry point. Async and batch calls use the same pool.
       Drama3Result generate(const StorageView& prompt, dim_t max_frames = 512,
                             dim_t prefill_chunk_size = 128, float temperature = .8f,

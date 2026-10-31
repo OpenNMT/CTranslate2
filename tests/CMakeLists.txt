@@ -20,6 +20,7 @@ add_executable(ctranslate2_test
   drama3_backbone_parity_test.cc
   drama3_attention_parity_test.cc
   drama_tower_test.cc
+  fish_dac_encoder_test.cc
   fish_dac_test.cc
   fish_dac_parity_test.cc
   fish_dac_full_parity_test.cc

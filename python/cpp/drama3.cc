@@ -95,6 +95,36 @@ namespace ctranslate2 {
           .def_property_readonly("compute_type", [](const models::Drama3& model) {
             return compute_type_to_str(model.get_first_replica().compute_type());
           }, "Resolved computation type used for execution.")
+          .def("encode_reference", [](models::Drama3& model,
+                   py::array_t<float, py::array::c_style> waveform) {
+            if (waveform.ndim() != 1 || waveform.size() == 0)
+              throw std::invalid_argument("reference waveform must have shape [samples]");
+            StorageView input({waveform.size()},
+                              std::vector<float>(waveform.data(), waveform.data() + waveform.size()));
+            StorageView codes;
+            {
+              py::gil_scoped_release release;
+              codes = model.encode_reference(input).get();
+            }
+            py::array_t<int32_t> output(std::vector<py::ssize_t>{codes.dim(0), 10});
+            std::copy_n(codes.data<int32_t>(), codes.size(), output.mutable_data());
+            return output;
+          }, py::arg("waveform").noconvert(), R"pbdoc(
+             Encodes a voice reference using the checkpoint's Fish DAC encoder on CPU.
+
+             Arguments:
+               waveform: Contiguous mono FLOAT32 array [samples] at 44100 Hz.
+                 Decode files, mix channels, and resample before calling this method.
+
+             Returns:
+               CPU INT32 array [frames,10] of raw codec indices, reusable across
+               requests with the same codec. Supply its transcript when building
+               a reference-conditioned prompt. The waveform is padded to 2048 samples.
+
+             Raises:
+               ValueError: Empty, non-finite, or incorrectly shaped input.
+               RuntimeError: Checkpoint lacks reference encoder weights; reconvert it.
+           )pbdoc")
           .def_property_readonly("num_replicas", &models::Drama3::num_replicas)
           .def_property_readonly("num_queued_batches", &models::Drama3::num_queued_batches)
           .def_property_readonly("num_active_batches", &models::Drama3::num_active_batches)
