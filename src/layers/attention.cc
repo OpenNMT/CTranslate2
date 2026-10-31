@@ -183,6 +183,15 @@ namespace ctranslate2 {
       }
     }
 
+    static const StorageView& as_dtype(const StorageView& input,
+                                       DataType dtype,
+                                       StorageView& converted) {
+      if (input.dtype() == dtype)
+        return input;
+      converted = input.to(dtype);
+      return converted;
+    }
+
     void dot_product_attention(const StorageView& queries,
                                const StorageView& keys,
                                const StorageView& values,
@@ -234,34 +243,22 @@ namespace ctranslate2 {
         const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(false);
 #endif
         const ops::MatMul keys_matmul(/*trans_a=*/false, /*trans_b=*/true, queries_scale);
-        StorageView float_queries(DataType::FLOAT32, queries.device());
-        if (fp32_scores)
-          float_queries = queries.to_float32();
-        const StorageView& score_queries = fp32_scores ? float_queries : queries;
-        if (fp32_scores)
-          keys_matmul(score_queries, keys.to_float32(), scores);
-        else
-          keys_matmul(score_queries, keys, scores);
-        StorageView float_relative_keys(DataType::FLOAT32, queries.device());
-        if (relative_position_keys) {
-          if (fp32_scores)
-            float_relative_keys = relative_position_keys->to_float32();
+        StorageView converted_queries, converted_keys;
+        const StorageView& score_queries = as_dtype(queries, scores.dtype(), converted_queries);
+        keys_matmul(score_queries, as_dtype(keys, scores.dtype(), converted_keys), scores);
+        if (relative_position_keys)
           add_relative_representations(score_queries,
                                        *relative_positions,
-                                       fp32_scores ? float_relative_keys : *relative_position_keys,
+                                       as_dtype(*relative_position_keys, scores.dtype(), converted_keys),
                                        keys_matmul,
                                        scores);
-        }
 
-        if (relative_asymmetric_position_keys) {
-          if (fp32_scores)
-            float_relative_keys = relative_asymmetric_position_keys->to_float32();
+        if (relative_asymmetric_position_keys)
           add_relative_representations(score_queries,
                                        *relative_positions,
-                                       fp32_scores ? float_relative_keys : *relative_asymmetric_position_keys,
+                                       as_dtype(*relative_asymmetric_position_keys, scores.dtype(), converted_keys),
                                        keys_matmul,
                                        scores);
-        }
       }
       if (relative_attention_bias) {
         StorageView local_position_bias(scores.dtype(), scores.device());
@@ -289,15 +286,12 @@ namespace ctranslate2 {
           position_bias_per_gpu = &position_bias_tmp;
         }
 
-        StorageView float_position_bias(DataType::FLOAT32, scores.device());
-        if (fp32_scores) {
-          float_position_bias = position_bias_per_gpu->to_float32();
-          position_bias_per_gpu = &float_position_bias;
-        }
+        StorageView converted_bias;
+        const StorageView& score_bias = as_dtype(*position_bias_per_gpu, scores.dtype(), converted_bias);
         DEVICE_AND_TYPE_DISPATCH(scores.device(), scores.dtype(),
-                                 primitives<D>::add_batch_broadcast(position_bias_per_gpu->data<T>(),
+                                 primitives<D>::add_batch_broadcast(score_bias.data<T>(),
                                                                     scores.data<T>(),
-                                                                    position_bias_per_gpu->size(),
+                                                                    score_bias.size(),
                                                                     scores.size()));
       }
 
