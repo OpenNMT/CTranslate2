@@ -6,14 +6,14 @@ generates audio codes and decodes them to a mono waveform.
 
 ## Supported scope
 
-Supported: offline synthesis and waveform decoding. Unsupported: reference-audio
-voice cloning, audio encoding, voice design, a dedicated multi-speaker API,
+Supported: offline synthesis, waveform decoding, and CPU reference-audio encoding
+for voice cloning. Unsupported: voice design, a dedicated multi-speaker API,
 speech editing or history, automatic long-text splitting, public streaming,
 and tensor batching. Independent requests can be submitted together and scheduled
 across execution replicas. Transcription is a separate speech-recognition task.
 
-Voice cloning requires a reference-audio encoder and reference-conditioned
-prompt preparation; the waveform decoder cannot encode reference recordings.
+Reference encoding requires a checkpoint converted with encoder weights. Existing
+decoder-only checkpoints still generate speech and accept precomputed reference codes.
 
 ## Model conversion
 
@@ -92,7 +92,50 @@ Encode segments separately to preserve token boundaries; the generic chat
 template cannot replace this prompt. Input text must not contain reserved prompt
 tokens or speaker tags. `prompt_rows` must be contiguous INT32 `[rows, 11]`:
 tokenizer IDs in column 0 and zeros in the ten codec columns for text rows.
-The native API does not accept plain text strings or encode reference audio.
+The native generation API accepts prepared prompt rows, not plain text strings.
+
+## Voice cloning
+
+`encode_reference` runs on CPU and converts contiguous mono FLOAT32 samples at
+44100 Hz to raw INT32 codec indices `[frames, 10]`. The client handles decoding,
+resampling, and transcription. Reconvert older decoder-only checkpoints to include
+encoder weights. Using `model` and `tokenizer` from above:
+
+```python
+import soundfile as sf
+
+waveform, rate = sf.read("reference.wav", dtype="float32")
+if rate != 44100 or waveform.ndim != 1:
+    raise ValueError("Prepare a mono 44100 Hz reference first")
+codes = model.encode_reference(np.ascontiguousarray(waveform))
+transcript = "The words spoken in the reference recording."
+text = "New words to speak in the reference voice."
+segments = (
+    "<|im_start|>system\n",
+    "convert the provided text to speech reference to the following:",
+    "\n\n[Reference 1]\nText: <|speaker:0|> " + transcript + "\nSpeech: ",
+    codes,
+    "<|im_end|>\n",
+    "<|im_start|>user\n", "<|speaker:0|> " + text, "<|im_end|>\n",
+    "<|im_start|>assistant\n<|voice|>",
+)
+blocks = []
+for segment in segments:
+    if isinstance(segment, str):
+        ids = tokenizer.encode(segment).ids
+        rows = np.zeros((len(ids), 11), dtype=np.int32)
+        rows[:, 0] = ids
+    else:
+        semantic_start = tokenizer.token_to_id("<|semantic:0|>")
+        rows = np.column_stack((segment[:, 0] + semantic_start, segment))
+    blocks.append(rows)
+prompt_rows = np.ascontiguousarray(np.concatenate(blocks), dtype=np.int32)
+result = model.generate(prompt_rows, max_frames=256)
+```
+
+Keep references in the system message, within the context budget, and match speaker
+IDs in transcripts and target text. Cache codes only for the same codec weights.
+Generation returns only new audio; nearly tied codebook indices can vary by backend.
 
 Local paths trigger no downloads. Synthesis requires no PyTorch, Transformers,
 audio.cpp, or GGML.

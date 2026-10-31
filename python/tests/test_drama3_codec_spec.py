@@ -1,8 +1,12 @@
 """The Python codec specification must reject incomplete or incompatible models."""
+
 import unittest
 
 from ctranslate2.converters import drama3_codec as codec
-from ctranslate2.specs.drama3_spec import codec_parameter_shapes
+from ctranslate2.specs.drama3_spec import (
+    codec_parameter_shapes,
+    reference_codec_parameter_shapes,
+)
 
 
 class CodecSpecTest(unittest.TestCase):
@@ -63,3 +67,24 @@ class CodecSpecTest(unittest.TestCase):
         self.schema[name] = dict(self.schema[name], dtype="int8")
         with self.assertRaisesRegex(ValueError, "non-floating"):
             codec.conversion_plan(self.schema)
+
+
+class ReferenceCodecSpecTest(unittest.TestCase):
+    def test_complete_reference_graph_is_converted(self):
+        shapes = codec_parameter_shapes()
+        shapes.update(reference_codec_parameter_shapes())
+        schema = {
+            name: {"shape": list(shape), "dtype": "float32"}
+            for name, shape in shapes.items()
+        }
+        plan = codec.conversion_plan(schema)
+        self.assertEqual(len(plan), len(shapes))
+        self.assertTrue(
+            any(item["target"].startswith("codec/encoder/") for item in plan)
+        )
+        for name in reference_codec_parameter_shapes():
+            with self.subTest(name=name):
+                incomplete = dict(schema)
+                del incomplete[name]
+                with self.assertRaises(ValueError):
+                    codec.conversion_plan(incomplete)

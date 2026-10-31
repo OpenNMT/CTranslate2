@@ -5,6 +5,7 @@
 #include "layers/drama/drama_backbone.h"
 #include "layers/drama/drama_tower.h"
 #include "layers/drama/fish_dac_decoder.h"
+#include "layers/drama/fish_dac_encoder.h"
 #include "ctranslate2/utils.h"
 #include "ctranslate2/ops/dequantize_fp8.h"
 #include "drama3_memory.h"
@@ -288,6 +289,7 @@ namespace ctranslate2 {
       std::unique_ptr<layers::DramaBackbone> backbone;
       std::unique_ptr<layers::DramaTower> tower;
       std::unique_ptr<layers::FishDACDecoder> codec;
+      std::unique_ptr<layers::FishDACReferenceEncoder> reference_encoder;
       dim_t max_context;
       dim_t vocabulary;
       int32_t eos;
@@ -651,6 +653,23 @@ namespace ctranslate2 {
       for (const auto& prompt : prompts)
         results.emplace_back(generate_async(prompt, options));
       return results;
+    }
+
+    std::future<StorageView> Drama3::encode_reference(const StorageView& waveform) {
+      return post<StorageView>([waveform = StorageView(waveform)](Drama3Replica& replica) {
+        return replica.encode_reference(waveform);
+      });
+    }
+
+    StorageView Drama3Replica::encode_reference(const StorageView& waveform) {
+      if (!_impl->model()->get_variable_if_exists("codec/encoder/block/0/conv/weight"))
+        throw std::runtime_error(
+            "This checkpoint has no reference encoder; reconvert from the official codec.pth");
+      // Construct lazily: decoder-only checkpoints and generation remain compatible.
+      if (!_impl->reference_encoder)
+        _impl->reference_encoder =
+            std::make_unique<layers::FishDACReferenceEncoder>(*_impl->model());
+      return (*_impl->reference_encoder)(waveform);
     }
 
     Drama3Result Drama3Replica::generate(const StorageView& prompt, const Drama3Options& options) {

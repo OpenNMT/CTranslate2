@@ -142,6 +142,7 @@ set(SOURCES
   src/layers/drama/drama_block.cc
   src/layers/drama/drama_backbone.cc
   src/layers/drama/drama_tower.cc
+  src/layers/drama/fish_dac_encoder.cc
   src/layers/drama/fish_dac.cc
   src/layers/drama/fish_dac_codebooks.cc
   src/layers/drama/fish_dac_transformer.cc
