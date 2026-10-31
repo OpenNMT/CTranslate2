@@ -2,7 +2,6 @@
 
 References JSON: [{"id":"voice-a", "audio":"/path/a.wav", "text":"Transcript",
 "language":"en"}, ...]. Use mono PCM16 WAV references at 44100 Hz.
-See docs/guides/drama3_voice_cloning_test_plan.md for acceptance criteria.
 """
 
 import argparse
