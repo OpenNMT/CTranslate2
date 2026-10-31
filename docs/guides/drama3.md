@@ -96,23 +96,18 @@ The native generation API accepts prepared prompt rows, not plain text strings.
 
 ## Voice cloning
 
-The client handles file decoding, mono conversion, resampling to 44100 Hz, and
-transcription. CT2's `encode_reference` takes contiguous mono FLOAT32 samples
-and returns raw INT32 codec indices `[frames, 10]`. Encoding runs on CPU,
-including when generation uses a GPU. No Fish Speech or PyTorch is required at
-inference time. Reconverting the official checkpoint includes the encoder weights;
-calling this method with an older decoder-only checkpoint raises an error.
-
-Using `model` and `tokenizer` from the example above:
+`encode_reference` runs on CPU and converts contiguous mono FLOAT32 samples at
+44100 Hz to raw INT32 codec indices `[frames, 10]`. The client handles decoding,
+resampling, and transcription. Reconvert older decoder-only checkpoints to include
+encoder weights. Using `model` and `tokenizer` from above:
 
 ```python
-import soundfile as sf  # Optional client-side file reader.
+import soundfile as sf
 
 waveform, rate = sf.read("reference.wav", dtype="float32")
 if rate != 44100 or waveform.ndim != 1:
     raise ValueError("Prepare a mono 44100 Hz reference first")
 codes = model.encode_reference(np.ascontiguousarray(waveform))
-np.save("voice-codes.npy", codes)  # Reuse without encoding the reference again.
 transcript = "The words spoken in the reference recording."
 text = "New words to speak in the reference voice."
 segments = (
@@ -138,11 +133,9 @@ prompt_rows = np.ascontiguousarray(np.concatenate(blocks), dtype=np.int32)
 result = model.generate(prompt_rows, max_frames=256)
 ```
 
-References belong in the system message; completed generation history uses a
-different format. Match speaker IDs in reference transcripts and target text.
-Reuse codes only with the same codec weights, and keep reference rows within the
-model context budget. Generation returns only newly generated audio. Float32 backend differences can
-select different indices when two codebook candidates are nearly tied.
+Keep references in the system message, within the context budget, and match speaker
+IDs in transcripts and target text. Cache codes only for the same codec weights.
+Generation returns only new audio; nearly tied codebook indices can vary by backend.
 
 Local paths trigger no downloads. Synthesis requires no PyTorch, Transformers,
 audio.cpp, or GGML.

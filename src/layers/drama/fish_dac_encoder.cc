@@ -30,10 +30,10 @@ namespace ctranslate2 {
 
     void FishDACReferenceEncoder::convolution(const StorageView& input, const std::string& name,
                                                StorageView& output, dim_t stride,
-                                               dim_t dilation, dim_t groups) const {
+                                               dim_t dilation) const {
       const auto& weight = parameter(name + "/weight");
       const auto& bias = parameter(name + "/bias");
-      if (weight.rank() != 3 || weight.dim(0) <= 0 || weight.dim(1) * groups != input.dim(1)
+      if (weight.rank() != 3 || weight.dim(0) <= 0 || weight.dim(1) != input.dim(1)
           || bias.shape() != Shape{weight.dim(0)} || weight.dim(2) <= 0)
         throw std::invalid_argument("FishDAC reference convolution shape mismatch: " + name);
       const dim_t left = dilation * (weight.dim(2) - 1) + 1 - stride;
@@ -44,7 +44,7 @@ namespace ctranslate2 {
       for (dim_t c = 0; c < input.dim(1); ++c)
         std::copy_n(input.data<float>() + c * input.dim(2), input.dim(2),
                     padded.data<float>() + c * padded.dim(2) + left);
-      ops::Conv1D(stride, 0, dilation, groups)(padded, weight, bias, output);
+      ops::Conv1D(stride, 0, dilation)(padded, weight, bias, output);
     }
 
     void FishDACReferenceEncoder::snake(const StorageView& input, const std::string& name,

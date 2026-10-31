@@ -16,8 +16,7 @@ namespace ctranslate2 {
     private:
       const StorageView& parameter(const std::string& name) const;
       void convolution(const StorageView& input, const std::string& name,
-                       StorageView& output, dim_t stride = 1, dim_t dilation = 1,
-                       dim_t groups = 1) const;
+                       StorageView& output, dim_t stride = 1, dim_t dilation = 1) const;
       void snake(const StorageView& input, const std::string& name, StorageView& output) const;
       const models::Model& _model;
       FishDACTransformer _encoder_transformer;
