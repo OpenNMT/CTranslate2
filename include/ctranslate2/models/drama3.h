@@ -104,9 +104,9 @@ namespace ctranslate2 {
     struct Drama3Options {
       dim_t max_frames = 512;
       dim_t prefill_chunk_size = 128;
-      float temperature = .8f;
+      float temperature = .7f;
       dim_t top_k = 30;
-      float top_p = .8f;
+      float top_p = .7f;
       uint64_t seed = 0;
       bool greedy = false;
       // Length (in rows) of a static prompt prefix inside `prompt`. When
@@ -150,8 +150,8 @@ namespace ctranslate2 {
       std::future<StorageView> encode_reference(const StorageView& waveform);
       // Synchronous compatibility entry point. Async and batch calls use the same pool.
       Drama3Result generate(const StorageView& prompt, dim_t max_frames = 512,
-                            dim_t prefill_chunk_size = 128, float temperature = .8f,
-                            dim_t top_k = 30, float top_p = .8f, uint64_t seed = 0,
+                            dim_t prefill_chunk_size = 128, float temperature = .7f,
+                            dim_t top_k = 30, float top_p = .7f, uint64_t seed = 0,
                             bool greedy = false, dim_t static_prompt_rows = 0,
                             bool cache_static_prompt = true);
       std::future<Drama3Result> generate_async(const StorageView& prompt,

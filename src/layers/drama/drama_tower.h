@@ -8,8 +8,8 @@ namespace ctranslate2 {
 
     // Controls temperature and candidate filtering during token sampling.
     struct DramaSamplingOptions {
-      float temperature = .8f;
-      float top_p = .8f;
+      float temperature = .7f;
+      float top_p = .7f;
       dim_t top_k = 30;
       // Request metadata: callers seed their persistent RNG once with this value.
       uint64_t seed = 0;
