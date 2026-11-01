@@ -29,24 +29,35 @@ namespace ctranslate2 {
     Drama3StateCache::Drama3StateCache() = default;
     Drama3StateCache::~Drama3StateCache() = default;
 
-    const Drama3StateSnapshot* Drama3StateCache::get(const std::vector<int32_t>& key) const {
-      std::lock_guard<std::mutex> lock(_mutex);
-      auto it = _cache.find(key);
-      if (it == _cache.end()) {
-        ++_misses;
-        return nullptr;
+    std::shared_ptr<const Drama3StateSnapshot> Drama3StateCache::get(const std::vector<int32_t>& key) const {
+      const std::lock_guard<std::mutex> lock(_mutex);
+      for (auto it = _cache.begin(); it != _cache.end(); ++it) {
+        if (it->key == key) {
+          _cache.splice(_cache.end(), _cache, it);
+          ++_hits;
+          return it->snapshot;
+        }
       }
-      ++_hits;
-      return &it->second;
+      ++_misses;
+      return nullptr;
     }
 
     void Drama3StateCache::save(std::vector<int32_t> key, Drama3StateSnapshot snapshot) {
-      std::lock_guard<std::mutex> lock(_mutex);
-      _cache.emplace(std::move(key), std::move(snapshot));
+      const std::lock_guard<std::mutex> lock(_mutex);
+      for (auto it = _cache.begin(); it != _cache.end(); ++it) {
+        if (it->key == key) {
+          _cache.splice(_cache.end(), _cache, it);
+          return;
+        }
+      }
+      _cache.push_back({std::move(key),
+                        std::make_shared<const Drama3StateSnapshot>(std::move(snapshot))});
+      if (_cache.size() > max_entries)
+        _cache.pop_front();
     }
 
     std::map<std::string, size_t> Drama3StateCache::stats() const {
-      std::lock_guard<std::mutex> lock(_mutex);
+      const std::lock_guard<std::mutex> lock(_mutex);
       return {{"entries", _cache.size()}, {"hits", _hits}, {"misses", _misses}};
     }
 
@@ -465,7 +476,7 @@ namespace ctranslate2 {
             cache = &checkpoint->state_cache();
             key.assign(prompt.data<int32_t>(),
                        prompt.data<int32_t>() + static_n * 11);
-            if (const auto* snap = cache->get(key)) {
+            if (const auto snap = cache->get(key)) {
               for (size_t i = 0; i < snap->backbone.layers.size(); ++i) {
                 const auto& source = snap->backbone.layers[i];
                 auto& target = state.backbone_state.layers[i];
@@ -480,6 +491,8 @@ namespace ctranslate2 {
                 restore_attention_cache(snap->tower.residual[i], state.tower_state.residual[i]);
               state.tower_state.length = snap->tower.length;
               state.hidden = snap->last_hidden;
+              // Keep an evicted snapshot alive until asynchronous copies finish.
+              synchronize_stream(options.device);
               start = static_n;
             }
           }
