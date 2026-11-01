@@ -175,6 +175,7 @@ set(SOURCES
   src/ops/add.cc
   src/ops/alibi_add.cc
   src/ops/alibi_add_cpu.cc
+  src/ops/beam_search_topk.cc
   src/ops/bias_add.cc
   src/ops/bias_add_cpu.cc
   src/ops/concat.cc
@@ -198,6 +199,7 @@ set(SOURCES
   src/ops/dequantize_cpu.cc
   src/ops/flash_attention.cc
   src/ops/flash_attention_cpu.cc
+  src/ops/fused_attention.cc
   src/ops/gather.cc
   src/ops/gather_cpu.cc
   src/ops/gelu.cc
@@ -851,16 +853,33 @@ if(WITH_MPS)
   set(MPS_SOURCES
     src/mps/allocator.mm
     src/mps/kernels.mm
-    src/mps/ops_impl.mm
+    src/mps/ops_utils.mm
     src/mps/ops_stubs.mm
     src/mps/primitives.mm
     src/mps/utils.mm
+    src/ops/alibi_add_mps.mm
+    src/ops/beam_search_topk_mps.mm
+    src/ops/bias_add_mps.mm
+    src/ops/concat_mps.mm
     src/ops/conv1d_mps.mm
+    src/ops/dequantize_mps.mm
+    src/ops/gather_mps.mm
+    src/ops/gemm_mps.mm
+    src/ops/fused_attention_mps.mm
+    src/ops/gumbel_max_mps.mm
     src/ops/layer_norm_mps.mm
     src/ops/mean_mps.mm
+    src/ops/median_filter_mps.mm
+    src/ops/multinomial_mps.mm
+    src/ops/quantize_mps.mm
     src/ops/rms_norm_mps.mm
     src/ops/rotary_mps.mm
+    src/ops/slide_mps.mm
     src/ops/softmax_mps.cc
+    src/ops/split_mps.mm
+    src/ops/tile_mps.mm
+    src/ops/topk_mps.mm
+    src/ops/topp_mask_mps.mm
   )
   target_sources(${PROJECT_NAME} PRIVATE ${MPS_SOURCES})
 

@@ -167,6 +167,7 @@ namespace ctranslate2 {
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output) const;
+      bool supports_fused_bias_residual(Device device, DataType dtype) const;
       bool apply_fused_bias_residual(const StorageView& input,
                                      const StorageView& bias,
                                      const StorageView& residual,

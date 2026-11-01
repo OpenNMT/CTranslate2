@@ -4,6 +4,7 @@
 #include "ctranslate2/ops/layer_norm.h"
 #include "ctranslate2/primitives.h"
 #include "mps/kernels.h"
+#include "mps/ops_utils.h"
 
 #include <cstdlib>
 #include <algorithm>
@@ -18,6 +19,45 @@ static bool use_reference_mps_norms() {
   const char* layer_norm = std::getenv("CT2_MPS_REFERENCE_LAYER_NORM");
   return (all && all[0] != '\0' && all[0] != '0')
          || (layer_norm && layer_norm[0] != '\0' && layer_norm[0] != '0');
+}
+
+template<>
+bool LayerNorm::supports_fused_bias_residual<Device::MPS>(DataType dtype) const {
+  static const bool enabled = mps::env_flag("CT2_MPS_USE_FUSED_POST_NORM");
+  return enabled && dtype == DataType::FLOAT16;
+}
+
+template<>
+bool LayerNorm::try_fused_bias_residual<Device::MPS>(const StorageView& beta,
+                                                      const StorageView& gamma,
+                                                      const StorageView& input,
+                                                      const StorageView& bias,
+                                                      const StorageView& residual,
+                                                      StorageView& output) const {
+  if (!supports_fused_bias_residual<Device::MPS>(input.dtype())
+      || bias.dtype() != input.dtype()
+      || residual.dtype() != input.dtype()
+      || gamma.dtype() != input.dtype()
+      || beta.dtype() != input.dtype()
+      || input.empty()
+      || input.rank() == 0
+      || bias.size() != input.dim(-1)
+      || residual.size() != input.size()
+      || gamma.size() != bias.size()
+      || beta.size() != bias.size())
+    return false;
+
+  output.resize_as(input);
+  return mps::fused_bias_residual_layer_norm(input.dtype(),
+                                              input.data<float16_t>(),
+                                              bias.data<float16_t>(),
+                                              residual.data<float16_t>(),
+                                              gamma.data<float16_t>(),
+                                              beta.data<float16_t>(),
+                                              output.data<float16_t>(),
+                                              input.size() / input.dim(-1),
+                                              input.dim(-1),
+                                              _epsilon);
 }
 
 template <typename T>

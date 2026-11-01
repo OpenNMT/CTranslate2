@@ -1,13 +1,13 @@
 #include "ctranslate2/layers/attention.h"
 #include "layers/attention_utils.h"
 #include "ctranslate2/ops/split.h"
+#include "ctranslate2/ops/fused_attention.h"
 #include "ctranslate2/ops/rms_norm.h"
 #include "ctranslate2/utils.h"
 
 
 #include <algorithm>
 #include <cmath>
-#include <cstdlib>
 #include <numeric>
 #include <cstdint>
 #include <stdexcept>
@@ -17,10 +17,6 @@
 
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
-#endif
-
-#ifdef CT2_WITH_MPS
-#  include "mps/kernels.h"
 #endif
 
 namespace ctranslate2 {
@@ -179,16 +175,6 @@ namespace ctranslate2 {
 
     static const ops::Transpose transpose_op({0, 2, 1, 3});
 
-#ifdef CT2_WITH_MPS
-    static bool mps_fused_attention_enabled() {
-      static const bool enabled = []() {
-        const char* value = std::getenv("CT2_MPS_USE_FUSED_ATTENTION");
-        return value && value[0] != '\0' && value[0] != '0';
-      }();
-      return enabled;
-    }
-#endif
-
     static inline void save_attention(StorageView& attention, StorageView weights, dim_t beam_size) {
       if (beam_size == 1)
         attention = std::move(weights);
@@ -221,62 +207,20 @@ namespace ctranslate2 {
                                bool interleaved_queries) {
       PROFILE("dot_product_attention");
 
-#ifdef CT2_WITH_MPS
-      // During beam decoding, split_heads represents beams as the query
-      // dimension. Fuse QK, softmax, and PV for this exact contiguous layout.
-      // Keep the path opt-in while it is benchmarked against the established
-      // implementation; CT2_MPS_USE_FUSED_ATTENTION=1 enables it.
-      const bool standard_layout = !interleaved_queries
-                                   && queries.rank() == 4
-                                   && keys.rank() == 4
-                                   && values.rank() == 4
-                                   && queries.dim(0) == keys.dim(0)
-                                   && queries.dim(0) == values.dim(0)
-                                   && queries.dim(1) == keys.dim(1)
-                                   && queries.dim(1) == values.dim(1)
-                                   && keys.dim(2) == values.dim(2)
-                                   && queries.dim(3) == keys.dim(3)
-                                   && queries.dim(3) == values.dim(3);
-      const bool interleaved_layout = interleaved_queries
-                                      && queries.rank() == 4
-                                      && keys.rank() == 4
-                                      && values.rank() == 4
-                                      && queries.dim(0) == keys.dim(0)
-                                      && queries.dim(0) == values.dim(0)
-                                      && queries.dim(2) == keys.dim(1)
-                                      && queries.dim(2) == values.dim(1)
-                                      && keys.dim(2) == values.dim(2)
-                                      && queries.dim(3) == keys.dim(3)
-                                      && queries.dim(3) == values.dim(3);
-      if (mps_fused_attention_enabled()
-          && queries.device() == Device::MPS
-          && queries.dtype() == DataType::FLOAT16
-          && (standard_layout || interleaved_layout)
-          && !relative_position_keys
+      if (!relative_position_keys
           && !relative_asymmetric_position_keys
           && !relative_position_values
           && !relative_attention_bias
           && !alibi
-          && !attention) {
-        output.resize_as(queries);
-        const dim_t num_heads = interleaved_layout ? queries.dim(2) : queries.dim(1);
-        const dim_t query_length = interleaved_layout ? queries.dim(1) : queries.dim(2);
-        const dim_t matrix_batch = queries.dim(0) * num_heads;
-        if (mps::fused_attention(DataType::FLOAT16,
-                                 queries.data<float16_t>(),
-                                 keys.data<float16_t>(),
-                                 values.data<float16_t>(),
-                                 values_lengths ? values_lengths->data<int32_t>() : nullptr,
-                                 output.data<float16_t>(),
-                                 matrix_batch,
-                                 query_length,
-                                 keys.dim(2),
-                                 queries.dim(3),
-                                 queries_scale,
-                                 interleaved_layout ? num_heads : 0))
-          return;
-      }
-#endif
+          && !attention
+          && ops::FusedAttention()(queries,
+                                   keys,
+                                   values,
+                                   values_lengths,
+                                   queries_scale,
+                                   interleaved_queries,
+                                   output))
+        return;
 
       // The interleaved layout is only selected for the fused MPS path. Keep a
       // correct generic fallback if a future model shape falls outside the
@@ -608,11 +552,8 @@ namespace ctranslate2 {
 
       if (!_self_attention) {
 
-        bool use_interleaved_beam_layout = false;
-#ifdef CT2_WITH_MPS
-        use_interleaved_beam_layout = mps_fused_attention_enabled()
-                                      && device == Device::MPS
-                                      && dtype == DataType::FLOAT16
+        const bool use_interleaved_beam_layout =
+          ops::FusedAttention().supports_interleaved_queries(device, dtype)
                                       && !attention
                                       && !queries_padder
                                       && !_relative_position_keys
@@ -620,7 +561,6 @@ namespace ctranslate2 {
                                       && !_relative_position_values
                                       && !_relative_attention_bias
                                       && !_alibi;
-#endif
 
         process_cross_attention(queries, values, fused_proj, queries_proj, keys_proj,
                                 values_proj, cached_keys, cached_values,

@@ -5,10 +5,24 @@
 
 #include <memory>
 
+#include "ctranslate2/ops/activation.h"
 #include "ctranslate2/storage_view.h"
 
 namespace ctranslate2 {
   namespace mps {
+
+    int activation_code(const ops::ActivationType* activation);
+
+    bool env_flag(const char* name, bool default_value = false);
+
+    dim_t copy_size(const StorageView& view, dim_t axis);
+
+    dim_t iteration_size(const StorageView& view, dim_t axis);
+
+    bool ranges_overlap(const void* first,
+                        size_t first_size,
+                        const void* second,
+                        size_t second_size);
 
     inline StorageView to_cpu(const StorageView& view) {
       return view.to(Device::CPU);

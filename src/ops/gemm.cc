@@ -4,38 +4,8 @@
 
 #include "dispatch.h"
 
-#ifdef CT2_WITH_MPS
-#  include "mps/kernels.h"
-#  include "mps/utils.h"
-#endif
-
 namespace ctranslate2 {
   namespace ops {
-
-#ifdef CT2_WITH_MPS
-    static int mps_activation_code(const ActivationType* activation) {
-      if (!activation)
-        return -1;
-      switch (*activation) {
-      case ActivationType::ReLU:
-        return static_cast<int>(mps::UnaryOp::RELU);
-      case ActivationType::GELUTanh:
-        return static_cast<int>(mps::UnaryOp::GELU_TANH);
-      case ActivationType::Swish:
-        return static_cast<int>(mps::UnaryOp::SWISH);
-      case ActivationType::GELU:
-        return static_cast<int>(mps::UnaryOp::GELU);
-      case ActivationType::GELUSigmoid:
-        return static_cast<int>(mps::UnaryOp::GELU_SIGMOID);
-      case ActivationType::Tanh:
-        return static_cast<int>(mps::UnaryOp::TANH);
-      case ActivationType::Sigmoid:
-        return static_cast<int>(mps::UnaryOp::SIGMOID);
-      }
-      return -1;
-    }
-
-#endif
 
     // activation_type(x + bias + residual)
     void apply_bias_and_activation(StorageView& x,
@@ -72,6 +42,63 @@ namespace ctranslate2 {
     {
     }
 
+    template<>
+    bool Gemm::try_compute_with_epilogue<Device::CPU>(const StorageView&,
+                                                       const StorageView&,
+                                                       StorageView&,
+                                                       const StorageView*,
+                                                       const StorageView*,
+                                                       const StorageView*) const {
+      return false;
+    }
+
+    template<>
+    bool Gemm::try_compute_with_epilogue<Device::CUDA>(const StorageView&,
+                                                        const StorageView&,
+                                                        StorageView&,
+                                                        const StorageView*,
+                                                        const StorageView*,
+                                                        const StorageView*) const {
+      return false;
+    }
+
+    template<>
+    bool Gemm::try_weight_only_int8<Device::CPU>(const StorageView&,
+                                                  const StorageView&,
+                                                  const StorageView&,
+                                                  StorageView&,
+                                                  const StorageView*,
+                                                  const StorageView*) const {
+      return false;
+    }
+
+    template<>
+    bool Gemm::try_weight_only_int8<Device::CUDA>(const StorageView&,
+                                                   const StorageView&,
+                                                   const StorageView&,
+                                                   StorageView&,
+                                                   const StorageView*,
+                                                   const StorageView*) const {
+      return false;
+    }
+
+    bool Gemm::try_weight_only_int8(const StorageView& input,
+                                    const StorageView& weight,
+                                    const StorageView& scale,
+                                    StorageView& output,
+                                    const StorageView* bias,
+                                    const StorageView* residual) const {
+      bool supported = false;
+      DEVICE_DISPATCH(input.device(),
+                      supported = try_weight_only_int8<D>(input,
+                                                          weight,
+                                                          scale,
+                                                          output,
+                                                          bias,
+                                                          residual));
+      return supported;
+    }
+
     void Gemm::operator()(const StorageView& a,
                           const StorageView& b,
                           StorageView& c,
@@ -80,103 +107,16 @@ namespace ctranslate2 {
                           const StorageView* residual) const {
       PROFILE("Gemm");
 
-#ifdef CT2_WITH_MPS
-      if (a.device() == Device::MPS && mps::profile_enabled()) {
-        const dim_t profile_k = a.dim(_trans_a ? -2 : -1);
-        const dim_t profile_n = b.dim(_trans_b ? -2 : -1);
-        const dim_t profile_m = a.size() / profile_k;
-        const std::string detail =
-          "gemm_epilogue m=" + std::to_string(profile_m)
-          + " n=" + std::to_string(profile_n)
-          + " bias=" + std::to_string(bias != nullptr)
-          + " residual=" + std::to_string(residual != nullptr)
-          + " activation=" + std::to_string(mps_activation_code(_activation_type));
-        mps::record_profile_detail(detail.c_str());
-      }
-
-      // Medium and large FP16 Dense projections use the SIMD-group GEMM when
-      // enabled. Keep bias, residual, and activation in its store epilogue so
-      // the materialized output is not read by a second full-tensor dispatch.
-      if (a.device() == Device::MPS
-          && a.dtype() == DataType::FLOAT16
-          && (!bias || bias->dtype() == DataType::FLOAT16)
-          && (!residual || residual->dtype() == DataType::FLOAT16)
-          && !a_shift_compensation) {
-        const dim_t k = a.dim(_trans_a ? -2 : -1);
-        const dim_t n = b.dim(_trans_b ? -2 : -1);
-        const dim_t m = a.size() / k;
-        if ((!bias || bias->size() == n)
-            && (!residual || residual->size() == m * n)) {
-          Shape output_shape(a.shape());
-          output_shape[output_shape.size() - 2] = a.dim(_trans_a ? -1 : -2);
-          output_shape[output_shape.size() - 1] = n;
-          c.resize(std::move(output_shape));
-          if (mps::gemm_with_epilogue(DataType::FLOAT16,
-                                      _trans_a,
-                                      _trans_b,
-                                      m,
-                                      n,
-                                      k,
-                                      _alpha,
-                                      a.data<float16_t>(),
-                                      _trans_a ? m : k,
-                                      b.data<float16_t>(),
-                                      _trans_b ? k : n,
-                                      _beta,
-                                      c.data<float16_t>(),
-                                      n,
-                                      bias ? bias->data<float16_t>() : nullptr,
-                                      residual ? residual->data<float16_t>() : nullptr,
-                                      mps_activation_code(_activation_type)))
-            return;
-        }
-      }
-
-      // Decode Dense layers immediately apply bias, optional residual, and
-      // optional activation to a single-row FP16 projection. Encode that
-      // epilogue in the output-major matvec so the intermediate output is not
-      // written and read by another kernel. The matvec rounds to FP16 before
-      // the epilogue to preserve the previous two-dispatch numerics.
-      if (a.device() == Device::MPS
-          && a.dtype() == DataType::FLOAT16
-          && _trans_b
-          && bias
-          && bias->dtype() == DataType::FLOAT16
-          && (!residual || residual->dtype() == DataType::FLOAT16)
-          && !a_shift_compensation) {
-        const dim_t k = a.dim(_trans_a ? -2 : -1);
-        const dim_t n = b.dim(_trans_b ? -2 : -1);
-        const dim_t m = a.size() / k;
-        if (m == 1 && bias->size() == n && (!residual || residual->size() == n)) {
-          Shape output_shape(a.shape());
-          output_shape[output_shape.size() - 2] = a.dim(_trans_a ? -1 : -2);
-          output_shape[output_shape.size() - 1] = n;
-          c.resize(std::move(output_shape));
-          mps::gemv_row(DataType::FLOAT16,
-                        _trans_a,
-                        _trans_b,
-                        n,
-                        k,
-                        _alpha,
-                        a.data<float16_t>(),
-                        _trans_a ? m : k,
-                        0,
-                        b.data<float16_t>(),
-                        _trans_b ? k : n,
-                        0,
-                        _beta,
-                        c.data<float16_t>(),
-                        n,
-                        0,
-                        1,
-                        bias->data<float16_t>(),
-                        residual ? residual->data<float16_t>() : nullptr,
-                        mps_activation_code(_activation_type));
-          return;
-        }
-      }
-
-#endif
+      bool fused = false;
+      DEVICE_DISPATCH(a.device(),
+                      fused = try_compute_with_epilogue<D>(a,
+                                                           b,
+                                                           c,
+                                                           a_shift_compensation,
+                                                           bias,
+                                                           residual));
+      if (fused)
+        return;
 
       switch (a.dtype()) {
       case DataType::INT8:
