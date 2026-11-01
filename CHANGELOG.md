@@ -2,7 +2,7 @@
 
 ### New features
 
-## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-10-30)
+## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-11-01)
 
 ### New features
 
@@ -11,6 +11,7 @@
 
 ### Fixes and improvements
 
+* Preserve FP32 attention scores through softmax to fix CUDA alignment precision with FP16 and BF16 models (#2143) by [@jordimas](https://github.com/jordimas)
 * Improve Drama 3 prefill performance by increasing the default chunk size from 16 to 128, and fuse gated-delta projections during GPU decoding (#2133) by [@jordimas](https://github.com/jordimas)
 * Fix caching allocator shutdown crashes when the allocating thread exits (#2136) by [@jordimas](https://github.com/jordimas)
 * Fix FP16 overflow in CUDA attention score accumulation (#2131) by [@jordimas](https://github.com/jordimas)
