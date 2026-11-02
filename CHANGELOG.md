@@ -5,6 +5,7 @@
 ### Fixes and improvements
 
 * Fix the eole converter scale for relative position keys (#2134) by [@maksimcialehin](https://github.com/maksimcialehin)
+* On Windows, register the DLL directories of pip-installed `nvidia-cublas-cu12`/`nvidia-cudnn-cu12` at import time -- fixes "Could not locate cublas64_12.dll" for CUDA execution via pip-installed CUDA libraries; also covers cuDNN for anyone on a cuDNN-linked build (#1915, #1826)
 
 ## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-24)
 
