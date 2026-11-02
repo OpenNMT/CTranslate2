@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html class="writer-html5" lang="en" >
+<head>
+  <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Building with ROCm on Windows &mdash; CTranslate2 4.8.5 documentation</title>
+      <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
+      <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
+      <link rel="stylesheet" href="_static/custom.css" type="text/css" />
+    <link rel="shortcut icon" href="_static/favicon.png"/>
+  <!--[if lt IE 9]>
+    <script src="_static/js/html5shiv.min.js"></script>
+  <![endif]-->
+  
+        <script data-url_root="./" id="documentation_options" src="_static/documentation_options.js"></script>
+        <script src="_static/jquery.js"></script>
+        <script src="_static/underscore.js"></script>
+        <script src="_static/_sphinx_javascript_frameworks_compat.js"></script>
+        <script src="_static/doctools.js"></script>
+        <script src="_static/sphinx_highlight.js"></script>
+    <script src="_static/js/theme.js"></script>
+    <link rel="index" title="Index" href="genindex.html" />
+    <link rel="search" title="Search" href="search.html" />
+    <link rel="next" title="Text translation" href="translation.html" />
+    <link rel="prev" title="Installation" href="installation.html" /> 
+</head>
+
+<body class="wy-body-for-nav"> 
+  <div class="wy-grid-for-nav">
+    <nav data-toggle="wy-nav-shift" class="wy-nav-side">
+      <div class="wy-side-scroll">
+        <div class="wy-side-nav-search" >
+            <a href="index.html" class="icon icon-home"> CTranslate2
+          </a>
+              <div class="version">
+                4.8
+              </div>
+<div role="search">
+  <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
+    <input type="text" name="q" placeholder="Search docs" />
+    <input type="hidden" name="check_keywords" value="yes" />
+    <input type="hidden" name="area" value="default" />
+  </form>
+</div>
+        </div><div class="wy-menu wy-menu-vertical" data-spy="affix" role="navigation" aria-label="Navigation menu">
+              <p class="caption" role="heading"><span class="caption-text">Get started</span></p>
+<ul class="current">
+<li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
+<li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1 current"><a class="current reference internal" href="#">Building with ROCm on Windows</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#supported-gpus">Supported GPUs</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#prerequisites">Prerequisites</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#visual-studio-build-tools-2022">1. Visual Studio Build Tools 2022</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#rocm-via-python-wheels">2. ROCm via Python wheels</a><ul>
+<li class="toctree-l4"><a class="reference internal" href="#why-not-the-official-amd-hip-sdk-installer">Why not the official AMD HIP SDK Installer?</a></li>
+</ul>
+</li>
+<li class="toctree-l3"><a class="reference internal" href="#intel-oneapi-mkl-and-onednn">3. Intel oneAPI MKL and oneDNN</a></li>
+</ul>
+</li>
+<li class="toctree-l2"><a class="reference internal" href="#clone-the-repository">Clone the repository</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-the-c-library">Build the C++ library</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#build-the-python-module">Build the Python module</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#verify-the-installation">Verify the installation</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#known-limitations">Known limitations</a></li>
+</ul>
+</li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="translation.html">Text translation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="generation.html">Text generation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="encoding.html">Text encoding</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_recognition.html">Speech recognition</a></li>
+<li class="toctree-l1"><a class="reference internal" href="speech_synthesis.html">Speech synthesis</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Developer guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="conversion.html">Model conversion</a></li>
+<li class="toctree-l1"><a class="reference internal" href="quantization.html">Quantization</a></li>
+<li class="toctree-l1"><a class="reference internal" href="decoding.html">Decoding features</a></li>
+<li class="toctree-l1"><a class="reference internal" href="parallel.html">Multithreading and parallelism</a></li>
+<li class="toctree-l1"><a class="reference internal" href="memory.html">Memory management</a></li>
+<li class="toctree-l1"><a class="reference internal" href="performance.html">Performance tips</a></li>
+<li class="toctree-l1"><a class="reference internal" href="environment_variables.html">Environment variables</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Framework guides</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="guides/drama3.html">Drama 3</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/fairseq.html">Fairseq</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/marian.html">Marian</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_py.html">OpenNMT-py</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opennmt_tf.html">OpenNMT-tf</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/opus_mt.html">OPUS-MT</a></li>
+<li class="toctree-l1"><a class="reference internal" href="guides/transformers.html">Transformers</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">API</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="python/overview.html">Python</a></li>
+</ul>
+<p class="caption" role="heading"><span class="caption-text">Other information</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="hardware_support.html">Hardware support</a></li>
+<li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently asked questions</a></li>
+<li class="toctree-l1"><a class="reference internal" href="versioning.html">Versioning</a></li>
+</ul>
+
+        </div>
+      </div>
+    </nav>
+
+    <section data-toggle="wy-nav-shift" class="wy-nav-content-wrap"><nav class="wy-nav-top" aria-label="Mobile navigation menu" >
+          <i data-toggle="wy-nav-top" class="fa fa-bars"></i>
+          <a href="index.html">CTranslate2</a>
+      </nav>
+
+      <div class="wy-nav-content">
+        <div class="rst-content">
+          <div role="navigation" aria-label="Page navigation">
+  <ul class="wy-breadcrumbs">
+      <li><a href="index.html" class="icon icon-home"></a> &raquo;</li>
+      <li>Building with ROCm on Windows</li>
+      <li class="wy-breadcrumbs-aside">
+      </li>
+  </ul>
+  <hr/>
+</div>
+          <div role="main" class="document" itemscope="itemscope" itemtype="http://schema.org/Article">
+           <div itemprop="articleBody">
+             
+  <section id="building-with-rocm-on-windows">
+<h1>Building with ROCm on Windows<a class="headerlink" href="#building-with-rocm-on-windows" title="Permalink to this heading"></a></h1>
+<p>This guide describes how to build CTranslate2 with AMD GPU support (ROCm/HIP) on Windows. It was validated on the following system:</p>
+<table class="colwidths-auto docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Component</p></th>
+<th class="head"><p>Version</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>OS</p></td>
+<td><p>Windows 11 (Build 26200)</p></td>
+</tr>
+<tr class="row-odd"><td><p>GPU</p></td>
+<td><p>AMD Radeon RX 7900 XTX (gfx1100, RDNA 3)</p></td>
+</tr>
+<tr class="row-even"><td><p>ROCm</p></td>
+<td><p>7.2.0</p></td>
+</tr>
+<tr class="row-odd"><td><p>Python</p></td>
+<td><p>3.11</p></td>
+</tr>
+</tbody>
+</table>
+<section id="supported-gpus">
+<h2>Supported GPUs<a class="headerlink" href="#supported-gpus" title="Permalink to this heading"></a></h2>
+<p>ROCm on Windows supports AMD RDNA 2 and RDNA 3 GPUs (RX 6000 and RX 7000 series). The HIP architecture target for each GPU can be found in the <a class="reference external" href="https://rocm.docs.amd.com/en/latest/compatibility/compatibility-matrix.html">ROCm GPU compatibility matrix</a>.</p>
+<p>Common targets:</p>
+<table class="colwidths-auto docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>GPU</p></th>
+<th class="head"><p>HIP architecture</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>RX 6700, 6800, 6900</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gfx1030</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>RX 7600, 7700</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gfx1102</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>RX 7800, 7900</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gfx1101</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>RX 7900 XTX, 7900 XT</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">gfx1100</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="prerequisites">
+<h2>Prerequisites<a class="headerlink" href="#prerequisites" title="Permalink to this heading"></a></h2>
+<section id="visual-studio-build-tools-2022">
+<h3>1. Visual Studio Build Tools 2022<a class="headerlink" href="#visual-studio-build-tools-2022" title="Permalink to this heading"></a></h3>
+<p>The MSVC compiler, CMake, and Ninja are all provided by the Visual Studio Build Tools workload. No separate CMake installation is needed.</p>
+<p>Download the bootstrapper from Microsoft and run a silent installation:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nb">Invoke-WebRequest</span> <span class="n">-Uri</span> <span class="s2">"https://aka.ms/vs/17/release/vs_BuildTools.exe"</span> <span class="n">-OutFile</span> <span class="n">vs_BuildTools</span><span class="p">.</span><span class="n">exe</span>
+
+<span class="p">.\</span><span class="n">vs_BuildTools</span><span class="p">.</span><span class="n">exe</span> <span class="p">-</span><span class="n">-quiet</span> <span class="p">-</span><span class="n">-wait</span> <span class="p">-</span><span class="n">-norestart</span> <span class="p">`</span>
+    <span class="p">-</span><span class="n">-add</span> <span class="n">Microsoft</span><span class="p">.</span><span class="n">VisualStudio</span><span class="p">.</span><span class="n">Workload</span><span class="p">.</span><span class="n">VCTools</span> <span class="p">`</span>
+    <span class="p">-</span><span class="n">-add</span> <span class="n">Microsoft</span><span class="p">.</span><span class="n">VisualStudio</span><span class="p">.</span><span class="n">Component</span><span class="p">.</span><span class="n">VC</span><span class="p">.</span><span class="n">CMake</span><span class="p">.</span><span class="n">Project</span> <span class="p">`</span>
+    <span class="p">-</span><span class="n">-add</span> <span class="n">Microsoft</span><span class="p">.</span><span class="n">VisualStudio</span><span class="p">.</span><span class="n">Component</span><span class="p">.</span><span class="n">Windows11SDK</span><span class="p">.</span><span class="n">22621</span> <span class="p">`</span>
+    <span class="p">-</span><span class="n">-includeRecommended</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>Pass all arguments as a single string. Passing them as a PowerShell array (<code class="docutils literal notranslate"><span class="pre">-ArgumentList</span> <span class="pre">&#64;(...)</span></code>) causes the installer to exit with error code 87 (invalid parameter).</p>
+</div>
+<p>Verify the installation:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="p">&amp;</span> <span class="s2">"C:\Program Files (x86)\Microsoft Visual Studio\Installer\vswhere.exe"</span> <span class="n">-products</span> <span class="p">*</span> <span class="n">-format</span> <span class="n">json</span>
+</pre></div>
+</div>
+</section>
+<section id="rocm-via-python-wheels">
+<h3>2. ROCm via Python wheels<a class="headerlink" href="#rocm-via-python-wheels" title="Permalink to this heading"></a></h3>
+<p>AMD distributes ROCm for Windows as Python wheels. This is the method used by the official CTranslate2 CI and does not require the AMD HIP SDK installer.</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="n">pip</span> <span class="n">install</span> <span class="p">-</span><span class="n">-no-cache-dir</span> <span class="p">`</span>
+    <span class="n">https</span><span class="p">://</span><span class="n">repo</span><span class="p">.</span><span class="n">radeon</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">rocm</span><span class="p">/</span><span class="n">windows</span><span class="p">/</span><span class="n">rocm-rel</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">/</span><span class="n">rocm_sdk_core</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">dev0-py3-none-win_amd64</span><span class="p">.</span><span class="n">whl</span> <span class="p">`</span>
+    <span class="n">https</span><span class="p">://</span><span class="n">repo</span><span class="p">.</span><span class="n">radeon</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">rocm</span><span class="p">/</span><span class="n">windows</span><span class="p">/</span><span class="n">rocm-rel</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">/</span><span class="n">rocm_sdk_devel</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">dev0-py3-none-win_amd64</span><span class="p">.</span><span class="n">whl</span> <span class="p">`</span>
+    <span class="n">https</span><span class="p">://</span><span class="n">repo</span><span class="p">.</span><span class="n">radeon</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">rocm</span><span class="p">/</span><span class="n">windows</span><span class="p">/</span><span class="n">rocm-rel</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">/</span><span class="n">rocm_sdk_libraries_custom</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">dev0-py3-none-win_amd64</span><span class="p">.</span><span class="n">whl</span> <span class="p">`</span>
+    <span class="n">https</span><span class="p">://</span><span class="n">repo</span><span class="p">.</span><span class="n">radeon</span><span class="p">.</span><span class="n">com</span><span class="p">/</span><span class="n">rocm</span><span class="p">/</span><span class="n">windows</span><span class="p">/</span><span class="n">rocm-rel</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">/</span><span class="n">rocm</span><span class="p">-</span><span class="n">7</span><span class="p">.</span><span class="n">2</span><span class="p">.</span><span class="n">0</span><span class="p">.</span><span class="n">dev0</span><span class="p">.</span><span class="n">tar</span><span class="p">.</span><span class="n">gz</span>
+
+<span class="n">rocm-sdk</span> <span class="n">init</span>
+</pre></div>
+</div>
+<p>The <code class="docutils literal notranslate"><span class="pre">rocm-sdk</span> <span class="pre">init</span></code> command extracts the development headers and compiler to a local directory. Retrieve the path for later use:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nv">$env:ROCM_PATH</span> <span class="p">=</span> <span class="n">python</span> <span class="n">-c</span> <span class="s2">"from rocm_sdk._devel import get_devel_root; print(get_devel_root())"</span>
+</pre></div>
+</div>
+<p>This installs AMD Clang (the HIP compiler), HIP headers, <code class="docutils literal notranslate"><span class="pre">hipblas.dll</span></code>, <code class="docutils literal notranslate"><span class="pre">amdhip64_7.dll</span></code>, and the AMDGCN bitcode libraries needed for GPU kernel compilation.</p>
+<section id="why-not-the-official-amd-hip-sdk-installer">
+<h4>Why not the official AMD HIP SDK Installer?<a class="headerlink" href="#why-not-the-official-amd-hip-sdk-installer" title="Permalink to this heading"></a></h4>
+<p>AMD also ships a standalone HIP SDK for Windows as an <code class="docutils literal notranslate"><span class="pre">.exe</span></code> installer (separate from the pip wheels). Don’t use it for CTranslate2 — at the time of writing, the installer lags the pip wheels by one release and the runtime libraries are not ABI-compatible. Concretely:</p>
+<table class="colwidths-auto docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Distribution</p></th>
+<th class="head"><p>Latest version</p></th>
+<th class="head"><p>Runtime DLL name</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Python wheels (<code class="docutils literal notranslate"><span class="pre">rocm-sdk-*</span></code>)</p></td>
+<td><p>7.2.0</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">hipblas.dll</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>AMD HIP SDK Installer (<code class="docutils literal notranslate"><span class="pre">.exe</span></code>)</p></td>
+<td><p>7.1.1</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">libhipblas.dll</span></code></p></td>
+</tr>
+</tbody>
+</table>
+<p>A CTranslate2 wheel built against the 7.2 Python wheels is linked against <code class="docutils literal notranslate"><span class="pre">hipblas.dll</span></code>. Installing the 7.1.1 SDK provides <code class="docutils literal notranslate"><span class="pre">libhipblas.dll</span></code> instead, and the dynamic loader fails with an unhelpful “module not found” error at <code class="docutils literal notranslate"><span class="pre">import</span> <span class="pre">ctranslate2</span></code>. See <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/issues/2016">issue #2016</a> for the full discussion.</p>
+<p><strong>Recommendation:</strong> use the Python wheels shown above. They are self-contained, used by the official CI, and do not require any system-wide installation.</p>
+<p>If you can only use the AMD HIP SDK Installer (for example, because you are bundling CTranslate2 inside a PyInstaller <code class="docutils literal notranslate"><span class="pre">.exe</span></code> and want a single Windows-installer experience for end users), you have two options until AMD ships a 7.2 installer:</p>
+<ol class="arabic simple">
+<li><p>Build a CTranslate2 wheel against ROCm 7.1.1 yourself. This requires using the matching 7.1 SDK wheels (or the 7.1 installer) when running the build, <em>not</em> the 7.2 wheels above.</p></li>
+<li><p>Wait for the upstream AMD HIP SDK Installer to be updated to 7.2.</p></li>
+</ol>
+</section>
+</section>
+<section id="intel-oneapi-mkl-and-onednn">
+<h3>3. Intel oneAPI MKL and oneDNN<a class="headerlink" href="#intel-oneapi-mkl-and-onednn" title="Permalink to this heading"></a></h3>
+<p>CTranslate2 uses oneDNN for its CPU backend on Windows. oneDNN in turn requires Intel MKL for optimal performance.</p>
+<p><strong>Install Intel MKL (devel component only):</strong></p>
+<p>Download the offline installer (≈ 2.5 GB) and install only the <code class="docutils literal notranslate"><span class="pre">mkl.devel</span></code> component:</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="p">:</span><span class="c1">: Extract the installer</span>
+intel-oneapi-base-toolkit-2025.3.0.372_offline.exe -s -x -f oneapi_extracted
+
+<span class="p">:</span><span class="c1">: Install only the MKL development files</span>
+oneapi_extracted\bootstrapper.exe -s --action install <span class="se">^</span>
+<span class="se"> </span>   --components=intel.oneapi.win.mkl.devel <span class="se">^</span>
+<span class="se"> </span>   --eula=accept <span class="se">^</span>
+<span class="se"> </span>   -p=NEED_VS2017_INTEGRATION=0 <span class="se">^</span>
+<span class="se"> </span>   -p=NEED_VS2019_INTEGRATION=0
+</pre></div>
+</div>
+<p><strong>Build oneDNN 3.10.2 from source:</strong></p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span>curl -L -O https://github.com/uxlfoundation/oneDNN/archive/refs/tags/v3.10.2.tar.gz
+</pre></div>
+</div>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="c1"># Use Python to extract — tar.exe -C is unreliable on Windows</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">tarfile</span>
+<span class="n">tarfile</span><span class="o">.</span><span class="n">open</span><span class="p">(</span><span class="s2">"v3.10.2.tar.gz"</span><span class="p">,</span> <span class="s2">"r:gz"</span><span class="p">)</span><span class="o">.</span><span class="n">extractall</span><span class="p">(</span><span class="s2">"."</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Run the following in a <strong>VS Developer Command Prompt</strong> (to make MSVC available):</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="k">cd</span> oneDNN-3.10.2
+cmake -DCMAKE_BUILD_TYPE=Release <span class="se">^</span>
+<span class="se"> </span>     -DONEDNN_LIBRARY_TYPE=STATIC <span class="se">^</span>
+<span class="se"> </span>     -DONEDNN_BUILD_EXAMPLES=OFF <span class="se">^</span>
+<span class="se"> </span>     -DONEDNN_BUILD_TESTS=OFF <span class="se">^</span>
+<span class="se"> </span>     -DONEDNN_ENABLE_WORKLOAD=INFERENCE <span class="se">^</span>
+<span class="se"> </span>     <span class="s2">"-DONEDNN_ENABLE_PRIMITIVE=CONVOLUTION;REORDER"</span> <span class="se">^</span>
+<span class="se"> </span>     -DONEDNN_BUILD_GRAPH=OFF .
+cmake --build . --config Release --target install --parallel
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The install step writes to <code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files</span> <span class="pre">(x86)\oneDNN</span></code> and requires administrator privileges. Run the install step from an elevated prompt or via <code class="docutils literal notranslate"><span class="pre">Start-Process</span> <span class="pre">-Verb</span> <span class="pre">RunAs</span></code>.</p>
+</div>
+</section>
+</section>
+<section id="clone-the-repository">
+<h2>Clone the repository<a class="headerlink" href="#clone-the-repository" title="Permalink to this heading"></a></h2>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>--recursive<span class="w"> </span>https://github.com/OpenNMT/CTranslate2.git
+<span class="nb">cd</span><span class="w"> </span>CTranslate2
+</pre></div>
+</div>
+<p>If you already cloned without <code class="docutils literal notranslate"><span class="pre">--recursive</span></code>, initialize the submodules explicitly:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>submodule<span class="w"> </span>update<span class="w"> </span>--init<span class="w"> </span>--recursive
+</pre></div>
+</div>
+<p>The required submodules are <code class="docutils literal notranslate"><span class="pre">spdlog</span></code>, <code class="docutils literal notranslate"><span class="pre">cpu_features</span></code>, <code class="docutils literal notranslate"><span class="pre">cutlass</span></code>, <code class="docutils literal notranslate"><span class="pre">googletest</span></code>, <code class="docutils literal notranslate"><span class="pre">ruy</span></code>, <code class="docutils literal notranslate"><span class="pre">thrust</span></code>, and <code class="docutils literal notranslate"><span class="pre">cxxopts</span></code>. CMake will fail with <code class="docutils literal notranslate"><span class="pre">add_subdirectory:</span> <span class="pre">source</span> <span class="pre">directory</span> <span class="pre">does</span> <span class="pre">not</span> <span class="pre">exist</span></code> if any are missing.</p>
+</section>
+<section id="build-the-c-library">
+<h2>Build the C++ library<a class="headerlink" href="#build-the-c-library" title="Permalink to this heading"></a></h2>
+<p>Create a build script (e.g. <code class="docutils literal notranslate"><span class="pre">build_rocm.bat</span></code>) with all required environment variables:</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="p">@</span><span class="k">echo</span> off
+
+<span class="p">:</span><span class="c1">: --- ROCm environment ---</span>
+<span class="k">set</span> <span class="nv">ROCM_PATH</span><span class="p">=&lt;</span>output of: python -c <span class="s2">"from rocm_sdk._devel import get_devel_root; print(get_devel_root())"</span>&gt;
+<span class="k">set</span> <span class="nv">HIP_PLATFORM</span><span class="p">=</span>amd
+<span class="k">set</span> <span class="nv">HIP_PATH</span><span class="p">=</span><span class="nv">%ROCM_PATH%</span>
+<span class="k">set</span> <span class="nv">HIP_DEVICE_LIB_PATH</span><span class="p">=</span><span class="nv">%ROCM_PATH%</span>/lib/llvm/amdgcn/bitcode
+<span class="k">set</span> <span class="nv">HIP_CLANG_ROOT</span><span class="p">=</span><span class="nv">%ROCM_PATH%</span>/lib/llvm
+
+<span class="p">:</span><span class="c1">: Windows SDK resource compiler (required when using Clang as the C/C++ compiler)</span>
+<span class="k">set</span> <span class="nv">PATH</span><span class="p">=</span>C:\Program Files (x86)\Windows Kits\10\bin\10.0.26100.0\x64;<span class="nv">%PATH%</span>
+
+<span class="p">:</span><span class="c1">: --- Paths (use forward slashes for CMake) ---</span>
+<span class="k">set</span> <span class="nv">CMAKE_EXE</span><span class="p">=</span>C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/CMake/bin/cmake.exe
+<span class="k">set</span> <span class="nv">NINJA_EXE</span><span class="p">=</span>C:/Program Files (x86)/Microsoft Visual Studio/2022/BuildTools/Common7/IDE/CommonExtensions/Microsoft/CMake/Ninja/ninja.exe
+<span class="k">set</span> <span class="nv">RC_EXE</span><span class="p">=</span>C:/Program Files (x86)/Windows Kits/10/bin/10.0.26100.0/x64/rc.exe
+<span class="k">set</span> <span class="nv">INSTALL_PREFIX</span><span class="p">=</span>C:/path/to/ctranslate2-install
+
+<span class="s2">"</span><span class="nv">%CMAKE_EXE%</span><span class="s2">"</span> -GNinja <span class="se">^</span>
+<span class="se"> </span>   -DCMAKE_BUILD_TYPE=Release <span class="se">^</span>
+<span class="se"> </span>   -S . -B build <span class="se">^</span>
+<span class="se"> </span>   -DCMAKE_MAKE_PROGRAM=<span class="s2">"</span><span class="nv">%NINJA_EXE%</span><span class="s2">"</span> <span class="se">^</span>
+<span class="se"> </span>   -DCMAKE_C_COMPILER=<span class="s2">"</span><span class="nv">%ROCM_PATH%</span><span class="s2">/lib/llvm/bin/clang.exe"</span> <span class="se">^</span>
+<span class="se"> </span>   -DCMAKE_CXX_COMPILER=<span class="s2">"</span><span class="nv">%ROCM_PATH%</span><span class="s2">/lib/llvm/bin/clang++.exe"</span> <span class="se">^</span>
+<span class="se"> </span>   -DCMAKE_RC_COMPILER=<span class="s2">"</span><span class="nv">%RC_EXE%</span><span class="s2">"</span> <span class="se">^</span>
+<span class="se"> </span>   <span class="s2">"-DCMAKE_CXX_FLAGS=-Wno-deprecated-literal-operator"</span> <span class="se">^</span>
+<span class="se"> </span>   <span class="s2">"-DCMAKE_HIP_FLAGS=-Wno-deprecated-literal-operator"</span> <span class="se">^</span>
+<span class="se"> </span>   -DCMAKE_INSTALL_PREFIX=<span class="s2">"</span><span class="nv">%INSTALL_PREFIX%</span><span class="s2">"</span> <span class="se">^</span>
+<span class="se"> </span>   <span class="s2">"-DCMAKE_PREFIX_PATH=C:/Program Files (x86)/Intel/oneAPI/compiler/latest/lib;C:/Program Files (x86)/oneDNN"</span> <span class="se">^</span>
+<span class="se"> </span>   -DBUILD_CLI=OFF <span class="se">^</span>
+<span class="se"> </span>   -DWITH_DNNL=ON <span class="se">^</span>
+<span class="se"> </span>   -DWITH_HIP=ON <span class="se">^</span>
+<span class="se"> </span>   <span class="s2">"-DCMAKE_HIP_ARCHITECTURES=gfx1100"</span>
+
+<span class="s2">"</span><span class="nv">%CMAKE_EXE%</span><span class="s2">"</span> --build build --config Release --parallel
+<span class="s2">"</span><span class="nv">%CMAKE_EXE%</span><span class="s2">"</span> --install build --config Release
+</pre></div>
+</div>
+<p>Replace <code class="docutils literal notranslate"><span class="pre">gfx1100</span></code> with the architecture of your GPU (see the table above). To target multiple GPUs, separate the values with semicolons: <code class="docutils literal notranslate"><span class="pre">&quot;gfx1100;gfx1101&quot;</span></code>.</p>
+<div class="admonition important">
+<p class="admonition-title">Important</p>
+<p><strong>Use forward slashes in all CMake paths.</strong> Backslashes are interpreted as escape sequences inside CMake cache strings. A path like <code class="docutils literal notranslate"><span class="pre">C:\Program</span> <span class="pre">Files</span></code> becomes invalid (<code class="docutils literal notranslate"><span class="pre">\P</span></code> is not a recognized escape). This applies to all <code class="docutils literal notranslate"><span class="pre">-D</span></code> arguments passed to CMake.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>CMake cannot locate Ninja or <code class="docutils literal notranslate"><span class="pre">rc.exe</span></code> automatically</strong> when Clang is the compiler. Both must be specified explicitly:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">-DCMAKE_MAKE_PROGRAM</span></code> — full path to <code class="docutils literal notranslate"><span class="pre">ninja.exe</span></code> (bundled with VS Build Tools)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DCMAKE_RC_COMPILER</span></code> — full path to <code class="docutils literal notranslate"><span class="pre">rc.exe</span></code> from the Windows SDK</p></li>
+</ul>
+<p>Without <code class="docutils literal notranslate"><span class="pre">rc.exe</span></code>, CMake aborts with: <code class="docutils literal notranslate"><span class="pre">No</span> <span class="pre">CMAKE_RC_COMPILER</span> <span class="pre">could</span> <span class="pre">be</span> <span class="pre">found</span></code>.</p>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>CMake cache must be cleared between configuration attempts.</strong> If you change a compiler path or fix a path format error, delete the entire <code class="docutils literal notranslate"><span class="pre">build/</span></code> directory before re-running CMake. Stale cache entries (especially compiler paths) are not overwritten by new <code class="docutils literal notranslate"><span class="pre">-D</span></code> arguments.</p>
+</div>
+<p>A successful configuration ends with:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="o">--</span> <span class="n">HIP</span> <span class="n">Compiler</span><span class="p">:</span> <span class="o">.../</span><span class="n">clang</span><span class="o">++.</span><span class="n">exe</span>
+<span class="o">--</span> <span class="n">CMAKE_HIP_ARCHITECTURES</span><span class="p">:</span> <span class="n">gfx1100</span>
+<span class="o">--</span> <span class="n">Configuring</span> <span class="n">done</span>
+<span class="o">--</span> <span class="n">Generating</span> <span class="n">done</span>
+<span class="o">--</span> <span class="n">Build</span> <span class="n">files</span> <span class="n">have</span> <span class="n">been</span> <span class="n">written</span> <span class="n">to</span><span class="p">:</span> <span class="o">.../</span><span class="n">build</span>
+</pre></div>
+</div>
+</section>
+<section id="build-the-python-module">
+<h2>Build the Python module<a class="headerlink" href="#build-the-python-module" title="Permalink to this heading"></a></h2>
+<p>Copy the required DLLs into the Python package directory before building:</p>
+<div class="highlight-powershell notranslate"><div class="highlight"><pre><span></span><span class="nv">$install</span> <span class="p">=</span> <span class="s2">"C:/path/to/ctranslate2-install"</span>
+<span class="nb">Copy-Item</span> <span class="s2">"$install/bin/ctranslate2.dll"</span> <span class="n">python</span><span class="p">/</span><span class="n">ctranslate2</span><span class="p">/</span>
+<span class="nb">Copy-Item</span> <span class="s2">"C:/Program Files (x86)/Intel/oneAPI/2025.3/bin/libiomp5md.dll"</span> <span class="n">python</span><span class="p">/</span><span class="n">ctranslate2</span><span class="p">/</span>
+</pre></div>
+</div>
+<p>Then install the Python package from a <strong>VS Developer Command Prompt</strong>:</p>
+<div class="highlight-bat notranslate"><div class="highlight"><pre><span></span><span class="k">set</span> <span class="nv">CTRANSLATE2_ROOT</span><span class="p">=</span>C:/path/to/ctranslate2-install
+<span class="k">set</span> <span class="nv">CMAKE_BUILD_PARALLEL_LEVEL</span><span class="p">=</span>8
+<span class="k">cd</span> python
+pip install <span class="s2">"pybind11==2.11.1"</span> setuptools wheel
+pip install . --no-build-isolation
+</pre></div>
+</div>
+</section>
+<section id="verify-the-installation">
+<h2>Verify the installation<a class="headerlink" href="#verify-the-installation" title="Permalink to this heading"></a></h2>
+<p>When using the ROCm build, the AMD runtime DLLs (<code class="docutils literal notranslate"><span class="pre">amdhip64_7.dll</span></code>, <code class="docutils literal notranslate"><span class="pre">hipblas.dll</span></code>) are not on the system PATH by default. Add the ROCm binary directory before importing the module:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">rocm_sdk._devel</span><span class="w"> </span><span class="kn">import</span> <span class="n">get_devel_root</span>
+
+<span class="n">os</span><span class="o">.</span><span class="n">add_dll_directory</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">get_devel_root</span><span class="p">()),</span> <span class="s2">"bin"</span><span class="p">))</span>
+
+<span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+
+<span class="nb">print</span><span class="p">(</span><span class="n">ctranslate2</span><span class="o">.</span><span class="n">__version__</span><span class="p">)</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ctranslate2</span><span class="o">.</span><span class="n">get_supported_compute_types</span><span class="p">(</span><span class="s2">"cuda"</span><span class="p">))</span>  <span class="c1"># cuda = HIP device</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ctranslate2</span><span class="o">.</span><span class="n">_ext</span><span class="o">.</span><span class="n">get_cuda_device_count</span><span class="p">())</span>
+</pre></div>
+</div>
+<p>Expected output (RX 7900 XTX):</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="mf">4.7.1</span>
+<span class="p">{</span><span class="s1">'float32'</span><span class="p">,</span> <span class="s1">'float16'</span><span class="p">,</span> <span class="s1">'bfloat16'</span><span class="p">,</span> <span class="s1">'int8'</span><span class="p">,</span> <span class="s1">'int8_float16'</span><span class="p">,</span> <span class="s1">'int8_bfloat16'</span><span class="p">,</span> <span class="s1">'int8_float32'</span><span class="p">}</span>
+<span class="mi">1</span>
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>CTranslate2 uses <code class="docutils literal notranslate"><span class="pre">Device::CUDA</span></code> as a unified enum for both CUDA and HIP backends. When using the Python API, specify <code class="docutils literal notranslate"><span class="pre">device=&quot;cuda&quot;</span></code> to run inference on an AMD GPU.</p>
+</div>
+</section>
+<section id="known-limitations">
+<h2>Known limitations<a class="headerlink" href="#known-limitations" title="Permalink to this heading"></a></h2>
+<p>The following features are currently not available when building with <code class="docutils literal notranslate"><span class="pre">-DWITH_HIP=ON</span></code>:</p>
+<ul class="simple">
+<li><p><strong>Flash Attention</strong> (<code class="docutils literal notranslate"><span class="pre">-DWITH_FLASH_ATTN=ON</span></code>) — mutually exclusive with <code class="docutils literal notranslate"><span class="pre">WITH_HIP</span></code></p></li>
+<li><p><strong>Tensor parallelism</strong> (<code class="docutils literal notranslate"><span class="pre">-DWITH_TENSOR_PARALLEL=ON</span></code>) — mutually exclusive with <code class="docutils literal notranslate"><span class="pre">WITH_HIP</span></code></p></li>
+<li><p><strong>AWQ quantization</strong> — GPU kernels are not yet ported to HIP; AWQ models fall back to CPU execution</p></li>
+<li><p><strong>Asynchronous memory allocator</strong> — disabled on Windows/HIP builds due to instability; synchronous allocation is used instead</p></li>
+</ul>
+</section>
+</section>
+
+
+           </div>
+          </div>
+          <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
+        <a href="installation.html" class="btn btn-neutral float-left" title="Installation" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
+        <a href="translation.html" class="btn btn-neutral float-right" title="Text translation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+    </div>
+
+  <hr/>
+
+  <div role="contentinfo">
+    <p></p>
+  </div>
+
+   
+
+</footer>
+        </div>
+      </div>
+    </section>
+  </div>
+  <script>
+      jQuery(function () {
+          SphinxRtdTheme.Navigation.enable(true);
+      });
+  </script> 
+
+</body>
+</html>

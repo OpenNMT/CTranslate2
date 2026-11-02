@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Drama 3 &mdash; CTranslate2 4.8.4 documentation</title>
+  <title>Drama 3 &mdash; CTranslate2 4.8.5 documentation</title>
       <link rel="stylesheet" href="../_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="../_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="../_static/custom.css" type="text/css" />
@@ -48,6 +48,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="../quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../building_rocm_windows.html">Building with ROCm on Windows</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
 <ul>
@@ -72,7 +73,8 @@
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Drama 3</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#supported-scope">Supported scope</a></li>
 <li class="toctree-l2"><a class="reference internal" href="#model-conversion">Model conversion</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#text-to-speech">Text-to-speech</a><ul>
+<li class="toctree-l2"><a class="reference internal" href="#text-to-speech">Text-to-speech</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#voice-cloning">Voice cloning</a><ul>
 <li class="toctree-l3"><a class="reference internal" href="#cpu-execution">CPU execution</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#cuda-and-rocm">CUDA and ROCm</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#loading-options">Loading options</a></li>
@@ -129,13 +131,13 @@ CUDA or ROCm acceleration for backbone and tower projections. The native runtime
 generates audio codes and decodes them to a mono waveform.</p>
 <section id="supported-scope">
 <h2>Supported scope<a class="headerlink" href="#supported-scope" title="Permalink to this heading"></a></h2>
-<p>Supported: offline synthesis and waveform decoding. Unsupported: reference-audio
-voice cloning, audio encoding, voice design, a dedicated multi-speaker API,
+<p>Supported: offline synthesis, waveform decoding, and CPU reference-audio encoding
+for voice cloning. Unsupported: voice design, a dedicated multi-speaker API,
 speech editing or history, automatic long-text splitting, public streaming,
 and tensor batching. Independent requests can be submitted together and scheduled
 across execution replicas. Transcription is a separate speech-recognition task.</p>
-<p>Voice cloning requires a reference-audio encoder and reference-conditioned
-prompt preparation; the waveform decoder cannot encode reference recordings.</p>
+<p>Reference encoding requires a checkpoint converted with encoder weights. Existing
+decoder-only checkpoints still generate speech and accept precomputed reference codes.</p>
 </section>
 <section id="model-conversion">
 <h2>Model conversion<a class="headerlink" href="#model-conversion" title="Permalink to this heading"></a></h2>
@@ -205,7 +207,48 @@ prompt rows with the converted model’s local tokenizer and saves a mono PCM16 
 template cannot replace this prompt. Input text must not contain reserved prompt
 tokens or speaker tags. <code class="docutils literal notranslate"><span class="pre">prompt_rows</span></code> must be contiguous INT32 <code class="docutils literal notranslate"><span class="pre">[rows,</span> <span class="pre">11]</span></code>:
 tokenizer IDs in column 0 and zeros in the ten codec columns for text rows.
-The native API does not accept plain text strings or encode reference audio.</p>
+The native generation API accepts prepared prompt rows, not plain text strings.</p>
+</section>
+<section id="voice-cloning">
+<h2>Voice cloning<a class="headerlink" href="#voice-cloning" title="Permalink to this heading"></a></h2>
+<p><code class="docutils literal notranslate"><span class="pre">encode_reference</span></code> runs on CPU and converts contiguous mono FLOAT32 samples at
+44100 Hz to raw INT32 codec indices <code class="docutils literal notranslate"><span class="pre">[frames,</span> <span class="pre">10]</span></code>. The client handles decoding,
+resampling, and transcription. Reconvert older decoder-only checkpoints to include
+encoder weights. Using <code class="docutils literal notranslate"><span class="pre">model</span></code> and <code class="docutils literal notranslate"><span class="pre">tokenizer</span></code> from above:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">soundfile</span><span class="w"> </span><span class="k">as</span><span class="w"> </span><span class="nn">sf</span>
+
+<span class="n">waveform</span><span class="p">,</span> <span class="n">rate</span> <span class="o">=</span> <span class="n">sf</span><span class="o">.</span><span class="n">read</span><span class="p">(</span><span class="s2">"reference.wav"</span><span class="p">,</span> <span class="n">dtype</span><span class="o">=</span><span class="s2">"float32"</span><span class="p">)</span>
+<span class="k">if</span> <span class="n">rate</span> <span class="o">!=</span> <span class="mi">44100</span> <span class="ow">or</span> <span class="n">waveform</span><span class="o">.</span><span class="n">ndim</span> <span class="o">!=</span> <span class="mi">1</span><span class="p">:</span>
+    <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="s2">"Prepare a mono 44100 Hz reference first"</span><span class="p">)</span>
+<span class="n">codes</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">encode_reference</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">waveform</span><span class="p">))</span>
+<span class="n">transcript</span> <span class="o">=</span> <span class="s2">"The words spoken in the reference recording."</span>
+<span class="n">text</span> <span class="o">=</span> <span class="s2">"New words to speak in the reference voice."</span>
+<span class="n">segments</span> <span class="o">=</span> <span class="p">(</span>
+    <span class="s2">"&lt;|im_start|&gt;system</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span>
+    <span class="s2">"convert the provided text to speech reference to the following:"</span><span class="p">,</span>
+    <span class="s2">"</span><span class="se">\n\n</span><span class="s2">[Reference 1]</span><span class="se">\n</span><span class="s2">Text: &lt;|speaker:0|&gt; "</span> <span class="o">+</span> <span class="n">transcript</span> <span class="o">+</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">Speech: "</span><span class="p">,</span>
+    <span class="n">codes</span><span class="p">,</span>
+    <span class="s2">"&lt;|im_end|&gt;</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span>
+    <span class="s2">"&lt;|im_start|&gt;user</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span> <span class="s2">"&lt;|speaker:0|&gt; "</span> <span class="o">+</span> <span class="n">text</span><span class="p">,</span> <span class="s2">"&lt;|im_end|&gt;</span><span class="se">\n</span><span class="s2">"</span><span class="p">,</span>
+    <span class="s2">"&lt;|im_start|&gt;assistant</span><span class="se">\n</span><span class="s2">&lt;|voice|&gt;"</span><span class="p">,</span>
+<span class="p">)</span>
+<span class="n">blocks</span> <span class="o">=</span> <span class="p">[]</span>
+<span class="k">for</span> <span class="n">segment</span> <span class="ow">in</span> <span class="n">segments</span><span class="p">:</span>
+    <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">segment</span><span class="p">,</span> <span class="nb">str</span><span class="p">):</span>
+        <span class="n">ids</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">encode</span><span class="p">(</span><span class="n">segment</span><span class="p">)</span><span class="o">.</span><span class="n">ids</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="nb">len</span><span class="p">(</span><span class="n">ids</span><span class="p">),</span> <span class="mi">11</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+        <span class="n">rows</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">=</span> <span class="n">ids</span>
+    <span class="k">else</span><span class="p">:</span>
+        <span class="n">semantic_start</span> <span class="o">=</span> <span class="n">tokenizer</span><span class="o">.</span><span class="n">token_to_id</span><span class="p">(</span><span class="s2">"&lt;|semantic:0|&gt;"</span><span class="p">)</span>
+        <span class="n">rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">column_stack</span><span class="p">((</span><span class="n">segment</span><span class="p">[:,</span> <span class="mi">0</span><span class="p">]</span> <span class="o">+</span> <span class="n">semantic_start</span><span class="p">,</span> <span class="n">segment</span><span class="p">))</span>
+    <span class="n">blocks</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">rows</span><span class="p">)</span>
+<span class="n">prompt_rows</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">ascontiguousarray</span><span class="p">(</span><span class="n">np</span><span class="o">.</span><span class="n">concatenate</span><span class="p">(</span><span class="n">blocks</span><span class="p">),</span> <span class="n">dtype</span><span class="o">=</span><span class="n">np</span><span class="o">.</span><span class="n">int32</span><span class="p">)</span>
+<span class="n">result</span> <span class="o">=</span> <span class="n">model</span><span class="o">.</span><span class="n">generate</span><span class="p">(</span><span class="n">prompt_rows</span><span class="p">,</span> <span class="n">max_frames</span><span class="o">=</span><span class="mi">256</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Keep references in the system message, within the context budget, and match speaker
+IDs in transcripts and target text. Cache codes only for the same codec weights.
+Generation returns only new audio; nearly tied codebook indices can vary by backend.</p>
 <p>Local paths trigger no downloads. Synthesis requires no PyTorch, Transformers,
 audio.cpp, or GGML.</p>
 <p>See the <a class="reference internal" href="../python/ctranslate2.models.Drama3.html"><span class="doc std std-doc">Python API reference</span></a> for

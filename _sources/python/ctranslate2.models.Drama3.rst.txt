@@ -16,8 +16,10 @@ Drama3
     - :obj:`~ctranslate2.models.Drama3.num_active_batches`
     - :obj:`~ctranslate2.models.Drama3.num_queued_batches`
     - :obj:`~ctranslate2.models.Drama3.num_replicas`
+    - :obj:`~ctranslate2.models.Drama3.prefix_cache_stats`
 
     **Methods:**
 
+    - :obj:`~ctranslate2.models.Drama3.encode_reference`
     - :obj:`~ctranslate2.models.Drama3.generate`
     - :obj:`~ctranslate2.models.Drama3.generate_batch`

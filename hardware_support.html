@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hardware support &mdash; CTranslate2 4.8.4 documentation</title>
+  <title>Hardware support &mdash; CTranslate2 4.8.5 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -48,6 +48,7 @@
 <ul>
 <li class="toctree-l1"><a class="reference internal" href="quickstart.html">Quickstart</a></li>
 <li class="toctree-l1"><a class="reference internal" href="installation.html">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="building_rocm_windows.html">Building with ROCm on Windows</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
 <ul>
@@ -85,7 +86,11 @@
 <ul class="current">
 <li class="toctree-l1 current"><a class="current reference internal" href="#">Hardware support</a><ul>
 <li class="toctree-l2"><a class="reference internal" href="#cpu">CPU</a></li>
-<li class="toctree-l2"><a class="reference internal" href="#gpu">GPU</a></li>
+<li class="toctree-l2"><a class="reference internal" href="#gpu">GPU</a><ul>
+<li class="toctree-l3"><a class="reference internal" href="#nvidia">NVIDIA</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#amd-rocm">AMD (ROCm)</a></li>
+</ul>
+</li>
 </ul>
 </li>
 <li class="toctree-l1"><a class="reference internal" href="faq.html">Frequently asked questions</a></li>
@@ -135,10 +140,28 @@
 </section>
 <section id="gpu">
 <h2>GPU<a class="headerlink" href="#gpu" title="Permalink to this heading"></a></h2>
+<section id="nvidia">
+<h3>NVIDIA<a class="headerlink" href="#nvidia" title="Permalink to this heading"></a></h3>
 <ul class="simple">
 <li><p>NVIDIA GPUs with a Compute Capability greater or equal to 3.5</p></li>
 </ul>
 <p>The driver requirement depends on the CUDA version. See the <a class="reference external" href="https://docs.nvidia.com/deploy/cuda-compatibility/index.html">CUDA Compatibility guide</a> for more information.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><strong>NVIDIA Jetson (aarch64):</strong> Jetson devices are supported when building from source with <code class="docutils literal notranslate"><span class="pre">-DWITH_CUDA=ON</span></code>. The prebuilt aarch64 wheels on PyPI are CPU-only. See <a class="reference internal" href="installation.html#nvidia-jetson-aarch64-cuda"><span class="std std-ref">NVIDIA Jetson (aarch64 + CUDA)</span></a> for build instructions.</p>
+</div>
+</section>
+<section id="amd-rocm">
+<h3>AMD (ROCm)<a class="headerlink" href="#amd-rocm" title="Permalink to this heading"></a></h3>
+<ul class="simple">
+<li><p>AMD RDNA 2 and RDNA 3 GPUs (RX 6000 and RX 7000 series)</p></li>
+</ul>
+<p>Prebuilt Python wheels for ROCm are available on the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/releases/">releases page</a>. To build from source on Windows, see the <a class="reference internal" href="building_rocm_windows.html"><span class="doc">Building with ROCm on Windows</span></a> guide.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>The ROCm backend is exposed through the same <code class="docutils literal notranslate"><span class="pre">device=&quot;cuda&quot;</span></code> API as NVIDIA GPUs. CTranslate2 uses a unified device abstraction for both backends.</p>
+</div>
+</section>
 </section>
 </section>
 

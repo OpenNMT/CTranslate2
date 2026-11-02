@@ -11,6 +11,7 @@ The documentation includes installation instructions, usage guides, and API refe
 
    quickstart.md
    installation.md
+   building_rocm_windows.md
 
 .. toctree::
    :caption: Tasks

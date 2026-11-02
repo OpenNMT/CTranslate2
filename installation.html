@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 4.8.4 documentation</title>
+  <title>Installation &mdash; CTranslate2 4.8.5 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -22,7 +22,7 @@
     <script src="_static/js/theme.js"></script>
     <link rel="index" title="Index" href="genindex.html" />
     <link rel="search" title="Search" href="search.html" />
-    <link rel="next" title="Text translation" href="translation.html" />
+    <link rel="next" title="Building with ROCm on Windows" href="building_rocm_windows.html" />
     <link rel="prev" title="Quickstart" href="quickstart.html" /> 
 </head>
 
@@ -54,11 +54,13 @@
 <li class="toctree-l3"><a class="reference internal" href="#download-the-source-code">Download the source code</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#compile-the-c-library">Compile the C++ library</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#compile-the-python-wrapper">Compile the Python wrapper</a></li>
+<li class="toctree-l3"><a class="reference internal" href="#nvidia-jetson-aarch64-cuda">NVIDIA Jetson (aarch64 + CUDA)</a></li>
 <li class="toctree-l3"><a class="reference internal" href="#build-options">Build options</a></li>
 </ul>
 </li>
 </ul>
 </li>
+<li class="toctree-l1"><a class="reference internal" href="building_rocm_windows.html">Building with ROCm on Windows</a></li>
 </ul>
 <p class="caption" role="heading"><span class="caption-text">Tasks</span></p>
 <ul>
@@ -140,6 +142,7 @@
 <p class="admonition-title">GPU support</p>
 <p>The Linux and Windows Python wheels support GPU execution. Install <a class="reference external" href="https://developer.nvidia.com/cuda-toolkit">CUDA</a> 12.x to use the GPU.</p>
 <p>If you plan to run models with convolutional layers (e.g. for speech recognition), you should also install <a class="reference external" href="https://developer.nvidia.com/cudnn">cuDNN 8</a> for CUDA 12.x.</p>
+<p>If you have an AMD ROCm GPU, prebuilt Python wheels are available on the <a class="reference external" href="https://github.com/OpenNMT/CTranslate2/releases/">releases page</a>. To build from source on Windows with ROCm, see the <a class="reference internal" href="building_rocm_windows.html"><span class="doc">Building with ROCm on Windows</span></a> guide.</p>
 </div>
 <div class="admonition note">
 <p class="admonition-title">Note</p>
@@ -205,6 +208,45 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
 <li><p>When running <code class="docutils literal notranslate"><span class="pre">setup.py</span></code>, set <code class="docutils literal notranslate"><span class="pre">CTRANSLATE2_ROOT</span></code> to the CTranslate2 install directory.</p></li>
 <li><p>When running your Python application, add the CTranslate2 library path to <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code>.</p></li>
 </ul>
+</div>
+</section>
+<section id="nvidia-jetson-aarch64-cuda">
+<h3>NVIDIA Jetson (aarch64 + CUDA)<a class="headerlink" href="#nvidia-jetson-aarch64-cuda" title="Permalink to this heading"></a></h3>
+<p>The prebuilt aarch64 wheels on PyPI are CPU-only. On NVIDIA Jetson devices (Orin Nano, Orin NX, AGX Orin) running JetPack 6.x, build from source with CUDA enabled:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sudo<span class="w"> </span>apt-get<span class="w"> </span>install<span class="w"> </span>-y<span class="w"> </span>build-essential<span class="w"> </span>cmake<span class="w"> </span>git<span class="w"> </span>python3-pip<span class="w"> </span>python3-venv
+</pre></div>
+</div>
+<p>CUDA and cuDNN are provided by JetPack — no separate install needed.</p>
+<p>Compile the C++ library with CUDA:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>--recursive<span class="w"> </span>https://github.com/OpenNMT/CTranslate2.git
+<span class="nb">cd</span><span class="w"> </span>CTranslate2
+mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
+cmake<span class="w"> </span>..<span class="w"> </span>-DWITH_CUDA<span class="o">=</span>ON<span class="w"> </span>-DWITH_CUDNN<span class="o">=</span>ON<span class="w"> </span>-DWITH_MKL<span class="o">=</span>OFF<span class="w"> </span>-DOPENMP_RUNTIME<span class="o">=</span>COMP
+make<span class="w"> </span>-j<span class="k">$(</span>nproc<span class="k">)</span>
+sudo<span class="w"> </span>make<span class="w"> </span>install
+sudo<span class="w"> </span>ldconfig
+</pre></div>
+</div>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p><code class="docutils literal notranslate"><span class="pre">-DWITH_MKL=OFF</span></code> is required because Intel MKL is not available on ARM. <code class="docutils literal notranslate"><span class="pre">-DOPENMP_RUNTIME=COMP</span></code> uses the compiler’s OpenMP instead of Intel’s.</p>
+</div>
+<p>Build and install the Python wheel:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="nb">cd</span><span class="w"> </span>../python
+pip<span class="w"> </span>install<span class="w"> </span>-r<span class="w"> </span>install_requirements.txt
+python<span class="w"> </span>setup.py<span class="w"> </span>bdist_wheel
+pip<span class="w"> </span>install<span class="w"> </span>dist/ctranslate2*.whl
+</pre></div>
+</div>
+<p>Verify CUDA support:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">import</span><span class="w"> </span><span class="nn">ctranslate2</span>
+<span class="nb">print</span><span class="p">(</span><span class="n">ctranslate2</span><span class="o">.</span><span class="n">get_supported_compute_types</span><span class="p">(</span><span class="s2">"cuda"</span><span class="p">))</span>
+<span class="c1"># {'float16', 'float32', 'int8', 'int8_float16', 'int8_float32', 'bfloat16', 'int8_bfloat16'}</span>
+</pre></div>
+</div>
+<div class="admonition tip">
+<p class="admonition-title">Tip</p>
+<p>If using a virtual environment, you may need to set <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH=/usr/local/cuda/lib64</span></code> at runtime.</p>
 </div>
 </section>
 <section id="build-options">
@@ -300,7 +342,7 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 3.0</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_ACCELERATE=ON</span></code> requires <a class="reference external" href="https://developer.apple.com/documentation/accelerate">Accelerate</a></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_OPENBLAS=ON</span></code> requires <a class="reference external" href="https://github.com/xianyi/OpenBLAS">OpenBLAS</a></p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_HIP=ON</span></code> requires <a class="reference external" href="https://rocm.docs.amd.com/en/latest/reference/api-libraries.html">ROCm libraries</a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_HIP=ON</span></code> requires <a class="reference external" href="https://rocm.docs.amd.com/en/latest/reference/api-libraries.html">ROCm libraries</a>. For a complete Windows build guide, see <a class="reference internal" href="building_rocm_windows.html"><span class="doc">Building with ROCm on Windows</span></a>.</p></li>
 </ul>
 <p>Multiple backends can be enabled for a single build, for example:</p>
 <ul class="simple">
@@ -317,7 +359,7 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
           </div>
           <footer><div class="rst-footer-buttons" role="navigation" aria-label="Footer">
         <a href="quickstart.html" class="btn btn-neutral float-left" title="Quickstart" accesskey="p" rel="prev"><span class="fa fa-arrow-circle-left" aria-hidden="true"></span> Previous</a>
-        <a href="translation.html" class="btn btn-neutral float-right" title="Text translation" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
+        <a href="building_rocm_windows.html" class="btn btn-neutral float-right" title="Building with ROCm on Windows" accesskey="n" rel="next">Next <span class="fa fa-arrow-circle-right" aria-hidden="true"></span></a>
     </div>
 
   <hr/>
