@@ -4,6 +4,7 @@
 #include "ctranslate2/replica_pool.h"
 
 #include <cstdint>
+#include <list>
 #include <map>
 #include <memory>
 #include <mutex>
@@ -20,18 +21,23 @@ namespace ctranslate2 {
 
     // Shared, mutex-guarded prefix KV cache. Stores backbone+tower state after
     // prefill of a declared static prefix (first N prompt rows), keyed by the
-    // raw int32 bytes of those rows. Mirrors layers::DecoderStateCache.
+    // raw int32 bytes of those rows. Retains the five most recently used prefixes.
     class Drama3StateCache {
     public:
       Drama3StateCache();
       ~Drama3StateCache();
-      const Drama3StateSnapshot* get(const std::vector<int32_t>& key) const;
+      std::shared_ptr<const Drama3StateSnapshot> get(const std::vector<int32_t>& key) const;
       void save(std::vector<int32_t> key, Drama3StateSnapshot snapshot);
       // Counters are observational only, intended for tests and diagnostics.
       std::map<std::string, size_t> stats() const;
 
     private:
-      std::map<std::vector<int32_t>, Drama3StateSnapshot> _cache;
+      static constexpr size_t max_entries = 5;
+      struct Entry {
+        std::vector<int32_t> key;
+        std::shared_ptr<const Drama3StateSnapshot> snapshot;
+      };
+      mutable std::list<Entry> _cache;  // Least recently used first.
       mutable std::mutex _mutex;
       mutable size_t _hits = 0;
       mutable size_t _misses = 0;
@@ -98,9 +104,9 @@ namespace ctranslate2 {
     struct Drama3Options {
       dim_t max_frames = 512;
       dim_t prefill_chunk_size = 128;
-      float temperature = .8f;
+      float temperature = .7f;
       dim_t top_k = 30;
-      float top_p = .8f;
+      float top_p = .7f;
       uint64_t seed = 0;
       bool greedy = false;
       // Length (in rows) of a static prompt prefix inside `prompt`. When
@@ -144,8 +150,8 @@ namespace ctranslate2 {
       std::future<StorageView> encode_reference(const StorageView& waveform);
       // Synchronous compatibility entry point. Async and batch calls use the same pool.
       Drama3Result generate(const StorageView& prompt, dim_t max_frames = 512,
-                            dim_t prefill_chunk_size = 128, float temperature = .8f,
-                            dim_t top_k = 30, float top_p = .8f, uint64_t seed = 0,
+                            dim_t prefill_chunk_size = 128, float temperature = .7f,
+                            dim_t top_k = 30, float top_p = .7f, uint64_t seed = 0,
                             bool greedy = false, dim_t static_prompt_rows = 0,
                             bool cache_static_prompt = true);
       std::future<Drama3Result> generate_async(const StorageView& prompt,
