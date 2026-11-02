@@ -2,11 +2,24 @@
 
 ### New features
 
+## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-11-02)
+
+### New features
+
+* Cache Drama 3 prompt prefixes with LRU eviction, cache controls, and hit/miss diagnostics (#2133, #2144) by [@jordimas](https://github.com/jordimas)
+* Add native CPU reference-audio encoding for Drama 3 voice cloning (#2141) by [@jordimas](https://github.com/jordimas)
+
 ### Fixes and improvements
 
-* Fix the eole converter scale for relative position keys (#2134) by [@maksimcialehin](https://github.com/maksimcialehin)
+* Preserve FP32 attention scores through softmax to fix CUDA alignment precision with FP16 and BF16 models (#2143) by [@jordimas](https://github.com/jordimas)
+* Improve Drama 3 prefill performance by increasing the default chunk size from 16 to 128, and fuse gated-delta projections during GPU decoding (#2133) by [@jordimas](https://github.com/jordimas)
+* Fix caching allocator shutdown crashes when the allocating thread exits (#2136) by [@jordimas](https://github.com/jordimas)
+* Fix FP16 overflow in CUDA attention score accumulation (#2131) by [@jordimas](https://github.com/jordimas)
+* Fix the eole converter scale for relative position keys (#2138) by [@maksimcialehin](https://github.com/maksimcialehin)
+* Add a Windows ROCm/HIP build guide and document AMD GPU support (#2041) by T0nd3 and [@jordimas](https://github.com/jordimas)
+* Add CUDA build instructions for NVIDIA Jetson devices (#2019) by [@vimalk78](https://github.com/vimalk78)
 
-## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-24)
+## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-25)
 
 ### New features
 
