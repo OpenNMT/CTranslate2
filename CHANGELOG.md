@@ -2,11 +2,11 @@
 
 ### New features
 
-## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-11-01)
+## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-11-02)
 
 ### New features
 
-* Cache Drama 3 prompt prefixes across requests, with cache controls and hit/miss diagnostics (#2133) by [@jordimas](https://github.com/jordimas)
+* Cache Drama 3 prompt prefixes with LRU eviction, cache controls, and hit/miss diagnostics (#2133, #2144) by [@jordimas](https://github.com/jordimas)
 * Add native CPU reference-audio encoding for Drama 3 voice cloning (#2141) by [@jordimas](https://github.com/jordimas)
 
 ### Fixes and improvements
