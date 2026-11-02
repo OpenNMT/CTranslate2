@@ -1139,6 +1139,82 @@ class TestWav2Vec2Bert:
         assert transcription == expected_transcription[0]
 
 
+@test_utils.only_on_linux
+@pytest.mark.parametrize(
+    "model_type,config,input_shape",
+    [
+        (
+            "Wav2Vec2",
+            dict(
+                hidden_size=64,
+                num_hidden_layers=2,
+                num_attention_heads=4,
+                intermediate_size=128,
+                conv_dim=(32,) * 7,
+                conv_bias=True,
+                feat_extract_norm="layer",
+                do_stable_layer_norm=True,
+            ),
+            (1, 1, 16000),
+        ),
+        (
+            "Wav2Vec2Bert",
+            dict(num_hidden_layers=2, intermediate_size=256, add_adapter=True),
+            (1, 80, 160),
+        ),
+    ],
+)
+def test_wav2vec2_packed_gemm(tmp_dir, model_type, config, input_shape):
+    # Packed GEMM renames linear weights to "weight_packed" (#2116).
+    # CT2_PACKED_GEMM is cached in a C++ static, so each setting needs its own process.
+    import subprocess
+    import sys
+
+    import transformers
+
+    vocab_path = str(tmp_dir.join("vocab.json"))
+    with open(vocab_path, "w") as vocab_file:
+        json.dump({"<pad>": 0, "<s>": 1, "</s>": 2, "<unk>": 3, "|": 4}, vocab_file)
+    model_dir = str(tmp_dir.join("hf_model"))
+    config = getattr(transformers, model_type + "Config")(vocab_size=5, **config)
+    getattr(transformers, model_type + "ForCTC")(config).save_pretrained(model_dir)
+    transformers.Wav2Vec2CTCTokenizer(vocab_path).save_pretrained(model_dir)
+    converter = ctranslate2.converters.TransformersConverter(model_dir)
+    output_dir = converter.convert(str(tmp_dir.join("ctranslate2_model")))
+
+    inputs_path = str(tmp_dir.join("inputs.npy"))
+    output_path = str(tmp_dir.join("output.npy"))
+    rng = np.random.default_rng(0)
+    np.save(inputs_path, rng.standard_normal(input_shape, dtype=np.float32))
+    code = (
+        "import sys, numpy as np, ctranslate2\n"
+        "model = getattr(ctranslate2.models, sys.argv[1])(sys.argv[2])\n"
+        "inputs = ctranslate2.StorageView.from_array(np.load(sys.argv[3]))\n"
+        "np.save(sys.argv[4], np.array(model.encode(inputs, to_cpu=True)))\n"
+    )
+    args = [
+        sys.executable,
+        "-c",
+        code,
+        model_type,
+        output_dir,
+        inputs_path,
+        output_path,
+    ]
+
+    outputs = []
+    for packed in ("1", "0"):
+        env = dict(os.environ, CT2_USE_MKL="1", CT2_PACKED_GEMM=packed, CT2_VERBOSE="1")
+        result = subprocess.run(args, env=env, capture_output=True, text=True)
+        if packed == "1" and "SGEMM backend: MKL (packed: true)" not in result.stderr:
+            pytest.skip("MKL packed GEMM is not available")
+        assert result.returncode == 0, result.stderr
+        outputs.append(np.load(output_path))
+
+    assert outputs[0].shape[-1] == 5  # Logits, not hidden states.
+    np.testing.assert_allclose(outputs[0], outputs[1], atol=1e-4)
+
+
 def _build_tiny_t5_family_model(cls, config_cls, **kwargs):
     import torch
 

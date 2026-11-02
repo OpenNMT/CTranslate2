@@ -216,7 +216,10 @@ namespace ctranslate2 {
       const dim_t max_time = _transpose ? x.dim(-2) : x.dim(-3);
       const dim_t dim = _dim == 0 ? x.dim(-1) : _dim;
 
-      if (!_sin || offset + max_time > _sin.dim(0)) {
+      if (!_sin || _sin.device() != device || _sin.device_index() != x.device_index()
+          || _sin.dtype() != dtype || offset + max_time > _sin.dim(0)) {
+        _sin_half.reset();
+        _cos_half.reset();
         const dim_t cur_num_positions = _sin ? _sin.dim(0) : 0;
         const dim_t new_num_positions = std::max(offset + max_time, cur_num_positions + _num_initial_positions);
         initialize(new_num_positions, dim, device, dtype);
@@ -359,9 +362,10 @@ namespace ctranslate2 {
         const dim_t num_heads = x.dim(1);
         const dim_t new_length = cur_length + _num_initial_positions;
         _alibi = build_alibi(num_heads, new_length, _use_positive_positions, _scale_alibi ? scale : 1);
-        _alibi.move_to(x.device(), x.dtype());
       }
 
+      // Attention score dtype can change between calls even when the cached length is unchanged.
+      _alibi.move_to(x.device(), x.dtype());
       _alibi_op(x, _alibi, x);
     }
 

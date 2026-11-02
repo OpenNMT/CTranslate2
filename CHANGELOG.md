@@ -1,8 +1,31 @@
 ## [Unreleased]
 
+### New features
+
 ### Fixes and improvements
 
+* Fix the eole converter scale for relative position keys (#2134) by [@maksimcialehin](https://github.com/maksimcialehin)
 * On Windows, register the DLL directories of pip-installed `nvidia-cublas-cu12`/`nvidia-cudnn-cu12` at import time -- fixes "Could not locate cublas64_12.dll" for CUDA execution via pip-installed CUDA libraries; also covers cuDNN for anyone on a cuDNN-linked build (#1915, #1826)
+
+## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-24)
+
+### New features
+
+* Build Python 3.15 wheels (#2129) by [@shaanmajid](https://github.com/shaanmajid)
+
+* Add an **experimental implementation** of Drama 3 offline text-to-speech, including model conversion and waveform decoding on CPU with optional CUDA and ROCm acceleration by [@jordimas](https://github.com/jordimas)
+* Add CPU and GPU implementations of CausalDepthwiseConv1D, ConvTranspose1D, DequantizeFP8, GatedDeltaNet, MoeTopK, and Snake operations for audio models (#2121) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Guard integer overflow in tensor size computation, reshape, and growth (#2097) by [@Kyozzz](https://github.com/Kyozzz) and [@jordimas](https://github.com/jordimas)
+* Fix CPU Conv1D dilation and INT8 quantization scale overflow for tiny weight rows (#2117) by [@jordimas](https://github.com/jordimas)
+* Use the caching allocator by default on HIP (#2118) by [@jordimas](https://github.com/jordimas)
+* Fix Wav2Vec2 lookups of packed linear weights (#2119) by [@arcusbuilds](https://github.com/arcusbuilds)
+* Fix Wav2Vec2-BERT float16 inference (#2126) by [@jordimas](https://github.com/jordimas)
+* Rebuild rotary caches when the device or data type changes by [@jordimas](https://github.com/jordimas)
+* Restore the Transformer include in the public attention header by [@jordimas](https://github.com/jordimas)
+* Improve CI reliability with updated GitHub Actions and retries for ROCm package index updates and macOS OneAPI downloads (#2125) by [@jordimas](https://github.com/jordimas)
 
 ## [v4.8.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.3) (2026-10-13)
 

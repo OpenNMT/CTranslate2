@@ -39,7 +39,7 @@ namespace ctranslate2 {
       StorageView buffer2(input.dtype(), input.device());
       StorageView buffer3(input.dtype(), input.device());
       StorageView residual(input.dtype(), input.device());
-      StorageView m(static_cast<float>(0.5));
+      StorageView m = StorageView(0.5f).to(input.dtype());
 
       _ffn1_layer_norm(input, buffer1);
       _ff1(buffer1, buffer2);
@@ -164,7 +164,8 @@ namespace ctranslate2 {
     }
 
     Wav2Vec2BertEncoder::Wav2Vec2BertEncoder(const models::Model& model, const std::string& scope)
-      : _return_logits(model.get_variable_if_exists(scope + "/lm_head/weight"))
+      : _return_logits(model.get_variable_if_exists(scope + "/lm_head/weight")
+                       || model.get_variable_if_exists(scope + "/lm_head/weight_packed"))
       , _fp_layer_norm(model, scope + "/fp_layer_norm")
       , _fp_projection(model, scope + "/fp_projection", nullptr, true)
       , _encoder_layers(build_layers_list<const EncoderLayer>(model,

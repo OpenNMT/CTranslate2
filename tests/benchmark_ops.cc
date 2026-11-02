@@ -129,6 +129,61 @@ void benchmark_median_filter(Device device) {
   BENCHMARK(median_filter_op(x, y), 10000);
 }
 
+void benchmark_snake(Device device) {
+  StorageView x({1, 128, 1024}, 0.1f, device);
+  StorageView alpha({128}, 1.f, device);
+  StorageView y(device);
+  const ops::Snake snake_op;
+  BENCHMARK(snake_op(x, alpha, y), 1000);
+}
+
+void benchmark_moe_topk(Device device) {
+  StorageView logits({32, 128}, rand_vector(32 * 128), device);
+  StorageView indices(DataType::INT32, device);
+  StorageView weights(device);
+  const ops::MoeTopK moe_topk_op(8);
+  BENCHMARK(moe_topk_op(logits, indices, weights), 1000);
+}
+
+void benchmark_dequantize_fp8(Device device) {
+  StorageView x({1024, 1024}, int8_t(0x38), device);
+  StorageView scale({8, 8}, 1.f, device);
+  StorageView y(device);
+  const ops::DequantizeFP8 dequantize_op;
+  BENCHMARK(dequantize_op(x, scale, y), 100);
+}
+
+void benchmark_causal_depthwise_conv1d(Device device) {
+  StorageView x({1, 1, 2048}, 0.1f, device);
+  StorageView weight({2048, 4}, 0.1f, device);
+  StorageView bias({2048}, 0.f, device);
+  StorageView history({1, 2048, 3}, 0.f, device);
+  StorageView y(device);
+  const ops::CausalDepthwiseConv1D conv_op;
+  BENCHMARK(conv_op(x, weight, &bias, history, y), 1000);
+}
+
+void benchmark_conv_transpose1d(Device device) {
+  StorageView x({1, 128, 128}, 0.1f, device);
+  StorageView weight({128, 64, 4}, 0.01f, device);
+  StorageView bias({64}, 0.f, device);
+  StorageView y(device);
+  const ops::ConvTranspose1D conv_op(2);
+  BENCHMARK(conv_op(x, weight, bias, y), 100);
+}
+
+void benchmark_gated_delta_net(Device device) {
+  StorageView query({1, 1, 4, 128}, 0.01f, device);
+  StorageView key({1, 1, 4, 128}, 0.01f, device);
+  StorageView value({1, 1, 8, 128}, 0.1f, device);
+  StorageView log_decay({1, 1, 8}, -0.1f, device);
+  StorageView beta({1, 1, 8}, 0.5f, device);
+  StorageView state({1, 8, 128, 128}, 0.f, device);
+  StorageView y(device);
+  const ops::GatedDeltaNet gated_delta_net_op;
+  BENCHMARK(gated_delta_net_op(query, key, value, log_decay, beta, state, y), 1000);
+}
+
 int main(int argc, char* argv[]) {
   if (argc < 3) {
     std::cerr << "usage: " << argv[0] << " op device [dtype]" << std::endl;
@@ -168,6 +223,19 @@ int main(int argc, char* argv[]) {
     benchmark_conv1d(device);
   else if (op == "median_filter")
     benchmark_median_filter(device);
+
+  else if (op == "snake")
+    benchmark_snake(device);
+  else if (op == "moe_topk")
+    benchmark_moe_topk(device);
+  else if (op == "dequantize_fp8")
+    benchmark_dequantize_fp8(device);
+  else if (op == "causal_depthwise_conv1d")
+    benchmark_causal_depthwise_conv1d(device);
+  else if (op == "conv_transpose1d")
+    benchmark_conv_transpose1d(device);
+  else if (op == "gated_delta_net")
+    benchmark_gated_delta_net(device);
 
   return 0;
 }

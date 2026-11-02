@@ -11,6 +11,7 @@ The following model types are currently supported:
 * Encoder-decoder models: Transformer base/big, M2M-100, NLLB, BART, mBART, Pegasus, T5, UMT5, Whisper, T5Gemma, T5Gemma2, MADLAD-400
 * Decoder-only models: GPT-2, GPT-J, GPT-NeoX, OPT, BLOOM, MPT, Llama, Mistral, Gemma, CodeGen, GPTBigCode, Falcon, Qwen2
 * Encoder-only models: BERT, DistilBERT, XLM-RoBERTa
+* Text-to-speech (TTS) models: Drama 3 (experimental)
 
 Compatible models should be first converted into an optimized model format. The library includes converters for multiple frameworks:
 
@@ -60,9 +61,11 @@ See the [documentation](https://opennmt.net/CTranslate2) for more information an
 
 If you have an AMD ROCm GPU, we provide specific Python wheels on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/).
 
-## Web Server
+## Recommended libraries
 
-[ctranslate2-web-server](https://github.com/jordimas/ctranslate2-web-server) is a web server built on top of CTranslate2 that exposes an OpenAI-compatible REST API, making it easy to integrate CTranslate2 models into applications that already support the OpenAI API.
+* [ctranslate2-web-server](https://github.com/jordimas/ctranslate2-web-server): a web server exposing an OpenAI-compatible REST API for CTranslate2 models.
+* [faster-whisper](https://github.com/SYSTRAN/faster-whisper): fast speech-to-text transcription with Whisper and CTranslate2.
+* [faster-tts](https://github.com/jordimas/faster_tts): text-to-speech with CTranslate2 and experimental Drama 3 support.
 
 ## Benchmarks
 

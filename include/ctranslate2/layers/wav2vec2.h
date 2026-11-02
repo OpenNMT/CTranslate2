@@ -80,10 +80,10 @@ namespace ctranslate2 {
         return 1024;
       }
 
-      const StorageView* _upgraded_model;
+      const bool _upgraded_model;
 
     private:
-      const StorageView* _return_logits;
+      const bool _return_logits;
       std::optional<Wav2Vec2LayerNormConvLayer> _feat_layer0;
       std::optional<std::vector<std::unique_ptr<const Wav2Vec2LayerNormConvLayer>>> _feat_layers;
       std::optional<LayerNorm> _fp_norm;
