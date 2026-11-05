@@ -1,8 +1,10 @@
 #include <cmath>
+#include <cstdlib>
 #include <limits>
 
 #include "test_utils.h"
 #include "layers/drama/gated_delta.h"
+#include "ops/drama/drama_gpu.h"
 
 namespace {
 
@@ -47,6 +49,66 @@ namespace {
   };
 
 }
+
+#ifdef CT2_WITH_CUDA
+TEST(GatedDeltaLayerTest, PairedGpuProjectionsMatchSeparateProjections) {
+  if (!get_device_count(Device::CUDA))
+    GTEST_SKIP() << "No CUDA/HIP device";
+  GatedDeltaModel model(257, 1, 5, 2, 2);
+  StorageView wa({5, 257}), wb(wa.shape()), host({1, 257});
+  for (dim_t i = 0; i < wa.size(); ++i) {
+    wa.data<float>()[i] = float(i % 13 - 6) / 11;
+    wb.data<float>()[i] = float(i % 19 - 9) / 17;
+  }
+  for (dim_t i = 0; i < host.size(); ++i)
+    host.data<float>()[i] = float(i % 17 - 8) / 7;
+  model.put("in_proj_a/weight", std::move(wa));
+  model.put("in_proj_b/weight", std::move(wb));
+  auto input = host.to(Device::CUDA);
+  for (auto type : {ComputeType::FLOAT32, ComputeType::FLOAT16, ComputeType::BFLOAT16}) {
+    try {
+      resolve_compute_type(type, ComputeType::FLOAT32, Device::CUDA, 0);
+    } catch (const std::invalid_argument&) {
+      continue;
+    }
+    SCOPED_TRACE(compute_type_to_str(type));
+    layers::DramaExecutionOptions options;
+    options.device = Device::CUDA;
+    options.compute_type = type;
+    layers::DramaProjection pa(model, "delta/in_proj_a", options),
+        pb(model, "delta/in_proj_b", options);
+    const auto a_weights = pa.device_weights(), b_weights = pb.device_weights();
+    for (float factor : {1.f, -.3f, 0.f}) {
+      StorageView changed(host);
+      for (dim_t i = 0; i < changed.size(); ++i)
+        changed.data<float>()[i] *= factor;
+      input = changed.to(Device::CUDA);
+      StorageView a(DataType::FLOAT32, Device::CUDA), b(DataType::FLOAT32, Device::CUDA),
+          ref_a(DataType::FLOAT32, Device::CUDA), ref_b(DataType::FLOAT32, Device::CUDA);
+      pa(input, ref_a);
+      pb(input, ref_b);
+      const bool paired = ops::drama_paired_projection_gpu(input, a_weights.weight, b_weights.weight, a, b);
+      const char* true_fp16 = std::getenv("CT2_CUDA_TRUE_FP16_GEMM");
+      EXPECT_EQ(paired, type != ComputeType::FLOAT16
+                           || (true_fp16 && std::string(true_fp16) == "0"));
+      if (!paired) {
+        ASSERT_EQ(type, ComputeType::FLOAT16);
+        continue;  // Preserve the default true-FP16 accumulation policy.
+      }
+      synchronize_stream(Device::CUDA);
+      const float tolerance = type == ComputeType::FLOAT32 ? 2e-5f
+                                : type == ComputeType::FLOAT16 ? .004f : .03f;
+      expect_storage_eq(a, ref_a, tolerance);
+      expect_storage_eq(b, ref_b, tolerance);
+      auto prefill = StorageView({2, 257}, .1f).to(Device::CUDA);
+      EXPECT_FALSE(ops::drama_paired_projection_gpu(prefill, a_weights.weight, b_weights.weight, a, b));
+      auto integers = StorageView({5, 257}, int8_t(1)).to(Device::CUDA);
+      EXPECT_FALSE(ops::drama_paired_projection_gpu(input, integers, integers, a, b));
+    }
+  }
+}
+
+#endif
 
 TEST(GatedDeltaLayerTest, IndependentNonzeroStateScalarEquation) {
   GatedDeltaModel model(1, 1, 1, 1, 1, 2);

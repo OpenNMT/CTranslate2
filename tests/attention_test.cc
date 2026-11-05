@@ -2,6 +2,9 @@
 #include "ctranslate2/layers/attention.h"
 #include "layers/attention_utils.h"
 
+#include <algorithm>
+#include <cmath>
+
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
 
@@ -27,7 +30,81 @@ TEST(AttentionTest, Float16ScoreAccumulation) {
     }
   }
 }
+
+TEST(AttentionTest, LowPrecisionAlignmentWithCachedAlibi) {
+  for (const DataType dtype : {DataType::FLOAT16, DataType::BFLOAT16}) {
+    SCOPED_TRACE(dtype_name(dtype));
+    StorageView queries = StorageView({1, 1, 1, 64}, 1.f).to(Device::CUDA).to(dtype);
+    StorageView keys = StorageView({1, 1, 2, 64}, 1.f).to(Device::CUDA).to(dtype);
+    StorageView values = StorageView({1, 1, 2, 64}, 2.f).to(Device::CUDA).to(dtype);
+    layers::Alibi alibi;
+    for (const bool return_attention : {false, true, false, true}) {
+      StorageView output(dtype, Device::CUDA);
+      StorageView attention(dtype, Device::CUDA);
+      layers::dot_product_attention(queries, keys, values, nullptr,
+                                    nullptr, nullptr, nullptr, nullptr,
+                                    0, 0, 0, output,
+                                    return_attention ? &attention : nullptr,
+                                    true, 0.125f, true, true, 1, &alibi);
+      expect_storage_eq(output.to_float32(), StorageView({1, 1, 1, 64}, 2.f), 0.02f);
+    }
+  }
+}
+
 #endif
+
+TEST(AttentionTest, AlignmentScorePrecision) {
+  std::vector<FloatType> types{{Device::CPU, DataType::FLOAT32, 0.001f}};
+#ifdef CT2_WITH_CUDA
+  types.push_back({Device::CUDA, DataType::FLOAT16, 0.001f});
+  types.push_back({Device::CUDA, DataType::BFLOAT16, 0.002f});
+#endif
+  for (const auto& type : types) {
+    const Device device = type.device;
+    const DataType dtype = type.dtype;
+    SCOPED_TRACE(dtype_name(dtype));
+    for (const dim_t heads : {1, 2}) {
+      for (const dim_t beam : {1, 2}) {
+        // Scores 32768 and 32764 round to the same FP16/BF16 number before softmax.
+        StorageView queries({1, heads, beam, 64}, 64.f);
+        std::vector<float> keys_data(heads * 3 * 64, 64.f);
+        std::vector<float> values_data(heads * 3 * 64, 0.f);
+        for (dim_t h = 0; h < heads; ++h) {
+          keys_data[h * 3 * 64 + 64] = 63.5f;
+          std::fill_n(values_data.begin() + h * 3 * 64, 64, 1.f);
+        }
+        StorageView keys({1, heads, 3, 64}, keys_data);
+        StorageView values({1, heads, 3, 64}, values_data);
+        StorageView lengths({heads * beam}, std::vector<int32_t>(heads * beam, 2));
+        queries = queries.to(device).to(dtype);
+        keys = keys.to(device).to(dtype);
+        values = values.to(device).to(dtype);
+        lengths = lengths.to(device);
+        for (const bool normalized : {false, true}) {
+          StorageView output(dtype, device), attention(dtype, device);
+          layers::dot_product_attention(queries, keys, values, &lengths,
+                                        nullptr, nullptr, nullptr, nullptr,
+                                        0, 0, 0, output, &attention, normalized,
+                                        0.125f, true, true, beam);
+          const float winner = 1.f / (1.f + std::exp(-4.f));
+          expect_storage_eq(output.to_float32(),
+                            StorageView({1, heads, beam, 64}, winner), type.error);
+          std::vector<float> expected;
+          for (dim_t row = 0; row < heads * beam; ++row) {
+            const std::vector<float> scores = normalized
+              ? std::vector<float>{winner, 1.f - winner, 0.f}
+              : std::vector<float>{32768.f, 32764.f, 32768.f};
+            expected.insert(expected.end(), scores.begin(), scores.end());
+          }
+          expect_storage_eq(attention.to_float32(),
+                            StorageView({beam, heads, 1, 3}, expected).to(dtype).to_float32(), type.error);
+          EXPECT_EQ(output.dtype(), dtype);
+          EXPECT_EQ(attention.dtype(), dtype);
+        }
+      }
+    }
+  }
+}
 
 class MockModel : public models::Model {
 public:

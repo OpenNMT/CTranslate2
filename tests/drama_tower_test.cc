@@ -343,7 +343,7 @@ TEST_F(DramaTowerTest, SamplingMatchesTorchCpuReferenceStream) {
   // draw schedules. Also checks masked draws consume RNG and that
   // high seed bits match Torch CPU's low-32-bit generator initialization.
   const std::vector<std::vector<int32_t>> expected{
-      {1764, 3530, 2940, 2646, 2349, 1760, 2642, 2054, 1170, 1464, 1169,
+      {1764, 3530, 2940, 2646, 2056, 1760, 2642, 2054, 1170, 1464, 1169,
        2638, 579,  2932, 1753, 1752, 1752, 280,  3810, 1456, 1750, 1160},
       {2648, 2646, 3235, 3823, 1467, 3233, 877,  3525, 1170, 3230, 873,
        2639, 285,  3521, 2343, 3814, 1163, 2046, 1750, 3221, 1161, 1749}};

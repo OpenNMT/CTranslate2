@@ -95,21 +95,57 @@ namespace ctranslate2 {
           .def_property_readonly("compute_type", [](const models::Drama3& model) {
             return compute_type_to_str(model.get_first_replica().compute_type());
           }, "Resolved computation type used for execution.")
+          .def("encode_reference", [](models::Drama3& model,
+                   py::array_t<float, py::array::c_style> waveform) {
+            if (waveform.ndim() != 1 || waveform.size() == 0)
+              throw std::invalid_argument("reference waveform must have shape [samples]");
+            StorageView input({waveform.size()},
+                              std::vector<float>(waveform.data(), waveform.data() + waveform.size()));
+            StorageView codes;
+            {
+              py::gil_scoped_release release;
+              codes = model.encode_reference(input).get();
+            }
+            py::array_t<int32_t> output(std::vector<py::ssize_t>{codes.dim(0), 10});
+            std::copy_n(codes.data<int32_t>(), codes.size(), output.mutable_data());
+            return output;
+          }, py::arg("waveform").noconvert(), R"pbdoc(
+             Encodes a voice reference using the checkpoint's Fish DAC encoder on CPU.
+
+             Arguments:
+               waveform: Contiguous mono FLOAT32 array [samples] at 44100 Hz.
+                 Decode files, mix channels, and resample before calling this method.
+
+             Returns:
+               CPU INT32 array [frames,10] of raw codec indices, reusable across
+               requests with the same codec. Supply its transcript when building
+               a reference-conditioned prompt. The waveform is padded to 2048 samples.
+
+             Raises:
+               ValueError: Empty, non-finite, or incorrectly shaped input.
+               RuntimeError: Checkpoint lacks reference encoder weights; reconvert it.
+           )pbdoc")
           .def_property_readonly("num_replicas", &models::Drama3::num_replicas)
           .def_property_readonly("num_queued_batches", &models::Drama3::num_queued_batches)
           .def_property_readonly("num_active_batches", &models::Drama3::num_active_batches)
+          .def_property_readonly("prefix_cache_stats", [](const models::Drama3& model) {
+            const auto& base = *model.get_first_replica().model();
+            return dynamic_cast<const models::Drama3Model&>(base).state_cache().stats();
+          }, "Static-prefix cache diagnostics: {entries, hits, misses}.")
           .def(
               "generate",
               [copy_prompt](models::Drama3& model,
                  py::array_t<int32_t, py::array::c_style> prompt,
                  dim_t max_frames, dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                 float top_p, uint64_t seed, bool greedy, bool asynchronous) -> py::object {
+                 float top_p, uint64_t seed, bool greedy, bool asynchronous,
+                 dim_t static_prompt_rows, bool cache_static_prompt) -> py::object {
                 auto input = copy_prompt(prompt);
                 std::future<models::Drama3Result> future;
                 {
                   py::gil_scoped_release release;
                   future = model.generate_async(input, {max_frames, prefill_chunk_size, temperature,
-                                                        top_k, top_p, seed, greedy});
+                                                        top_k, top_p, seed, greedy,
+                                                        static_prompt_rows, cache_static_prompt});
                 }
                 if (asynchronous)
                   return py::cast(AsyncResult<models::Drama3Result>(std::move(future)));
@@ -121,9 +157,10 @@ namespace ctranslate2 {
                 return py::cast(std::move(result));
               },
               py::arg("prompt_rows"), py::arg("max_frames") = 512,
-              py::arg("prefill_chunk_size") = 16, py::arg("temperature") = .8f,
-              py::arg("top_k") = 30, py::arg("top_p") = .8f, py::arg("seed") = 0,
+              py::arg("prefill_chunk_size") = 128, py::arg("temperature") = .7f,
+              py::arg("top_k") = 30, py::arg("top_p") = .7f, py::arg("seed") = 0,
               py::arg("greedy") = false, py::arg("asynchronous") = false,
+              py::arg("static_prompt_rows") = 0, py::arg("cache_static_prompt") = true,
               R"pbdoc(
              Generates offline speech on the first available replica.
 
@@ -148,7 +185,8 @@ namespace ctranslate2 {
               [copy_prompt](models::Drama3& model,
                  const std::vector<py::array_t<int32_t, py::array::c_style>>& prompts,
                  dim_t max_frames, dim_t prefill_chunk_size, float temperature, dim_t top_k,
-                 float top_p, uint64_t seed, bool greedy, bool asynchronous) {
+                 float top_p, uint64_t seed, bool greedy, bool asynchronous,
+                 dim_t static_prompt_rows, bool cache_static_prompt) {
                 std::vector<StorageView> inputs;
                 inputs.reserve(prompts.size());
                 for (const auto& prompt : prompts)
@@ -157,7 +195,8 @@ namespace ctranslate2 {
                 {
                   py::gil_scoped_release release;
                   futures = model.generate_batch(inputs, {max_frames, prefill_chunk_size,
-                                                          temperature, top_k, top_p, seed, greedy});
+                                                          temperature, top_k, top_p, seed, greedy,
+                                                          static_prompt_rows, cache_static_prompt});
                 }
                 if (asynchronous)
                   return py::cast(std::get<std::vector<AsyncResult<models::Drama3Result>>>(
@@ -170,9 +209,10 @@ namespace ctranslate2 {
                 return py::cast(std::move(results));
               },
               py::arg("prompts"), py::arg("max_frames") = 512,
-              py::arg("prefill_chunk_size") = 16, py::arg("temperature") = .8f,
-              py::arg("top_k") = 30, py::arg("top_p") = .8f, py::arg("seed") = 0,
+              py::arg("prefill_chunk_size") = 128, py::arg("temperature") = .7f,
+              py::arg("top_k") = 30, py::arg("top_p") = .7f, py::arg("seed") = 0,
               py::arg("greedy") = false, py::arg("asynchronous") = false,
+              py::arg("static_prompt_rows") = 0, py::arg("cache_static_prompt") = true,
               R"pbdoc(
              Schedules independent prompts across the replica pool in input order.
              Options match generate. Returns a list of Drama3Result objects, or

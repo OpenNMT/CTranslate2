@@ -5,18 +5,19 @@
 namespace ctranslate2 {
   namespace layers {
 
-    // Expands the time resolution of codec latents before waveform decoding.
-    // Offline CPU float32 latent upsampling after Fish DAC's post transformer.
-    // Each block: transpose k2/s2 -> causal ConvNeXt. Input/output [1,C,T].
-    // Parameters are materialized float32, held by the model for layer lifetime.
-    class FishDACLatentUpsampler {
+    // Changes the time resolution of codec latents before waveform decoding.
+    // Offline CPU float32 latent resampling around Fish DAC's quantizers.
+    // Each block: transpose (or strided) k2/s2 -> causal ConvNeXt. Input/output [1,C,T].
+    // Downsampling requires even lengths at every stage. Parameters are
+    // materialized float32, held by the model for layer lifetime.
+    class FishDACLatentResampler {
     public:
-      FishDACLatentUpsampler(const models::Model& model, const std::string& scope,
-                             dim_t block_count = 2);
+      FishDACLatentResampler(const models::Model& model, const std::string& scope,
+                             dim_t block_count = 2, bool downsample = false);
       void operator()(const StorageView& input, StorageView& output) const;
 
     private:
-      // Combines temporal upsampling with a causal ConvNeXt block.
+      // Combines temporal resampling with a causal ConvNeXt block.
       struct Block {
         Block(const models::Model& model, const std::string& scope);
         Dense pw1, pw2;
@@ -32,10 +33,13 @@ namespace ctranslate2 {
 
       void forward_block(const Block& block, const StorageView& input, StorageView& output) const;
 
+      bool _downsample;
       dim_t _input_channels = 0;
       std::vector<std::unique_ptr<Block>> _blocks;
       std::vector<const StorageView*> _parameters;
     };
+
+    using FishDACLatentUpsampler = FishDACLatentResampler;
 
   }
 }

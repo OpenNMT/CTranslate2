@@ -1,4 +1,5 @@
 """Exercise the native Drama3 replica pool with a small complete checkpoint."""
+
 import json
 import tempfile
 import unittest
@@ -202,6 +203,23 @@ class Drama3RuntimeTest(unittest.TestCase):
         self.prompt = np.zeros((2, 11), dtype=np.int32)
         self.prompt[:, 0] = 1
 
+    def test_reference_encoding_requires_encoder_weights(self):
+        with self.assertRaisesRegex(RuntimeError, "no reference encoder"):
+            self.model.encode_reference(np.zeros(2048, dtype=np.float32))
+        # A failed encoding job must leave the replica pool usable.
+        self.model.generate(self.prompt, max_frames=1, greedy=True)
+
+    def test_reference_encoding_rejects_invalid_arrays(self):
+        for waveform in (
+            np.zeros((1, 8), dtype=np.float32),
+            np.zeros(0, dtype=np.float32),
+        ):
+            with self.subTest(shape=waveform.shape):
+                with self.assertRaises(ValueError):
+                    self.model.encode_reference(waveform)
+        with self.assertRaises(TypeError):
+            self.model.encode_reference(np.zeros(8, dtype=np.float64))
+
     def test_resolved_execution_properties(self):
         self.assertEqual(self.model.device, "cpu")
         self.assertEqual(self.model.device_index, [0])
@@ -318,3 +336,143 @@ class Drama3RuntimeTest(unittest.TestCase):
         del self.model
         for result in pending:
             self.assertEqual(result.result().codes.shape, (1, 10))
+
+    def assert_cached_output(self, model, prompt, **options):
+        baseline = model.generate(
+            prompt, greedy=True, cache_static_prompt=False, **options
+        )
+        cached = model.generate(prompt, greedy=True, **options)
+        np.testing.assert_array_equal(cached.codes, baseline.codes)
+        np.testing.assert_array_equal(cached.audio, baseline.audio)
+
+    def test_static_prefix_cache_preserves_output(self):
+        # Isolate the cache from the pool shared across other tests.
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        for _ in range(2):
+            self.assert_cached_output(
+                model, self.prompt, max_frames=2, static_prompt_rows=1
+            )
+        # First call: miss + save. Second call: hit. Baselines bypass the cache.
+        self.assertEqual(
+            model.prefix_cache_stats, {"entries": 1, "hits": 1, "misses": 1}
+        )
+
+    def test_static_prefix_cache_uses_current_request_capacity(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        model.generate(self.prompt, max_frames=1, greedy=True, static_prompt_rows=1)
+        for prompt, max_frames in ((self.prompt, 5), (np.tile(self.prompt, (3, 1)), 2)):
+            with self.subTest(rows=len(prompt), max_frames=max_frames):
+                self.assert_cached_output(
+                    model, prompt, max_frames=max_frames, static_prompt_rows=1
+                )
+        self.assertEqual(model.prefix_cache_stats["hits"], 2)
+
+    def test_static_prefix_cache_distinguishes_keys(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        for token in (self.prompt[0, 0], 2):
+            with self.subTest(token=token):
+                prompt = self.prompt.copy()
+                prompt[0, 0] = token
+                self.assert_cached_output(
+                    model, prompt, max_frames=2, static_prompt_rows=1
+                )
+        self.assertEqual(
+            model.prefix_cache_stats, {"entries": 2, "hits": 0, "misses": 2}
+        )
+
+    def test_static_prefix_cache_limits_entries(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        for token in range(1, 33):
+            prompt = self.prompt.copy()
+            prompt[0, 0] = token
+            self.assert_cached_output(model, prompt, max_frames=2, static_prompt_rows=1)
+            self.assertEqual(model.prefix_cache_stats["entries"], min(token, 5))
+        self.assertEqual(
+            model.prefix_cache_stats, {"entries": 5, "hits": 0, "misses": 32}
+        )
+
+    def test_static_prefix_cache_evicts_least_recently_used(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        # Touch 1 before inserting 6: key 2 must be evicted, not key 1.
+        for token in (1, 2, 3, 4, 5, 1, 6, 1):
+            prompt = self.prompt.copy()
+            prompt[0, 0] = token
+            self.assert_cached_output(model, prompt, max_frames=2, static_prompt_rows=1)
+        self.assertEqual(
+            model.prefix_cache_stats, {"entries": 5, "hits": 2, "misses": 6}
+        )
+        prompt = self.prompt.copy()
+        prompt[0, 0] = 2
+        self.assert_cached_output(model, prompt, max_frames=2, static_prompt_rows=1)
+        self.assertEqual(
+            model.prefix_cache_stats, {"entries": 5, "hits": 2, "misses": 7}
+        )
+
+    def test_static_prefix_eviction_with_concurrent_readers(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=4
+        )
+        prompts = []
+        for token in range(1, 9):
+            prompt = np.tile(self.prompt[:1], (120, 1))
+            prompt[0, 0] = token
+            prompts.append(prompt)
+        expected = [
+            model.generate(prompt, max_frames=2, greedy=True, cache_static_prompt=False)
+            for prompt in prompts
+        ]
+        pending = [
+            (
+                index,
+                model.generate(
+                    prompts[index],
+                    max_frames=2,
+                    greedy=True,
+                    static_prompt_rows=119,
+                    asynchronous=True,
+                ),
+            )
+            for index in [0, 0, 1, 2, 3, 4, 5, 6, 7, 0] * 8
+        ]
+        for index, pending_result in pending:
+            result = pending_result.result()
+            np.testing.assert_array_equal(result.codes, expected[index].codes)
+            np.testing.assert_array_equal(result.audio, expected[index].audio)
+        self.assertEqual(model.prefix_cache_stats["entries"], 5)
+
+    def test_static_prefix_cache_restores_populated_tower_caches(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        # Three prefix rows populate both backbone and tower caches. Warm with
+        # a larger request, then reuse the prefix with smaller/larger capacities.
+        for rows, max_frames, chunk_size in ((8, 5, 2), (4, 1, 1), (10, 6, 4)):
+            with self.subTest(rows=rows, max_frames=max_frames):
+                self.assert_cached_output(
+                    model,
+                    np.tile(self.prompt[:1], (rows, 1)),
+                    max_frames=max_frames,
+                    prefill_chunk_size=chunk_size,
+                    static_prompt_rows=3,
+                )
+        self.assertEqual(model.prefix_cache_stats["hits"], 2)
+
+    def test_static_prompt_rows_bounds_are_validated(self):
+        model = ctranslate2.models.Drama3(
+            self.directory.name, intra_threads=1, inter_threads=1
+        )
+        for rows in (-1, len(self.prompt)):
+            with self.subTest(rows=rows), self.assertRaises(ValueError):
+                model.generate(
+                    self.prompt, max_frames=1, greedy=True, static_prompt_rows=rows
+                )

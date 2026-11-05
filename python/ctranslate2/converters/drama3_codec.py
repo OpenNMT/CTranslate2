@@ -6,7 +6,10 @@ needed only to safely load the tensor-only checkpoint with memory mapping.
 
 import numpy as np
 
-from ctranslate2.specs.drama3_spec import codec_parameter_shapes
+from ctranslate2.specs.drama3_spec import (
+    codec_parameter_shapes,
+    reference_codec_parameter_shapes,
+)
 
 FLOAT_TYPES = {
     "float32",
@@ -23,7 +26,12 @@ def conversion_plan(schema):
     """Resolve direct/legacy/parametrized tensors using only names and shapes."""
     keys = schema.get("keys", schema)
     plan = []
-    for source, shape in codec_parameter_shapes().items():
+    shapes = codec_parameter_shapes()
+    # Old decoder-only fixtures/checkpoints remain supported. Once an encoder
+    # is present, require its entire graph rather than silently dropping tensors.
+    if any(name.startswith("encoder.block.") for name in keys):
+        shapes.update(reference_codec_parameter_shapes())
+    for source, shape in sorted(shapes.items()):
         candidates = []
         if source in keys:
             candidates.append((source, None))

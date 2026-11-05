@@ -153,3 +153,56 @@ def codec_parameter_shapes():
         shapes[prefix + ".1.pwconv1.bias"] = (4096,)
         shapes[prefix + ".1.pwconv2.weight"] = (1024, 4096)
     return dict(sorted(shapes.items()))
+
+
+def reference_codec_parameter_shapes():
+    """Additional logical weights for the optional Fish DAC reference encoder."""
+    shapes = {}
+
+    def conv(name, inputs, outputs, kernel):
+        shapes[name + ".weight"] = (outputs, inputs, kernel)
+        shapes[name + ".bias"] = (outputs,)
+
+    def transformer(prefix, layers):
+        decoder = codec_parameter_shapes()
+        for name, shape in decoder.items():
+            source = "quantizer.post_module."
+            if name.startswith(source):
+                suffix = name[len(source) :]
+                if suffix.startswith("layers.") and int(suffix.split(".")[1]) >= layers:
+                    continue
+                shapes[prefix + "." + suffix] = shape
+
+    conv("encoder.block.0.conv", 1, 64, 7)
+    channels = 64
+    for stage, stride in enumerate((2, 4, 8, 8), 1):
+        prefix = f"encoder.block.{stage}.block"
+        for unit in range(3):
+            block = f"{prefix}.{unit}.block"
+            for index in (0, 2):
+                shapes[f"{block}.{index}.alpha"] = (1, channels, 1)
+            conv(block + ".1.conv", channels, channels, 7)
+            conv(block + ".3.conv", channels, channels, 1)
+        shapes[prefix + ".3.alpha"] = (1, channels, 1)
+        conv(prefix + ".4.conv", channels, channels * 2, 2 * stride)
+        channels *= 2
+    transformer("encoder.block.4.block.5", 4)
+    shapes["encoder.block.5.alpha"] = (1, channels, 1)
+    conv("encoder.block.6.conv", channels, 1024, 3)
+    transformer("quantizer.pre_module", 8)
+    decoder = codec_parameter_shapes()
+    for stage in range(2):
+        prefix = f"quantizer.downsample.{stage}"
+        conv(prefix + ".0.conv", 1024, 1024, 2)
+        source = f"quantizer.upsample.{stage}.1."
+        for name, shape in decoder.items():
+            if name.startswith(source):
+                shapes[prefix + ".1." + name[len(source) :]] = shape
+    for book in range(10):
+        prefix = (
+            "quantizer.semantic_quantizer.quantizers.0"
+            if book == 0
+            else f"quantizer.quantizer.quantizers.{book - 1}"
+        )
+        conv(prefix + ".in_proj", 1024, 8, 1)
+    return dict(sorted(shapes.items()))

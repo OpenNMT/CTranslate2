@@ -33,16 +33,18 @@ namespace ctranslate2 {
 
     }
 
-    FishDACLatentUpsampler::Block::Block(const models::Model& model, const std::string& scope)
+    FishDACLatentResampler::Block::Block(const models::Model& model, const std::string& scope)
       : pw1(model, scope + "/1/pwconv1")
       , pw2(model, scope + "/1/pwconv2") {
     }
 
-    FishDACLatentUpsampler::FishDACLatentUpsampler(const models::Model& model,
-                                                   const std::string& scope, dim_t block_count) {
+    FishDACLatentResampler::FishDACLatentResampler(const models::Model& model,
+                                               const std::string& scope, dim_t block_count,
+                                               bool downsample)
+      : _downsample(downsample) {
       if (model.device() != Device::CPU || block_count <= 0)
         throw std::invalid_argument(
-            "FishDAC latent upsampler requires CPU and positive block count");
+            "FishDAC latent resampler requires CPU and positive block count");
       auto parameter = [&](const std::string& name) {
         const auto& value = model.get_variable(name);
         if (value.device() != Device::CPU || value.dtype() != DataType::FLOAT32)
@@ -62,15 +64,15 @@ namespace ctranslate2 {
         block->transpose_bias = parameter(prefix + "/0/conv/bias");
         const auto& tw = *block->transpose_weight;
         if (tw.rank() != 3 || tw.dim(0) <= 0 || tw.dim(1) <= 0 || tw.dim(2) != 2
-            || (i && tw.dim(0) != previous_channels))
-          throw std::invalid_argument("FishDAC latent transpose must be compatible [Cin,Cout,2]");
+            || (i && tw.dim(_downsample ? 1 : 0) != previous_channels))
+          throw std::invalid_argument("FishDAC latent resampling weight/channel mismatch");
         if (!i)
-          _input_channels = tw.dim(0);
-        block->channels = tw.dim(1);
+          _input_channels = tw.dim(_downsample ? 1 : 0);
+        block->channels = tw.dim(_downsample ? 0 : 1);
         previous_channels = block->channels;
         const auto channels = block->channels;
         if (block->transpose_bias->shape() != Shape{channels})
-          throw std::invalid_argument("FishDAC latent transpose bias mismatch");
+          throw std::invalid_argument("FishDAC latent resampling bias mismatch");
         const auto cp = prefix + "/1";
         block->depthwise_weight = parameter(cp + "/dwconv/conv/weight");
         block->depthwise_bias = parameter(cp + "/dwconv/conv/bias");
@@ -96,10 +98,13 @@ namespace ctranslate2 {
       }
     }
 
-    void FishDACLatentUpsampler::forward_block(const Block& block, const StorageView& input,
+    void FishDACLatentResampler::forward_block(const Block& block, const StorageView& input,
                                                StorageView& output) const {
       StorageView upsampled;
-      ops::ConvTranspose1D(2)(input, *block.transpose_weight, *block.transpose_bias, upsampled);
+      if (_downsample)
+        ops::Conv1D(2)(input, *block.transpose_weight, *block.transpose_bias, upsampled);
+      else
+        ops::ConvTranspose1D(2)(input, *block.transpose_weight, *block.transpose_bias, upsampled);
       const auto time = upsampled.dim(2);
       const auto channels = block.channels;
       StorageView padded({1, channels, time + 6}, 0.f);
@@ -126,7 +131,7 @@ namespace ctranslate2 {
       output = std::move(upsampled);
     }
 
-    void FishDACLatentUpsampler::operator()(const StorageView& input, StorageView& output) const {
+    void FishDACLatentResampler::operator()(const StorageView& input, StorageView& output) const {
       if (input.device() != Device::CPU || output.device() != Device::CPU
           || input.dtype() != DataType::FLOAT32 || output.dtype() != DataType::FLOAT32
           || input.rank() != 3 || input.dim(0) != 1 || input.dim(1) != _input_channels
@@ -143,7 +148,9 @@ namespace ctranslate2 {
       for (size_t i = 0; i < _blocks.size(); ++i) {
         if (length > (std::numeric_limits<dim_t>::max() - 6) / 2)
           throw std::invalid_argument("FishDAC latent sequence length overflows");
-        length *= 2;
+        if (_downsample && length % 2)
+          throw std::invalid_argument("FishDAC latent downsampling requires even frame counts");
+        length = _downsample ? length / 2 : length * 2;
       }
       if (!length) {
         output.resize({1, _blocks.back()->channels, 0});

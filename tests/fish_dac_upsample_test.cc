@@ -187,3 +187,16 @@ TEST(FishDACLatentUpsampleTest, RejectsAliasingAndInvalidInputWithoutChangingOut
   EXPECT_THROW(layer(input, output), std::invalid_argument);
   EXPECT_EQ(output.data<float>()[0], 42.f);
 }
+
+TEST(FishDACLatentResamplerTest, DownsamplesWithoutDiscardingOddFrames) {
+  LatentModel model(1);
+  model.put("0/1/gamma", StorageView({2}, 0.f));
+  layers::FishDACLatentResampler downsample(model, scope, 1, true);
+  StorageView input({1, 2, 4}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8}), output;
+  downsample(input, output);
+  ASSERT_EQ(output.shape(), (Shape{1, 2, 2}));
+  const std::vector<float> expected{5.1f, 11.1f, 16.8f, 22.8f};
+  for (dim_t i = 0; i < output.size(); ++i)
+    EXPECT_NEAR(output.data<float>()[i], expected[i], 1e-5f);
+  EXPECT_THROW(downsample(StorageView({1, 2, 3}, 0.f), output), std::invalid_argument);
+}

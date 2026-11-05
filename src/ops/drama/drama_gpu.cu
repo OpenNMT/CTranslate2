@@ -5,6 +5,35 @@ namespace ctranslate2 {
   namespace ops {
     namespace {
 
+      template <typename T>
+      __global__ void paired_projection(const float* input, const T* wa, const T* wb,
+                                        float* a, float* b, dim_t hidden) {
+        const dim_t row = blockIdx.x;
+        float sum_a = 0, sum_b = 0;
+        for (dim_t i = threadIdx.x; i < hidden; i += blockDim.x) {
+          // Match input conversion, then accumulate products in float.
+          const float x = float(T(input[i]));
+          sum_a += x * float(wa[row * hidden + i]);
+          sum_b += x * float(wb[row * hidden + i]);
+        }
+        __shared__ float partial_a[256], partial_b[256];
+        partial_a[threadIdx.x] = sum_a;
+        partial_b[threadIdx.x] = sum_b;
+        __syncthreads();
+        for (unsigned int stride = blockDim.x / 2; stride; stride /= 2) {
+          if (threadIdx.x < stride) {
+            partial_a[threadIdx.x] += partial_a[threadIdx.x + stride];
+            partial_b[threadIdx.x] += partial_b[threadIdx.x + stride];
+          }
+          __syncthreads();
+        }
+        if (!threadIdx.x) {
+          // The separate GEMMs also round their outputs to the compute type.
+          a[row] = float(T(partial_a[0]));
+          b[row] = float(T(partial_b[0]));
+        }
+      }
+
       __global__ void conv(const float* x, const float* weight, const float* bias, float* history,
                            float* output, dim_t steps, dim_t channels, dim_t kernel) {
         const dim_t c = blockIdx.x * blockDim.x + threadIdx.x;
@@ -195,6 +224,32 @@ namespace ctranslate2 {
                  / (1.f + expf(-query[(t * heads + h) * 2 * depth + depth + d]));
       }
 
+    }
+
+    bool drama_paired_projection_gpu(const StorageView& input, const StorageView& wa,
+                                     const StorageView& wb, StorageView& a, StorageView& b) {
+      if (input.rank() != 2 || input.dim(0) != 1 || input.dtype() != DataType::FLOAT32
+          || wa.rank() != 2 || wa.shape() != wb.shape() || wa.dtype() != wb.dtype()
+          || wa.dim(1) != input.dim(1) || wa.dim(0) <= 0
+          || (wa.dtype() != DataType::FLOAT32 && wa.dtype() != DataType::FLOAT16
+              && wa.dtype() != DataType::BFLOAT16)
+          || (wa.dtype() == DataType::FLOAT16 && cuda::use_true_fp16_gemm()))
+        return false;
+      a.resize({1, wa.dim(0)});
+      b.resize_as(a);
+#define LAUNCH_PAIR(TYPE) \
+      paired_projection<<<wa.dim(0), 256, 0, cuda::get_cuda_stream()>>>( \
+          input.data<float>(), cuda::device_cast(wa.data<TYPE>()), \
+          cuda::device_cast(wb.data<TYPE>()), a.data<float>(), b.data<float>(), wa.dim(1))
+      switch (wa.dtype()) {
+      case DataType::FLOAT32: LAUNCH_PAIR(float); break;
+      case DataType::FLOAT16: LAUNCH_PAIR(float16_t); break;
+      case DataType::BFLOAT16: LAUNCH_PAIR(bfloat16_t); break;
+      default: return false;
+      }
+#undef LAUNCH_PAIR
+      CUDA_CHECK(cudaGetLastError());
+      return true;
     }
 
     void drama_conv_gpu(const StorageView& x, const StorageView& weight, const StorageView* bias,
