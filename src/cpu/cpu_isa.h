@@ -11,7 +11,7 @@ namespace ctranslate2 {
       AVX,
       AVX2,
       AVX512,
-#elif defined(CT2_ARM64_BUILD)
+#elif defined(CT2_ARM_BUILD)
       NEON,
 #endif
     };
@@ -48,7 +48,7 @@ namespace ctranslate2 {
     CPU_ISA_CASE(cpu::CpuIsa::AVX, SINGLE_ARG(STMTS))         \
     CPU_ISA_DEFAULT(cpu::CpuIsa::GENERIC, SINGLE_ARG(STMTS))  \
   }
-#elif defined(CT2_ARM64_BUILD)
+#elif defined(CT2_ARM_BUILD)
 #  define CPU_ISA_DISPATCH(STMTS)                             \
   switch (cpu::get_cpu_isa()) {                               \
     CPU_ISA_CASE(cpu::CpuIsa::NEON, SINGLE_ARG(STMTS))        \
