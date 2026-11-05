@@ -15,10 +15,27 @@ namespace ctranslate2 {
       return num_threads;
     }
 
+#  ifdef _WIN32
+    // Joining the pool threads at thread exit deadlocks on the loader lock, so
+    // ReplicaWorker::finalize() frees the pool instead.
+    static thread_local BS::light_thread_pool* thread_pool = nullptr;
+
+    BS::light_thread_pool& get_thread_pool() {
+      if (!thread_pool)
+        thread_pool = new BS::light_thread_pool(num_threads);
+      return *thread_pool;
+    }
+
+    void clear_thread_pool() {
+      delete thread_pool;
+      thread_pool = nullptr;
+    }
+#  else
     BS::light_thread_pool& get_thread_pool() {
       static thread_local BS::thread_pool thread_pool(num_threads);
       return thread_pool;
     }
+#  endif
 
 #endif
 

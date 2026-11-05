@@ -1,5 +1,6 @@
 #pragma once
 
+#include <limits>
 #include <ostream>
 #include <vector>
 
@@ -29,9 +30,25 @@ namespace ctranslate2 {
   using Shape = std::vector<dim_t>;
 
   inline dim_t compute_size(const Shape& shape) {
+    bool has_zero_dim = false;
+    for (const dim_t dim : shape) {
+      if (dim < 0)
+        THROW_INVALID_ARGUMENT("shape contains a negative dimension");
+      if (dim == 0)
+        has_zero_dim = true;
+    }
+
+    // A zero dimension makes the size 0 whatever its position and whatever the
+    // other dimensions, so nothing is multiplied and no overflow is possible.
+    if (has_zero_dim)
+      return 0;
+
     dim_t size = 1;
-    for (const dim_t dim : shape)
+    for (const dim_t dim : shape) {
+      if (size > std::numeric_limits<dim_t>::max() / dim)
+        THROW_INVALID_ARGUMENT("shape leads to an overflowing tensor size");
       size *= dim;
+    }
     return size;
   }
 

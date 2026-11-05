@@ -8,6 +8,25 @@ add_executable(ctranslate2_test
   attention_test.cc
   batching_test.cc
   decoding_test.cc
+  gated_delta_layer_test.cc
+  moe_layer_test.cc
+  drama3_serialization_test.cc
+  drama_device_weights_test.cc
+  drama3_model_test.cc
+  drama3_mixed_precision_test.cc
+  drama_attention_test.cc
+  drama_block_test.cc
+  drama_backbone_test.cc
+  drama3_backbone_parity_test.cc
+  drama3_attention_parity_test.cc
+  drama_tower_test.cc
+  fish_dac_test.cc
+  fish_dac_parity_test.cc
+  fish_dac_full_parity_test.cc
+  fish_dac_codebooks_test.cc
+  fish_dac_transformer_test.cc
+  fish_dac_upsample_test.cc
+  conv1d_dilation_test.cc
   layers_test.cc
   model_test.cc
   storage_view_test.cc
@@ -23,6 +42,10 @@ target_link_libraries(ctranslate2_test PRIVATE
   ${PROJECT_NAME}
   gtest_main
   )
+if(WITH_RUY)
+  # Tests include cpu/backend.h, which exposes the Ruy context declaration.
+  target_link_libraries(ctranslate2_test PRIVATE ruy)
+endif()
 
 add_executable(benchmark_ops
   benchmark_ops.cc
@@ -39,6 +62,8 @@ if(WITH_CUDA)
 
 elseif(WITH_HIP)
   enable_language(HIP)
+  # attention_test includes cuda/utils.h, whose ROCm headers require HIP mode.
+  set_source_files_properties(attention_test.cc PROPERTIES LANGUAGE HIP)
   list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH})
   link_directories(${ROCM_PATH}/lib)
 

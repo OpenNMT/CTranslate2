@@ -2,6 +2,8 @@
 
 #include <spdlog/spdlog.h>
 
+#include <limits>
+
 #include "ctranslate2/models/model_factory.h"
 #include "ctranslate2/ops/ops.h"
 #include "ctranslate2/utils.h"
@@ -12,6 +14,8 @@
 #endif
 
 #include "cpu/backend.h"
+#include "env.h"
+
 
 namespace ctranslate2 {
   namespace models {
@@ -175,10 +179,18 @@ namespace ctranslate2 {
       _device_index = index;
     }
 
+    StorageView Model::load_variable(ModelReader&, const std::string&, Shape shape,
+                                     DataType dtype, dim_t num_bytes, std::istream& stream) {
+      StorageView variable(std::move(shape), dtype);
+      consume<char>(stream, num_bytes, static_cast<char*>(variable.buffer()));
+      return variable;
+    }
+
     void Model::set_compute_type(ComputeType type, Device device, int device_index, bool update_weight) {
       if (_device != Device::CPU)
         throw std::runtime_error("set_compute_type expects the variables to be on CPU");
 
+      prepare_weights(type, device, device_index, update_weight);
       _saved_compute_type = infer_compute_type();
       _requested_compute_type = type;
       _effective_compute_type = resolve_compute_type(_requested_compute_type,
@@ -619,7 +631,6 @@ namespace ctranslate2 {
 
       // Load the variables.
       const auto num_variables = consume<uint32_t>(model_file);
-      model->_variable_index.reserve(num_variables);
 
       // check config for tensor parallel
       bool multi_query_attention = false;
@@ -655,10 +666,32 @@ namespace ctranslate2 {
           num_bytes = consume<uint32_t>(model_file) * item_size;
         }
 
-        StorageView variable(std::move(shape), dtype);
-        if (num_bytes != variable.size() * variable.item_size())
+        const dim_t item_size = StorageView(dtype).item_size();
+        // The payload is the raw tensor data that follows this variable header.
+        // Check that it fits in the file before allocating the StorageView.
+        const auto payload_position = model_file.tellg();
+        if (payload_position == std::streampos(-1))
           throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
-        consume<char>(model_file, num_bytes, static_cast<char*>(variable.buffer()));
+        model_file.seekg(0, std::ios::end);
+        const auto model_end = model_file.tellg();
+        model_file.clear();
+        model_file.seekg(payload_position);
+        if (model_end == std::streampos(-1) || model_end < payload_position)
+          throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
+        dim_t variable_size = 1;
+        for (const dim_t dim : shape) {
+          if (dim == 0 || variable_size > std::numeric_limits<dim_t>::max() / dim)
+            throw std::runtime_error("Variable '" + name + "' has an invalid shape");
+          variable_size *= dim;
+        }
+        if (item_size == 0
+            || variable_size > std::numeric_limits<dim_t>::max() / item_size
+            || num_bytes != variable_size * item_size
+            || static_cast<size_t>(num_bytes) > static_cast<size_t>(model_end - payload_position))
+          throw std::runtime_error("Variable '" + name + "' has an invalid payload size");
+
+        StorageView variable = model->load_variable(model_reader, name, std::move(shape),
+                                                    dtype, num_bytes, model_file);
         if (tensor_parallel) {
           int outer_dim = 0;
           int inner_dim = 1;

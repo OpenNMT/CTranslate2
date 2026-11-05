@@ -4,6 +4,11 @@ import io
 import logging
 import os
 import shutil
+import subprocess
+import sys
+import textwrap
+
+from types import SimpleNamespace
 
 import numpy as np
 import pytest
@@ -775,7 +780,7 @@ def test_model_unload_while_async_translation():
     assert outputs[0].result().hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
 
 
-@pytest.mark.parametrize("as_file_object", [True, False])
+@pytest.mark.parametrize("as_file_object", [True, False, "fresh"])
 def test_load_model_from_memory(as_file_object):
     model_path = _get_model_path()
     files = {}
@@ -783,8 +788,12 @@ def test_load_model_from_memory(as_file_object):
     for filename in os.listdir(model_path):
         with open(os.path.join(model_path, filename), "rb") as model_file:
             content = model_file.read()
-            if as_file_object:
+            if as_file_object is True:
                 content = io.BytesIO(content)
+            elif as_file_object == "fresh":  # PR2110
+                content = SimpleNamespace(
+                    read=lambda data=content: memoryview(data).tobytes()
+                )
             files[filename] = content
 
     translator = ctranslate2.Translator("aren-transliteration", files=files)
@@ -793,7 +802,7 @@ def test_load_model_from_memory(as_file_object):
         output = translator.translate_batch([["آ", "ت", "ز", "م", "و", "ن"]])
         assert output[0].hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
 
-    if as_file_object:
+    if as_file_object is True:
         for handle in files.values():
             handle.close()
 
@@ -824,3 +833,141 @@ def test_logging():
     with wurlitzer.pipes() as (_, err):
         _get_transliterator()
     assert not err.read()
+
+
+# Child process for test_shutdown_does_not_deadlock: build an int8 CPU Translator,
+# run one large translation batch to spin up the Ruy thread pool, then destroy it.
+# The deadlock (if present) happens during that destruction, so the interesting part
+# is whether the process returns at all.
+#
+# The batch is deliberately large: the hang only happens once Ruy has actually
+# spawned its internal thread pool, which it does only when the GEMM is big enough.
+# A tiny batch runs single-threaded, has no threads to join, and shuts down cleanly
+# even on an unpatched build -- so it would not catch the regression.
+_SHUTDOWN_CHILD = textwrap.dedent(
+    """
+    import sys
+    import ctranslate2
+
+    translator = ctranslate2.Translator(
+        sys.argv[1], device="cpu", compute_type="int8",
+        inter_threads=2, intra_threads=4,
+    )
+    source = [["آ", "ت", "ز", "م", "و", "ن"]] * 512
+    translator.translate_batch(source)
+    del translator
+    """
+)
+
+
+@pytest.mark.skipif(
+    sys.platform != "win32",
+    reason="Shutdown deadlock is Windows-specific (loader lock on thread exit)",
+)
+def test_shutdown_does_not_deadlock():
+    # Regression test for the Windows shutdown deadlock in the Ruy backend: the
+    # thread_local ruy::Context destructor joined ruy's internal thread pool while
+    # the owning worker thread was exiting (holding the loader lock), hanging
+    # process shutdown indefinitely. See ctranslate2-rs#64.
+    #
+    # Run the whole lifecycle in a subprocess so a hang fails via `timeout` instead
+    # of blocking the test runner. int8 selects the Ruy backend; the large batch (in
+    # the child) ensures Ruy spawns the thread pool whose join deadlocks when unpatched.
+    model_path = _get_model_path()
+    try:
+        subprocess.run(
+            [sys.executable, "-c", _SHUTDOWN_CHILD, model_path],
+            timeout=30,
+            check=True,
+            capture_output=True,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("Translator did not shut down within 30s (deadlock regression)")
+
+
+_THREAD_LEAK_CHILD = textwrap.dedent(
+    """
+    import ctypes
+    import os
+    import sys
+    import threading
+
+    import ctranslate2
+
+    def get_num_threads():
+        if sys.platform == "linux":
+            return len(os.listdir("/proc/self/task"))
+
+        from ctypes import wintypes
+
+        class THREADENTRY32(ctypes.Structure):
+            _fields_ = [
+                ("dwSize", wintypes.DWORD),
+                ("cntUsage", wintypes.DWORD),
+                ("th32ThreadID", wintypes.DWORD),
+                ("th32OwnerProcessID", wintypes.DWORD),
+                ("tpBasePri", wintypes.LONG),
+                ("tpDeltaPri", wintypes.LONG),
+                ("dwFlags", wintypes.DWORD),
+            ]
+
+        kernel32 = ctypes.WinDLL("kernel32")
+        kernel32.CreateToolhelp32Snapshot.restype = wintypes.HANDLE
+        snapshot = kernel32.CreateToolhelp32Snapshot(0x4, 0)  # TH32CS_SNAPTHREAD
+        entry = THREADENTRY32()
+        entry.dwSize = ctypes.sizeof(THREADENTRY32)
+        count = 0
+        more = kernel32.Thread32First(snapshot, ctypes.byref(entry))
+        while more:
+            if entry.th32OwnerProcessID == os.getpid():
+                count += 1
+            more = kernel32.Thread32Next(snapshot, ctypes.byref(entry))
+        kernel32.CloseHandle(snapshot)
+        return count
+
+    def load():
+        translator = ctranslate2.Translator(
+            sys.argv[1], device="cpu", compute_type="int8", intra_threads=4
+        )
+        del translator
+
+    def load_on_thread():
+        thread = threading.Thread(target=load)
+        thread.start()
+        thread.join()
+
+    # Warm up so that threads created once per process are part of the baseline.
+    load_on_thread()
+    baseline = get_num_threads()
+    for _ in range(5):
+        load_on_thread()
+    print(get_num_threads() - baseline)
+    """
+)
+
+
+@pytest.mark.skipif(
+    sys.platform not in ("linux", "win32"),
+    reason="Thread count is only read on Linux and Windows",
+)
+def test_model_load_does_not_leak_threads():
+    # Loading a float32 model as int8 converts the weights through parallel_for on
+    # the calling thread, which never reaches ReplicaWorker::finalize(). Loading on
+    # short-lived threads should not leave threads behind. MKL is pinned to one
+    # thread so that only threads owned by CTranslate2 are counted.
+    model_path = _get_model_path()
+    env = dict(os.environ, MKL_NUM_THREADS="1")
+    try:
+        result = subprocess.run(
+            [sys.executable, "-c", _THREAD_LEAK_CHILD, model_path],
+            timeout=60,
+            check=True,
+            capture_output=True,
+            text=True,
+            env=env,
+        )
+    except subprocess.TimeoutExpired:
+        pytest.fail("Model loading on temporary threads did not finish within 60s")
+
+    # OpenMP runtimes may keep one team of threads alive between loads.
+    assert int(result.stdout.strip()) <= 4

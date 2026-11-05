@@ -106,10 +106,36 @@ namespace ctranslate2 {
     }
 
 #ifdef CT2_WITH_RUY
+#  ifdef _WIN32
+    // Windows only. The ruy::Context destructor joins ruy's internal thread pool;
+    // if that join runs while the owning thread is exiting (under the loader lock),
+    // it deadlocks ThreadPool shutdown (jkawamoto/ctranslate2-rs#64). So instead of
+    // a `thread_local` object destroyed at thread exit, we heap-allocate it and
+    // destroy it explicitly via clear_ruy_context() from ReplicaWorker::finalize(),
+    // which runs on the worker thread in a normal context (not thread exit), so the
+    // join completes and no memory (incl. ruy's prepacked cache) leaks.
+    static thread_local ruy::Context* ruy_context = nullptr;
+
+    ruy::Context *get_ruy_context() {
+      if (!ruy_context)
+        ruy_context = new ruy::Context();
+      return ruy_context;
+    }
+
+    void clear_ruy_context() {
+      delete ruy_context;
+      ruy_context = nullptr;
+    }
+#  else
+    // Other platforms keep the plain thread_local RAII: the join at thread exit is
+    // harmless here, and this avoids introducing a manual-cleanup path (and the leak
+    // that would follow if get_ruy_context() were ever called on a thread that never
+    // reaches finalize()).
     ruy::Context *get_ruy_context() {
       static thread_local ruy::Context context;
       return &context;
     }
+#  endif
 #endif
   }
 }

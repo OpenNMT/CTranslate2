@@ -21,7 +21,7 @@ namespace ctranslate2 {
 
       for (const auto& pair : files.cast<py::dict>()) {
         auto filename = pair.first;
-        auto content = pair.second;
+        py::object content = py::reinterpret_borrow<py::object>(pair.second);
 
         auto read = py::getattr(content, "read", py::none());
         if (!read.is_none())
@@ -143,6 +143,7 @@ namespace ctranslate2 {
         if (_model_is_loaded)
           return;
 
+        CallingThreadContextGuard context_guard;
         std::vector<std::shared_ptr<const models::Model>> loaded_models;
         if (_cached_models.empty())
           loaded_models = _model_loader.load();

@@ -3,11 +3,8 @@
 set -e
 set -x
 
-pip install --no-cache-dir \
-    https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_core-7.2.0.dev0-py3-none-win_amd64.whl \
-    https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_devel-7.2.0.dev0-py3-none-win_amd64.whl \
-    https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_libraries_custom-7.2.0.dev0-py3-none-win_amd64.whl \
-    https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm-7.2.0.dev0.tar.gz
+pip install --no-cache-dir --index-url https://stable.repo.amd.com/rocm/whl-next/ \
+    "rocm[libraries,devel]==10.0.0"
 rocm-sdk init
 
 export ROCM_PATH=$(python -c "from rocm_sdk._devel import get_devel_root;print(get_devel_root().as_posix())")

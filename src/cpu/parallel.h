@@ -33,6 +33,9 @@ namespace ctranslate2 {
     size_t get_num_threads();
 
     BS::light_thread_pool& get_thread_pool();
+#  ifdef _WIN32
+    void clear_thread_pool();
+#  endif
 #endif
 
     template <typename Function>
