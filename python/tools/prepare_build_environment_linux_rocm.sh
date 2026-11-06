@@ -42,7 +42,7 @@ export HIP_DEVICE_LIB_PATH=$ROCM_PATH/amdgcn/bitcode
 export HIP_CLANG_ROOT=$ROCM_PATH/lib/llvm
 export PYTORCH_ROCM_ARCH="gfx1030;gfx1100;gfx1101;gfx1102;gfx1150;gfx1151;gfx1200;gfx1201"
 
-pip install "cmake==3.22.*"
+pip install "cmake==3.24.*"
 
 ONEAPI_VERSION=2025.3.0
 dnf config-manager --add-repo https://yum.repos.intel.com/oneapi

@@ -63,7 +63,7 @@ git clone --recursive https://github.com/OpenNMT/CTranslate2.git
 
 ### Compile the C++ library
 
-Compiling the library requires a compiler supporting C++17 and CMake 3.15 or greater.
+Compiling the library requires a compiler supporting C++17 and CMake 3.24 or greater.
 
 ```bash
 mkdir build && cd build
@@ -150,9 +150,9 @@ The following options can be set with `-DOPTION=VALUE` during the CMake configur
 | BUILD_TESTS | **OFF**, ON | Compiles the tests |
 | CMAKE_CXX_FLAGS | *compiler flags* | Defines additional compiler flags |
 | CMAKE_INSTALL_PREFIX | *path* | Defines the installation path of the library |
-| CUDA_ARCH_LIST | **Auto** | List of CUDA architectures to compile for (see [`cuda_select_nvcc_arch_flags`](https://cmake.org/cmake/help/latest/module/FindCUDA.html) in the CMake documentation) |
+| CMAKE_CUDA_ARCHITECTURES | **53-real;60-real;61-real;70-real;75-real;80-real;86** | CUDA architectures to compile for; use `native` to target local GPUs (see [CMake documentation](https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html)) |
 | CUDA_DYNAMIC_LOADING | **OFF**, ON | Enables the dynamic loading of CUDA libraries at runtime instead of linking against them (requires CUDA >= 11) |
-| CUDA_NVCC_FLAGS | *compiler flags* | Defines additional compilation flags for `nvcc` |
+| CMAKE_CUDA_FLAGS | *compiler flags* | Defines additional CUDA compiler flags |
 | ENABLE_CPU_DISPATCH | OFF, **ON** | Compiles CPU kernels for multiple ISA and dispatches at runtime (should be disabled when explicitly targeting an architecture with the `-march` compilation flag) |
 | ENABLE_PROFILING | **OFF**, ON | Enables the integrated profiler (usually disabled in production builds) |
 | OPENMP_RUNTIME | **INTEL**, COMP, NONE | Selects the OpenMP runtime:<ul><li>INTEL: Intel OpenMP</li><li>COMP: OpenMP runtime provided by the compiler</li><li>NONE: no OpenMP runtime (a custom threading implementation will be used)</li></ul> |
