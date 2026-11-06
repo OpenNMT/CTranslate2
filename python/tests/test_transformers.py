@@ -944,6 +944,90 @@ class TestWhisper:
         )
 
     @test_utils.only_on_linux
+    @test_utils.require_cuda
+    @pytest.mark.parametrize(
+        "test_names", [["jfk"], ["mr_quilter", "jfk"]], ids=["single", "batch"]
+    )
+    def test_transformers_whisper_encoder_flash_attn(self, tmp_dir, test_names):
+        import transformers
+
+        audios = []
+
+        test_dir = os.path.join(test_utils.get_data_dir(), "audio")
+
+        for name in test_names:
+            audio_path = os.path.join(test_dir, "%s.npy" % name)
+            audios.append(np.load(audio_path))
+
+        model_name = "openai/whisper-tiny"
+        converter = ctranslate2.converters.TransformersConverter(model_name)
+        output_dir = str(tmp_dir.join("ctranslate2_model"))
+        output_dir = converter.convert(output_dir)
+
+        processor = transformers.WhisperProcessor.from_pretrained(model_name)
+
+        def _get_features(audio):
+            # Pad after computing the log-Mel spectrogram to match the openai/whisper behavior.
+            inputs = processor(audio, padding=False, sampling_rate=16000)
+            features = inputs.input_features[0]
+            features = np.pad(features, [(0, 0), (0, 3000 - features.shape[-1])])
+            return features
+
+        features = np.stack(list(map(_get_features, audios)))
+        features = ctranslate2.StorageView.from_array(features)
+
+        model = ctranslate2.models.Whisper(
+            output_dir, device="cuda", flash_attention=False, compute_type="float16"
+        )
+        model_flash_attn = ctranslate2.models.Whisper(
+            output_dir, device="cuda", flash_attention=True, compute_type="float16"
+        )
+
+        encoder_output = model.encode(features)
+        try:
+            encoder_output_flash_attn = model_flash_attn.encode(features)
+        except RuntimeError as e:
+            if "Flash attention 2 is not supported" not in str(e):
+                raise
+            pytest.skip("CTranslate2 was built without flash attention")
+
+        encoder_output = _to_numpy(encoder_output, "cuda")
+        encoder_output_flash_attn = _to_numpy(encoder_output_flash_attn, "cuda")
+
+        # 3000 log-Mel frames are halved by the stride-2 convolution; 384 is the
+        # hidden size of whisper-tiny.
+        expected_shape = (len(test_names), 1500, 384)
+        assert encoder_output.shape == expected_shape, (
+            f"Encoder output without flash attention has shape {encoder_output.shape}, "
+            f"expected {expected_shape}."
+        )
+        assert encoder_output_flash_attn.shape == expected_shape, (
+            f"Encoder output with flash attention has shape {encoder_output_flash_attn.shape}, "
+            f"expected {expected_shape}."
+        )
+        assert np.isfinite(
+            encoder_output
+        ).all(), "Encoder output without flash attention contains non-finite values (NaN or Inf)."
+        assert np.isfinite(
+            encoder_output_flash_attn
+        ).all(), "Encoder output with flash attention contains non-finite values (NaN or Inf)."
+
+        # The outputs would be bit-wise equal if the flash_attention option was ignored.
+        assert not np.array_equal(encoder_output, encoder_output_flash_attn), (
+            "Bit-wise equality between both encoder outputs indicates that the "
+            "flash_attention option is ignored by the encoder."
+        )
+
+        # FP16 noise between both paths was measured at ~1 (RTX PRO 6000), while
+        # causal masking in the encoder self-attention gives ~24.
+        # 5 separates both cases by geometric mean.
+        max_diff = np.max(np.abs(encoder_output - encoder_output_flash_attn), (-2, -1))
+        assert (max_diff < 5).all(), (
+            f"Max absolute difference per sample is {max_diff}. "
+            "This is larger than FP16 noise and indicates a wrong attention mask."
+        )
+
+    @test_utils.only_on_linux
     def test_transformers_whisper_partial_audio_context(self, tmp_dir):
         import transformers
 
