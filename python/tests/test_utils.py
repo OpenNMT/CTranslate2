@@ -51,11 +51,13 @@ require_cuda = pytest.mark.skipif(
 
 
 def has_mps():
-    return (
-        os.environ.get("CT2_TEST_MPS") == "1"
-        and hasattr(ctranslate2, "get_mps_device_count")
-        and ctranslate2.get_mps_device_count() > 0
-    )
+    if os.environ.get("CT2_TEST_MPS") != "1":
+        return False
+    # Asked for by name, as the MPS CI job does. A package without Metal has to fail
+    # there: skipping would leave the job green with nothing run on the GPU.
+    assert hasattr(ctranslate2, "get_mps_device_count")
+    assert ctranslate2.get_mps_device_count() > 0
+    return True
 
 
 require_mps = pytest.mark.skipif(
