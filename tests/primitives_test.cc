@@ -81,6 +81,107 @@ TEST(MPSPrimitiveTest, PenalizePreviousTokensFloat16OddLength) {
                                                      scores.dim(1));
   expect_storage_eq(scores, expected);
 }
+
+// The integer primitives run on the host. Building each operand queues a fill on
+// the device, so unless they wait for it the fill lands after their result, and
+// in the in-place case overwrites it.
+TEST(MPSPrimitiveTest, IntegerHostLoopsWaitForPendingWork) {
+  using P = primitives<Device::MPS>;
+  const auto queued = [](int32_t value, const Shape& shape = {6}) {
+    return StorageView(shape, value, Device::MPS);
+  };
+  const auto check = [](const char* name, const StorageView& got, int32_t expected) {
+    SCOPED_TRACE(name);
+    expect_storage_eq(got, StorageView(got.shape(), expected, Device::CPU));
+  };
+  const dim_t size = 6;
+
+  {
+    StorageView x = queued(1);
+    P::add(int32_t(1), x.data<int32_t>(), x.data<int32_t>(), size);
+    check("add scalar in place", x, 2);
+  }
+  {
+    StorageView a = queued(1), b = queued(2), c = queued(0);
+    P::add(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), size);
+    check("add", c, 3);
+  }
+  {
+    StorageView a = queued(1, {2}), b = queued(2), c = queued(0);
+    P::add_batch_broadcast(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), 2, size);
+    check("add_batch_broadcast", c, 3);
+  }
+  {
+    StorageView a = queued(1, {2}), b = queued(2), c = queued(0);
+    P::add_depth_broadcast(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), 2, size);
+    check("add_depth_broadcast", c, 3);
+  }
+  {
+    StorageView a = queued(1, {2}), b = queued(2), c = queued(0);
+    P::add_block_broadcast(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), 3, 2, size);
+    check("add_block_broadcast", c, 3);
+  }
+  {
+    StorageView a = queued(5), b = queued(2), c = queued(0);
+    P::sub(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), size);
+    check("sub", c, 3);
+  }
+  {
+    StorageView x = queued(1), y = queued(0);
+    P::max(int32_t(3), x.data<int32_t>(), y.data<int32_t>(), size);
+    check("max scalar", y, 3);
+  }
+  {
+    StorageView a = queued(1), b = queued(3), c = queued(0);
+    P::max(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), size);
+    check("max", c, 3);
+  }
+  {
+    StorageView x = queued(3), y = queued(0);
+    P::min(int32_t(1), x.data<int32_t>(), y.data<int32_t>(), size);
+    check("min scalar", y, 1);
+  }
+  {
+    StorageView a = queued(1), b = queued(3), c = queued(0);
+    P::min(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), size);
+    check("min", c, 1);
+  }
+  {
+    StorageView x = queued(3), y = queued(0);
+    P::mul(int32_t(2), x.data<int32_t>(), y.data<int32_t>(), size);
+    check("mul scalar", y, 6);
+  }
+  {
+    StorageView a = queued(2), b = queued(3), c = queued(0);
+    P::mul(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), size);
+    check("mul", c, 6);
+  }
+  {
+    StorageView a = queued(2, {2}), b = queued(3), c = queued(0);
+    P::mul_batch_broadcast(a.data<int32_t>(), b.data<int32_t>(), c.data<int32_t>(), 2, size);
+    check("mul_batch_broadcast", c, 6);
+  }
+  {
+    const dim_t dims[] = {2, 3};
+    StorageView a = queued(7, {2, 3}), b = queued(0, {3, 2});
+    P::transpose_2d(a.data<int32_t>(), dims, b.data<int32_t>());
+    check("transpose_2d", b, 7);
+  }
+  {
+    const dim_t dims[] = {1, 2, 3};
+    const dim_t perm[] = {2, 0, 1};
+    StorageView a = queued(7, {1, 2, 3}), b = queued(0, {3, 1, 2});
+    P::transpose_3d(a.data<int32_t>(), dims, perm, b.data<int32_t>());
+    check("transpose_3d", b, 7);
+  }
+  {
+    const dim_t dims[] = {1, 1, 2, 3};
+    const dim_t perm[] = {3, 0, 1, 2};
+    StorageView a = queued(7, {1, 1, 2, 3}), b = queued(0, {3, 1, 1, 2});
+    P::transpose_4d(a.data<int32_t>(), dims, perm, b.data<int32_t>());
+    check("transpose_4d", b, 7);
+  }
+}
 #endif
 
 INSTANTIATE_TEST_SUITE_P(CPU, PrimitiveTest, ::testing::Values(Device::CPU));
