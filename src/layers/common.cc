@@ -360,6 +360,7 @@ namespace ctranslate2 {
                                               *weight,
                                               *qscale,
                                               output,
+                                              _activation_type,
                                               bias,
                                               residual))
           return;

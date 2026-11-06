@@ -97,6 +97,7 @@ namespace ctranslate2 {
                                                   const StorageView& weight,
                                                   const StorageView& scale,
                                                   StorageView& output,
+                                                  const ActivationType* activation,
                                                   const StorageView* bias,
                                                   const StorageView* residual) const {
       if (input.dtype() != DataType::FLOAT16
@@ -126,7 +127,7 @@ namespace ctranslate2 {
         m,
         n,
         k,
-        mps::activation_code(_activation_type));
+        mps::activation_code(activation));
     }
 
   }

@@ -67,6 +67,7 @@ namespace ctranslate2 {
                                                   const StorageView&,
                                                   const StorageView&,
                                                   StorageView&,
+                                                  const ActivationType*,
                                                   const StorageView*,
                                                   const StorageView*) const {
       return false;
@@ -77,6 +78,7 @@ namespace ctranslate2 {
                                                    const StorageView&,
                                                    const StorageView&,
                                                    StorageView&,
+                                                   const ActivationType*,
                                                    const StorageView*,
                                                    const StorageView*) const {
       return false;
@@ -86,6 +88,7 @@ namespace ctranslate2 {
                                     const StorageView& weight,
                                     const StorageView& scale,
                                     StorageView& output,
+                                    const ActivationType* activation,
                                     const StorageView* bias,
                                     const StorageView* residual) const {
       bool supported = false;
@@ -94,6 +97,7 @@ namespace ctranslate2 {
                                                           weight,
                                                           scale,
                                                           output,
+                                                          activation,
                                                           bias,
                                                           residual));
       return supported;

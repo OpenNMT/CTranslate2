@@ -31,11 +31,14 @@ namespace ctranslate2 {
 
       // Attempts a backend-specific weight-only INT8 GEMM. Returns false when
       // the backend or shape is unsupported so callers can use the portable
-      // quantize -> GEMM -> dequantize implementation.
+      // quantize -> GEMM -> dequantize implementation. The activation is passed
+      // in because this operator's own is unset in a quantized Dense, where the
+      // portable path applies it in Dequantize.
       bool try_weight_only_int8(const StorageView& input,
                                 const StorageView& weight,
                                 const StorageView& scale,
                                 StorageView& output,
+                                const ActivationType* activation,
                                 const StorageView* bias = nullptr,
                                 const StorageView* residual = nullptr) const;
 
@@ -82,6 +85,7 @@ namespace ctranslate2 {
                                 const StorageView& weight,
                                 const StorageView& scale,
                                 StorageView& output,
+                                const ActivationType* activation,
                                 const StorageView* bias,
                                 const StorageView* residual) const;
     };
