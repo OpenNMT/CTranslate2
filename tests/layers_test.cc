@@ -329,6 +329,31 @@ INSTANTIATE_TEST_SUITE_P(CUDA, LayerDeviceFPTest,
                          fp_test_name);
 #endif
 #ifdef CT2_WITH_MPS
+class QuantizedDenseModel : public models::Model {
+public:
+  QuantizedDenseModel() {
+    // Negative weights on a positive input: the ReLU has to take all of it to zero.
+    register_variable("dense/weight", StorageView({2, 4}, std::vector<int8_t>(8, -1)));
+    register_variable("dense/weight_scale", StorageView({2}, std::vector<float>(2, 1.f)));
+    set_compute_type(ComputeType::INT8_FLOAT16, Device::MPS, 0, false);
+    set_device(Device::MPS);
+  }
+protected:
+  std::unique_ptr<Model> clone() const override { return nullptr; }
+};
+
+// A Dense with quantized weights gives its Gemm no activation, because the portable
+// path applies it in Dequantize. The fused INT8 path has to receive the layer's.
+TEST(MPSLayerTest, QuantizedDenseAppliesItsActivation) {
+  QuantizedDenseModel model;
+  const ops::ActivationType relu = ops::ActivationType::ReLU;
+  layers::Dense dense(model, "dense", &relu);
+  StorageView input = StorageView({1, 4}, 1.f).to_float16().to(Device::MPS);
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  dense(input, output);
+  expect_storage_eq(output.to_float32(), StorageView({1, 2}, 0.f, Device::MPS));
+}
+
 INSTANTIATE_TEST_SUITE_P(MPS, LayerDeviceFPTest,
                          ::testing::Values(FloatType{Device::MPS, DataType::FLOAT32, 1e-5},
                                            FloatType{Device::MPS, DataType::FLOAT16, 1e-2},
