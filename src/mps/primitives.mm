@@ -243,6 +243,7 @@ namespace ctranslate2 {
       mps::scalar(DataTypeToEnum<T>::value, mps::BinaryOp::ADD, to_float(a), x, y, size);
       return;
     }
+    mps::synchronize("host integer add");
     for (dim_t i = 0; i < size; ++i)
       y[i] = x[i] + a;
   }
@@ -254,6 +255,7 @@ namespace ctranslate2 {
       mps::binary(DataTypeToEnum<T>::value, mps::BinaryOp::ADD, a, b, c, size);
       return;
     }
+    mps::synchronize("host integer add");
     for (dim_t i = 0; i < size; ++i)
       c[i] = a[i] + b[i];
   }
@@ -266,6 +268,7 @@ namespace ctranslate2 {
       mps::batch_broadcast(DataTypeToEnum<T>::value, mps::BinaryOp::ADD, a, b, c, a_size, b_size);
       return;
     }
+    mps::synchronize("host integer add broadcast");
     for (dim_t i = 0; i < b_size; ++i)
       c[i] = a[i % a_size] + b[i];
   }
@@ -278,6 +281,7 @@ namespace ctranslate2 {
       mps::depth_broadcast(DataTypeToEnum<T>::value, mps::BinaryOp::ADD, a, b, c, a_size, b_size);
       return;
     }
+    mps::synchronize("host integer add broadcast");
     const dim_t depth = (a_size == 0 ? 0 : b_size / a_size);
     for (dim_t i = 0; i < b_size; ++i) {
       const dim_t j = (depth == 0 ? 0 : (i / depth));
@@ -293,6 +297,7 @@ namespace ctranslate2 {
       mps::block_broadcast(DataTypeToEnum<T>::value, mps::BinaryOp::ADD, a, b, c, block, a_size, b_size);
       return;
     }
+    mps::synchronize("host integer add broadcast");
     if (block == 0 || a_size == 0)
       return;
 
@@ -312,6 +317,7 @@ namespace ctranslate2 {
       mps::binary(DataTypeToEnum<T>::value, mps::BinaryOp::SUB, a, b, c, size);
       return;
     }
+    mps::synchronize("host integer subtract");
     for (dim_t i = 0; i < size; ++i)
       c[i] = a[i] - b[i];
   }
@@ -323,6 +329,7 @@ namespace ctranslate2 {
       mps::scalar(DataTypeToEnum<T>::value, mps::BinaryOp::MAX, to_float(a), x, y, size);
       return;
     }
+    mps::synchronize("host integer max");
     for (dim_t i = 0; i < size; ++i)
       y[i] = (x[i] > a ? x[i] : a);
   }
@@ -334,6 +341,7 @@ namespace ctranslate2 {
       mps::binary(DataTypeToEnum<T>::value, mps::BinaryOp::MAX, a, b, c, size);
       return;
     }
+    mps::synchronize("host integer max");
     for (dim_t i = 0; i < size; ++i)
       c[i] = (a[i] > b[i] ? a[i] : b[i]);
   }
@@ -345,6 +353,7 @@ namespace ctranslate2 {
       mps::scalar(DataTypeToEnum<T>::value, mps::BinaryOp::MIN, to_float(a), x, y, size);
       return;
     }
+    mps::synchronize("host integer min");
     for (dim_t i = 0; i < size; ++i)
       y[i] = (x[i] < a ? x[i] : a);
   }
@@ -356,6 +365,7 @@ namespace ctranslate2 {
       mps::binary(DataTypeToEnum<T>::value, mps::BinaryOp::MIN, a, b, c, size);
       return;
     }
+    mps::synchronize("host integer min");
     for (dim_t i = 0; i < size; ++i)
       c[i] = (a[i] < b[i] ? a[i] : b[i]);
   }
@@ -367,6 +377,7 @@ namespace ctranslate2 {
       mps::scalar(DataTypeToEnum<T>::value, mps::BinaryOp::MUL, to_float(a), x, y, size);
       return;
     }
+    mps::synchronize("host integer multiply");
     for (dim_t i = 0; i < size; ++i)
       y[i] = x[i] * a;
   }
@@ -378,6 +389,7 @@ namespace ctranslate2 {
       mps::binary(DataTypeToEnum<T>::value, mps::BinaryOp::MUL, a, b, c, size);
       return;
     }
+    mps::synchronize("host integer multiply");
     for (dim_t i = 0; i < size; ++i)
       c[i] = a[i] * b[i];
   }
@@ -390,6 +402,7 @@ namespace ctranslate2 {
       mps::batch_broadcast(DataTypeToEnum<T>::value, mps::BinaryOp::MUL, a, b, c, a_size, b_size);
       return;
     }
+    mps::synchronize("host integer multiply broadcast");
     for (dim_t i = 0; i < b_size; ++i)
       c[i] = a[i % a_size] * b[i];
   }
@@ -458,6 +471,7 @@ namespace ctranslate2 {
       mps::transpose_2d(DataTypeToEnum<T>::value, a, dims[0], dims[1], b);
       return;
     }
+    mps::synchronize("host integer transpose");
     const dim_t rows = dims[0];
     const dim_t cols = dims[1];
     for (dim_t i = 0; i < rows; ++i)
@@ -473,6 +487,7 @@ namespace ctranslate2 {
       mps::transpose_3d(DataTypeToEnum<T>::value, a, dims, perm, b);
       return;
     }
+    mps::synchronize("host integer transpose");
     const dim_t d0 = dims[0], d1 = dims[1], d2 = dims[2];
     const dim_t a_stride[3] = {d1 * d2, d2, 1};
     const dim_t bd[3] = {dims[perm[0]], dims[perm[1]], dims[perm[2]]};
@@ -501,6 +516,7 @@ namespace ctranslate2 {
       mps::transpose_4d(DataTypeToEnum<T>::value, a, dims, perm, b);
       return;
     }
+    mps::synchronize("host integer transpose");
     const dim_t d0 = dims[0], d1 = dims[1], d2 = dims[2], d3 = dims[3];
     const dim_t a_stride[4] = {d1 * d2 * d3, d2 * d3, d3, 1};
 
