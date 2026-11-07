@@ -44,7 +44,7 @@ export PYTORCH_ROCM_ARCH="gfx1030;gfx1100;gfx1101;gfx1102;gfx1150;gfx1151;gfx120
 
 pip install "cmake==3.22.*"
 
-"$(dirname "$0")/install_mkl.sh" 2025.3.0
+"$(dirname "$0")/install_mkl.sh" 2025.3
 "$(dirname "$0")/build_onednn.sh" 3.10.2 uxlfoundation/oneDNN
 "$(dirname "$0")/build_openmpi.sh" 4.1.6
 export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"

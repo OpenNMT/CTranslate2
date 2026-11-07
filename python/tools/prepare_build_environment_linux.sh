@@ -36,7 +36,7 @@ else
         libnccl-devel-2.26.2-1+cuda12.8
     ln -s cuda-12.8 /usr/local/cuda
 
-    "$(dirname "$0")/install_mkl.sh" 2025.3.0
+    "$(dirname "$0")/install_mkl.sh" 2025.3
     "$(dirname "$0")/build_onednn.sh" 3.1.1
     "$(dirname "$0")/build_openmpi.sh" 4.1.6
     export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"

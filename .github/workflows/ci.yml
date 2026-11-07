@@ -30,7 +30,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          python/tools/install_mkl.sh 2025.3.0
+          python/tools/install_mkl.sh 2025.3
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
 
       - name: Configure with DNNL
@@ -75,7 +75,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          python/tools/install_mkl.sh 2025.3.0
+          python/tools/install_mkl.sh 2025.3
 
       - name: Install Clang
         run: |
@@ -118,7 +118,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          python/tools/install_mkl.sh 2025.3.0
+          python/tools/install_mkl.sh 2025.3
 
       - name: Install Clang
         run: |
