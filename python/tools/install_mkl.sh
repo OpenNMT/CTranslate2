@@ -1,6 +1,4 @@
 #! /bin/bash
-# Install Intel oneAPI MKL devel package via the system package manager.
-# Usage: install_mkl.sh <version>  (e.g. 2025.3.0)
 set -eux
 
 MKL_VERSION=${1:?MKL version required (e.g. 2025.3.0)}

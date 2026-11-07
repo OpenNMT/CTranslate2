@@ -1,6 +1,4 @@
 #! /bin/bash
-# Fetch, build, and install Open MPI into /usr/local.
-# Usage: build_openmpi.sh <version>  (e.g. 4.1.6)
 set -eux
 
 OPENMPI_VERSION=${1:?Open MPI version required (e.g. 4.1.6)}

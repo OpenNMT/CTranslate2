@@ -1,7 +1,4 @@
 #! /bin/bash
-# Fetch and install oneDNN as a static inference-only library.
-# Usage: build_onednn.sh <version> [repo]
-#   repo defaults to oneapi-src/oneDNN (older) ; use uxlfoundation/oneDNN for 3.4+.
 set -eux
 
 ONEDNN_VERSION=${1:?oneDNN version required (e.g. 3.1.1)}
