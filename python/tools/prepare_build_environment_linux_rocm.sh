@@ -44,28 +44,9 @@ export PYTORCH_ROCM_ARCH="gfx1030;gfx1031;gfx1032;gfx1035;gfx1100;gfx1101;gfx110
 
 pip install "cmake==3.24.*"
 
-ONEAPI_VERSION=2025.3.0
-dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
-rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-dnf install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION
-
-ONEDNN_VERSION=3.10.2
-curl -L -O https://github.com/uxlfoundation/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz
-tar xf *.tar.gz && rm *.tar.gz
-cd oneDNN-*
-cmake -DCMAKE_BUILD_TYPE=Release -DONEDNN_LIBRARY_TYPE=STATIC -DONEDNN_BUILD_EXAMPLES=OFF -DONEDNN_BUILD_TESTS=OFF -DONEDNN_ENABLE_WORKLOAD=INFERENCE -DONEDNN_ENABLE_PRIMITIVE="CONVOLUTION;REORDER" -DONEDNN_BUILD_GRAPH=OFF .
-make -j$(nproc) install
-cd ..
-rm -r oneDNN-*
-
-OPENMPI_VERSION=4.1.6
-curl -L -O https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${OPENMPI_VERSION}.tar.bz2
-tar xf *.tar.bz2 && rm *.tar.bz2
-cd openmpi-*
-./configure
-make -j$(nproc) install
-cd ..
-rm -r openmpi-*
+"$(dirname "$0")/install_mkl.sh" 2025.3
+"$(dirname "$0")/build_onednn.sh" 3.10.2 uxlfoundation/oneDNN
+"$(dirname "$0")/build_openmpi.sh" 4.1.6
 export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
 
 mkdir build-release && cd build-release

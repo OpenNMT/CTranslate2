@@ -10,6 +10,10 @@ on:
     branches:
       - master
 
+env:
+  MKL_VERSION: 2025.3
+  DNNL_VERSION: 3.1.1
+
 jobs:
   build-and-test-cpp-x86_64:
     runs-on: ${{ matrix.os }}
@@ -25,29 +29,30 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Intel oneAPI
-        run: |
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo apt-key add *.PUB
-          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
-          sudo apt-get update
-
       - name: Configure with MKL
         if: matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
-          MKL_VERSION: 2023.0.0
         run: |
-          sudo apt-get install -y intel-oneapi-mkl-devel-$MKL_VERSION
+          python/tools/install_mkl.sh "$MKL_VERSION"
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
+
+      - name: Cache oneDNN
+        if: matrix.backend == 'dnnl'
+        id: cache-onednn
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/onednn
+          key: onednn-${{ matrix.os }}-${{ runner.arch }}-${{ env.DNNL_VERSION }}-${{ hashFiles('python/tools/build_onednn.sh') }}
+
+      - name: Build oneDNN
+        if: matrix.backend == 'dnnl' && steps.cache-onednn.outputs.cache-hit != 'true'
+        run: python/tools/build_onednn.sh "$DNNL_VERSION" oneapi-src/oneDNN "$RUNNER_TEMP/onednn"
 
       - name: Configure with DNNL
         if: matrix.backend == 'dnnl'
-        env:
-          DNNL_VERSION: 2023.0.0-25399
         run: |
-          sudo apt-get install -y intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
+          cmake -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/onednn" -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
 
       - name: Build
         run: |
@@ -81,23 +86,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Intel oneAPI
-        run: |
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo apt-key add *.PUB
-          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
-          sudo apt update
-
       - name: Install MKL
         env:
           CT2_USE_MKL: 1
-          MKL_VERSION: 2023.0.0
         run: |
-          sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
+          python/tools/install_mkl.sh "$MKL_VERSION"
 
       - name: Install Clang
         run: |
-          sudo apt install -y clang  
+          sudo apt install -y clang
 
       - name: Configure with MKL and Clang
         env:
@@ -132,23 +129,15 @@ jobs:
         with:
           submodules: recursive
 
-      - name: Install Intel oneAPI
-        run: |
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo apt-key add *.PUB
-          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
-          sudo apt update
-
       - name: Install MKL
         env:
           CT2_USE_MKL: 1
-          MKL_VERSION: 2023.0.0
         run: |
-          sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
+          python/tools/install_mkl.sh "$MKL_VERSION"
 
       - name: Install Clang
         run: |
-          sudo apt install -y clang  
+          sudo apt install -y clang
 
       - name: Configure with MKL and Clang
         env:
