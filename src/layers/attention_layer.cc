@@ -320,18 +320,15 @@ namespace ctranslate2 {
 
       StorageView sin(device);
       ops::Sin()(emb, sin);
-      if (sin.dtype() == dtype)
-        _sin = std::move(sin);
-      else
-        _sin = sin.to(dtype);
 
       StorageView cos(device);
       ops::Cos()(emb, cos);
-      if (cos.dtype() == dtype)
-        _cos = std::move(cos);
-      else
-        _cos = cos.to(dtype);
 
+      // Apply the longrope attention scaling while the tables are still in
+      // float32: ops::Mul() requires both operands to share the dtype of the
+      // first one, so scaling after the conversion to a float16/bfloat16
+      // dtype would be rejected by the dtype check. The reference
+      // implementations also scale in float32 before casting.
       if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0 && _scaling_type != RotaryScalingType::Llama3) {
         StorageView scaling_factor;
         float scale = _max_position_embeddings / _original_max_position_embeddings;
@@ -340,9 +337,19 @@ namespace ctranslate2 {
         else
           scaling_factor = StorageView(static_cast<float>(sqrt(1 + std::log(scale) / std::log(_original_max_position_embeddings))));
 
-        ops::Mul()(_sin, scaling_factor, _sin);
-        ops::Mul()(_cos, scaling_factor, _cos);
+        ops::Mul()(sin, scaling_factor, sin);
+        ops::Mul()(cos, scaling_factor, cos);
       }
+
+      if (sin.dtype() == dtype)
+        _sin = std::move(sin);
+      else
+        _sin = sin.to(dtype);
+
+      if (cos.dtype() == dtype)
+        _cos = std::move(cos);
+      else
+        _cos = cos.to(dtype);
     }
 
 
