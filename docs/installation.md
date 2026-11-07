@@ -150,7 +150,7 @@ The following options can be set with `-DOPTION=VALUE` during the CMake configur
 | BUILD_TESTS | **OFF**, ON | Compiles the tests |
 | CMAKE_CXX_FLAGS | *compiler flags* | Defines additional compiler flags |
 | CMAKE_INSTALL_PREFIX | *path* | Defines the installation path of the library |
-| CMAKE_CUDA_ARCHITECTURES | **53-real;60-real;61-real;70-real;75-real;80-real;86** | CUDA architectures to compile for; use `native` to target local GPUs (see [CMake documentation](https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html)) |
+| CMAKE_CUDA_ARCHITECTURES | *compiler default, or CUDAARCHS environment variable* | CUDA architectures to compile for; use `native` to target local GPUs. CUDA 12 release builds explicitly target `53-real;60-real;61-real;70-real;75-real;80-real;86` (see [CMake documentation](https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html)) |
 | CUDA_DYNAMIC_LOADING | **OFF**, ON | Enables the dynamic loading of CUDA libraries at runtime instead of linking against them (requires CUDA >= 11) |
 | CMAKE_CUDA_FLAGS | *compiler flags* | Defines additional CUDA compiler flags |
 | ENABLE_CPU_DISPATCH | OFF, **ON** | Compiles CPU kernels for multiple ISA and dispatches at runtime (should be disabled when explicitly targeting an architecture with the `-march` compilation flag) |

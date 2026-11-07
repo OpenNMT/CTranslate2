@@ -548,10 +548,8 @@ if (WITH_CUDA)
     message(FATAL_ERROR "WITH_CUDA=ON incompatible with WITH_HIP=ON")
   endif()
   # First-class CUDA language support (replaces the removed FindCUDA module).
-  if(NOT DEFINED CMAKE_CUDA_ARCHITECTURES)
-    # Preserve the architecture coverage of the production CUDA 12 wheels.
-    set(CMAKE_CUDA_ARCHITECTURES "53-real;60-real;61-real;70-real;75-real;80-real;86")
-  endif()
+  # Let CMake initialize architectures from CUDAARCHS or the compiler default.
+  # Release builds pass an explicit list to preserve their GPU coverage.
   set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
   set(CMAKE_CUDA_STANDARD 17)
   set(CMAKE_CUDA_STANDARD_REQUIRED ON)
