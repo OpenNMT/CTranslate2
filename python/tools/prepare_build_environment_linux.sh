@@ -3,7 +3,7 @@
 set -e
 set -x
 
-pip install "cmake==3.22.*"
+pip install "cmake==3.24.*"
 
 if [ "$CIBW_ARCHS" == "aarch64" ]; then
 
@@ -35,6 +35,9 @@ else
         libnccl-2.26.2-1+cuda12.8 \
         libnccl-devel-2.26.2-1+cuda12.8
     ln -s cuda-12.8 /usr/local/cuda
+    # Native CUDA language support needs an explicit compiler when nvcc is not on PATH.
+    export CUDACXX=/usr/local/cuda-12.8/bin/nvcc
+    "$CUDACXX" --version
 
     ONEAPI_VERSION=2025.3.0
     dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
@@ -66,7 +69,7 @@ mkdir build-release && cd build-release
 if [ "$CIBW_ARCHS" == "aarch64" ]; then
     cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_CLI=OFF -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DCMAKE_PREFIX_PATH="/opt/OpenBLAS" -DWITH_OPENBLAS=ON -DWITH_RUY=ON ..
 else
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-msse4.1" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP -DWITH_CUDA=ON -DWITH_CUDNN=OFF -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common"  -DWITH_TENSOR_PARALLEL=ON ..
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-msse4.1" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP -DWITH_CUDA=ON -DWITH_CUDNN=OFF -DCUDA_DYNAMIC_LOADING=ON -DCMAKE_CUDA_FLAGS="-Xfatbin=-compress-all" -DCMAKE_CUDA_ARCHITECTURES="53-real;60-real;61-real;70-real;75-real;80-real;86" -DWITH_TENSOR_PARALLEL=ON ..
 fi
 
 VERBOSE=1 make -j$(nproc) install
