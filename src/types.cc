@@ -5,6 +5,9 @@
 #ifdef CT2_WITH_CUDA
 #  include "./cuda/utils.h"
 #endif
+#ifdef CT2_WITH_MPS
+#  include "mps/utils.h"
+#endif
 
 #include "cpu/backend.h"
 #include "env.h"
@@ -102,6 +105,15 @@ namespace ctranslate2 {
       return false;
 #endif
     }
+    case Device::MPS: {
+#ifdef CT2_WITH_MPS
+      (void)device_index;
+      return mps::has_mps();
+#else
+      (void)device_index;
+      return false;
+#endif
+    }
     default:
       return false;
     }
@@ -113,6 +125,15 @@ namespace ctranslate2 {
 #ifdef CT2_WITH_CUDA
       static const bool allow_float16 = read_bool_from_env("CT2_CUDA_ALLOW_FP16");
       return allow_float16 || cuda::gpu_has_fp16_tensor_cores(device_index);
+#else
+      (void)device_index;
+      return false;
+#endif
+    }
+    case Device::MPS: {
+#ifdef CT2_WITH_MPS
+      (void)device_index;
+      return mps::has_mps();
 #else
       (void)device_index;
       return false;
@@ -143,6 +164,14 @@ namespace ctranslate2 {
 #endif
     case Device::CPU:
       return cpu::has_gemm_backend(ComputeType::INT8);
+    case Device::MPS:
+#ifdef CT2_WITH_MPS
+      (void)device_index;
+      return mps::has_mps();
+#else
+      (void)device_index;
+      return false;
+#endif
     default:
       return false;
     }
@@ -152,6 +181,16 @@ namespace ctranslate2 {
     throw std::invalid_argument("Requested " + name + " compute type, but the target device "
                                 "or backend do not support efficient " + name + " computation.");
   }
+
+#ifdef CT2_WITH_MPS
+  static bool use_native_mps_int8() {
+    // Native INT8 remains useful when model memory is the primary constraint,
+    // but it is slower than FP16 on current Apple GPUs and its activation
+    // quantization can change autoregressive decoding decisions.  Preserve the
+    // existing environment variable as the explicit opt-in for this path.
+    return !read_bool_from_env("CT2_MPS_CACHE_INT8_FP16", /*default_value=*/true);
+  }
+#endif
 
   ComputeType resolve_compute_type(const ComputeType requested_compute_type,
                                    const ComputeType model_compute_type,
@@ -192,25 +231,41 @@ namespace ctranslate2 {
         unsupported_compute_type("int16");
       if (device == Device::CPU && support_int8)
         return ComputeType::INT8_FLOAT32;
-      if (device == Device::CUDA && support_float16)
+      if ((device == Device::CUDA || device == Device::MPS) && support_float16)
         return ComputeType::FLOAT16;
       return ComputeType::FLOAT32;
     }
 
     case ComputeType::INT8: {
+#ifdef CT2_WITH_MPS
+      // Generic INT8 is commonly carried over from CPU configurations.  Do not
+      // silently select a slower and numerically different MPS path.  Resolving
+      // to FLOAT16 converts saved INT8 weights once while loading the model and
+      // reports the compute type that is actually executed.
+      if (device == Device::MPS && support_float16 && !use_native_mps_int8())
+        return ComputeType::FLOAT16;
+#endif
       const DataType float_type = compute_type_to_data_type(model_compute_type).second;
       ComputeType actual_compute_type = ComputeType::INT8_FLOAT32;
 
-      switch (float_type) {
-      case DataType::FLOAT16:
+      // Generic INT8 means the backend may select its most efficient floating
+      // activation type. Apple GPUs strongly prefer FP16 arithmetic; using the
+      // saved model's FP32 type here made compute_type="int8" substantially
+      // slower than the explicit int8_float16 mode on MPS.
+      if (device == Device::MPS && support_float16) {
         actual_compute_type = ComputeType::INT8_FLOAT16;
-        break;
-      case DataType::BFLOAT16:
-        actual_compute_type = ComputeType::INT8_BFLOAT16;
-        break;
-      default:
-        actual_compute_type = ComputeType::INT8_FLOAT32;
-        break;
+      } else {
+        switch (float_type) {
+        case DataType::FLOAT16:
+          actual_compute_type = ComputeType::INT8_FLOAT16;
+          break;
+        case DataType::BFLOAT16:
+          actual_compute_type = ComputeType::INT8_BFLOAT16;
+          break;
+        default:
+          actual_compute_type = ComputeType::INT8_FLOAT32;
+          break;
+        }
       }
 
       const ComputeType resolved_compute_type = resolve_compute_type(actual_compute_type,
@@ -233,12 +288,16 @@ namespace ctranslate2 {
         unsupported_compute_type("int8_float32");
       if (device == Device::CPU && support_int16)
         return ComputeType::INT16;
-      if (device == Device::CUDA && support_float16)
+      if ((device == Device::CUDA || device == Device::MPS) && support_float16)
         return ComputeType::FLOAT16;
       return ComputeType::FLOAT32;
     }
 
     case ComputeType::INT8_FLOAT16: {
+#ifdef CT2_WITH_MPS
+      if (device == Device::MPS && support_float16 && !use_native_mps_int8())
+        return ComputeType::FLOAT16;
+#endif
       if (support_int8 && support_float16)
         return ComputeType::INT8_FLOAT16;
       if (!enable_fallback)
@@ -265,6 +324,15 @@ namespace ctranslate2 {
     }
 
     case ComputeType::AUTO: {
+      // The custom INT8 path on Apple GPUs is useful for reduced model memory,
+      // but is not faster than FP16 for the common batch-1 decoder workload.
+      // Keep AUTO performance-oriented while still allowing explicit INT8 modes.
+      if (device == Device::MPS) {
+        if (support_float16)
+          return ComputeType::FLOAT16;
+        if (support_int8)
+          return ComputeType::INT8_FLOAT32;
+      }
       if (device == Device::CUDA) {
         if (support_int8 && support_float16)
           return ComputeType::INT8_FLOAT16;
@@ -272,7 +340,8 @@ namespace ctranslate2 {
           return ComputeType::INT8_FLOAT32;
         if (support_float16)
           return ComputeType::FLOAT16;
-      } else {
+      }
+      if (device == Device::CPU) {
         if (support_int8)
           return ComputeType::INT8_FLOAT32;
         if (support_int16)
@@ -354,7 +423,15 @@ namespace ctranslate2 {
           && cuda::gpu_has_int8_tensor_cores(device_index))
         return 16;
     }
-#else
+#endif
+#ifdef CT2_WITH_MPS
+    if (device == Device::MPS && mps::has_mps()) {
+      (void)device_index;
+      if (compute_type == ComputeType::FLOAT16 || compute_type == ComputeType::BFLOAT16)
+        return 8;
+    }
+#endif
+#if !defined(CT2_WITH_CUDA) && !defined(CT2_WITH_MPS)
     (void)compute_type;
     (void)device;
     (void)device_index;

@@ -18,6 +18,15 @@ namespace ctranslate2 {
       void operator()(StorageView& input) const;
       void operator()(const StorageView& input, StorageView& output) const;
 
+      bool supports_fused_bias_residual(Device device, DataType dtype) const;
+
+      bool try_fused_bias_residual(const StorageView& beta,
+                                   const StorageView& gamma,
+                                   const StorageView& input,
+                                   const StorageView& bias,
+                                   const StorageView& residual,
+                                   StorageView& output) const;
+
     private:
       void operator()(const StorageView* beta,
                       const StorageView* gamma,
@@ -33,6 +42,17 @@ namespace ctranslate2 {
                    const dim_t axis_size,
                    const dim_t inner_size,
                    StorageView& output) const;
+
+      template <Device D>
+      bool supports_fused_bias_residual(DataType dtype) const;
+
+      template <Device D>
+      bool try_fused_bias_residual(const StorageView& beta,
+                                   const StorageView& gamma,
+                                   const StorageView& input,
+                                   const StorageView& bias,
+                                   const StorageView& residual,
+                                   StorageView& output) const;
 
       const dim_t _axis;
       const float _epsilon;

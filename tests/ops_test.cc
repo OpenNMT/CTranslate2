@@ -1,11 +1,23 @@
 #include <algorithm>
 #include <cmath>
+#include <cstdlib>
 #include <cstring>
 #include <limits>
 #include <set>
 #include "test_utils.h"
 #include "ctranslate2/layers/attention.h"
 #include "ctranslate2/ops/ops.h"
+#include "ctranslate2/primitives.h"
+#ifdef CT2_WITH_MPS
+#  include <atomic>
+#  include <chrono>
+#  include <future>
+#  include <thread>
+#  include "ctranslate2/allocator.h"
+#  include "ctranslate2/devices.h"
+#  include "mps/kernels.h"
+#  include "mps/utils.h"
+#endif
 
 TEST(OpTest, Transpose1D) {
   StorageView x({4}, std::vector<float>{1, 2, 3, 4});
@@ -248,6 +260,20 @@ TEST_P(OpDeviceTest, TileMiddleDim) {
   expect_storage_eq(output, expected_output);
 }
 
+TEST_P(OpDeviceTest, TileInPlaceIdentity) {
+  Device device = GetParam();
+  StorageView input({2, 3}, std::vector<float>{1, 2, 3, 4, 5, 6}, device);
+  void* original_buffer = input.buffer();
+
+  ops::Tile(1, 1)(input);
+
+  EXPECT_EQ(input.buffer(), original_buffer);
+  assert_vector_eq(input.shape(), {2, 3});
+  expect_storage_eq(
+    input,
+    StorageView({2, 3}, std::vector<float>{1, 2, 3, 4, 5, 6}, device));
+}
+
 TEST_P(OpDeviceTest, ConcatEmpty) {
   Device device = GetParam();
   StorageView a({2, 1, 2}, std::vector<float>{1, 2, 3, 4}, device);
@@ -431,6 +457,23 @@ TEST_P(OpDeviceTest, GatherData3D) {
   expect_storage_eq(output, expected);
 }
 
+TEST_P(OpDeviceTest, GatherVectorAlignedRows) {
+  Device device = GetParam();
+  std::vector<float> values(32);
+  std::iota(values.begin(), values.end(), 0.f);
+  StorageView data({4, 8}, values, device);
+  StorageView ids({3}, std::vector<int32_t>{3, 1, 2}, device);
+  StorageView expected(
+    {3, 8},
+    std::vector<float>{24, 25, 26, 27, 28, 29, 30, 31,
+                       8, 9, 10, 11, 12, 13, 14, 15,
+                       16, 17, 18, 19, 20, 21, 22, 23},
+    device);
+  StorageView output(device);
+  ops::Gather(0)(data, ids, output);
+  expect_storage_eq(output, expected);
+}
+
 TEST_P(OpDeviceTest, GatherData2DIndex2D) {
   Device device = GetParam();
   StorageView data({4, 2}, std::vector<float>{1, 1, 2, 2, 3, 3, 4, 4}, device);
@@ -515,6 +558,32 @@ TEST_P(OpDeviceTest, Transpose3DReverse) {
   StorageView y(x.dtype(), x.device());
   ops::Transpose()(x, y);
   expect_storage_eq(y, expected);
+}
+
+TEST_P(OpDeviceTest, Transpose4DSwapMiddleDimensions) {
+  Device device = GetParam();
+  const Shape input_shape{2, 3, 4, 8};
+  std::vector<float> input_values(2 * 3 * 4 * 8);
+  std::iota(input_values.begin(), input_values.end(), 0.f);
+  std::vector<float> expected_values(input_values.size());
+  for (dim_t i0 = 0; i0 < input_shape[0]; ++i0) {
+    for (dim_t i1 = 0; i1 < input_shape[1]; ++i1) {
+      for (dim_t i2 = 0; i2 < input_shape[2]; ++i2) {
+        for (dim_t i3 = 0; i3 < input_shape[3]; ++i3) {
+          const dim_t input_index = ((i0 * input_shape[1] + i1) * input_shape[2] + i2)
+                                    * input_shape[3] + i3;
+          const dim_t output_index = ((i0 * input_shape[2] + i2) * input_shape[1] + i1)
+                                     * input_shape[3] + i3;
+          expected_values[output_index] = input_values[input_index];
+        }
+      }
+    }
+  }
+  StorageView input(input_shape, input_values, device);
+  StorageView expected({2, 4, 3, 8}, expected_values, device);
+  StorageView output(device);
+  ops::Transpose({0, 2, 1, 3})(input, output);
+  expect_storage_eq(output, expected);
 }
 
 static const StorageView gemm_a({4, 5}, std::vector<float>{
@@ -1001,6 +1070,32 @@ TEST_P(OpDeviceFPTest, RMSNorm) {
   expect_storage_eq(y.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, DequantizeGemmOutputBiasReLU) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = std::max(GetParam().error, float(1e-3));
+  const StorageView input({2, 3},
+                          std::vector<int32_t>{20, -8, 16, -40, 24, 0},
+                          device);
+  const StorageView a_scale({2}, std::vector<float>{2, 4}, device);
+  const StorageView b_scale({3}, std::vector<float>{5, 2, 8}, device);
+  const StorageView bias = StorageView({3}, std::vector<float>{0.5f, -1, 2}, device)
+                             .to(dtype);
+  const StorageView expected({2, 3},
+                             std::vector<float>{2.5f, 0, 3, 0, 2, 2});
+  StorageView output(dtype, device);
+  const ops::ActivationType activation = ops::ActivationType::ReLU;
+  const ops::Dequantize dequantize(&activation);
+  dequantize(input,
+             a_scale,
+             b_scale,
+             /*transpose_a=*/false,
+             /*transpose_b=*/true,
+             output,
+             &bias);
+  expect_storage_eq(output.to_float32(), expected, error);
+}
+
 TEST_P(OpDeviceTest, QuantizeINT8) {
   Device device = GetParam();
   StorageView a({2, 4}, std::vector<float>{-10, -3, 5, 2, 5, 21, -3, 0}, device);
@@ -1017,8 +1112,8 @@ TEST_P(OpDeviceTest, QuantizeINT8) {
   }
 
   // With rounding before cast and shift to uint8.
-  // Shift to uin8_t is not defined on CUDA
-  if (device != Device::CUDA) {
+  // Shift to uint8_t is not defined on CUDA or MPS.
+  if (device != Device::CUDA && device != Device::MPS) {
     StorageView expected_qa(a.shape(), std::vector<int8_t>{1, 90, -64, -103, -98, -1, 110, -128});
     ops::Quantize(ops::Quantize::ScaleType::GLOBAL, true, true)(a, qa, scale);
     expect_storage_eq(scale, expected_scale);
@@ -1056,6 +1151,23 @@ TEST_P(OpDeviceTest, QuantizeINT8ZeroRow) {
     expect_storage_eq(scale, expected_scale);
     expect_storage_eq(qa, expected_qa);
   }
+}
+
+TEST_P(OpDeviceFPTest, QuantizeDequantizeINT8RoundTrip) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const StorageView input = StorageView(
+      {2, 5},
+      std::vector<float>{-10, -3, 5, 2, 0.25f, 5, 21, -3, 0, -7},
+      device).to(dtype);
+  StorageView quantized(DataType::INT8, device);
+  StorageView scale(DataType::FLOAT32, device);
+  StorageView output(dtype, device);
+
+  ops::Quantize()(input, quantized, scale);
+  ops::Dequantize()(quantized, scale, output);
+
+  expect_storage_eq(output.to_float32(), input.to_float32(), 0.1f);
 }
 
 TEST_P(OpDeviceFPTest, Multinomial) {
@@ -1424,8 +1536,14 @@ TEST_P(OpDeviceFPTest, Conv1DGroupNoBiasQuantized) {
     GTEST_SKIP() << "Quantized convolution is not implemented for DNNL.";
 #endif
     const Device device = GetParam().device;
+#ifdef CT2_WITH_MPS
+    if (device != Device::CPU && device != Device::MPS)
+#else
     if (device != Device::CPU)
-        GTEST_SKIP() << "Grouped quantized convolution is not implemented for CUDA.";
+#endif
+        GTEST_SKIP() << "Grouped quantized convolution is not implemented for GPU.";
+    if (!mayiuse_int8(device))
+        GTEST_SKIP() << "Grouped quantized convolution requires an INT8 GEMM backend.";
     const DataType dtype = GetParam().dtype;
     const float error = std::max(GetParam().error, float(3e-3));
     const StorageView expected({2, 2, 2}, std::vector<float>{
@@ -1512,6 +1630,1011 @@ TEST_P(OpDeviceFPTest, BiasAddAxisGELU) {
     EXPECT_EQ(output.dtype(), dtype);
     expect_storage_eq(output.to_float32(), expected, error);
 }
+
+#ifdef CT2_WITH_MPS
+TEST(MPSBackendTest, DeviceSynchronizeWaitsForAnotherThreadsWork) {
+  StorageView output({4}, std::vector<float>{0, 0, 0, 0}, Device::MPS);
+  std::promise<void> queued;
+  std::promise<void> release_worker;
+  auto queued_future = queued.get_future();
+  auto release_future = release_worker.get_future();
+  auto worker = std::async(std::launch::async, [&]() {
+    output.fill(42.f);
+    queued.set_value();
+    // Keep the worker alive: its thread-local stream destructor would otherwise
+    // synchronize the pending operation and hide a device synchronization bug.
+    release_future.wait_for(std::chrono::seconds(10));
+    synchronize_stream(Device::MPS);
+  });
+
+  if (queued_future.wait_for(std::chrono::seconds(10)) != std::future_status::ready) {
+    release_worker.set_value();
+    worker.get();
+    FAIL() << "MPS worker did not queue its operation";
+    return;
+  }
+  synchronize_device(Device::MPS, 0);
+  const float value_after_device_sync = output.data<float>()[0];
+  release_worker.set_value();
+  worker.get();
+
+  EXPECT_EQ(value_after_device_sync, 42.f);
+  EXPECT_EQ(output.data<float>()[0], 42.f);
+}
+
+TEST(MPSBackendTest, DeviceSynchronizeIsSafeDuringConcurrentEncoding) {
+  std::atomic<bool> stop{false};
+  std::atomic<size_t> operations{0};
+  std::atomic<size_t> synchronizations{0};
+  std::promise<void> worker_ready;
+  auto worker_ready_future = worker_ready.get_future();
+
+  auto worker = std::async(std::launch::async, [&]() {
+    bool signaled_ready = false;
+    try {
+      StorageView a({256, 256}, 1.f, Device::MPS);
+      StorageView b({256, 256}, 2.f, Device::MPS);
+      StorageView c(Device::MPS);
+      const ops::MatMul matmul;
+      worker_ready.set_value();
+      signaled_ready = true;
+      while (!stop.load(std::memory_order_relaxed)) {
+        matmul(a, b, c);
+        operations.fetch_add(1, std::memory_order_relaxed);
+      }
+      synchronize_stream(Device::MPS);
+    } catch (...) {
+      stop.store(true, std::memory_order_relaxed);
+      if (!signaled_ready)
+        worker_ready.set_value();
+      throw;
+    }
+  });
+
+  if (worker_ready_future.wait_for(std::chrono::seconds(10))
+      != std::future_status::ready) {
+    stop.store(true, std::memory_order_relaxed);
+    EXPECT_NO_THROW(worker.get());
+    FAIL() << "MPS worker did not start encoding";
+    return;
+  }
+
+  auto synchronizer = std::async(std::launch::async, [&]() {
+    try {
+      while (!stop.load(std::memory_order_relaxed)) {
+        synchronize_device(Device::MPS, 0);
+        synchronizations.fetch_add(1, std::memory_order_relaxed);
+      }
+    } catch (...) {
+      stop.store(true, std::memory_order_relaxed);
+      throw;
+    }
+  });
+
+  std::this_thread::sleep_for(std::chrono::milliseconds(500));
+  stop.store(true, std::memory_order_relaxed);
+  EXPECT_NO_THROW(worker.get());
+  EXPECT_NO_THROW(synchronizer.get());
+  EXPECT_GT(operations.load(std::memory_order_relaxed), 0u);
+  EXPECT_GT(synchronizations.load(std::memory_order_relaxed), 0u);
+}
+
+// Every inter_threads worker of a translator runs the same GEMM shapes, so
+// several threads ask for the same MPSMatrixMultiplication at the same time.
+// An MPSKernel must not be encoded by two threads at once, so each thread
+// needs its own instance. With one instance shared by all threads this crashed
+// in MPSSetNDArraysOnComputeEncoder (SIGSEGV) within a few hundred iterations.
+static void expect_concurrent_mps_matmul_matches_cpu(DataType dtype,
+                                                     bool batched,
+                                                     float abs_diff) {
+  constexpr size_t num_threads = 4;
+  constexpr size_t iterations = 300;
+  constexpr dim_t m = 64;
+  constexpr dim_t n = 2048;
+  constexpr dim_t k = 512;
+  const dim_t batch_size = batched ? 2 : 1;
+
+  struct Result {
+    StorageView actual;
+    StorageView expected;
+  };
+
+  std::atomic<size_t> ready{0};
+  std::atomic<bool> start{false};
+
+  auto run = [&](size_t index) {
+    // Every thread has its own inputs, so a result produced through another
+    // thread's state does not match this thread's reference.
+    std::vector<float> a_values(static_cast<size_t>(batch_size * m * k));
+    std::vector<float> b_values(static_cast<size_t>(batch_size * n * k));
+    const float phase = static_cast<float>(index);
+    for (size_t i = 0; i < a_values.size(); ++i)
+      a_values[i] = std::sin(0.0137f * static_cast<float>(i % 9973) + phase);
+    for (size_t i = 0; i < b_values.size(); ++i)
+      b_values[i] = std::cos(0.0071f * static_cast<float>(i % 7919) + 0.5f * phase) * 0.05f;
+
+    const Shape a_shape = batched ? Shape{batch_size, m, k} : Shape{m, k};
+    const Shape b_shape = batched ? Shape{batch_size, n, k} : Shape{n, k};
+    // Round the inputs to the tested type first, so the reference only differs
+    // from the device result by accumulation and output rounding.
+    const StorageView a_reference = StorageView(a_shape, a_values).to(dtype).to_float32();
+    const StorageView b_reference = StorageView(b_shape, b_values).to(dtype).to_float32();
+
+    const ops::Gemm gemm(/*alpha=*/1, /*beta=*/0, false, true);
+    const ops::MatMul matmul(false, true);
+    StorageView expected(DataType::FLOAT32);
+    if (batched)
+      matmul(a_reference, b_reference, expected);
+    else
+      gemm(a_reference, b_reference, expected);
+
+    const StorageView a = a_reference.to(dtype).to(Device::MPS);
+    const StorageView b = b_reference.to(dtype).to(Device::MPS);
+    StorageView c(dtype, Device::MPS);
+
+    ready.fetch_add(1);
+    while (!start.load())
+      std::this_thread::yield();
+
+    for (size_t iteration = 0; iteration < iterations; ++iteration) {
+      if (batched)
+        matmul(a, b, c);
+      else
+        gemm(a, b, c);
+    }
+    return Result{c.to_float32().to(Device::CPU), std::move(expected)};
+  };
+
+  std::vector<std::future<Result>> workers;
+  for (size_t index = 0; index < num_threads; ++index)
+    workers.emplace_back(std::async(std::launch::async, run, index));
+
+  // Release all workers together once they have their inputs on the device.
+  const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(60);
+  while (ready.load() < num_threads && std::chrono::steady_clock::now() < deadline)
+    std::this_thread::sleep_for(std::chrono::milliseconds(1));
+  start.store(true);
+
+  for (size_t index = 0; index < num_threads; ++index) {
+    try {
+      const Result result = workers[index].get();
+      SCOPED_TRACE("thread " + std::to_string(index));
+      expect_storage_eq(result.actual, result.expected, abs_diff);
+    } catch (const std::exception& error) {
+      ADD_FAILURE() << "thread " << index << " failed: " << error.what();
+    }
+  }
+}
+
+TEST(MPSBackendTest, ConcurrentGemmFloat16WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT16, /*batched=*/false, 3e-2f);
+}
+
+TEST(MPSBackendTest, ConcurrentGemmFloat32WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT32, /*batched=*/false, 1e-3f);
+}
+
+TEST(MPSBackendTest, ConcurrentBatchedMatMulFloat16WithTheSameShape) {
+  expect_concurrent_mps_matmul_matches_cpu(DataType::FLOAT16, /*batched=*/true, 3e-2f);
+}
+
+TEST(MPSBackendTest, ActiveTemporaryFreesAreProcessedAfterCompletion) {
+  constexpr size_t iterations = 256;
+  constexpr dim_t elements = 16;
+  auto& allocator = get_allocator<Device::MPS>();
+  std::vector<void*> released;
+  released.reserve(iterations);
+
+  for (size_t iteration = 0; iteration < iterations; ++iteration) {
+    auto* buffer = static_cast<float*>(
+      allocator.allocate(static_cast<size_t>(elements) * sizeof(float), 0));
+    primitives<Device::MPS>::fill(buffer, static_cast<float>(iteration), elements);
+    released.emplace_back(buffer);
+    allocator.free(buffer, 0);
+  }
+
+  synchronize_stream(Device::MPS);
+  for (const void* address : released) {
+    size_t offset = 0;
+    EXPECT_EQ(mps::get_buffer(address, sizeof(float), &offset), nullptr);
+  }
+}
+
+TEST(MPSBackendTest, BatchesDependentComputeDispatches) {
+  StorageView x({4}, std::vector<float>{1, 2, 3, 4}, Device::MPS);
+  StorageView y({4}, DataType::FLOAT32, Device::MPS);
+  StorageView z({4}, DataType::FLOAT32, Device::MPS);
+  primitives<Device::MPS>::add(1.f, x.data<float>(), y.data<float>(), x.size());
+  primitives<Device::MPS>::mul(2.f, y.data<float>(), z.data<float>(), x.size());
+  primitives<Device::MPS>::add(x.data<float>(), z.data<float>(), y.data<float>(), x.size());
+  expect_storage_eq(y.to(Device::CPU),
+                    StorageView({4}, std::vector<float>{5, 8, 11, 14}));
+}
+
+TEST(MPSBackendTest, WeightOnlyInt8DenseFloat16MatchesReference) {
+  constexpr dim_t m = 17;
+  constexpr dim_t n = 33;
+  constexpr dim_t k = 37;
+  std::vector<float> input_values(m * k);
+  std::vector<int8_t> weight_values(n * k);
+  std::vector<float> scale_values(n);
+  std::vector<float> bias_values(n);
+  std::vector<float> residual_values(m * n);
+  for (dim_t i = 0; i < m * k; ++i)
+    input_values[i] = std::sin(static_cast<float>(i) * 0.071f) * 1.3f;
+  for (dim_t i = 0; i < n * k; ++i)
+    weight_values[i] = static_cast<int8_t>((i * 41 + 13) % 251 - 125);
+  for (dim_t i = 0; i < n; ++i) {
+    scale_values[i] = 48.0f + static_cast<float>(i % 13);
+    bias_values[i] = std::cos(static_cast<float>(i) * 0.11f) * 0.1f;
+  }
+  for (dim_t i = 0; i < m * n; ++i)
+    residual_values[i] = std::sin(static_cast<float>(i) * 0.047f) * 0.2f;
+
+  std::vector<float> expected_values(m * n);
+  for (dim_t row = 0; row < m; ++row) {
+    for (dim_t column = 0; column < n; ++column) {
+      float sum = 0;
+      for (dim_t p = 0; p < k; ++p)
+        sum += static_cast<float>(float16_t(input_values[row * k + p]))
+               * static_cast<float>(weight_values[column * k + p]);
+      float value = sum / scale_values[column]
+                    + static_cast<float>(float16_t(bias_values[column]));
+      value = std::max(value, 0.0f);
+      value = static_cast<float>(float16_t(value));
+      value += static_cast<float>(float16_t(residual_values[row * n + column]));
+      expected_values[row * n + column] = static_cast<float>(float16_t(value));
+    }
+  }
+
+  const StorageView input = StorageView({m, k}, input_values).to_float16().to(Device::MPS);
+  const StorageView weight = StorageView({n, k}, weight_values).to(Device::MPS);
+  const StorageView scales = StorageView({n}, scale_values).to(Device::MPS);
+  const StorageView bias = StorageView({n}, bias_values).to_float16().to(Device::MPS);
+  const StorageView residual = StorageView({m, n}, residual_values).to_float16().to(Device::MPS);
+  StorageView output({m, n}, DataType::FLOAT16, Device::MPS);
+  ASSERT_TRUE(mps::gemm_weight_only_int8_with_epilogue(
+    input.data<float16_t>(),
+    weight.data<int8_t>(),
+    scales.data<float>(),
+    scales.size(),
+    bias.data<float16_t>(),
+    residual.data<float16_t>(),
+    output.data<float16_t>(),
+    m,
+    n,
+    k,
+    static_cast<int>(mps::UnaryOp::RELU)));
+  expect_storage_eq(output.to_float32(), StorageView({m, n}, expected_values), 2e-2f);
+}
+
+TEST(MPSBackendTest, LayerNormParallelReductionIsStable) {
+  constexpr dim_t rows = 7;
+  constexpr dim_t width = 512;
+  std::vector<float> input_values(rows * width);
+  std::vector<float> gamma_values(width);
+  std::vector<float> beta_values(width);
+  for (dim_t i = 0; i < rows * width; ++i)
+    input_values[i] = std::sin(static_cast<float>(i) * 0.031f) * 2.0f
+                      + std::cos(static_cast<float>(i) * 0.013f);
+  for (dim_t i = 0; i < width; ++i) {
+    gamma_values[i] = 0.5f + std::sin(static_cast<float>(i) * 0.017f);
+    beta_values[i] = std::cos(static_cast<float>(i) * 0.023f) * 0.2f;
+  }
+
+  const StorageView input_cpu({rows, width}, input_values);
+  const StorageView gamma_cpu({width}, gamma_values);
+  const StorageView beta_cpu({width}, beta_values);
+  StorageView expected;
+  ops::LayerNorm()(beta_cpu, gamma_cpu, input_cpu, expected);
+
+  const StorageView input_mps = input_cpu.to(Device::MPS);
+  const StorageView gamma_mps = gamma_cpu.to(Device::MPS);
+  const StorageView beta_mps = beta_cpu.to(Device::MPS);
+  for (size_t iteration = 0; iteration < 20; ++iteration) {
+    StorageView output(DataType::FLOAT32, Device::MPS);
+    ops::LayerNorm()(beta_mps, gamma_mps, input_mps, output);
+    expect_storage_eq(output.to_float32(), expected, 2e-4f);
+  }
+}
+
+TEST(MPSBackendTest, WhisperSizedFloat16LayerNormFeedsDependentDispatch) {
+  constexpr dim_t rows = 1500;
+  constexpr dim_t width = 1024;
+  std::vector<float> input_values(rows * width);
+  std::vector<float> gamma_values(width);
+  std::vector<float> beta_values(width);
+  for (dim_t i = 0; i < rows * width; ++i)
+    input_values[i] = std::sin(static_cast<float>(i) * 0.0013f) * 1.5f
+                      + std::cos(static_cast<float>(i) * 0.0007f) * 0.5f;
+  for (dim_t i = 0; i < width; ++i) {
+    gamma_values[i] = 0.75f + std::sin(static_cast<float>(i) * 0.011f) * 0.2f;
+    beta_values[i] = std::cos(static_cast<float>(i) * 0.017f) * 0.1f;
+  }
+
+  const StorageView input_cpu({rows, width}, input_values);
+  const StorageView gamma_cpu({width}, gamma_values);
+  const StorageView beta_cpu({width}, beta_values);
+  StorageView expected;
+  ops::LayerNorm()(beta_cpu, gamma_cpu, input_cpu, expected);
+  primitives<Device::CPU>::add(0.125f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+
+  const StorageView input_mps = input_cpu.to_float16().to(Device::MPS);
+  const StorageView gamma_mps = gamma_cpu.to_float16().to(Device::MPS);
+  const StorageView beta_mps = beta_cpu.to_float16().to(Device::MPS);
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  ops::LayerNorm()(beta_mps, gamma_mps, input_mps, output);
+  primitives<Device::MPS>::add(float16_t(0.125f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+
+  expect_storage_eq(output.to_float32(), expected, 3e-2f);
+}
+
+TEST(MPSBackendTest, FusedBiasResidualLayerNormMatchesMaterializedFloat16) {
+  constexpr dim_t rows = 7;
+  constexpr dim_t width = 513;
+  std::vector<float> input_values(rows * width);
+  std::vector<float> residual_values(rows * width);
+  std::vector<float> bias_values(width);
+  std::vector<float> gamma_values(width);
+  std::vector<float> beta_values(width);
+  for (dim_t i = 0; i < rows * width; ++i) {
+    input_values[i] = std::sin(static_cast<float>(i) * 0.013f) * 1.25f;
+    residual_values[i] = std::cos(static_cast<float>(i) * 0.021f) * 0.4f;
+  }
+  for (dim_t i = 0; i < width; ++i) {
+    bias_values[i] = std::sin(static_cast<float>(i) * 0.017f) * 0.15f;
+    gamma_values[i] = 0.8f + std::cos(static_cast<float>(i) * 0.011f) * 0.1f;
+    beta_values[i] = std::sin(static_cast<float>(i) * 0.023f) * 0.1f;
+  }
+
+  const StorageView input = StorageView({rows, width}, input_values).to_float16().to(Device::MPS);
+  const StorageView residual = StorageView({rows, width}, residual_values).to_float16().to(Device::MPS);
+  const StorageView bias = StorageView({width}, bias_values).to_float16().to(Device::MPS);
+  const StorageView gamma = StorageView({width}, gamma_values).to_float16().to(Device::MPS);
+  const StorageView beta = StorageView({width}, beta_values).to_float16().to(Device::MPS);
+
+  StorageView materialized(DataType::FLOAT16, Device::MPS);
+  ops::BiasAdd()(input, bias, materialized, &residual);
+  ops::LayerNorm()(beta, gamma, materialized, materialized);
+
+  StorageView fused({rows, width}, DataType::FLOAT16, Device::MPS);
+  ASSERT_TRUE(mps::fused_bias_residual_layer_norm(
+    DataType::FLOAT16,
+    input.data<float16_t>(),
+    bias.data<float16_t>(),
+    residual.data<float16_t>(),
+    gamma.data<float16_t>(),
+    beta.data<float16_t>(),
+    fused.data<float16_t>(),
+    rows,
+    width,
+    1e-5f));
+
+  expect_storage_eq(fused.to_float32(), materialized.to_float32(), 1e-3f);
+}
+
+TEST(MPSBackendTest, DecodeGemmFloat16OddShapeAlphaBeta) {
+  constexpr dim_t k = 37;
+  constexpr dim_t n = 33;
+  std::vector<float> a_values(k);
+  std::vector<float> b_values(n * k);
+  std::vector<float> c_values(n);
+  for (dim_t i = 0; i < k; ++i)
+    a_values[i] = std::sin(static_cast<float>(i) * 0.17f);
+  for (dim_t i = 0; i < n * k; ++i)
+    b_values[i] = std::cos(static_cast<float>(i) * 0.11f) * 0.25f;
+  for (dim_t i = 0; i < n; ++i)
+    c_values[i] = static_cast<float>(i - 8) * 0.03f;
+
+  const StorageView a_cpu({1, k}, a_values);
+  const StorageView b_cpu({n, k}, b_values);
+  StorageView expected({1, n}, c_values);
+  ops::Gemm(/*alpha=*/0.75f, /*beta=*/0.25f, false, true)(a_cpu, b_cpu, expected);
+
+  const StorageView a_mps = a_cpu.to_float16().to(Device::MPS);
+  const StorageView b_mps = b_cpu.to_float16().to(Device::MPS);
+  StorageView output = StorageView({1, n}, c_values).to_float16().to(Device::MPS);
+  ops::Gemm(/*alpha=*/0.75f, /*beta=*/0.25f, false, true)(a_mps, b_mps, output);
+
+  expect_storage_eq(output.to_float32(), expected, 3e-2f);
+}
+
+TEST(MPSBackendTest, Beam5GemmFloat16AlphaBetaAndTail) {
+  constexpr dim_t m = 5;
+  constexpr dim_t k = 68;
+  constexpr dim_t n = 37;
+  std::vector<float> a_values(m * k);
+  std::vector<float> b_values(n * k);
+  std::vector<float> c_values(m * n);
+  for (dim_t i = 0; i < m * k; ++i)
+    a_values[i] = std::sin(static_cast<float>(i) * 0.13f) * 0.3f;
+  for (dim_t i = 0; i < n * k; ++i)
+    b_values[i] = std::cos(static_cast<float>(i) * 0.07f) * 0.2f;
+  for (dim_t i = 0; i < m * n; ++i)
+    c_values[i] = static_cast<float>(i % 17 - 8) * 0.025f;
+
+  const StorageView a_cpu({m, k}, a_values);
+  const StorageView b_cpu({n, k}, b_values);
+  StorageView expected({m, n}, c_values);
+  ops::Gemm(/*alpha=*/0.75f, /*beta=*/0.25f, false, true)(a_cpu, b_cpu, expected);
+
+  const StorageView a_mps = a_cpu.to_float16().to(Device::MPS);
+  const StorageView b_mps = b_cpu.to_float16().to(Device::MPS);
+  StorageView actual = StorageView({m, n}, c_values).to_float16().to(Device::MPS);
+  ops::Gemm(/*alpha=*/0.75f, /*beta=*/0.25f, false, true)(a_mps, b_mps, actual);
+
+  expect_storage_eq(actual.to_float32(), expected, 3e-2f);
+}
+
+TEST(MPSBackendTest, Beam5GemmFloat16FusedEpilogue) {
+  constexpr dim_t m = 5;
+  constexpr dim_t k = 64;
+  constexpr dim_t n = 35;
+  std::vector<float> a_values(m * k);
+  std::vector<float> b_values(n * k);
+  std::vector<float> bias_values(n);
+  std::vector<float> residual_values(m * n);
+  for (dim_t i = 0; i < m * k; ++i)
+    a_values[i] = std::sin(static_cast<float>(i) * 0.09f) * 0.2f;
+  for (dim_t i = 0; i < n * k; ++i)
+    b_values[i] = std::cos(static_cast<float>(i) * 0.05f) * 0.15f;
+  for (dim_t i = 0; i < n; ++i)
+    bias_values[i] = static_cast<float>(i - 11) * 0.004f;
+  for (dim_t i = 0; i < m * n; ++i)
+    residual_values[i] = std::sin(static_cast<float>(i) * 0.03f) * 0.1f;
+
+  const StorageView a_cpu({m, k}, a_values);
+  const StorageView b_cpu({n, k}, b_values);
+  const StorageView bias_cpu({n}, bias_values);
+  const StorageView residual_cpu({m, n}, residual_values);
+  const ops::ActivationType activation = ops::ActivationType::GELU;
+  StorageView expected;
+  ops::Gemm(1, 0, false, true, false, false, &activation)(
+    a_cpu, b_cpu, expected, &residual_cpu, &bias_cpu);
+
+  const StorageView a_mps = a_cpu.to_float16().to(Device::MPS);
+  const StorageView b_mps = b_cpu.to_float16().to(Device::MPS);
+  const StorageView bias_mps = bias_cpu.to_float16().to(Device::MPS);
+  const StorageView residual_mps = residual_cpu.to_float16().to(Device::MPS);
+  StorageView actual(DataType::FLOAT16, Device::MPS);
+  ops::Gemm(1, 0, false, true, false, false, &activation)(
+    a_mps, b_mps, actual, &residual_mps, &bias_mps);
+
+  expect_storage_eq(actual.to_float32(), expected, 4e-2f);
+}
+
+TEST(MPSBackendTest, DecodeGemmFloat16NonTransposedWeight) {
+  constexpr dim_t k = 19;
+  constexpr dim_t n = 23;
+  std::vector<float> a_values(k);
+  std::vector<float> b_values(k * n);
+  for (dim_t i = 0; i < k; ++i)
+    a_values[i] = static_cast<float>(i - 5) * 0.02f;
+  for (dim_t i = 0; i < k * n; ++i)
+    b_values[i] = std::sin(static_cast<float>(i) * 0.07f);
+
+  const StorageView a_cpu({1, k}, a_values);
+  const StorageView b_cpu({k, n}, b_values);
+  StorageView expected;
+  ops::Gemm(1, 0, false, false)(a_cpu, b_cpu, expected);
+
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  ops::Gemm(1, 0, false, false)(a_cpu.to_float16().to(Device::MPS),
+                                b_cpu.to_float16().to(Device::MPS),
+                                output);
+  expect_storage_eq(output.to_float32(), expected, 3e-2f);
+}
+
+TEST(MPSBackendTest, DecodeGemmFloat16FeedsDependentDispatches) {
+  constexpr dim_t k = 64;
+  constexpr dim_t n = 96;
+  std::vector<float> a_values(k);
+  std::vector<float> b_values(n * k);
+  for (dim_t i = 0; i < k; ++i)
+    a_values[i] = std::sin(static_cast<float>(i) * 0.13f) * 0.2f;
+  for (dim_t i = 0; i < n * k; ++i)
+    b_values[i] = std::cos(static_cast<float>(i) * 0.07f) * 0.15f;
+
+  const StorageView a_cpu({1, k}, a_values);
+  const StorageView b_cpu({n, k}, b_values);
+  StorageView expected;
+  ops::Gemm(1, 0, false, true)(a_cpu, b_cpu, expected);
+  primitives<Device::CPU>::add(0.125f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+  primitives<Device::CPU>::mul(0.75f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+  primitives<Device::CPU>::add(-0.05f,
+                               expected.data<float>(),
+                               expected.data<float>(),
+                               expected.size());
+
+  const StorageView a_mps = a_cpu.to_float16().to(Device::MPS);
+  const StorageView b_mps = b_cpu.to_float16().to(Device::MPS);
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  ops::Gemm(1, 0, false, true)(a_mps, b_mps, output);
+  primitives<Device::MPS>::add(float16_t(0.125f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+  primitives<Device::MPS>::mul(float16_t(0.75f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+  primitives<Device::MPS>::add(float16_t(-0.05f),
+                               output.data<float16_t>(),
+                               output.data<float16_t>(),
+                               output.size());
+
+  expect_storage_eq(output.to_float32(), expected, 3e-2f);
+}
+
+TEST(MPSBackendTest, ColdDecodeGemmChainMatchesCPU) {
+  constexpr dim_t input_size = 512;
+  constexpr dim_t hidden_size = 2048;
+  constexpr dim_t output_size = 512;
+  std::vector<float> input_values(input_size);
+  std::vector<float> first_weight_values(hidden_size * input_size);
+  std::vector<float> first_bias_values(hidden_size);
+  std::vector<float> second_weight_values(output_size * hidden_size);
+  std::vector<float> second_bias_values(output_size);
+  for (dim_t i = 0; i < input_size; ++i)
+    input_values[i] = std::sin(static_cast<float>(i) * 0.013f) * 0.1f;
+  for (dim_t i = 0; i < hidden_size * input_size; ++i)
+    first_weight_values[i] = std::cos(static_cast<float>(i) * 0.003f) * 0.02f;
+  for (dim_t i = 0; i < hidden_size; ++i)
+    first_bias_values[i] = std::sin(static_cast<float>(i) * 0.017f) * 0.01f;
+  for (dim_t i = 0; i < output_size * hidden_size; ++i)
+    second_weight_values[i] = std::sin(static_cast<float>(i) * 0.002f) * 0.015f;
+  for (dim_t i = 0; i < output_size; ++i)
+    second_bias_values[i] = std::cos(static_cast<float>(i) * 0.019f) * 0.01f;
+
+  const StorageView input_cpu({1, input_size}, input_values);
+  const StorageView first_weight_cpu({hidden_size, input_size}, first_weight_values);
+  const StorageView first_bias_cpu({hidden_size}, first_bias_values);
+  const StorageView second_weight_cpu({output_size, hidden_size}, second_weight_values);
+  const StorageView second_bias_cpu({output_size}, second_bias_values);
+  const ops::ActivationType activation = ops::ActivationType::GELU;
+
+  StorageView hidden_cpu;
+  StorageView expected;
+  ops::Gemm(1, 0, false, true, false, false, &activation)(
+    input_cpu, first_weight_cpu, hidden_cpu, nullptr, &first_bias_cpu);
+  ops::Gemm(1, 0, false, true)(
+    hidden_cpu, second_weight_cpu, expected, nullptr, &second_bias_cpu);
+
+  const StorageView input_mps = input_cpu.to_float16().to(Device::MPS);
+  const StorageView first_weight_mps = first_weight_cpu.to_float16().to(Device::MPS);
+  const StorageView first_bias_mps = first_bias_cpu.to_float16().to(Device::MPS);
+  const StorageView second_weight_mps = second_weight_cpu.to_float16().to(Device::MPS);
+  const StorageView second_bias_mps = second_bias_cpu.to_float16().to(Device::MPS);
+  StorageView hidden_mps(DataType::FLOAT16, Device::MPS);
+  StorageView output_mps(DataType::FLOAT16, Device::MPS);
+  ops::Gemm(1, 0, false, true, false, false, &activation)(
+    input_mps, first_weight_mps, hidden_mps, nullptr, &first_bias_mps);
+  ops::Gemm(1, 0, false, true)(
+    hidden_mps, second_weight_mps, output_mps, nullptr, &second_bias_mps);
+
+  expect_storage_eq(output_mps.to_float32(), expected, 6e-2f);
+}
+
+TEST(MPSBackendTest, DeferredTemporaryFeedsDependentGemm) {
+  constexpr dim_t rows = 8;
+  constexpr dim_t input_size = 64;
+  constexpr dim_t hidden_size = 128;
+  constexpr dim_t output_size = 32;
+  std::vector<float> input_values(rows * input_size);
+  std::vector<float> first_weight_values(hidden_size * input_size);
+  std::vector<float> second_weight_values(output_size * hidden_size);
+  for (dim_t i = 0; i < rows * input_size; ++i)
+    input_values[i] = std::sin(static_cast<float>(i) * 0.013f) * 0.1f;
+  for (dim_t i = 0; i < hidden_size * input_size; ++i)
+    first_weight_values[i] = std::cos(static_cast<float>(i) * 0.003f) * 0.02f;
+  for (dim_t i = 0; i < output_size * hidden_size; ++i)
+    second_weight_values[i] = std::sin(static_cast<float>(i) * 0.002f) * 0.015f;
+
+  const StorageView input_cpu({rows, input_size}, input_values);
+  const StorageView first_weight_cpu({hidden_size, input_size}, first_weight_values);
+  const StorageView second_weight_cpu({output_size, hidden_size}, second_weight_values);
+  StorageView hidden_cpu;
+  StorageView expected;
+  ops::Gemm(1, 0, false, true)(input_cpu, first_weight_cpu, hidden_cpu);
+  ops::Gemm(1, 0, false, true)(hidden_cpu, second_weight_cpu, expected);
+
+  const StorageView input_mps = input_cpu.to_float16().to(Device::MPS);
+  const StorageView first_weight_mps = first_weight_cpu.to_float16().to(Device::MPS);
+  const StorageView second_weight_mps = second_weight_cpu.to_float16().to(Device::MPS);
+  StorageView actual(DataType::FLOAT16, Device::MPS);
+  {
+    StorageView temporary(DataType::FLOAT16, Device::MPS);
+    ops::Gemm(1, 0, false, true)(input_mps, first_weight_mps, temporary);
+    ops::Gemm(1, 0, false, true)(temporary, second_weight_mps, actual);
+  }
+
+  expect_storage_eq(actual.to_float32(), expected, 3e-2f);
+}
+
+TEST(MPSBackendTest, TopKFloat16TieUsesFirstIndex) {
+  const StorageView input = StorageView({1, 7},
+                                        std::vector<float>{1, 4, 2, 4, 3, 0, -1})
+                              .to_float16()
+                              .to(Device::MPS);
+  StorageView values(DataType::FLOAT16, Device::MPS);
+  StorageView indices(DataType::INT32, Device::MPS);
+  ops::TopK(1)(input, values, indices);
+  expect_storage_eq(indices, StorageView({1, 1}, std::vector<int32_t>{1}));
+}
+
+TEST(MPSBackendTest, FusedBeamSearchTopKMatchesMaterializedFloat16) {
+  constexpr dim_t batch_size = 2;
+  constexpr dim_t beam_size = 4;
+  constexpr dim_t vocabulary_size = 513;
+  constexpr dim_t k = 8;
+  std::vector<float> logits_values(batch_size * beam_size * vocabulary_size);
+  std::vector<float> beam_score_values(batch_size * beam_size);
+  for (dim_t i = 0; i < static_cast<dim_t>(logits_values.size()); ++i)
+    logits_values[i] = std::sin(static_cast<float>(i) * 0.017f) * 3.0f
+                       + std::cos(static_cast<float>(i) * 0.007f);
+  for (dim_t i = 0; i < static_cast<dim_t>(beam_score_values.size()); ++i)
+    beam_score_values[i] = static_cast<float>(i % beam_size) * -0.37f;
+  // Exercise deterministic tie ordering across beams.
+  logits_values[17] = logits_values[vocabulary_size + 19] = 8.0f;
+
+  StorageView logits = StorageView({batch_size * beam_size, vocabulary_size}, logits_values)
+                         .to_float16()
+                         .to(Device::MPS);
+  const StorageView beam_scores = StorageView({batch_size * beam_size}, beam_score_values)
+                                    .to_float16()
+                                    .to(Device::MPS);
+  StorageView materialized(logits);
+  ops::LogSoftMax()(materialized);
+  primitives<Device::MPS>::add_depth_broadcast(
+    beam_scores.data<float16_t>(),
+    materialized.data<float16_t>(),
+    beam_scores.size(),
+    materialized.size());
+  materialized.reshape({batch_size, beam_size * vocabulary_size});
+  StorageView expected_values(DataType::FLOAT16, Device::MPS);
+  StorageView expected_indices(DataType::INT32, Device::MPS);
+  const ops::TopK topk(k);
+  topk(materialized, expected_values, expected_indices);
+
+  StorageView actual_values({batch_size, k}, DataType::FLOAT16, Device::MPS);
+  StorageView actual_indices({batch_size, k}, DataType::INT32, Device::MPS);
+  ASSERT_TRUE(mps::fused_beam_search_topk(
+    DataType::FLOAT16,
+    logits.data<float16_t>(),
+    beam_scores.data<float16_t>(),
+    actual_values.data<float16_t>(),
+    actual_indices.data<int32_t>(),
+    batch_size,
+    beam_size,
+    vocabulary_size,
+    k));
+
+  expect_storage_eq(actual_indices, expected_indices);
+  expect_storage_eq(actual_values.to_float32(), expected_values.to_float32(), 1e-3f);
+}
+
+TEST(MPSBackendTest, FusedBeamSearchTopKSupportsBeam5) {
+  constexpr dim_t batch_size = 2;
+  constexpr dim_t beam_size = 5;
+  constexpr dim_t vocabulary_size = 509;
+  constexpr dim_t k = 10;
+  std::vector<float> logits_values(batch_size * beam_size * vocabulary_size, -20.0f);
+  std::vector<float> beam_score_values(batch_size * beam_size);
+  for (dim_t row = 0; row < batch_size * beam_size; ++row) {
+    for (dim_t rank = 0; rank < 16; ++rank) {
+      const dim_t column = (row * 37 + rank * 19) % vocabulary_size;
+      logits_values[row * vocabulary_size + column]
+        = 8.0f - static_cast<float>(rank) * 0.4f
+          - static_cast<float>(row) * 0.031f;
+    }
+    beam_score_values[row] = static_cast<float>(row % beam_size) * -0.37f;
+  }
+
+  StorageView logits = StorageView({batch_size * beam_size, vocabulary_size}, logits_values)
+                         .to_float16()
+                         .to(Device::MPS);
+  const StorageView beam_scores = StorageView({batch_size * beam_size}, beam_score_values)
+                                    .to_float16()
+                                    .to(Device::MPS);
+  StorageView materialized(logits);
+  ops::LogSoftMax()(materialized);
+  primitives<Device::MPS>::add_depth_broadcast(
+    beam_scores.data<float16_t>(),
+    materialized.data<float16_t>(),
+    beam_scores.size(),
+    materialized.size());
+  materialized.reshape({batch_size, beam_size * vocabulary_size});
+  StorageView expected_values(DataType::FLOAT16, Device::MPS);
+  StorageView expected_indices(DataType::INT32, Device::MPS);
+  const ops::TopK topk(k);
+  topk(materialized, expected_values, expected_indices);
+
+  StorageView actual_values({batch_size, k}, DataType::FLOAT16, Device::MPS);
+  StorageView actual_indices({batch_size, k}, DataType::INT32, Device::MPS);
+  ASSERT_TRUE(mps::fused_beam_search_topk(
+    DataType::FLOAT16,
+    logits.data<float16_t>(),
+    beam_scores.data<float16_t>(),
+    actual_values.data<float16_t>(),
+    actual_indices.data<int32_t>(),
+    batch_size,
+    beam_size,
+    vocabulary_size,
+    k));
+
+  expect_storage_eq(actual_indices, expected_indices);
+  expect_storage_eq(actual_values.to_float32(), expected_values.to_float32(), 1e-3f);
+}
+
+TEST(MPSBackendTest, FusedBeamSearchTopKWithExhaustedCandidates) {
+  // Rows with fewer than k finite candidates must keep the masked value in the
+  // exhausted slots (never a 0 pad) and a valid index, like the materialized
+  // log-softmax + add + TopK sequence. A vocabulary smaller than the
+  // threadgroup also leaves threads without any column.
+  struct Case { dim_t beam_size; dim_t k; };
+  constexpr dim_t batch_size = 2;
+  const float neg_inf = -std::numeric_limits<float>::infinity();
+  for (const dim_t vocabulary_size : {513, 100, 20}) {
+    for (const Case c : {Case{4, 8}, Case{5, 10}, Case{8, 16}}) {
+      for (const float masked : {neg_inf, -65504.f}) {
+        SCOPED_TRACE(::testing::Message() << "vocabulary=" << vocabulary_size
+                                          << ", beam=" << c.beam_size << ", k=" << c.k
+                                          << ", masked=" << masked);
+        std::vector<float> logits_values(batch_size * c.beam_size * vocabulary_size, masked);
+        std::vector<float> beam_score_values(batch_size * c.beam_size);
+        // Every row keeps a single finite token, so a batch has beam_size < k
+        // finite candidates.
+        for (dim_t row = 0; row < batch_size * c.beam_size; ++row) {
+          logits_values[row * vocabulary_size + (7 + row) % vocabulary_size] = 2.0f - 0.1f * row;
+          beam_score_values[row] = static_cast<float>(row % c.beam_size) * -0.37f;
+        }
+
+        StorageView logits = StorageView({batch_size * c.beam_size, vocabulary_size}, logits_values)
+                               .to_float16()
+                               .to(Device::MPS);
+        const StorageView beam_scores = StorageView({batch_size * c.beam_size}, beam_score_values)
+                                          .to_float16()
+                                          .to(Device::MPS);
+        StorageView materialized(logits);
+        ops::LogSoftMax()(materialized);
+        primitives<Device::MPS>::add_depth_broadcast(
+          beam_scores.data<float16_t>(),
+          materialized.data<float16_t>(),
+          beam_scores.size(),
+          materialized.size());
+        materialized.reshape({batch_size, c.beam_size * vocabulary_size});
+        StorageView expected_values(DataType::FLOAT16, Device::MPS);
+        StorageView expected_indices(DataType::INT32, Device::MPS);
+        const ops::TopK topk(c.k);
+        topk(materialized, expected_values, expected_indices);
+
+        StorageView actual_values({batch_size, c.k}, DataType::FLOAT16, Device::MPS);
+        StorageView actual_indices({batch_size, c.k}, DataType::INT32, Device::MPS);
+        ASSERT_TRUE(mps::fused_beam_search_topk(
+          DataType::FLOAT16,
+          logits.data<float16_t>(),
+          beam_scores.data<float16_t>(),
+          actual_values.data<float16_t>(),
+          actual_indices.data<int32_t>(),
+          batch_size,
+          c.beam_size,
+          vocabulary_size,
+          c.k));
+
+        const StorageView expected_v = expected_values.to_float32().to(Device::CPU);
+        const StorageView actual_v = actual_values.to_float32().to(Device::CPU);
+        const StorageView expected_i = expected_indices.to(Device::CPU);
+        const StorageView actual_i = actual_indices.to(Device::CPU);
+        for (dim_t offset = 0; offset < batch_size * c.k; ++offset) {
+          SCOPED_TRACE(::testing::Message() << "batch=" << offset / c.k << ", rank=" << offset % c.k);
+          const float expected = expected_v.at<float>(offset);
+          if (std::isinf(expected))
+            EXPECT_EQ(actual_v.at<float>(offset), expected);
+          else
+            EXPECT_NEAR(actual_v.at<float>(offset), expected, 1e-3f);
+          // Do not prescribe the index of an exhausted slot, only that it is valid.
+          if (expected > -65504.f)
+            EXPECT_EQ(actual_i.at<int32_t>(offset), expected_i.at<int32_t>(offset));
+          EXPECT_GE(actual_i.at<int32_t>(offset), 0);
+          EXPECT_LT(actual_i.at<int32_t>(offset), c.beam_size * vocabulary_size);
+        }
+      }
+    }
+  }
+}
+
+TEST(MPSBackendTest, BatchedDecodeGemmBroadcastAndInteriorOffsets) {
+  constexpr dim_t batch_size = 2;
+  constexpr dim_t k = 17;
+  constexpr dim_t n = 11;
+  std::vector<float> a_values(k + 1, 0);
+  std::vector<float> b_values(batch_size * n * k + 2, 0);
+  for (dim_t p = 0; p < k; ++p)
+    a_values[1 + p] = static_cast<float>(p - 4) * 0.04f;
+  for (dim_t i = 0; i < batch_size * n * k; ++i)
+    b_values[2 + i] = std::cos(static_cast<float>(i) * 0.09f);
+
+  const StorageView a = StorageView({k + 1}, a_values).to_float16().to(Device::MPS);
+  const StorageView b = StorageView({batch_size * n * k + 2}, b_values)
+                          .to_float16()
+                          .to(Device::MPS);
+  StorageView c({batch_size * n + 1}, float16_t(0), Device::MPS);
+
+  primitives<Device::MPS>::gemm_batch_strided<float16_t, float16_t>(
+    false, true,
+    1, n, k,
+    1,
+    a.data<float16_t>() + 1, k, 0,
+    b.data<float16_t>() + 2, k, n * k,
+    0,
+    c.data<float16_t>() + 1, n, n,
+    batch_size);
+
+  const std::vector<float> output = c.to_float32().to_vector<float>();
+  for (dim_t batch = 0; batch < batch_size; ++batch) {
+    for (dim_t column = 0; column < n; ++column) {
+      float expected = 0;
+      for (dim_t p = 0; p < k; ++p)
+        expected += a_values[1 + p] * b_values[2 + batch * n * k + column * k + p];
+      EXPECT_NEAR(output[1 + batch * n + column], expected, 3e-2f);
+    }
+  }
+}
+
+TEST(MPSBackendTest, FusedAttentionFloat16MatchesMaterializedPath) {
+  constexpr dim_t batch_size = 2;
+  constexpr dim_t query_length = 4;
+  constexpr dim_t key_length = 7;
+  constexpr dim_t depth = 12;
+
+  std::vector<float> query_values(batch_size * query_length * depth);
+  std::vector<float> key_values(batch_size * key_length * depth);
+  std::vector<float> value_values(batch_size * key_length * depth);
+  for (size_t i = 0; i < query_values.size(); ++i)
+    query_values[i] = std::sin(static_cast<float>(i) * 0.07f);
+  for (size_t i = 0; i < key_values.size(); ++i) {
+    key_values[i] = std::cos(static_cast<float>(i) * 0.05f);
+    value_values[i] = std::sin(static_cast<float>(i) * 0.11f);
+  }
+
+  const StorageView queries = StorageView({batch_size, query_length, depth}, query_values)
+                                .to_float16()
+                                .to(Device::MPS);
+  const StorageView keys = StorageView({batch_size, key_length, depth}, key_values)
+                             .to_float16()
+                             .to(Device::MPS);
+  const StorageView values = StorageView({batch_size, key_length, depth}, value_values)
+                               .to_float16()
+                               .to(Device::MPS);
+  const StorageView lengths({batch_size * query_length},
+                            std::vector<int32_t>{7, 6, 5, 4, 3, 7, 2, 1},
+                            Device::MPS);
+
+  constexpr float scale = 0.25f;
+  StorageView scores(DataType::FLOAT16, Device::MPS);
+  ops::MatMul(false, true, scale)(queries, keys, scores);
+  StorageView probabilities(DataType::FLOAT16, Device::MPS);
+  ops::SoftMax()(scores, lengths, probabilities);
+  StorageView expected(DataType::FLOAT16, Device::MPS);
+  ops::MatMul()(probabilities, values, expected);
+
+  StorageView actual({batch_size, query_length, depth},
+                     DataType::FLOAT16,
+                     Device::MPS);
+  ASSERT_TRUE(mps::fused_attention(DataType::FLOAT16,
+                                   queries.data<float16_t>(),
+                                   keys.data<float16_t>(),
+                                   values.data<float16_t>(),
+                                   lengths.data<int32_t>(),
+                                   actual.data<float16_t>(),
+                                   batch_size,
+                                   query_length,
+                                   key_length,
+                                   depth,
+                                   scale));
+
+  expect_storage_eq(actual.to_float32(), expected.to_float32(), 2e-2f);
+}
+
+TEST(MPSBackendTest, SupportsBF16AndINT8Gemm) {
+  const StorageView fp32({1, 4}, std::vector<float>{1, 2, 3, 4});
+  const StorageView bf16 = fp32.to(DataType::BFLOAT16).to(Device::MPS);
+  StorageView bf16_output(DataType::BFLOAT16, Device::MPS);
+  ops::Gemm(1, 0, false, true)(bf16, bf16, bf16_output);
+  expect_storage_eq(bf16_output.to_float32(), StorageView({1, 1}, std::vector<float>{30}), 0.1f);
+
+  const StorageView int8_input({1, 4}, std::vector<int8_t>{1, 2, 3, 4}, Device::MPS);
+  StorageView int8_output(DataType::INT32, Device::MPS);
+  ops::Gemm(1, 0, false, true)(int8_input, int8_input, int8_output);
+  expect_storage_eq(int8_output.to(Device::CPU),
+                    StorageView({1, 1}, std::vector<int32_t>{30}));
+}
+
+TEST(MPSBackendTest, AutoComputeTypePrefersFloat16) {
+  EXPECT_EQ(resolve_compute_type(ComputeType::AUTO,
+                                 ComputeType::FLOAT32,
+                                 Device::MPS,
+                                 0),
+            ComputeType::FLOAT16);
+}
+
+TEST(MPSBackendTest, Int8ComputeTypesPreferFloat16Execution) {
+  const char* previous = std::getenv("CT2_MPS_CACHE_INT8_FP16");
+  const std::string previous_value = previous ? previous : "";
+  unsetenv("CT2_MPS_CACHE_INT8_FP16");
+
+  EXPECT_EQ(resolve_compute_type(ComputeType::INT8,
+                                 ComputeType::FLOAT32,
+                                 Device::MPS,
+                                 0),
+            ComputeType::FLOAT16);
+  EXPECT_EQ(resolve_compute_type(ComputeType::INT8_FLOAT16,
+                                 ComputeType::INT8_FLOAT16,
+                                 Device::MPS,
+                                 0),
+            ComputeType::FLOAT16);
+
+  if (previous)
+    setenv("CT2_MPS_CACHE_INT8_FP16", previous_value.c_str(), 1);
+  else
+    unsetenv("CT2_MPS_CACHE_INT8_FP16");
+}
+
+TEST(MPSBackendTest, NativeInt8RequiresExplicitOptIn) {
+  const char* previous = std::getenv("CT2_MPS_CACHE_INT8_FP16");
+  const std::string previous_value = previous ? previous : "";
+  setenv("CT2_MPS_CACHE_INT8_FP16", "0", 1);
+
+  EXPECT_EQ(resolve_compute_type(ComputeType::INT8,
+                                 ComputeType::FLOAT32,
+                                 Device::MPS,
+                                 0),
+            ComputeType::INT8_FLOAT16);
+  EXPECT_EQ(resolve_compute_type(ComputeType::INT8_FLOAT16,
+                                 ComputeType::INT8_FLOAT16,
+                                 Device::MPS,
+                                 0),
+            ComputeType::INT8_FLOAT16);
+
+  if (previous)
+    setenv("CT2_MPS_CACHE_INT8_FP16", previous_value.c_str(), 1);
+  else
+    unsetenv("CT2_MPS_CACHE_INT8_FP16");
+}
+
+TEST(MPSBackendTest, GumbelMaxBF16ProducesValidUniqueIndices) {
+  const StorageView input = StorageView({2, 7}, 0.f)
+                              .to(DataType::BFLOAT16)
+                              .to(Device::MPS);
+  StorageView indices(DataType::INT32, Device::MPS);
+  ops::GumbelMax(3)(input, indices);
+
+  EXPECT_EQ(indices.shape(), Shape({2, 3}));
+  const std::vector<int32_t> result = indices.to_vector<int32_t>();
+  for (dim_t row = 0; row < 2; ++row) {
+    std::set<int32_t> unique;
+    for (dim_t sample = 0; sample < 3; ++sample) {
+      const int32_t index = result[row * 3 + sample];
+      EXPECT_GE(index, 0);
+      EXPECT_LT(index, 7);
+      unique.insert(index);
+    }
+    EXPECT_EQ(unique.size(), 3);
+  }
+}
+#endif
 
 namespace {
 
@@ -1602,6 +2725,8 @@ TEST(OpTest, SnakeRejectsAliasingIncludingClearedOutput) {
 
 TEST_P(OpDeviceTest, SnakeMatchesCpuAcrossBatchesAlphaLayoutsAndEmptyTime) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "Snake is not implemented for MPS.";
   for (dim_t time : {0, 11, 10001}) {
     for (const Shape& shape : {Shape{3}, Shape{1, 3, 1}}) {
       StorageView x({2, 3, time});
@@ -1619,6 +2744,8 @@ TEST_P(OpDeviceTest, SnakeMatchesCpuAcrossBatchesAlphaLayoutsAndEmptyTime) {
 
 TEST_P(OpDeviceTest, SnakeMatchesCpuBeyondCappedGrid) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "Snake is not implemented for MPS.";
   // More elements than 65535 blocks of 256 threads, with a partial final block.
   StorageView x({1, 2, 65535 * 128 + 17}, 0.1f);
   StorageView alpha({2}, std::vector<float>{1.f, -1.5f});
@@ -1646,6 +2773,8 @@ TEST_P(OpDeviceTest, SnakeValidationLeavesOutputUntouched) {
 
 TEST_P(OpDeviceTest, MoeTopKParallelRoutingMatchesCpuAcrossWidthsAndTies) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "MoeTopK is not implemented for MPS.";
   for (dim_t width : {1, 17, 256, 513}) {
     for (dim_t k : {dim_t(1), std::min(dim_t(8), width), width}) {
       SCOPED_TRACE("width=" + std::to_string(width) + ", k=" + std::to_string(k));
@@ -1717,7 +2846,10 @@ TEST(OpTest, MoeTopKNonfiniteLogits) {
 }
 
 TEST_P(OpDeviceTest, MoeTopKNonfiniteLogits) {
-  check_moe_topk_nonfinite(GetParam());
+  const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "MoeTopK is not implemented for MPS.";
+  check_moe_topk_nonfinite(device);
 }
 
 TEST(OpTest, MoeTopKDeterministicTiesAndSingleExpert) {
@@ -1812,6 +2944,8 @@ TEST(OpTest, MoeTopKRetainedCapacityAliasing) {
 
 TEST_P(OpDeviceTest, MoeTopKValidationAndEmptyRows) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "MoeTopK is not implemented for MPS.";
   StorageView host({1, 3}, 1.f);
   auto logits = host.to(device);
   StorageView ids(DataType::INT32, device), weights(DataType::FLOAT32, device);
@@ -1880,6 +3014,8 @@ TEST(OpTest, DequantizeFP8RejectsMalformedShapesTypesAndAliasing) {
 
 TEST_P(OpDeviceTest, DequantizeFP8MatchesCpuAndValidatesMetadata) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "DequantizeFP8 is not implemented for MPS.";
   StorageView input({129, 130}, DataType::INT8),
       scale({2, 2}, std::vector<float>{.1f, .3f, 1.7f, 9.1f});
   for (dim_t i = 0; i < input.size(); ++i) {
@@ -1898,6 +3034,8 @@ TEST_P(OpDeviceTest, DequantizeFP8MatchesCpuAndValidatesMetadata) {
 
 TEST_P(OpDeviceTest, DequantizeFP8DecodesNaNCodes) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "DequantizeFP8 is not implemented for MPS.";
   StorageView input({1, 2}, std::vector<int8_t>{int8_t(0x7f), int8_t(0xff)}, device);
   StorageView scale({1, 1}, 1.f, device), output(device);
   ops::DequantizeFP8()(input, scale, output);
@@ -2097,6 +3235,8 @@ namespace {
 
 TEST_P(OpDeviceTest, ConvTranspose1DGemmSizedInputsMatchScalarAcrossGroupsAndBoundaryParameters) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "ConvTranspose1D is not implemented for MPS.";
   for (dim_t groups : {1, 2})
     for (dim_t dilation : {1, 2})
       for (dim_t output_padding : {0, 1})
@@ -2105,6 +3245,8 @@ TEST_P(OpDeviceTest, ConvTranspose1DGemmSizedInputsMatchScalarAcrossGroupsAndBou
 
 TEST_P(OpDeviceTest, ConvTranspose1DGemmTimeTilesPreserveOverlapsAndBiasAcrossTileBoundary) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "ConvTranspose1D is not implemented for MPS.";
   // Contributions alone exceed the 16 MiB workspace bound, forcing multiple
   // input tiles whose overlapping output regions must accumulate, not reset.
   compare_transpose_with_scalar(device, 1, 8, 256, 4096, 5, 2, 1, 1, 2, 1);
@@ -2346,6 +3488,8 @@ TEST(OpTest, CausalDepthwiseConv1DTiledMatchesScalar) {
 
 TEST_P(OpDeviceTest, CausalDepthwiseConv1DMatchesCpuAndPreservesHistory) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "CausalDepthwiseConv1D is not implemented for MPS.";
   for (dim_t channels : {5, 1100}) {
     for (dim_t kernel : {1, 4, 7}) {
       for (dim_t steps : {0, 1, 9, 65}) {
@@ -2374,6 +3518,8 @@ TEST_P(OpDeviceTest, CausalDepthwiseConv1DMatchesCpuAndPreservesHistory) {
 
 TEST_P(OpDeviceTest, CausalDepthwiseConv1DArbitraryChunksMatchPrefill) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "CausalDepthwiseConv1D is not implemented for MPS.";
   for (dim_t channels : {3, 1100}) {
     SCOPED_TRACE(channels);
     StorageView input({2, 129, channels}), weight({channels, 4}), initial({2, channels, 3});
@@ -2430,6 +3576,8 @@ TEST_P(OpDeviceTest, CausalDepthwiseConv1DValidationDoesNotMutateHistoryOrOutput
 
 TEST_P(OpDeviceTest, GatedDeltaNetMatchesCpuAcrossBatchesHeadsAndKeySpecializations) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "GatedDeltaNet is not implemented for MPS.";
   for (dim_t kd : {3, 64, 128}) {
     for (dim_t vd : {2, 257, 1025}) {
       for (dim_t steps : {0, 1, 5}) {
@@ -2455,6 +3603,8 @@ TEST_P(OpDeviceTest, GatedDeltaNetMatchesCpuAcrossBatchesHeadsAndKeySpecializati
 
 TEST_P(OpDeviceTest, GatedDeltaNetSingleStepsMatchPrefill) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "GatedDeltaNet is not implemented for MPS.";
   const dim_t steps = 5, kd = 64, vd = 3;
   StorageView q({2, steps, 2, kd}), k(q.shape()), v({2, steps, 4, vd});
   StorageView g({2, steps, 4}, -.3f), beta({2, steps, 4}, .25f), initial({2, 4, kd, vd});
@@ -2508,6 +3658,8 @@ TEST_P(OpDeviceTest, GatedDeltaNetValidationPreservesState) {
 
 TEST_P(OpDeviceTest, ConvTranspose1DMatchesScalarAcrossParameters) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "ConvTranspose1D is not implemented for MPS.";
   for (dim_t groups : {1, 2})
     for (dim_t dilation : {1, 2})
       for (dim_t output_padding : {0, 1})
@@ -2518,6 +3670,8 @@ TEST_P(OpDeviceTest, ConvTranspose1DMatchesScalarAcrossParameters) {
 
 TEST_P(OpDeviceTest, ConvTranspose1DBoundaryCases) {
   const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "ConvTranspose1D is not implemented for MPS.";
   StorageView x({1, 2, 1}, std::vector<float>{2, 3}, device);
   StorageView w({2, 2, 1}, std::vector<float>{1, 10, 100, 1000}, device);
   StorageView bias({2}, std::vector<float>{-1, 2}, device);
@@ -2566,5 +3720,13 @@ INSTANTIATE_TEST_SUITE_P(CUDA, OpDeviceFPTest,
                          ::testing::Values(FloatType{Device::CUDA, DataType::FLOAT32, 1e-5},
                                            FloatType{Device::CUDA, DataType::FLOAT16, 1e-2},
                                            FloatType{Device::CUDA, DataType::BFLOAT16, 4e-2}),
+                         fp_test_name);
+#endif
+#ifdef CT2_WITH_MPS
+INSTANTIATE_TEST_SUITE_P(MPS, OpDeviceTest, ::testing::Values(Device::MPS));
+INSTANTIATE_TEST_SUITE_P(MPS, OpDeviceFPTest,
+                         ::testing::Values(FloatType{Device::MPS, DataType::FLOAT32, 1e-5},
+                                           FloatType{Device::MPS, DataType::FLOAT16, 1e-2},
+                                           FloatType{Device::MPS, DataType::BFLOAT16, 4e-2}),
                          fp_test_name);
 #endif

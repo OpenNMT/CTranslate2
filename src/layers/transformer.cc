@@ -36,7 +36,11 @@ namespace ctranslate2 {
         ops::Mul()(linear, inner, inner);
       }
 
-      _ff2(inner, output, _layer_norm ? &input : nullptr);
+      const bool fuse_post_norm = _layer_norm && !_pre_norm && !_tensor_parallel;
+      if (fuse_post_norm)
+        _ff2.forward_with_post_layer_norm(inner, input, *_layer_norm, output);
+      else
+        _ff2(inner, output, _layer_norm ? &input : nullptr);
 
       if (_tensor_parallel) {
         Shape shape = output.shape();
@@ -46,7 +50,7 @@ namespace ctranslate2 {
         output = std::move(tmp);
       }
 
-      if (_layer_norm && !_pre_norm)
+      if (_layer_norm && !_pre_norm && !fuse_post_norm)
         (*_layer_norm)(output, output);
     }
 

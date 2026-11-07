@@ -14,6 +14,13 @@ namespace ctranslate2 {
                     StorageView& sampled_ids,
                     StorageView& sampled_scores,
                     dim_t num_samples = 1) const;
+
+    virtual bool try_beam_search_topk(const StorageView& logits,
+                                      const StorageView& beam_scores,
+                                      dim_t beam_size,
+                                      dim_t num_candidates,
+                                      StorageView& sampled_ids,
+                                      StorageView& sampled_scores) const;
   protected:
     virtual void sample(const StorageView& scores,
                         dim_t num_samples,
@@ -23,6 +30,13 @@ namespace ctranslate2 {
 
 
   class BestSampler : public Sampler {
+  public:
+    bool try_beam_search_topk(const StorageView& logits,
+                              const StorageView& beam_scores,
+                              dim_t beam_size,
+                              dim_t num_candidates,
+                              StorageView& sampled_ids,
+                              StorageView& sampled_scores) const override;
   protected:
     void sample(const StorageView& scores,
                 dim_t num_samples,

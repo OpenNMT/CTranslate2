@@ -29,6 +29,16 @@ namespace ctranslate2 {
                       const StorageView* bias = nullptr,
                       const StorageView* residual = nullptr) const;
 
+      // Attempts a backend-specific weight-only INT8 GEMM. Returns false when
+      // the backend or shape is unsupported so callers can use the portable
+      // quantize -> GEMM -> dequantize implementation.
+      bool try_weight_only_int8(const StorageView& input,
+                                const StorageView& weight,
+                                const StorageView& scale,
+                                StorageView& output,
+                                const StorageView* bias = nullptr,
+                                const StorageView* residual = nullptr) const;
+
       // Return the packed representation of b, if implemented by the GEMM backend.
       static StorageView pack_b_input(const StorageView& b,
                                       const bool transpose,
@@ -58,6 +68,22 @@ namespace ctranslate2 {
                    const StorageView& b,
                    StorageView& c,
                    const StorageView* a_shift_compensation) const;
+
+      template <Device D>
+      bool try_compute_with_epilogue(const StorageView& a,
+                                     const StorageView& b,
+                                     StorageView& c,
+                                     const StorageView* a_shift_compensation,
+                                     const StorageView* bias,
+                                     const StorageView* residual) const;
+
+      template <Device D>
+      bool try_weight_only_int8(const StorageView& input,
+                                const StorageView& weight,
+                                const StorageView& scale,
+                                StorageView& output,
+                                const StorageView* bias,
+                                const StorageView* residual) const;
     };
 
   }
