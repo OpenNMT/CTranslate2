@@ -40,7 +40,7 @@ export HIP_PLATFORM=amd
 export HIP_PATH=$ROCM_PATH
 export HIP_DEVICE_LIB_PATH=$ROCM_PATH/amdgcn/bitcode
 export HIP_CLANG_ROOT=$ROCM_PATH/lib/llvm
-export PYTORCH_ROCM_ARCH="gfx1030;gfx1100;gfx1101;gfx1102;gfx1150;gfx1151;gfx1200;gfx1201"
+export PYTORCH_ROCM_ARCH="gfx1030;gfx1031;gfx1032;gfx1035;gfx1100;gfx1101;gfx1102;gfx1103;gfx1150;gfx1151;gfx1200;gfx1201"
 
 pip install "cmake==3.22.*"
 
