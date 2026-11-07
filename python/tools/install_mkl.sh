@@ -5,7 +5,7 @@ MKL_VERSION=${1:?MKL version required (e.g. 2025.3.0)}
 
 if command -v apt-get >/dev/null 2>&1; then
     curl -L https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB \
-        | sudo gpg --dearmor -o /usr/share/keyrings/intel-oneapi.gpg
+        | sudo gpg --batch --yes --dearmor -o /usr/share/keyrings/intel-oneapi.gpg
     echo "deb [signed-by=/usr/share/keyrings/intel-oneapi.gpg] https://apt.repos.intel.com/oneapi all main" \
         | sudo tee /etc/apt/sources.list.d/oneAPI.list >/dev/null
     sudo apt-get update
