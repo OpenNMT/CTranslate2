@@ -33,11 +33,22 @@ jobs:
           python/tools/install_mkl.sh 2025.3
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
 
+      - name: Cache oneDNN
+        if: matrix.backend == 'dnnl'
+        id: cache-onednn
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/onednn
+          key: onednn-${{ matrix.os }}-${{ runner.arch }}-3.1.1-${{ hashFiles('python/tools/build_onednn.sh') }}
+
+      - name: Build oneDNN
+        if: matrix.backend == 'dnnl' && steps.cache-onednn.outputs.cache-hit != 'true'
+        run: python/tools/build_onednn.sh 3.1.1 oneapi-src/oneDNN "$RUNNER_TEMP/onednn"
+
       - name: Configure with DNNL
         if: matrix.backend == 'dnnl'
         run: |
-          sudo python/tools/build_onednn.sh 3.1.1
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
+          cmake -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/onednn" -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
 
       - name: Build
         run: |
