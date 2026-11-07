@@ -10,6 +10,10 @@ on:
     branches:
       - master
 
+env:
+  MKL_VERSION: 2025.3
+  DNNL_VERSION: 3.1.1
+
 jobs:
   build-and-test-cpp-x86_64:
     runs-on: ${{ matrix.os }}
@@ -30,7 +34,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          python/tools/install_mkl.sh 2025.3
+          python/tools/install_mkl.sh "$MKL_VERSION"
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
 
       - name: Cache oneDNN
@@ -39,11 +43,11 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ${{ runner.temp }}/onednn
-          key: onednn-${{ matrix.os }}-${{ runner.arch }}-3.1.1-${{ hashFiles('python/tools/build_onednn.sh') }}
+          key: onednn-${{ matrix.os }}-${{ runner.arch }}-${{ env.DNNL_VERSION }}-${{ hashFiles('python/tools/build_onednn.sh') }}
 
       - name: Build oneDNN
         if: matrix.backend == 'dnnl' && steps.cache-onednn.outputs.cache-hit != 'true'
-        run: python/tools/build_onednn.sh 3.1.1 oneapi-src/oneDNN "$RUNNER_TEMP/onednn"
+        run: python/tools/build_onednn.sh "$DNNL_VERSION" oneapi-src/oneDNN "$RUNNER_TEMP/onednn"
 
       - name: Configure with DNNL
         if: matrix.backend == 'dnnl'
@@ -86,7 +90,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          python/tools/install_mkl.sh 2025.3
+          python/tools/install_mkl.sh "$MKL_VERSION"
 
       - name: Install Clang
         run: |
@@ -129,7 +133,7 @@ jobs:
         env:
           CT2_USE_MKL: 1
         run: |
-          python/tools/install_mkl.sh 2025.3
+          python/tools/install_mkl.sh "$MKL_VERSION"
 
       - name: Install Clang
         run: |
