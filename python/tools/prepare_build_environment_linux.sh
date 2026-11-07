@@ -35,6 +35,9 @@ else
         libnccl-2.26.2-1+cuda12.8 \
         libnccl-devel-2.26.2-1+cuda12.8
     ln -s cuda-12.8 /usr/local/cuda
+    # Native CUDA language support needs an explicit compiler when nvcc is not on PATH.
+    export CUDACXX=/usr/local/cuda-12.8/bin/nvcc
+    "$CUDACXX" --version
 
     ONEAPI_VERSION=2025.3.0
     dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
