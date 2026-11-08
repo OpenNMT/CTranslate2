@@ -56,10 +56,27 @@ def make_venv(path, ct2_spec):
     return py
 
 
-def run_task(py, task, limit, device):
-    cmd = [py, str(ROOT / "tasks.py"), task, "--device", device]
+CONVERTIBLE_TASKS = ("opus_bleu", "t5gemma_generation")
+
+
+def convert_models(py, out_root):
+    """Convert each CT2 model once per venv; return {task: path}."""
+    dirs = {}
+    for task in CONVERTIBLE_TASKS:
+        out_dir = os.path.join(out_root, task)
+        os.makedirs(out_dir, exist_ok=True)
+        print(f"[gate] converting {task} with {py}", flush=True)
+        subprocess.check_call([py, str(ROOT / "tasks.py"), "convert", task, out_dir])
+        dirs[task] = out_dir
+    return dirs
+
+
+def run_task(py, task, limit, device, model_dir=None):
+    cmd = [py, str(ROOT / "tasks.py"), "run", task, "--device", device]
     if limit is not None:
         cmd += ["--limit", str(limit)]
+    if model_dir is not None:
+        cmd += ["--model-dir", model_dir]
     env = dict(os.environ, OMP_NUM_THREADS="2", MKL_NUM_THREADS="2",
                OPENBLAS_NUM_THREADS="2", VECLIB_MAXIMUM_THREADS="2",
                TOKENIZERS_PARALLELISM="false")
@@ -102,7 +119,7 @@ def compare_completions(base, cand):
     return len(changed)
 
 
-def measure_round(base_py, cand_py, task, limit, device, confirmation=False):
+def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmation=False):
     """Compare three sequential pairs; retain every quality failure."""
     samples = {"baseline": [], "candidate": []}
     quality_failed = False
@@ -113,7 +130,8 @@ def measure_round(base_py, cand_py, task, limit, device, confirmation=False):
         for label in order:
             print(f"[gate] {task}: {label} measurement {repeat + 1}/3", flush=True)
             result = run_task(base_py if label == "baseline" else cand_py,
-                              task, limit, device)
+                              task, limit, device,
+                              model_dir=model_dirs[label].get(task))
             validate_metrics(task, result, label)
             samples[label].append(result)
         base, cand = samples["baseline"][-1], samples["candidate"][-1]
@@ -138,13 +156,13 @@ def measure_round(base_py, cand_py, task, limit, device, confirmation=False):
     return quality_failed, performance_failures
 
 
-def evaluate_task(base_py, cand_py, task, limit, device):
+def evaluate_task(base_py, cand_py, task, limit, device, model_dirs):
     quality_failed, performance_failures = measure_round(
-        base_py, cand_py, task, limit, device)
+        base_py, cand_py, task, limit, device, model_dirs)
     if performance_failures:
         print(f"[gate] {task}: confirming performance regression", flush=True)
         confirmation_quality_failed, confirmed = measure_round(
-            base_py, cand_py, task, limit, device, confirmation=True)
+            base_py, cand_py, task, limit, device, model_dirs, confirmation=True)
         quality_failed |= confirmation_quality_failed
         performance_failures &= confirmed
         print(f"[gate] {task}: performance regression "
@@ -182,12 +200,18 @@ def main():
         print("[gate] creating candidate venv")
         cand_py = make_venv(os.path.join(tmp, "candidate"), args.candidate_wheel)
 
+        model_dirs = {
+            "baseline": convert_models(base_py, os.path.join(tmp, "baseline-models")),
+            "candidate": convert_models(cand_py, os.path.join(tmp, "candidate-models")),
+        }
+
         failed = False
         for task in RULES:
             task_limit = args.bleu_limit if task == "opus_bleu" else limit
             if task == "t5gemma_generation":
                 task_limit = 50
-            failed |= evaluate_task(base_py, cand_py, task, task_limit, args.device)
+            failed |= evaluate_task(base_py, cand_py, task, task_limit,
+                                    args.device, model_dirs)
 
     sys.exit(1 if failed else 0)
 

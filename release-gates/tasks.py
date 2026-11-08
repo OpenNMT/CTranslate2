@@ -57,14 +57,37 @@ def run_whisper_wer(limit=300, device="cpu"):
             "num_samples": len(samples)}
 
 
-def run_opus_bleu(limit=500, device="cpu"):
+OPUS_MODEL = "Helsinki-NLP/opus-mt-en-de"
+T5GEMMA_MODEL = "jordimas/t5gemma-2-270m-270m"
+T5GEMMA_REVISION = "dfb6d0d619d8e6d42f279a6197abb90dec0137c1"
+
+
+def _converted_dir(stack, model_dir, convert):
+    if model_dir:
+        return model_dir
+    tmp = stack.enter_context(tempfile.TemporaryDirectory())
+    convert(tmp)
+    return tmp
+
+
+def convert_opus_bleu(out_dir):
+    from ctranslate2.converters.transformers import TransformersConverter
+    TransformersConverter(OPUS_MODEL).convert(out_dir, force=True)
+
+
+def convert_t5gemma_generation(out_dir):
+    from ctranslate2.converters.transformers import TransformersConverter
+    TransformersConverter(T5GEMMA_MODEL, revision=T5GEMMA_REVISION).convert(
+        out_dir, force=True, quantization="float32")
+
+
+def run_opus_bleu(limit=500, device="cpu", model_dir=None):
+    import contextlib
     import ctranslate2
     import sacrebleu
     import transformers
-    from ctranslate2.converters.transformers import TransformersConverter
 
-    model_name = "Helsinki-NLP/opus-mt-en-de"
-    tokenizer = transformers.AutoTokenizer.from_pretrained(model_name)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(OPUS_MODEL)
 
     src_path = sacrebleu.utils.get_source_file("wmt14", "en-de")
     ref_paths = sacrebleu.utils.get_reference_files("wmt14", "en-de")
@@ -72,9 +95,9 @@ def run_opus_bleu(limit=500, device="cpu"):
     refs = [open(p, encoding="utf-8").read().splitlines()[:limit]
             for p in ref_paths]
 
-    with tempfile.TemporaryDirectory() as tmp:
-        TransformersConverter(model_name).convert(tmp, force=True)
-        translator = ctranslate2.Translator(tmp, device=device,
+    with contextlib.ExitStack() as stack:
+        model_path = _converted_dir(stack, model_dir, convert_opus_bleu)
+        translator = ctranslate2.Translator(model_path, device=device,
                                              intra_threads=CPU_THREADS, inter_threads=1)
         tokenized = [tokenizer.convert_ids_to_tokens(tokenizer.encode(s))
                      for s in sources]
@@ -91,27 +114,24 @@ def run_opus_bleu(limit=500, device="cpu"):
             "num_sentences": len(sources)}
 
 
-def run_t5gemma_generation(limit=50, device="cpu"):
+def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
+    import contextlib
     import ctranslate2
     import transformers
     from datasets import load_dataset
-    from ctranslate2.converters.transformers import TransformersConverter
 
-    model_name = "jordimas/t5gemma-2-270m-270m"
-    revision = "dfb6d0d619d8e6d42f279a6197abb90dec0137c1"
     samples = load_dataset("rajpurkar/squad", split="validation",
                            revision=SQUAD_REVISION).shuffle(seed=42)[:limit]
     prompts = [f"Context: {context} Question: {question} Answer:"
                for context, question in zip(samples["context"], samples["question"])]
     if not prompts:
         raise ValueError("Generation requires at least one prompt")
-    tokenizer = transformers.AutoTokenizer.from_pretrained(model_name, revision=revision)
+    tokenizer = transformers.AutoTokenizer.from_pretrained(T5GEMMA_MODEL, revision=T5GEMMA_REVISION)
     inputs = [tokenizer.convert_ids_to_tokens(tokenizer.encode(p, truncation=True, max_length=512))
               for p in prompts]
-    with tempfile.TemporaryDirectory() as tmp:
-        TransformersConverter(model_name, revision=revision).convert(
-            tmp, force=True, quantization="float32")
-        translator = ctranslate2.Translator(tmp, device=device, compute_type="float32",
+    with contextlib.ExitStack() as stack:
+        model_path = _converted_dir(stack, model_dir, convert_t5gemma_generation)
+        translator = ctranslate2.Translator(model_path, device=device, compute_type="float32",
                                              intra_threads=CPU_THREADS, inter_threads=1)
         results, elapsed = run_and_measure(
             translator.translate_batch, inputs, warmup_size=8,
@@ -127,16 +147,30 @@ def run_t5gemma_generation(limit=50, device="cpu"):
 TASKS = {"whisper_wer": run_whisper_wer, "opus_bleu": run_opus_bleu,
          "t5gemma_generation": run_t5gemma_generation}
 
+CONVERTERS = {"opus_bleu": convert_opus_bleu,
+              "t5gemma_generation": convert_t5gemma_generation}
+
 
 if __name__ == "__main__":
     import argparse, json, sys
     p = argparse.ArgumentParser()
-    p.add_argument("task", choices=TASKS)
-    p.add_argument("--limit", type=int, default=None)
-    p.add_argument("--device", default="cpu")
+    sub = p.add_subparsers(dest="cmd", required=True)
+    run_p = sub.add_parser("run")
+    run_p.add_argument("task", choices=TASKS)
+    run_p.add_argument("--limit", type=int, default=None)
+    run_p.add_argument("--device", default="cpu")
+    run_p.add_argument("--model-dir", default=None)
+    conv_p = sub.add_parser("convert")
+    conv_p.add_argument("task", choices=CONVERTERS)
+    conv_p.add_argument("out_dir")
     a = p.parse_args()
-    kw = {"device": a.device}
-    if a.limit is not None:
-        kw["limit"] = a.limit
-    json.dump(TASKS[a.task](**kw), sys.stdout)
-    sys.stdout.write("\n")
+    if a.cmd == "convert":
+        CONVERTERS[a.task](a.out_dir)
+    else:
+        kw = {"device": a.device}
+        if a.limit is not None:
+            kw["limit"] = a.limit
+        if a.model_dir is not None and a.task in CONVERTERS:
+            kw["model_dir"] = a.model_dir
+        json.dump(TASKS[a.task](**kw), sys.stdout)
+        sys.stdout.write("\n")
