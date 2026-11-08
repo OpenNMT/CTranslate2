@@ -70,7 +70,7 @@ if(WITH_MPS)
 endif()
 
 if(WITH_CUDA)
-  target_link_libraries(benchmark_ops PRIVATE ${CUDA_LIBRARIES})
+  target_link_libraries(benchmark_ops PRIVATE CUDA::cudart)
 
 elseif(WITH_HIP)
   enable_language(HIP)

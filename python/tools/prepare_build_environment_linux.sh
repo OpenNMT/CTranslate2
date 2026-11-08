@@ -3,7 +3,7 @@
 set -e
 set -x
 
-pip install "cmake==3.22.*"
+pip install "cmake==3.24.*"
 
 if [ "$CIBW_ARCHS" == "aarch64" ]; then
 
@@ -35,29 +35,13 @@ else
         libnccl-2.26.2-1+cuda12.8 \
         libnccl-devel-2.26.2-1+cuda12.8
     ln -s cuda-12.8 /usr/local/cuda
+    # Native CUDA language support needs an explicit compiler when nvcc is not on PATH.
+    export CUDACXX=/usr/local/cuda-12.8/bin/nvcc
+    "$CUDACXX" --version
 
-    ONEAPI_VERSION=2025.3.0
-    dnf config-manager --add-repo https://yum.repos.intel.com/oneapi
-    rpm --import https://yum.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-    dnf install -y intel-oneapi-mkl-devel-$ONEAPI_VERSION
-
-    ONEDNN_VERSION=3.1.1
-    curl -L -O https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz
-    tar xf *.tar.gz && rm *.tar.gz
-    cd oneDNN-*
-    cmake -DCMAKE_BUILD_TYPE=Release -DONEDNN_LIBRARY_TYPE=STATIC -DONEDNN_BUILD_EXAMPLES=OFF -DONEDNN_BUILD_TESTS=OFF -DONEDNN_ENABLE_WORKLOAD=INFERENCE -DONEDNN_ENABLE_PRIMITIVE="CONVOLUTION;REORDER" -DONEDNN_BUILD_GRAPH=OFF .
-    make -j$(nproc) install
-    cd ..
-    rm -r oneDNN-*
-
-    OPENMPI_VERSION=4.1.6
-    curl -L -O https://download.open-mpi.org/release/open-mpi/v4.1/openmpi-${OPENMPI_VERSION}.tar.bz2
-    tar xf *.tar.bz2 && rm *.tar.bz2
-    cd openmpi-*
-    ./configure
-    make -j$(nproc) install
-    cd ..
-    rm -r openmpi-*
+    "$(dirname "$0")/install_mkl.sh" 2025.3
+    "$(dirname "$0")/build_onednn.sh" 3.1.1
+    "$(dirname "$0")/build_openmpi.sh" 4.1.6
     export LD_LIBRARY_PATH="/usr/local/lib/:$LD_LIBRARY_PATH"
 fi
 
@@ -66,7 +50,7 @@ mkdir build-release && cd build-release
 if [ "$CIBW_ARCHS" == "aarch64" ]; then
     cmake -DCMAKE_BUILD_TYPE=Release -DBUILD_CLI=OFF -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DCMAKE_PREFIX_PATH="/opt/OpenBLAS" -DWITH_OPENBLAS=ON -DWITH_RUY=ON ..
 else
-    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-msse4.1" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP -DWITH_CUDA=ON -DWITH_CUDNN=OFF -DCUDA_DYNAMIC_LOADING=ON -DCUDA_NVCC_FLAGS="-Xfatbin=-compress-all" -DCUDA_ARCH_LIST="Common"  -DWITH_TENSOR_PARALLEL=ON ..
+    cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="-msse4.1" -DBUILD_CLI=OFF -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP -DWITH_CUDA=ON -DWITH_CUDNN=OFF -DCUDA_DYNAMIC_LOADING=ON -DCMAKE_CUDA_FLAGS="-Xfatbin=-compress-all" -DCMAKE_CUDA_ARCHITECTURES="53-real;60-real;61-real;70-real;75-real;80-real;86" -DWITH_TENSOR_PARALLEL=ON ..
 fi
 
 VERBOSE=1 make -j$(nproc) install
