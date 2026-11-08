@@ -9,6 +9,7 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch:
 
 env:
   MKL_VERSION: 2025.3
@@ -274,6 +275,11 @@ jobs:
           name: python-wheels-${{ runner.os }}-${{ matrix.arch }}
           path: python/wheelhouse
 
+  release-gate:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    needs: [build-python-wheels]
+    uses: ./.github/workflows/release-gate.yml
+
   build-python-wheels-rocm:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -516,6 +522,7 @@ jobs:
       - test-python314-native-finalizer
       - test-legacy-converters
       - check-python-style
+      - release-gate
     runs-on: ubuntu-22.04
 
     steps:

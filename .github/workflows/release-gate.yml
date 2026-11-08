@@ -1,0 +1,45 @@
+name: release-gate
+
+on:
+  workflow_call:
+
+jobs:
+  release-gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            artifact: python-wheels-Linux-auto64
+            wheel: "*-cp312-cp312-manylinux*x86_64.whl"
+          - os: ubuntu-22.04-arm
+            artifact: python-wheels-Linux-aarch64
+            wheel: "*-cp312-cp312-manylinux*aarch64.whl"
+          - os: macos-15
+            artifact: python-wheels-macOS-arm64
+            wheel: "*-cp312-cp312-macosx*arm64.whl"
+          - os: windows-2022
+            artifact: python-wheels-Windows-auto64
+            wheel: "*-cp312-cp312-win_amd64.whl"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download candidate wheels
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: candidate-wheels
+
+      - name: Run release gate
+        shell: bash
+        env:
+          CANDIDATE_WHEEL_PATTERN: ${{ matrix.wheel }}
+        run: >-
+          python release-gates/run_gate.py
+          --candidate-wheel-pattern "candidate-wheels/$CANDIDATE_WHEEL_PATTERN"
+          --limit 20 --bleu-limit 500 --device cpu
