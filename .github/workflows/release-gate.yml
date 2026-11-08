@@ -22,7 +22,6 @@ jobs:
             artifact: python-wheels-Windows-auto64
             wheel: "*-cp312-cp312-win_amd64.whl"
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v5
 
