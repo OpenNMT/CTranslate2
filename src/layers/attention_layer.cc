@@ -330,7 +330,7 @@ namespace ctranslate2 {
         StorageView scaling_factor;
         float scale = _max_position_embeddings / _original_max_position_embeddings;
         if (scale <= 1)
-          scaling_factor = StorageView(1.0f, device);
+          scaling_factor = StorageView(1.0f);
         else
           scaling_factor = StorageView(static_cast<float>(sqrt(1 + std::log(scale) / std::log(_original_max_position_embeddings))));
 
