@@ -3618,22 +3618,6 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         return enabled;
       }
 
-      static bool custom_gemv_enabled() {
-        static const bool enabled = []() {
-          const char* value = std::getenv("CT2_MPS_USE_GEMV");
-          return !value || value[0] == '\0' || std::string(value) != "0";
-        }();
-        return enabled;
-      }
-
-      static bool gpu_topk_enabled() {
-        static const bool enabled = []() {
-          const char* value = std::getenv("CT2_MPS_USE_TOPK");
-          return !value || value[0] == '\0' || std::string(value) != "0";
-        }();
-        return enabled;
-      }
-
       static void log_gemm(DataType dtype,
                            bool transpose_a,
                            bool transpose_b,
@@ -4452,7 +4436,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         throw std::invalid_argument("unsupported MPS GEMM dtype");
       if (m == 0 || n == 0)
         return;
-      if (m == 1 && custom_gemv_enabled()) {
+      if (m == 1) {
         log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
                  1, 0, 0, 0, "row_gemv");
         gemv_row(dtype,
@@ -4474,7 +4458,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                  1);
         return;
       }
-      if (n == 1 && custom_gemv_enabled()) {
+      if (n == 1) {
         log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
                  1, 0, 0, 0, "column_gemv");
         gemv(dtype,
@@ -4655,7 +4639,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       StreamGuard stream_guard;
       if (batch_size <= 0 || m == 0 || n == 0)
         return;
-      if (m == 1 && custom_gemv_enabled()) {
+      if (m == 1) {
         log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
                  batch_size, stridea, strideb, stridec, "batched_row_gemv");
         gemv_row(dtype,
@@ -4677,7 +4661,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                  batch_size);
         return;
       }
-      if (n == 1 && custom_gemv_enabled()) {
+      if (n == 1) {
         log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
                  batch_size, stridea, strideb, stridec, "batched_column_gemv");
         gemv(dtype,
@@ -4843,8 +4827,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
     }
 
     bool supports_topk(DataType dtype, dim_t k) {
-      if (!gpu_topk_enabled()
-          || (dtype != DataType::FLOAT32
+      if ((dtype != DataType::FLOAT32
               && dtype != DataType::FLOAT16
               && dtype != DataType::BFLOAT16)
           || k <= 0

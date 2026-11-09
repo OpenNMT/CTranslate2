@@ -103,11 +103,10 @@ By default, the runtime tries to use the type that is saved in the converted mod
 | --- | --- | --- | --- | --- | --- | --- |
 | Apple Silicon GPU | int8_float32 | float16 | int8_bfloat16 | float16 | float16 | bfloat16 |
 
-MPS `compute_type="auto"`, `int8`, and `int8_float16` select `float16` by
-default. Native INT8 is currently slower than FP16 on Apple GPUs and runtime
-activation quantization can change autoregressive decoding decisions. Set
-`CT2_MPS_CACHE_INT8_FP16=0` to explicitly enable the lower-memory experimental
-INT8 path; in that mode `int8` resolves to `int8_float16`.
+MPS `compute_type="auto"`, `int8`, and `int8_float16` select `float16`.
+Native INT8 is currently slower than FP16 on Apple GPUs and runtime
+activation quantization can change autoregressive decoding decisions. Stored
+INT8 weights are expanded once to FP16 while the model is loaded.
 
 ```{tip}
 You can get more information about the detected capabilities of your system by enabling the info logs (set the environment variable `CT2_VERBOSE=1` or call ``ctranslate2.set_log_level(logging.INFO)``).

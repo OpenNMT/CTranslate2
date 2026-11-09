@@ -154,9 +154,7 @@ def test_mps_is_explicit_opt_in():
 
 @pytest.mark.parametrize("requested_compute_type", ["int8", "int8_float16"])
 @test_utils.require_mps
-def test_mps_int8_requests_use_float16_path(requested_compute_type, monkeypatch):
-    monkeypatch.delenv("CT2_MPS_CACHE_INT8_FP16", raising=False)
-
+def test_mps_int8_requests_use_float16_path(requested_compute_type):
     source = [["آ", "ت", "ز", "م", "و", "ن"]]
     options = dict(beam_size=1, max_decoding_length=12)
     float16 = ctranslate2.Translator(
@@ -173,9 +171,7 @@ def test_mps_int8_requests_use_float16_path(requested_compute_type, monkeypatch)
 
 
 @test_utils.require_mps
-def test_mps_stored_int8_model_is_converted_once(monkeypatch):
-    monkeypatch.delenv("CT2_MPS_CACHE_INT8_FP16", raising=False)
-
+def test_mps_stored_int8_model_is_converted_once():
     translator = ctranslate2.Translator(
         _get_int8_model_path(), device="mps", compute_type="int8"
     )

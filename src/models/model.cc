@@ -925,8 +925,8 @@ namespace ctranslate2 {
                 || model->requested_compute_type() == ComputeType::INT8_FLOAT16)
             && model->effective_compute_type() == ComputeType::FLOAT16) {
           spdlog::warn("Requested {} on MPS resolves to float16 because native INT8 "
-                       "is experimental and slower on current Apple GPUs. Set "
-                       "CT2_MPS_CACHE_INT8_FP16=0 to explicitly enable native INT8.",
+                       "is slower and can produce different decoding decisions on current "
+                       "Apple GPUs.",
                        compute_type_to_str(model->requested_compute_type()));
         }
 #endif

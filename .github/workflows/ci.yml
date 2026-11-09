@@ -276,14 +276,14 @@ jobs:
       - name: Run MPS runtime test suite
         run: |
           build-mps/tests/ctranslate2_test tests/data \
-            --gtest_filter='MPSBackendTest.*:MPSPrimitiveTest.*:TranslatorTest.MPS*:MPS/*' \
+            --gtest_filter='MPSBackendTest.*:MPSPrimitiveTest.*:MPSLayerTest.*:MPSCommandErrorTest.*:TranslatorTest.MPS*:MPS/*' \
             --gtest_output=xml:mps-results.xml
 
       - name: Run CPU and shared test suite from MPS build
         if: ${{ !cancelled() && steps.test_data.outcome == 'success' }}
         run: |
           build-mps/tests/ctranslate2_test tests/data \
-            --gtest_filter='-MPSBackendTest.*:MPSPrimitiveTest.*:TranslatorTest.MPS*:MPS/*' \
+            --gtest_filter='-MPSBackendTest.*:MPSPrimitiveTest.*:MPSLayerTest.*:MPSCommandErrorTest.*:TranslatorTest.MPS*:MPS/*' \
             --gtest_output=xml:cpu-results.xml
 
       - name: Build MPS Python bindings

@@ -52,7 +52,7 @@ export CT2_CUDA_CACHING_ALLOCATOR_CONFIG=8,3,7,6291455
 See the description of each parameter in the [allocator implementation](https://github.com/NVIDIA/cub/blob/main/cub/util_allocator.cuh).
 
 ```{attention}
-**Apple Metal (experimental).** The `CT2_MPS_*` variables below configure the experimental Apple Metal (MPS) backend. This backend is opt-in at build time (`-DWITH_MPS=ON`), it is not included in the published Python wheels, and `device="auto"` never selects it. The variables and their defaults may change.
+**Apple Metal (experimental).** The `CT2_MPS_*` variables below configure the experimental Apple Metal (MPS) backend. It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`. It remains an explicit runtime opt-in with `device="mps"`; `device="auto"` continues to select CPU. The variables and their defaults may change.
 ```
 
 ## `CT2_MPS_MAX_COMPUTE_OPS`
@@ -73,48 +73,30 @@ unified-memory systems. Increasing this value can help large-memory devices,
 but should be validated with cold, end-to-end inference rather than GEMM-only
 benchmarks.
 
-## `CT2_MPS_MAX_OPS`
-
-Legacy command-buffer operation limit. When one of the more specific MPS
-compute or blit limits above is not set, this value overrides its default. It
-does not change `CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS`.
-
 ## `CT2_MPS_PROFILE`
 
 Print aggregated MPS execution counters at process exit, including command
 buffers, dispatches, synchronization points, GEMM paths, TopK calls, copies,
 allocations, and buffer lookups. Profiling is disabled by default.
 
+This is an unstable debugging interface and its output may change without
+notice.
+
 ## `CT2_MPS_LOG_GEMM`
 
 Log each MPS GEMM shape, transpose and stride configuration, and selected
 execution path. This option is intended for debugging and benchmarking.
+
+This is an unstable debugging interface and its output may change without
+notice.
 
 ## `CT2_MPS_LOG_SYNC`
 
 Log each MPS synchronization together with its reason and host-visible byte
 count.
 
-## `CT2_MPS_USE_GEMV`
-
-Enable the specialized MPS batch-size-1 GEMV path (default). Set to `0` to
-force the general GEMM path for correctness comparisons or benchmarking.
-
-## `CT2_MPS_USE_TOPK`
-
-Enable the MPS GPU TopK path (default). Set to `0` to use the fallback path for
-debugging or performance comparisons.
-
-## `CT2_MPS_CACHE_INT8_FP16`
-
-Resolve `int8` and `int8_float16` requests on MPS to the faster and more stable
-FP16 execution path (default). Stored INT8 weights are expanded once while the
-model is loaded; the compressed device allocation is not retained.
-
-Set this variable to `0` to explicitly keep weights compressed and use the
-experimental native MPS INT8 path. This reduces model memory, but can be slower
-than FP16 and may produce different decoding decisions because activations are
-quantized at runtime.
+This is an unstable debugging interface and its output may change without
+notice.
 
 ## `CT2_FORCE_CPU_ISA`
 

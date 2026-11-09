@@ -2571,10 +2571,6 @@ TEST(MPSBackendTest, AutoComputeTypePrefersFloat16) {
 }
 
 TEST(MPSBackendTest, Int8ComputeTypesPreferFloat16Execution) {
-  const char* previous = std::getenv("CT2_MPS_CACHE_INT8_FP16");
-  const std::string previous_value = previous ? previous : "";
-  unsetenv("CT2_MPS_CACHE_INT8_FP16");
-
   EXPECT_EQ(resolve_compute_type(ComputeType::INT8,
                                  ComputeType::FLOAT32,
                                  Device::MPS,
@@ -2585,33 +2581,6 @@ TEST(MPSBackendTest, Int8ComputeTypesPreferFloat16Execution) {
                                  Device::MPS,
                                  0),
             ComputeType::FLOAT16);
-
-  if (previous)
-    setenv("CT2_MPS_CACHE_INT8_FP16", previous_value.c_str(), 1);
-  else
-    unsetenv("CT2_MPS_CACHE_INT8_FP16");
-}
-
-TEST(MPSBackendTest, NativeInt8RequiresExplicitOptIn) {
-  const char* previous = std::getenv("CT2_MPS_CACHE_INT8_FP16");
-  const std::string previous_value = previous ? previous : "";
-  setenv("CT2_MPS_CACHE_INT8_FP16", "0", 1);
-
-  EXPECT_EQ(resolve_compute_type(ComputeType::INT8,
-                                 ComputeType::FLOAT32,
-                                 Device::MPS,
-                                 0),
-            ComputeType::INT8_FLOAT16);
-  EXPECT_EQ(resolve_compute_type(ComputeType::INT8_FLOAT16,
-                                 ComputeType::INT8_FLOAT16,
-                                 Device::MPS,
-                                 0),
-            ComputeType::INT8_FLOAT16);
-
-  if (previous)
-    setenv("CT2_MPS_CACHE_INT8_FP16", previous_value.c_str(), 1);
-  else
-    unsetenv("CT2_MPS_CACHE_INT8_FP16");
 }
 
 TEST(MPSBackendTest, GumbelMaxBF16ProducesValidUniqueIndices) {

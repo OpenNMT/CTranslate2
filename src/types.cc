@@ -182,16 +182,6 @@ namespace ctranslate2 {
                                 "or backend do not support efficient " + name + " computation.");
   }
 
-#ifdef CT2_WITH_MPS
-  static bool use_native_mps_int8() {
-    // Native INT8 remains useful when model memory is the primary constraint,
-    // but it is slower than FP16 on current Apple GPUs and its activation
-    // quantization can change autoregressive decoding decisions.  Preserve the
-    // existing environment variable as the explicit opt-in for this path.
-    return !read_bool_from_env("CT2_MPS_CACHE_INT8_FP16", /*default_value=*/true);
-  }
-#endif
-
   ComputeType resolve_compute_type(const ComputeType requested_compute_type,
                                    const ComputeType model_compute_type,
                                    const Device device,
@@ -242,7 +232,7 @@ namespace ctranslate2 {
       // silently select a slower and numerically different MPS path.  Resolving
       // to FLOAT16 converts saved INT8 weights once while loading the model and
       // reports the compute type that is actually executed.
-      if (device == Device::MPS && support_float16 && !use_native_mps_int8())
+      if (device == Device::MPS && support_float16)
         return ComputeType::FLOAT16;
 #endif
       const DataType float_type = compute_type_to_data_type(model_compute_type).second;
@@ -295,7 +285,7 @@ namespace ctranslate2 {
 
     case ComputeType::INT8_FLOAT16: {
 #ifdef CT2_WITH_MPS
-      if (device == Device::MPS && support_float16 && !use_native_mps_int8())
+      if (device == Device::MPS && support_float16)
         return ComputeType::FLOAT16;
 #endif
       if (support_int8 && support_float16)

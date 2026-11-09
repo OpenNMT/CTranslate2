@@ -148,25 +148,18 @@ namespace ctranslate2 {
       return static_cast<uint64_t>(parsed);
     }
 
-    static uint64_t operation_limit(const char* specific_name, uint64_t default_value) {
-      const char* legacy = std::getenv("CT2_MPS_MAX_OPS");
-      const char* specific = std::getenv(specific_name);
-      const char* env = specific && specific[0] != '\0' ? specific : legacy;
-      return parse_operation_limit(env, default_value);
-    }
-
     static uint64_t max_compute_operations() {
       static const uint64_t value = []() {
         // The M1 Marian trace reaches useful overlap at 16 compute dispatches;
         // copy-only sequences are cheaper to encode and use a separate limit.
-        return operation_limit("CT2_MPS_MAX_COMPUTE_OPS", 16);
+        return parse_operation_limit(std::getenv("CT2_MPS_MAX_COMPUTE_OPS"), 16);
       }();
       return value;
     }
 
     static uint64_t max_blit_operations() {
       static const uint64_t value = []() {
-        return operation_limit("CT2_MPS_MAX_BLIT_OPS", 64);
+        return parse_operation_limit(std::getenv("CT2_MPS_MAX_BLIT_OPS"), 64);
       }();
       return value;
     }
@@ -179,9 +172,6 @@ namespace ctranslate2 {
         // dangerous on unified-memory systems. Eight preserves useful overlap
         // while applying backpressure before memory pressure becomes extreme;
         // higher values corrupted cold Whisper encoders on an 8 GB M1.
-        // CT2_MPS_MAX_OPS is intentionally not consulted here: that legacy
-        // variable controls dispatch batching, not the number of resident
-        // Metal command buffers.
         const uint64_t configured = parse_operation_limit(
           std::getenv("CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS"), 8);
         return static_cast<NSUInteger>(std::max<uint64_t>(1, configured));
