@@ -2,7 +2,7 @@
 
 ### New features
 
-* Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (`device="auto"` defaults to cpu).  (#2077) by [@TBO22](https://github.com/TBO22)
+* Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (#2077) by [@TBO22](https://github.com/TBO22). It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`; `device="auto"` continues to select CPU on Apple Silicon
 * Include `gfx1031`, `gfx1032`, `gfx1035`, and `gfx1103` targets in the ROCm wheels (#2142) by [@jordimas](https://github.com/jordimas)
 
 ### Fixes and improvements
