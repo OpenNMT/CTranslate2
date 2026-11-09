@@ -21,6 +21,29 @@ namespace ctranslate2 {
     }
   }
 
+  bool Sampler::try_beam_search_topk(const StorageView&,
+                                      const StorageView&,
+                                      dim_t,
+                                      dim_t,
+                                      StorageView&,
+                                      StorageView&) const {
+    return false;
+  }
+
+  bool BestSampler::try_beam_search_topk(const StorageView& logits,
+                                          const StorageView& beam_scores,
+                                          dim_t beam_size,
+                                          dim_t num_candidates,
+                                          StorageView& sampled_ids,
+                                          StorageView& sampled_scores) const {
+    return ops::BeamSearchTopK()(logits,
+                                 beam_scores,
+                                 beam_size,
+                                 num_candidates,
+                                 sampled_ids,
+                                 sampled_scores);
+  }
+
 
   void BestSampler::sample(const StorageView& scores,
                            dim_t num_samples,

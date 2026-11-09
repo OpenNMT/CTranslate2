@@ -19,6 +19,16 @@ namespace ctranslate2 {
         throw std::out_of_range("Can't tile axis " + std::to_string(axis)
                                 + " for input with rank " + std::to_string(input.rank()));
 
+      // Tiling by one is an identity. This case is common in batched decoder
+      // state handling where the effective repeat count is computed at
+      // runtime. Avoid allocating a replacement tensor and launching a device
+      // copy when this overload is called in place.
+      if (_num_tiles == 1) {
+        if (&input != &output)
+          output.copy_from(input);
+        return;
+      }
+
       {
         Shape output_shape(input.shape());
         output_shape[axis] *= _num_tiles;
@@ -37,6 +47,13 @@ namespace ctranslate2 {
     }
 
     void Tile::operator()(StorageView& input) const {
+      if (_num_tiles == 1) {
+        const dim_t axis = _axis < 0 ? input.rank() + _axis : _axis;
+        if (axis >= input.rank())
+          throw std::out_of_range("Can't tile axis " + std::to_string(axis)
+                                  + " for input with rank " + std::to_string(input.rank()));
+        return;
+      }
       StorageView input_clone(std::move(input));
       operator()(input_clone, input);
     }

@@ -36,3 +36,22 @@ Prebuilt Python wheels for ROCm are available on the [releases page](https://git
 ```{note}
 The ROCm backend is exposed through the same `device="cuda"` API as NVIDIA GPUs. CTranslate2 uses a unified device abstraction for both backends.
 ```
+
+### Apple Metal Performance Shaders
+
+The experimental MPS backend supports Apple Silicon Macs running macOS 11 or
+newer. It is included in the prebuilt Apple Silicon Python wheels and can also
+be built from source with `-DWITH_MPS=ON`. Select `device="mps"` explicitly in
+the C++ or Python API; `device="auto"` continues to select CPU.
+
+The backend supports FP32, FP16, BF16, and experimental signed INT8
+computation. FP16 is the recommended compute type and is selected by
+`compute_type="auto"`. Requests for `int8` and `int8_float16` also resolve to
+FP16 because native INT8 is slower on current Apple GPUs and can change
+decoding decisions. Explicit `int8_float32` and `int8_bfloat16` requests retain
+the experimental native INT8 path. See [Quantization](quantization.md) for the
+exact type conversions and [Installation](installation.md) for a build example.
+
+The MPS backend cannot be enabled together with CUDA or HIP in the same build.
+FlashAttention, AWQ INT4, INT16 GEMM, distributed collectives, and
+packed/shifted-u8 INT8 GEMM are not currently implemented on MPS.

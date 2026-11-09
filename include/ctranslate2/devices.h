@@ -12,7 +12,8 @@ namespace ctranslate2 {
 
   enum class Device {
     CPU,
-    CUDA
+    CUDA,
+    MPS
   };
 
   Device str_to_device(const std::string& device);
@@ -26,6 +27,11 @@ namespace ctranslate2 {
 
   void synchronize_device(Device device, int index);
   void synchronize_stream(Device device);
+  // Same as synchronize_stream for code that cannot report an error, such as a
+  // worker thread going idle. On MPS, the failure of an asynchronous command
+  // buffer is logged and kept for the next operation on the stream instead of
+  // being thrown. Identical to synchronize_stream on the other devices.
+  void synchronize_stream_nothrow(Device device);
 
   void destroy_context(Device device);
 

@@ -56,6 +56,11 @@ PYBIND11_MODULE(_ext, m)
   m.def("get_cuda_device_count", &ctranslate2::get_gpu_count,
         "Returns the number of visible GPU devices.");
 
+  m.def("get_mps_device_count", []() {
+          return ctranslate2::get_device_count(ctranslate2::Device::MPS);
+        },
+        "Returns the number of MPS devices (1 on Apple Silicon).");
+
   m.def("get_supported_compute_types", &get_supported_compute_types,
         py::arg("device"),
         py::arg("device_index")=0,
@@ -63,7 +68,7 @@ PYBIND11_MODULE(_ext, m)
              Returns the set of supported compute types on a device.
 
              Arguments:
-               device: Device name (cpu or cuda).
+               device: Device name (cpu, cuda, or mps).
                device_index: Device index.
 
              Example:

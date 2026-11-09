@@ -15,6 +15,7 @@ option(WITH_RUY "Compile with Ruy backend" OFF)
 option(WITH_CUDA "Compile with CUDA backend" OFF)
 option(WITH_CUDNN "Compile with cuDNN backend" OFF)
 option(WITH_HIP "Compile with AMD HIP GPU backend" OFF)
+option(WITH_MPS "Compile with Apple Metal Performance Shaders backend" OFF)
 option(CUDA_DYNAMIC_LOADING "Dynamically load CUDA libraries at runtime" OFF)
 option(ENABLE_CPU_DISPATCH "Compile CPU kernels for multiple ISA and dispatch at runtime" ON)
 option(ENABLE_PROFILING "Compile with profiling support" OFF)
@@ -65,7 +66,13 @@ endif(NOT CMAKE_BUILD_TYPE)
 set(CMAKE_CXX_STANDARD 17)
 
 if(APPLE)
-  set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13)
+  if(WITH_MPS)
+    # Apple Silicon Macs ship with macOS 11 or newer. This also covers the
+    # Metal APIs used by the persistent command stream and MPSMatrix paths.
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
+  else()
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13)
+  endif()
 endif()
 
 
@@ -169,6 +176,7 @@ set(SOURCES
   src/ops/add.cc
   src/ops/alibi_add.cc
   src/ops/alibi_add_cpu.cc
+  src/ops/beam_search_topk.cc
   src/ops/bias_add.cc
   src/ops/bias_add_cpu.cc
   src/ops/concat.cc
@@ -192,6 +200,7 @@ set(SOURCES
   src/ops/dequantize_cpu.cc
   src/ops/flash_attention.cc
   src/ops/flash_attention_cpu.cc
+  src/ops/fused_attention.cc
   src/ops/gather.cc
   src/ops/gather_cpu.cc
   src/ops/gelu.cc
@@ -827,6 +836,61 @@ elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
 else()
   add_library(${PROJECT_NAME} ${SOURCES})
+endif()
+
+if(WITH_MPS)
+  if(NOT APPLE)
+    message(FATAL_ERROR "WITH_MPS=ON is only supported on Apple platforms")
+  endif()
+  if(WITH_CUDA OR WITH_HIP)
+    message(FATAL_ERROR "WITH_MPS cannot be enabled together with CUDA or HIP")
+  endif()
+
+  message(STATUS "Enabling MPS (Metal) backend for Apple Silicon")
+  enable_language(OBJCXX)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC CT2_WITH_MPS)
+
+  set(MPS_SOURCES
+    src/mps/allocator.mm
+    src/mps/kernels.mm
+    src/mps/ops_utils.mm
+    src/mps/ops_stubs.mm
+    src/mps/primitives.mm
+    src/mps/utils.mm
+    src/ops/alibi_add_mps.mm
+    src/ops/beam_search_topk_mps.mm
+    src/ops/bias_add_mps.mm
+    src/ops/concat_mps.mm
+    src/ops/conv1d_mps.mm
+    src/ops/dequantize_mps.mm
+    src/ops/gather_mps.mm
+    src/ops/gemm_mps.mm
+    src/ops/fused_attention_mps.mm
+    src/ops/gumbel_max_mps.mm
+    src/ops/layer_norm_mps.mm
+    src/ops/mean_mps.mm
+    src/ops/median_filter_mps.mm
+    src/ops/multinomial_mps.mm
+    src/ops/quantize_mps.mm
+    src/ops/rms_norm_mps.mm
+    src/ops/rotary_mps.mm
+    src/ops/slide_mps.mm
+    src/ops/softmax_mps.cc
+    src/ops/split_mps.mm
+    src/ops/tile_mps.mm
+    src/ops/topk_mps.mm
+    src/ops/topp_mask_mps.mm
+  )
+  target_sources(${PROJECT_NAME} PRIVATE ${MPS_SOURCES})
+
+  find_library(METAL_LIBRARY Metal REQUIRED)
+  find_library(MPS_LIBRARY MetalPerformanceShaders REQUIRED)
+  find_library(FOUNDATION_LIBRARY Foundation REQUIRED)
+  target_link_libraries(${PROJECT_NAME} PRIVATE
+    ${METAL_LIBRARY}
+    ${MPS_LIBRARY}
+    ${FOUNDATION_LIBRARY}
+  )
 endif()
 
 include(GenerateExportHeader)
