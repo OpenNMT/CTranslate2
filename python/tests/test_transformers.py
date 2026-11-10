@@ -979,9 +979,16 @@ class TestWhisper:
         model = ctranslate2.models.Whisper(
             output_dir, device="cuda", flash_attention=False, compute_type="float16"
         )
-        model_flash_attn = ctranslate2.models.Whisper(
-            output_dir, device="cuda", flash_attention=True, compute_type="float16"
-        )
+        try:
+            model_flash_attn = ctranslate2.models.Whisper(
+                output_dir, device="cuda", flash_attention=True, compute_type="float16"
+            )
+        except ValueError as e:
+            if "only supports Ampere" not in str(e):
+                raise
+            pytest.skip(
+                "Flash attention requires a GPU with compute capability 8.0 or newer"
+            )
 
         encoder_output = model.encode(features)
         try:
