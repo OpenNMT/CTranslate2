@@ -1,4 +1,4 @@
-## [v4.9.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.0) (2026-11-09)
+## [v4.9.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.0) (2026-11-10)
 
 ### New features
 
