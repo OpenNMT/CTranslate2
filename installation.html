@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Installation &mdash; CTranslate2 4.8.5 documentation</title>
+  <title>Installation &mdash; CTranslate2 4.9.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -34,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.8
+                4.9
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -182,7 +182,7 @@
 </section>
 <section id="compile-the-c-library">
 <h3>Compile the C++ library<a class="headerlink" href="#compile-the-c-library" title="Permalink to this heading"></a></h3>
-<p>Compiling the library requires a compiler supporting C++17 and CMake 3.15 or greater.</p>
+<p>Compiling the library requires a compiler supporting C++17 and CMake 3.24 or greater.</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>mkdir<span class="w"> </span>build<span class="w"> </span><span class="o">&amp;&amp;</span><span class="w"> </span><span class="nb">cd</span><span class="w"> </span>build
 cmake<span class="w"> </span>..
 make<span class="w"> </span>-j4
@@ -205,7 +205,8 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/*.whl
 <p class="admonition-title">Attention</p>
 <p>If you installed the C++ library in a custom directory, you should configure additional environment variables:</p>
 <ul class="simple">
-<li><p>When running <code class="docutils literal notranslate"><span class="pre">setup.py</span></code>, set <code class="docutils literal notranslate"><span class="pre">CTRANSLATE2_ROOT</span></code> to the CTranslate2 install directory.</p></li>
+<li><p>When running <code class="docutils literal notranslate"><span class="pre">setup.py</span></code>, set <code class="docutils literal notranslate"><span class="pre">CTRANSLATE2_ROOT</span></code> to the CTranslate2 install directory.
+On macOS, this also embeds that library directory in the Python extension runtime search path so it loads the matching <code class="docutils literal notranslate"><span class="pre">libctranslate2</span></code> instead of falling back to <code class="docutils literal notranslate"><span class="pre">/usr/local/lib</span></code>.</p></li>
 <li><p>When running your Python application, add the CTranslate2 library path to <code class="docutils literal notranslate"><span class="pre">LD_LIBRARY_PATH</span></code>.</p></li>
 </ul>
 </div>
@@ -276,17 +277,17 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/ctranslate2*.whl
 <td><p><em>path</em></p></td>
 <td><p>Defines the installation path of the library</p></td>
 </tr>
-<tr class="row-even"><td><p>CUDA_ARCH_LIST</p></td>
-<td><p><strong>Auto</strong></p></td>
-<td><p>List of CUDA architectures to compile for (see <a class="reference external" href="https://cmake.org/cmake/help/latest/module/FindCUDA.html"><code class="docutils literal notranslate"><span class="pre">cuda_select_nvcc_arch_flags</span></code></a> in the CMake documentation)</p></td>
+<tr class="row-even"><td><p>CMAKE_CUDA_ARCHITECTURES</p></td>
+<td><p><em>compiler default, or CUDAARCHS environment variable</em></p></td>
+<td><p>CUDA architectures to compile for; use <code class="docutils literal notranslate"><span class="pre">native</span></code> to target local GPUs. Release architectures are defined in the <a class="reference download internal" download="" href="_downloads/d880ec8c8d1007718a797910fde32068/prepare_build_environment_linux.sh"><span class="xref download myst">Linux wheel build script</span></a> (see also <a class="reference external" href="https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html">CMake documentation</a>)</p></td>
 </tr>
 <tr class="row-odd"><td><p>CUDA_DYNAMIC_LOADING</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Enables the dynamic loading of CUDA libraries at runtime instead of linking against them (requires CUDA &gt;= 11)</p></td>
 </tr>
-<tr class="row-even"><td><p>CUDA_NVCC_FLAGS</p></td>
+<tr class="row-even"><td><p>CMAKE_CUDA_FLAGS</p></td>
 <td><p><em>compiler flags</em></p></td>
-<td><p>Defines additional compilation flags for <code class="docutils literal notranslate"><span class="pre">nvcc</span></code></p></td>
+<td><p>Defines additional CUDA compiler flags</p></td>
 </tr>
 <tr class="row-odd"><td><p>ENABLE_CPU_DISPATCH</p></td>
 <td><p>OFF, <strong>ON</strong></p></td>
@@ -320,15 +321,19 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/ctranslate2*.whl
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the Apple Accelerate backend</p></td>
 </tr>
-<tr class="row-odd"><td><p>WITH_OPENBLAS</p></td>
+<tr class="row-odd"><td><p>WITH_MPS</p></td>
+<td><p><strong>OFF</strong>, ON</p></td>
+<td><p>Compiles the experimental Apple Metal/MPS backend</p></td>
+</tr>
+<tr class="row-even"><td><p>WITH_OPENBLAS</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the OpenBLAS backend</p></td>
 </tr>
-<tr class="row-even"><td><p>WITH_RUY</p></td>
+<tr class="row-odd"><td><p>WITH_RUY</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the Ruy backend</p></td>
 </tr>
-<tr class="row-odd"><td><p>WITH_HIP</p></td>
+<tr class="row-even"><td><p>WITH_HIP</p></td>
 <td><p><strong>OFF</strong>, ON</p></td>
 <td><p>Compiles with the AMD HIP GPU backend</p></td>
 </tr>
@@ -341,6 +346,7 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/ctranslate2*.whl
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_MKL=ON</span></code> requires <a class="reference external" href="https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html">Intel MKL</a> &gt;= 2019.5</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_DNNL=ON</span></code> requires <a class="reference external" href="https://github.com/oneapi-src/oneDNN">oneDNN</a> &gt;= 3.0</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_ACCELERATE=ON</span></code> requires <a class="reference external" href="https://developer.apple.com/documentation/accelerate">Accelerate</a></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_MPS=ON</span></code> requires an Apple Silicon Mac with the Metal and Metal Performance Shaders frameworks</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_OPENBLAS=ON</span></code> requires <a class="reference external" href="https://github.com/xianyi/OpenBLAS">OpenBLAS</a></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_HIP=ON</span></code> requires <a class="reference external" href="https://rocm.docs.amd.com/en/latest/reference/api-libraries.html">ROCm libraries</a>. For a complete Windows build guide, see <a class="reference internal" href="building_rocm_windows.html"><span class="doc">Building with ROCm on Windows</span></a>.</p></li>
 </ul>
@@ -350,6 +356,22 @@ pip<span class="w"> </span>install<span class="w"> </span>dist/ctranslate2*.whl
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_MKL=ON</span> <span class="pre">-DWITH_DNNL=ON</span></code>: during runtime, the library will select Intel MKL when running on Intel and oneDNN when running on AMD</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">-DWITH_OPENBLAS=ON</span> <span class="pre">-DWITH_RUY=ON</span></code>: use Ruy for quantized models and OpenBLAS for non quantized models</p></li>
 </ul>
+<p>To build a native Release library with CPU and MPS execution on Apple Silicon:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>cmake<span class="w"> </span>-S<span class="w"> </span>.<span class="w"> </span>-B<span class="w"> </span>build-mps<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DCMAKE_BUILD_TYPE<span class="o">=</span>Release<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DCMAKE_POLICY_VERSION_MINIMUM<span class="o">=</span><span class="m">3</span>.5<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DWITH_MPS<span class="o">=</span>ON<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DWITH_ACCELERATE<span class="o">=</span>ON<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DWITH_MKL<span class="o">=</span>OFF<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DWITH_RUY<span class="o">=</span>ON<span class="w"> </span><span class="se">\</span>
+<span class="w">  </span>-DOPENMP_RUNTIME<span class="o">=</span>NONE
+cmake<span class="w"> </span>--build<span class="w"> </span>build-mps<span class="w"> </span>-j
+cmake<span class="w"> </span>--install<span class="w"> </span>build-mps<span class="w"> </span>--prefix<span class="w"> </span>install-mps
+</pre></div>
+</div>
+<p><code class="docutils literal notranslate"><span class="pre">WITH_MPS</span></code> cannot be combined with <code class="docutils literal notranslate"><span class="pre">WITH_CUDA</span></code> or <code class="docutils literal notranslate"><span class="pre">WITH_HIP</span></code> in the same
+build. See <a class="reference internal" href="hardware_support.html"><span class="doc std std-doc">Hardware support</span></a> for current backend
+limitations.</p>
 </section>
 </section>
 </section>

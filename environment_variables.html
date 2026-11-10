@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Environment variables &mdash; CTranslate2 4.8.5 documentation</title>
+  <title>Environment variables &mdash; CTranslate2 4.9.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -34,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.8
+                4.9
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -72,6 +72,12 @@
 <li class="toctree-l2"><a class="reference internal" href="#ct2-cuda-allow-fp16"><code class="docutils literal notranslate"><span class="pre">CT2_CUDA_ALLOW_FP16</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-cuda-true-fp16-gemm"><code class="docutils literal notranslate"><span class="pre">CT2_CUDA_TRUE_FP16_GEMM</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-cuda-caching-allocator-config"><code class="docutils literal notranslate"><span class="pre">CT2_CUDA_CACHING_ALLOCATOR_CONFIG</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ct2-mps-max-compute-ops"><code class="docutils literal notranslate"><span class="pre">CT2_MPS_MAX_COMPUTE_OPS</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ct2-mps-max-blit-ops"><code class="docutils literal notranslate"><span class="pre">CT2_MPS_MAX_BLIT_OPS</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ct2-mps-max-inflight-command-buffers"><code class="docutils literal notranslate"><span class="pre">CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ct2-mps-profile"><code class="docutils literal notranslate"><span class="pre">CT2_MPS_PROFILE</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ct2-mps-log-gemm"><code class="docutils literal notranslate"><span class="pre">CT2_MPS_LOG_GEMM</span></code></a></li>
+<li class="toctree-l2"><a class="reference internal" href="#ct2-mps-log-sync"><code class="docutils literal notranslate"><span class="pre">CT2_MPS_LOG_SYNC</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-force-cpu-isa"><code class="docutils literal notranslate"><span class="pre">CT2_FORCE_CPU_ISA</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-drama3-cpu-mmap"><code class="docutils literal notranslate"><span class="pre">CT2_DRAMA3_CPU_MMAP</span></code></a></li>
 <li class="toctree-l2"><a class="reference internal" href="#ct2-drama3-gpu-expert-cache-gb"><code class="docutils literal notranslate"><span class="pre">CT2_DRAMA3_GPU_EXPERT_CACHE_GB</span></code></a></li>
@@ -173,6 +179,50 @@
 </pre></div>
 </div>
 <p>See the description of each parameter in the <a class="reference external" href="https://github.com/NVIDIA/cub/blob/main/cub/util_allocator.cuh">allocator implementation</a>.</p>
+<div class="admonition attention">
+<p class="admonition-title">Attention</p>
+<p><strong>Apple Metal (experimental).</strong> The <code class="docutils literal notranslate"><span class="pre">CT2_MPS_*</span></code> variables below configure the experimental Apple Metal (MPS) backend. It is included in Apple Silicon Python wheels and can be enabled in source builds with <code class="docutils literal notranslate"><span class="pre">-DWITH_MPS=ON</span></code>. It remains an explicit runtime opt-in with <code class="docutils literal notranslate"><span class="pre">device=&quot;mps&quot;</span></code>; <code class="docutils literal notranslate"><span class="pre">device=&quot;auto&quot;</span></code> continues to select CPU. The variables and their defaults may change.</p>
+</div>
+</section>
+<section id="ct2-mps-max-compute-ops">
+<h2><code class="docutils literal notranslate"><span class="pre">CT2_MPS_MAX_COMPUTE_OPS</span></code><a class="headerlink" href="#ct2-mps-max-compute-ops" title="Permalink to this heading"></a></h2>
+<p>Set the maximum number of compute operations encoded before the current MPS
+command buffer is committed without waiting. The default is <code class="docutils literal notranslate"><span class="pre">16</span></code>.</p>
+</section>
+<section id="ct2-mps-max-blit-ops">
+<h2><code class="docutils literal notranslate"><span class="pre">CT2_MPS_MAX_BLIT_OPS</span></code><a class="headerlink" href="#ct2-mps-max-blit-ops" title="Permalink to this heading"></a></h2>
+<p>Set the maximum number of copy/blit operations encoded before the current MPS
+command buffer is committed without waiting. The default is <code class="docutils literal notranslate"><span class="pre">64</span></code>.</p>
+</section>
+<section id="ct2-mps-max-inflight-command-buffers">
+<h2><code class="docutils literal notranslate"><span class="pre">CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS</span></code><a class="headerlink" href="#ct2-mps-max-inflight-command-buffers" title="Permalink to this heading"></a></h2>
+<p>Set the maximum number of unfinished MPS command buffers. The default is <code class="docutils literal notranslate"><span class="pre">8</span></code>,
+which keeps useful CPU/GPU overlap while bounding Metal temporary resources on
+unified-memory systems. Increasing this value can help large-memory devices,
+but should be validated with cold, end-to-end inference rather than GEMM-only
+benchmarks.</p>
+</section>
+<section id="ct2-mps-profile">
+<h2><code class="docutils literal notranslate"><span class="pre">CT2_MPS_PROFILE</span></code><a class="headerlink" href="#ct2-mps-profile" title="Permalink to this heading"></a></h2>
+<p>Print aggregated MPS execution counters at process exit, including command
+buffers, dispatches, synchronization points, GEMM paths, TopK calls, copies,
+allocations, and buffer lookups. Profiling is disabled by default.</p>
+<p>This is an unstable debugging interface and its output may change without
+notice.</p>
+</section>
+<section id="ct2-mps-log-gemm">
+<h2><code class="docutils literal notranslate"><span class="pre">CT2_MPS_LOG_GEMM</span></code><a class="headerlink" href="#ct2-mps-log-gemm" title="Permalink to this heading"></a></h2>
+<p>Log each MPS GEMM shape, transpose and stride configuration, and selected
+execution path. This option is intended for debugging and benchmarking.</p>
+<p>This is an unstable debugging interface and its output may change without
+notice.</p>
+</section>
+<section id="ct2-mps-log-sync">
+<h2><code class="docutils literal notranslate"><span class="pre">CT2_MPS_LOG_SYNC</span></code><a class="headerlink" href="#ct2-mps-log-sync" title="Permalink to this heading"></a></h2>
+<p>Log each MPS synchronization together with its reason and host-visible byte
+count.</p>
+<p>This is an unstable debugging interface and its output may change without
+notice.</p>
 </section>
 <section id="ct2-force-cpu-isa">
 <h2><code class="docutils literal notranslate"><span class="pre">CT2_FORCE_CPU_ISA</span></code><a class="headerlink" href="#ct2-force-cpu-isa" title="Permalink to this heading"></a></h2>

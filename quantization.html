@@ -4,7 +4,7 @@
   <meta charset="utf-8" /><meta name="generator" content="Docutils 0.17.1: http://docutils.sourceforge.net/" />
 
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Quantization &mdash; CTranslate2 4.8.5 documentation</title>
+  <title>Quantization &mdash; CTranslate2 4.9.0 documentation</title>
       <link rel="stylesheet" href="_static/pygments.css" type="text/css" />
       <link rel="stylesheet" href="_static/css/theme.css" type="text/css" />
       <link rel="stylesheet" href="_static/custom.css" type="text/css" />
@@ -34,7 +34,7 @@
             <a href="index.html" class="icon icon-home"> CTranslate2
           </a>
               <div class="version">
-                4.8
+                4.9
               </div>
 <div role="search">
   <form id="rtd-search-form" class="wy-form" action="search.html" method="get">
@@ -267,7 +267,7 @@
 </tr>
 </tbody>
 </table>
-<p><strong>On GPU:</strong></p>
+<p><strong>On NVIDIA GPU:</strong></p>
 <table class="colwidths-auto docutils align-default">
 <thead>
 <tr class="row-odd"><th class="head"><p>Compute Capability</p></th>
@@ -322,6 +322,33 @@
 </tr>
 </tbody>
 </table>
+<p><strong>On Apple MPS:</strong></p>
+<table class="colwidths-auto docutils align-default">
+<thead>
+<tr class="row-odd"><th class="head"><p>Device</p></th>
+<th class="head"><p>int8_float32</p></th>
+<th class="head"><p>int8_float16</p></th>
+<th class="head"><p>int8_bfloat16</p></th>
+<th class="head"><p>int16</p></th>
+<th class="head"><p>float16</p></th>
+<th class="head"><p>bfloat16</p></th>
+</tr>
+</thead>
+<tbody>
+<tr class="row-even"><td><p>Apple Silicon GPU</p></td>
+<td><p>int8_float32</p></td>
+<td><p>float16</p></td>
+<td><p>int8_bfloat16</p></td>
+<td><p>float16</p></td>
+<td><p>float16</p></td>
+<td><p>bfloat16</p></td>
+</tr>
+</tbody>
+</table>
+<p>MPS <code class="docutils literal notranslate"><span class="pre">compute_type=&quot;auto&quot;</span></code>, <code class="docutils literal notranslate"><span class="pre">int8</span></code>, and <code class="docutils literal notranslate"><span class="pre">int8_float16</span></code> select <code class="docutils literal notranslate"><span class="pre">float16</span></code>.
+Native INT8 is currently slower than FP16 on Apple GPUs and runtime
+activation quantization can change autoregressive decoding decisions. Stored
+INT8 weights are expanded once to FP16 while the model is loaded.</p>
 <div class="admonition tip">
 <p class="admonition-title">Tip</p>
 <p>You can get more information about the detected capabilities of your system by enabling the info logs (set the environment variable <code class="docutils literal notranslate"><span class="pre">CT2_VERBOSE=1</span></code> or call <code class="docutils literal notranslate"><span class="pre">ctranslate2.set_log_level(logging.INFO)</span></code>).</p>
@@ -335,6 +362,7 @@
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 7.0 or Compute Capability 6.1</p></li>
+<li><p>Apple Silicon GPU with the MPS backend</p></li>
 <li><p>x86-64 CPU with the Intel MKL or oneDNN backends</p></li>
 <li><p>AArch64/ARM64 CPU with the Ruy backend</p></li>
 </ul>
@@ -354,6 +382,10 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <li><p><code class="docutils literal notranslate"><span class="pre">int8_float16</span></code></p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">int8_bfloat16</span></code></p></li>
 </ul>
+<p>In the experimental native MPS mode, activations are quantized per row to
+signed INT8, matrix products accumulate in INT32, and the output is
+dequantized with optional bias and activation fusion. Packed and shifted-u8
+INT8 matrices are not yet supported.</p>
 </section>
 <section id="bit-integers-int16">
 <h3>16-bit integers (<code class="docutils literal notranslate"><span class="pre">int16</span></code>)<a class="headerlink" href="#bit-integers-int16" title="Permalink to this heading"></a></h3>
@@ -373,6 +405,7 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 7.0</p></li>
+<li><p>Apple Silicon GPU with the MPS backend</p></li>
 </ul>
 <p>In this mode, all model weights are stored in half precision and all layers are run in half precision.</p>
 </section>
@@ -381,8 +414,12 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <p><strong>Supported on:</strong></p>
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 8.0</p></li>
+<li><p>Apple Silicon GPU with the MPS backend</p></li>
 </ul>
-<p>In this mode, all model weights are stored in BF16 and all layers are run with this type.</p>
+<p>In this mode, all model weights are stored in BF16 and all layers are run with
+this type. The MPS implementation stores BF16-encoded values and converts them
+to FP32 for GEMM and reduction accumulation before rounding results back to
+BF16.</p>
 </section>
 <section id="bit-awq">
 <h3>4-bit AWQ<a class="headerlink" href="#bit-awq" title="Permalink to this heading"></a></h3>
@@ -390,7 +427,8 @@ WQ[i,j] = round(scale[i] * W[i,j])
 <ul class="simple">
 <li><p>NVIDIA GPU with Compute Capability &gt;= 7.5</p></li>
 </ul>
-<p>CTranslate2 internally handles the compute type for AWQ quantization.
+<p>CTranslate2 internally handles the compute type for AWQ quantization. AWQ is
+not currently supported by the MPS backend.
 In this mode, all model weights are stored in half precision and all layers are run in half precision. Other parameters like scale and zero are stored in <code class="docutils literal notranslate"><span class="pre">int32</span></code>.</p>
 <p><strong>Steps to use AWQ Quantization:</strong></p>
 <ul class="simple">
