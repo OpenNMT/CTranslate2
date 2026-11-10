@@ -22,6 +22,16 @@ TEST_P(PrimitiveTest, IndexedFill) {
   expect_storage_eq(x, expected);
 }
 
+TEST_P(PrimitiveTest, IndexedPointwiseMultiply) {
+  const Device device = GetParam();
+  StorageView x({6}, float(2), device);
+  StorageView values({3}, std::vector<float>{3.0, 3.0, 3.0}, device);
+  StorageView ids({3}, std::vector<int32_t>{0, 2, 5}, device);
+  StorageView expected({6}, std::vector<float>{6, 2, 6, 2, 2, 6}, device);
+  DEVICE_DISPATCH(device, primitives<D>::indexed_pointwise_multiply(x.data<float>(), values.data<float>(), ids.data<int32_t>(), 3));
+  expect_storage_eq(x, expected);
+}
+
 TEST_P(PrimitiveTest, LogSumExp) {
   const Device device = GetParam();
   StorageView x({8}, std::vector<float>{0.6, 0.2, -1.2, 0.1, 0.3, 0.5, -1.3, 0.2}, device);
