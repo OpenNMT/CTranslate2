@@ -1,8 +1,16 @@
-## [Unreleased]
+## [v4.9.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.0) (2026-11-10)
 
 ### New features
 
-* Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (#2077) by [@TBO22](https://github.com/TBO22). It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`; `device="auto"` continues to select CPU
+* Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (#2077) by [@TBO22](https://github.com/TBO22). It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`; `device="auto"` continues to select CPU on Apple Silicon
+* Include `gfx1031`, `gfx1032`, `gfx1035`, and `gfx1103` targets in the ROCm wheels (#2142) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Scale rotary embeddings in float32 before the dtype conversion to preserve precision in FP16 and BF16 models (#2146) by [@Kyozzz](https://github.com/Kyozzz)
+* Replace the deprecated `FindCUDA` CMake module with native CMake CUDA support (#2067) by [@gaborlukacs](https://github.com/gaborlukacs)
+* Bump the CI MKL to 2025.3 and reuse shared build scripts (#2145) by [@jordimas](https://github.com/jordimas)
+* Add performance and accuracy regression tests to CI (#2147) by [@jordimas](https://github.com/jordimas)
 
 ## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-11-02)
 

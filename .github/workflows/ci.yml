@@ -306,7 +306,7 @@ jobs:
             --junitxml=python-mps-results.xml
 
       - name: Upload hardware details and test reports
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
           name: mps-macos-15-results
