@@ -916,13 +916,11 @@ namespace ctranslate2 {
 
 #ifdef CT2_WITH_MPS
         if (device == Device::MPS)
-          spdlog::warn("The Apple Metal (MPS) backend is experimental: it is only available "
-                       "in builds compiled with WITH_MPS=ON, and its behavior and performance "
-                       "may change in future versions.");
+          spdlog::warn("The Apple Metal (MPS) backend is experimental.");
 
 #if defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
         if (device == Device::CPU)
-          spdlog::info("Tip: experimental MPS backend is available and often 2x+ faster than CPU "
+          spdlog::warn("Tip: experimental MPS backend is available and often 2x+ faster than CPU "
                        "on Apple Silicon (varies by workload and hardware). Try device=\"mps\".");
 #endif
 
