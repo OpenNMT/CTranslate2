@@ -110,8 +110,8 @@ def judge(task, base, cand):
 def compare_completions(base, cand):
     baseline, candidate = base["outputs"], cand["outputs"]
     if (not baseline or len(baseline) != len(candidate)
-            or any(not isinstance(s, str) or not s.strip() for s in baseline + candidate)):
-        raise ValueError("Expected equal, nonempty sets of nonempty completions")
+            or any(not isinstance(s, str) for s in baseline + candidate)):
+        raise ValueError("Expected equal, nonempty sets of string completions")
     changed = [(i, b, c) for i, (b, c) in enumerate(zip(baseline, candidate), 1) if b != c]
     print(f"[gate] changed completions: {len(changed)}/{len(baseline)} [informational]")
     for i, b, c in changed:

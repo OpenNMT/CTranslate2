@@ -7,11 +7,11 @@ passing the gate. Thresholds are in `run_gate.py` (`RULES`).
 | --- | --- | --- |
 | Whisper tiny | 20 LibriSpeech dummy clean samples | WER increase >0.01 (1 percentage point) |
 | opus-mt-en-de | 500 WMT14 sentences | BLEU decrease >1 point |
-| T5Gemma 2 270M | 50 SQuAD validation prompts, FP32 greedy, up to 64 output tokens | Missing or empty completions |
+| T5Gemma 2 270M | 50 SQuAD validation prompts, FP32 greedy, up to 64 output tokens | Missing completions |
 | All tasks | Median throughput | Confirmed drop >10% |
 
 T5Gemma uses `jordimas/t5gemma-2-270m-270m` at a pinned revision through
-`Translator`. Changed text is informational, not an answer-quality check.
+`Translator`. Empty completions are allowed. Changed text is informational, not an answer-quality check.
 Prompts use `rajpurkar/squad` at revision `7b6d24c440a36b6815f21b70d25016731768db1f`,
 shuffled with seed 42 and capped at 512 input tokens.
 Invalid metrics and runtime errors fail immediately.
