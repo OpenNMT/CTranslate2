@@ -66,7 +66,7 @@ class MetricValidationTest(unittest.TestCase):
         }
         for degraded_task in (None, *baseline):
             with self.subTest(degraded_task=degraded_task):
-                def result(py, task, limit, device, model_dir=None):
+                def result(py, task, limit, device, model_dir=None, compute_type="default"):
                     metrics = dict(baseline[task])
                     if py == "candidate" and task == degraded_task:
                         metric = "rtf_inverse" if task == "whisper_wer" else "tokens_per_sec"
@@ -118,9 +118,11 @@ class MetricValidationTest(unittest.TestCase):
                  patch.object(run_gate, "measure_round", side_effect=rounds) as measure, \
                  contextlib.redirect_stdout(io.StringIO()):
                 self.assertEqual(run_gate.evaluate_task("b", "c", "opus_bleu", 20, "cpu",
-                        {"baseline": {}, "candidate": {}}),
+                        {"baseline": {}, "candidate": {}}, compute_type="auto"),
                                  expected)
                 self.assertEqual(measure.call_count, len(rounds))
+                self.assertTrue(all(call.kwargs["compute_type"] == "auto"
+                                    for call in measure.call_args_list))
 
     def test_measurements_preserve_quality_and_ignore_performance_outliers(self):
         for metric, values, expected_quality in (

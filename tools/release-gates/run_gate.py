@@ -71,10 +71,10 @@ def convert_models(py, out_root):
     return dirs
 
 
-def run_task(py, task, limit, device, model_dir=None, command="run"):
+def run_task(py, task, limit, device, model_dir=None, command="run", compute_type="default"):
     cmd = [py, str(ROOT / "tasks.py"), command, task, "--device", device]
     if command == "run":
-        cmd += ["--limit", str(limit if limit is not None else 0)]
+        cmd += ["--limit", str(limit if limit is not None else 0), "--compute-type", compute_type]
     if model_dir is not None:
         cmd += ["--model-dir", model_dir]
     env = dict(os.environ, OMP_NUM_THREADS="2", MKL_NUM_THREADS="2",
@@ -135,7 +135,7 @@ def compare_completions(base, cand):
     return len(changed)
 
 
-def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmation=False):
+def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmation=False, compute_type="default"):
     """Compare three sequential pairs; retain every quality failure."""
     samples = {"baseline": [], "candidate": []}
     quality_failed = False
@@ -147,7 +147,7 @@ def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmatio
             print(f"[gate] {task}: {label} measurement {repeat + 1}/3", flush=True)
             result = run_task(base_py if label == "baseline" else cand_py,
                               task, limit, device,
-                              model_dir=model_dirs[label].get(task))
+                              model_dir=model_dirs[label].get(task), compute_type=compute_type)
             validate_metrics(task, result, label)
             samples[label].append(result)
         base, cand = samples["baseline"][-1], samples["candidate"][-1]
@@ -172,13 +172,13 @@ def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmatio
     return quality_failed, performance_failures
 
 
-def evaluate_task(base_py, cand_py, task, limit, device, model_dirs):
+def evaluate_task(base_py, cand_py, task, limit, device, model_dirs, compute_type="default"):
     quality_failed, performance_failures = measure_round(
-        base_py, cand_py, task, limit, device, model_dirs)
+        base_py, cand_py, task, limit, device, model_dirs, compute_type=compute_type)
     if performance_failures:
         print(f"[gate] {task}: confirming performance regression", flush=True)
         confirmation_quality_failed, confirmed = measure_round(
-            base_py, cand_py, task, limit, device, model_dirs, confirmation=True)
+            base_py, cand_py, task, limit, device, model_dirs, confirmation=True, compute_type=compute_type)
         quality_failed |= confirmation_quality_failed
         performance_failures &= confirmed
         print(f"[gate] {task}: performance regression "
@@ -225,10 +225,9 @@ def main():
         for task in RULES:
             task_limit = args.bleu_limit if task == "opus_bleu" else limit
             for compute_type in select_compute_types(base_py, cand_py, task, args.device, model_dirs):
-                os.environ["CT2_COMPUTE_TYPE"] = compute_type
                 print(f"[gate] {task}: compute_type={compute_type}", flush=True)
                 failed |= evaluate_task(base_py, cand_py, task, task_limit,
-                                        args.device, model_dirs)
+                                        args.device, model_dirs, compute_type=compute_type)
 
     sys.exit(1 if failed else 0)
 
