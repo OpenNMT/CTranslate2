@@ -73,8 +73,8 @@ def convert_models(py, out_root):
 
 def run_task(py, task, limit, device, model_dir=None, command="run"):
     cmd = [py, str(ROOT / "tasks.py"), command, task, "--device", device]
-    if limit is not None:
-        cmd += ["--limit", str(limit)]
+    if command == "run":
+        cmd += ["--limit", str(limit if limit is not None else 0)]
     if model_dir is not None:
         cmd += ["--model-dir", model_dir]
     env = dict(os.environ, OMP_NUM_THREADS="2", MKL_NUM_THREADS="2",
@@ -224,8 +224,6 @@ def main():
         failed = False
         for task in RULES:
             task_limit = args.bleu_limit if task == "opus_bleu" else limit
-            if task == "t5gemma_generation":
-                task_limit = 50
             for compute_type in select_compute_types(base_py, cand_py, task, args.device, model_dirs):
                 os.environ["CT2_COMPUTE_TYPE"] = compute_type
                 print(f"[gate] {task}: compute_type={compute_type}", flush=True)

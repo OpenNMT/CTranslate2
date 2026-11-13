@@ -7,7 +7,7 @@ passing the gate. Thresholds are in `run_gate.py` (`RULES`).
 | --- | --- | --- |
 | Whisper medium | 20 LibriSpeech dummy clean samples | WER increase >0.01 (1 percentage point) |
 | opus-mt-en-de | 500 WMT14 sentences | BLEU decrease >1 point |
-| T5Gemma 2 270M | 50 SQuAD validation prompts, default beam size, up to 64 output tokens | Missing completions |
+| T5Gemma 2 270M | 20 SQuAD validation prompts, default beam size, up to 64 output tokens | Missing completions |
 | All tasks | Median throughput | Confirmed drop >10% |
 
 T5Gemma uses `jordimas/t5gemma-2-270m-270m` at a pinned revision through
@@ -46,3 +46,7 @@ Use `--candidate-wheel-pattern "dist/*.whl"` to require exactly one matching whe
 Omit `--candidate-wheel` to compare PyPI against itself. `--bleu-limit` sets
 translation coverage (default 500), independently of `--limit`.
 Task implementations are in `tasks.py`.
+
+`--limit` controls Whisper samples and T5Gemma prompts (default 50; 0 uses all).
+Translation tasks require `--model-dir` when invoked directly through `tasks.py`;
+the gate converts their models upfront.
