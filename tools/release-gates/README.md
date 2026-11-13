@@ -7,7 +7,7 @@ passing the gate. Thresholds are in `run_gate.py` (`RULES`).
 | --- | --- | --- |
 | Whisper tiny | 20 LibriSpeech dummy clean samples | WER increase >0.01 (1 percentage point) |
 | opus-mt-en-de | 500 WMT14 sentences | BLEU decrease >1 point |
-| T5Gemma 2 270M | 50 SQuAD validation prompts, FP32 greedy, up to 64 output tokens | Missing completions |
+| T5Gemma 2 270M | 50 SQuAD validation prompts, greedy, up to 64 output tokens | Missing completions |
 | All tasks | Median throughput | Confirmed drop >10% |
 
 T5Gemma uses `jordimas/t5gemma-2-270m-270m` at a pinned revision through
@@ -15,6 +15,11 @@ T5Gemma uses `jordimas/t5gemma-2-270m-270m` at a pinned revision through
 Prompts use `rajpurkar/squad` at revision `7b6d24c440a36b6815f21b70d25016731768db1f`,
 shuffled with seed 42 and capped at 512 input tokens.
 Invalid metrics and runtime errors fail immediately.
+
+Every task runs with `compute_type="default"`, then `"auto"`. Auto is skipped
+only when it resolves to the same effective type as default on both wheels for
+that model and device. Resolution loads the actual models; requested and effective
+types are logged for each wheel. Converted models and environments are reused.
 
 ## Performance
 

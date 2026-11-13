@@ -1,9 +1,11 @@
 """Release-gate tasks returning metrics and optional generated outputs."""
 
+import os
 import tempfile
 import time
 
 CPU_THREADS = 2
+COMPUTE_TYPE = os.environ.get("CT2_COMPUTE_TYPE", "default")
 SQUAD_REVISION = "7b6d24c440a36b6815f21b70d25016731768db1f"
 
 
@@ -34,13 +36,34 @@ def _load_librispeech(limit):
     return out
 
 
+def load_task_model(task, device, compute_type, model_dir=None):
+    if task == "whisper_wer":
+        from faster_whisper import WhisperModel
+        return WhisperModel("tiny", device=device, compute_type=compute_type,
+                            cpu_threads=CPU_THREADS, num_workers=1)
+    import ctranslate2
+    return ctranslate2.Translator(model_dir, device=device, compute_type=compute_type,
+                                 intra_threads=CPU_THREADS, inter_threads=1)
+
+
+def effective_compute_type(task, model):
+    return (model.model if task == "whisper_wer" else model).compute_type
+
+
+def resolve_compute_types(task, device="cpu", model_dir=None):
+    resolved = {}
+    for requested in ("default", "auto"):
+        model = load_task_model(task, device, requested, model_dir)
+        resolved[requested] = effective_compute_type(task, model)
+        del model
+    return resolved
+
+
 def run_whisper_wer(limit=300, device="cpu"):
     import jiwer
-    from faster_whisper import WhisperModel
 
     samples = _load_librispeech(limit)
-    model = WhisperModel("tiny", device=device, compute_type="int8",
-                         cpu_threads=CPU_THREADS, num_workers=1)
+    model = load_task_model("whisper_wer", device, COMPUTE_TYPE)
 
     def transcribe(batch):
         for audio, _, _ in batch:
@@ -54,7 +77,8 @@ def run_whisper_wer(limit=300, device="cpu"):
 
     return {"wer": jiwer.wer(refs, hyps),
             "rtf_inverse": audio_sec / elapsed,
-            "num_samples": len(samples)}
+            "num_samples": len(samples),
+            "compute_type": effective_compute_type("whisper_wer", model)}
 
 
 OPUS_MODEL = "Helsinki-NLP/opus-mt-en-de"
@@ -83,7 +107,6 @@ def convert_t5gemma_generation(out_dir):
 
 def run_opus_bleu(limit=500, device="cpu", model_dir=None):
     import contextlib
-    import ctranslate2
     import sacrebleu
     import transformers
 
@@ -97,8 +120,7 @@ def run_opus_bleu(limit=500, device="cpu", model_dir=None):
 
     with contextlib.ExitStack() as stack:
         model_path = _converted_dir(stack, model_dir, convert_opus_bleu)
-        translator = ctranslate2.Translator(model_path, device=device,
-                                             intra_threads=CPU_THREADS, inter_threads=1)
+        translator = load_task_model("opus_bleu", device, COMPUTE_TYPE, model_path)
         tokenized = [tokenizer.convert_ids_to_tokens(tokenizer.encode(s))
                      for s in sources]
         total_tokens = sum(len(t) for t in tokenized)
@@ -111,12 +133,11 @@ def run_opus_bleu(limit=500, device="cpu", model_dir=None):
             for r in results]
     return {"bleu": sacrebleu.corpus_bleu(hyps, refs).score,
             "tokens_per_sec": total_tokens / elapsed,
-            "num_sentences": len(sources)}
+            "num_sentences": len(sources), "compute_type": translator.compute_type}
 
 
 def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
     import contextlib
-    import ctranslate2
     import transformers
     from datasets import load_dataset
 
@@ -131,8 +152,7 @@ def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
               for p in prompts]
     with contextlib.ExitStack() as stack:
         model_path = _converted_dir(stack, model_dir, convert_t5gemma_generation)
-        translator = ctranslate2.Translator(model_path, device=device, compute_type="float32",
-                                             intra_threads=CPU_THREADS, inter_threads=1)
+        translator = load_task_model("t5gemma_generation", device, COMPUTE_TYPE, model_path)
         results, elapsed = run_and_measure(
             translator.translate_batch, inputs, warmup_size=8,
             beam_size=1, sampling_topk=1, max_decoding_length=64, max_batch_size=8)
@@ -141,7 +161,8 @@ def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
     if len(outputs) != len(prompts):
         raise ValueError("Generation returned missing completions")
     return {"outputs": outputs, "num_prompts": len(prompts),
-            "tokens_per_sec": sum(len(r.hypotheses[0]) for r in results) / elapsed}
+            "tokens_per_sec": sum(len(r.hypotheses[0]) for r in results) / elapsed,
+            "compute_type": translator.compute_type}
 
 
 TASKS = {"whisper_wer": run_whisper_wer, "opus_bleu": run_opus_bleu,
@@ -160,12 +181,19 @@ if __name__ == "__main__":
     run_p.add_argument("--limit", type=int, default=None)
     run_p.add_argument("--device", default="cpu")
     run_p.add_argument("--model-dir", default=None)
+    resolve_p = sub.add_parser("resolve")
+    resolve_p.add_argument("task", choices=TASKS)
+    resolve_p.add_argument("--device", default="cpu")
+    resolve_p.add_argument("--model-dir", default=None)
     conv_p = sub.add_parser("convert")
     conv_p.add_argument("task", choices=CONVERTERS)
     conv_p.add_argument("out_dir")
     a = p.parse_args()
     if a.cmd == "convert":
         CONVERTERS[a.task](a.out_dir)
+    elif a.cmd == "resolve":
+        json.dump(resolve_compute_types(a.task, a.device, a.model_dir), sys.stdout)
+        sys.stdout.write("\n")
     else:
         kw = {"device": a.device}
         if a.limit is not None:
