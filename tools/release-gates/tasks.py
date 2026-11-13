@@ -1,10 +1,8 @@
 """Release-gate tasks returning metrics and optional generated outputs."""
 
-import os
 import time
 
 CPU_THREADS = 2
-COMPUTE_TYPE = os.environ.get("CT2_COMPUTE_TYPE", "default")
 SQUAD_REVISION = "7b6d24c440a36b6815f21b70d25016731768db1f"
 
 
@@ -60,11 +58,11 @@ def resolve_compute_types(task, device="cpu", model_dir=None):
     return resolved
 
 
-def run_whisper_wer(limit=300, device="cpu"):
+def run_whisper_wer(limit=300, device="cpu", compute_type="default"):
     import jiwer
 
     samples = _load_librispeech(limit)
-    model = load_task_model("whisper_wer", device, COMPUTE_TYPE)
+    model = load_task_model("whisper_wer", device, compute_type)
 
     def transcribe(batch):
         for audio, _, _ in batch:
@@ -98,7 +96,7 @@ def convert_t5gemma_generation(out_dir):
         out_dir, force=True, quantization="float32")
 
 
-def run_opus_bleu(limit=500, device="cpu", *, model_dir):
+def run_opus_bleu(limit=500, device="cpu", *, model_dir, compute_type="default"):
     import sacrebleu
     import transformers
 
@@ -110,7 +108,7 @@ def run_opus_bleu(limit=500, device="cpu", *, model_dir):
     refs = [open(p, encoding="utf-8").read().splitlines()[:limit]
             for p in ref_paths]
 
-    translator = load_task_model("opus_bleu", device, COMPUTE_TYPE, model_dir)
+    translator = load_task_model("opus_bleu", device, compute_type, model_dir)
     tokenized = [tokenizer.convert_ids_to_tokens(tokenizer.encode(s))
                  for s in sources]
     total_tokens = sum(len(t) for t in tokenized)
@@ -126,7 +124,7 @@ def run_opus_bleu(limit=500, device="cpu", *, model_dir):
             "num_sentences": len(sources), "compute_type": translator.compute_type}
 
 
-def run_t5gemma_generation(limit=50, device="cpu", *, model_dir):
+def run_t5gemma_generation(limit=50, device="cpu", *, model_dir, compute_type="default"):
     import transformers
     from datasets import load_dataset
 
@@ -139,7 +137,7 @@ def run_t5gemma_generation(limit=50, device="cpu", *, model_dir):
     tokenizer = transformers.AutoTokenizer.from_pretrained(T5GEMMA_MODEL, revision=T5GEMMA_REVISION)
     inputs = [tokenizer.convert_ids_to_tokens(tokenizer.encode(p, truncation=True, max_length=512))
               for p in prompts]
-    translator = load_task_model("t5gemma_generation", device, COMPUTE_TYPE, model_dir)
+    translator = load_task_model("t5gemma_generation", device, compute_type, model_dir)
     results, elapsed = run_and_measure(
         translator.translate_batch, inputs, warmup_size=8,
         sampling_topk=1, max_decoding_length=64, max_batch_size=8)
@@ -163,15 +161,14 @@ if __name__ == "__main__":
     import argparse, json, sys
     p = argparse.ArgumentParser()
     sub = p.add_subparsers(dest="cmd", required=True)
-    run_p = sub.add_parser("run")
-    run_p.add_argument("task", choices=TASKS)
+    worker_p = argparse.ArgumentParser(add_help=False)
+    worker_p.add_argument("task", choices=TASKS)
+    worker_p.add_argument("--device", default="cpu")
+    worker_p.add_argument("--model-dir", default=None)
+    run_p = sub.add_parser("run", parents=[worker_p])
     run_p.add_argument("--limit", type=int, default=None)
-    run_p.add_argument("--device", default="cpu")
-    run_p.add_argument("--model-dir", default=None)
-    resolve_p = sub.add_parser("resolve")
-    resolve_p.add_argument("task", choices=TASKS)
-    resolve_p.add_argument("--device", default="cpu")
-    resolve_p.add_argument("--model-dir", default=None)
+    run_p.add_argument("--compute-type", choices=("default", "auto"), default="default")
+    sub.add_parser("resolve", parents=[worker_p])
     conv_p = sub.add_parser("convert")
     conv_p.add_argument("task", choices=CONVERTERS)
     conv_p.add_argument("out_dir")
@@ -184,7 +181,7 @@ if __name__ == "__main__":
         json.dump(resolve_compute_types(a.task, a.device, a.model_dir), sys.stdout)
         sys.stdout.write("\n")
     else:
-        kw = {"device": a.device}
+        kw = {"device": a.device, "compute_type": a.compute_type}
         if a.limit is not None:
             kw["limit"] = None if a.limit == 0 else a.limit
         if a.model_dir is not None and a.task in CONVERTERS:

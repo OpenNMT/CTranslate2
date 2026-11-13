@@ -30,6 +30,14 @@ class TaskOptionsTest(unittest.TestCase):
         command = run.call_args.args[0]
         self.assertEqual(command[command.index("--limit") + 1], "0")
 
+    def test_compute_type_is_explicit_in_worker_command(self):
+        for compute_type in ("default", "auto"):
+            with self.subTest(compute_type=compute_type), patch.object(
+                    run_gate.subprocess, "check_output", return_value=b'{"wer": 0}\n') as run:
+                run_gate.run_task("python", "whisper_wer", 7, "cpu", compute_type=compute_type)
+            command = run.call_args.args[0]
+            self.assertEqual(command[command.index("--compute-type") + 1], compute_type)
+
     def test_runner_forwards_sample_limits(self):
         for limit in (7, 0):
             with self.subTest(limit=limit), \
