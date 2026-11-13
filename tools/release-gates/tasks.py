@@ -1,7 +1,6 @@
 """Release-gate tasks returning metrics and optional generated outputs."""
 
 import os
-import tempfile
 import time
 
 CPU_THREADS = 2
@@ -30,7 +29,7 @@ def _load_librispeech(limit):
                       split="validation", streaming=True)
     ds = ds.cast_column("audio", Audio(decode=False))
     out = []
-    for x in list(ds.take(limit)):
+    for x in (ds if limit is None else ds.take(limit)):
         audio, sr = soundfile.read(io.BytesIO(x["audio"]["bytes"]))
         out.append((audio, sr, x["text"]))
     return out
@@ -41,6 +40,8 @@ def load_task_model(task, device, compute_type, model_dir=None):
         from faster_whisper import WhisperModel
         return WhisperModel("medium", device=device, compute_type=compute_type,
                             cpu_threads=CPU_THREADS, num_workers=1)
+    if not model_dir:
+        raise ValueError(f"{task}: --model-dir is required")
     import ctranslate2
     return ctranslate2.Translator(model_dir, device=device, compute_type=compute_type,
                                  intra_threads=CPU_THREADS, inter_threads=1)
@@ -86,14 +87,6 @@ T5GEMMA_MODEL = "jordimas/t5gemma-2-270m-270m"
 T5GEMMA_REVISION = "dfb6d0d619d8e6d42f279a6197abb90dec0137c1"
 
 
-def _converted_dir(stack, model_dir, convert):
-    if model_dir:
-        return model_dir
-    tmp = stack.enter_context(tempfile.TemporaryDirectory())
-    convert(tmp)
-    return tmp
-
-
 def convert_opus_bleu(out_dir):
     from ctranslate2.converters.transformers import TransformersConverter
     TransformersConverter(OPUS_MODEL).convert(out_dir, force=True)
@@ -105,8 +98,7 @@ def convert_t5gemma_generation(out_dir):
         out_dir, force=True, quantization="float32")
 
 
-def run_opus_bleu(limit=500, device="cpu", model_dir=None):
-    import contextlib
+def run_opus_bleu(limit=500, device="cpu", *, model_dir):
     import sacrebleu
     import transformers
 
@@ -118,15 +110,13 @@ def run_opus_bleu(limit=500, device="cpu", model_dir=None):
     refs = [open(p, encoding="utf-8").read().splitlines()[:limit]
             for p in ref_paths]
 
-    with contextlib.ExitStack() as stack:
-        model_path = _converted_dir(stack, model_dir, convert_opus_bleu)
-        translator = load_task_model("opus_bleu", device, COMPUTE_TYPE, model_path)
-        tokenized = [tokenizer.convert_ids_to_tokens(tokenizer.encode(s))
-                     for s in sources]
-        total_tokens = sum(len(t) for t in tokenized)
-        results, elapsed = run_and_measure(
-            translator.translate_batch, tokenized, warmup_size=16,
-            max_batch_size=16)
+    translator = load_task_model("opus_bleu", device, COMPUTE_TYPE, model_dir)
+    tokenized = [tokenizer.convert_ids_to_tokens(tokenizer.encode(s))
+                 for s in sources]
+    total_tokens = sum(len(t) for t in tokenized)
+    results, elapsed = run_and_measure(
+        translator.translate_batch, tokenized, warmup_size=16,
+        max_batch_size=16)
 
     hyps = [tokenizer.decode(tokenizer.convert_tokens_to_ids(r.hypotheses[0]),
                              skip_special_tokens=True)
@@ -136,8 +126,7 @@ def run_opus_bleu(limit=500, device="cpu", model_dir=None):
             "num_sentences": len(sources), "compute_type": translator.compute_type}
 
 
-def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
-    import contextlib
+def run_t5gemma_generation(limit=50, device="cpu", *, model_dir):
     import transformers
     from datasets import load_dataset
 
@@ -150,12 +139,10 @@ def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
     tokenizer = transformers.AutoTokenizer.from_pretrained(T5GEMMA_MODEL, revision=T5GEMMA_REVISION)
     inputs = [tokenizer.convert_ids_to_tokens(tokenizer.encode(p, truncation=True, max_length=512))
               for p in prompts]
-    with contextlib.ExitStack() as stack:
-        model_path = _converted_dir(stack, model_dir, convert_t5gemma_generation)
-        translator = load_task_model("t5gemma_generation", device, COMPUTE_TYPE, model_path)
-        results, elapsed = run_and_measure(
-            translator.translate_batch, inputs, warmup_size=8,
-            sampling_topk=1, max_decoding_length=64, max_batch_size=8)
+    translator = load_task_model("t5gemma_generation", device, COMPUTE_TYPE, model_dir)
+    results, elapsed = run_and_measure(
+        translator.translate_batch, inputs, warmup_size=8,
+        sampling_topk=1, max_decoding_length=64, max_batch_size=8)
     outputs = [tokenizer.decode(tokenizer.convert_tokens_to_ids(r.hypotheses[0]),
                                 skip_special_tokens=True).strip() for r in results]
     if len(outputs) != len(prompts):
@@ -189,6 +176,8 @@ if __name__ == "__main__":
     conv_p.add_argument("task", choices=CONVERTERS)
     conv_p.add_argument("out_dir")
     a = p.parse_args()
+    if a.cmd in ("run", "resolve") and a.task in CONVERTERS and not a.model_dir:
+        p.error(f"{a.task}: --model-dir is required")
     if a.cmd == "convert":
         CONVERTERS[a.task](a.out_dir)
     elif a.cmd == "resolve":
@@ -197,7 +186,7 @@ if __name__ == "__main__":
     else:
         kw = {"device": a.device}
         if a.limit is not None:
-            kw["limit"] = a.limit
+            kw["limit"] = None if a.limit == 0 else a.limit
         if a.model_dir is not None and a.task in CONVERTERS:
             kw["model_dir"] = a.model_dir
         json.dump(TASKS[a.task](**kw), sys.stdout)
