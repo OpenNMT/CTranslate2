@@ -40,6 +40,6 @@ jobs:
         env:
           CANDIDATE_WHEEL_PATTERN: ${{ matrix.wheel }}
         run: >-
-          python release-gates/run_gate.py
+          python tools/release-gates/run_gate.py
           --candidate-wheel-pattern "candidate-wheels/$CANDIDATE_WHEEL_PATTERN"
           --limit 20 --bleu-limit 500 --device cpu

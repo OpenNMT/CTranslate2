@@ -34,7 +34,7 @@ and Windows x86-64. The gate runs automatically on pull requests and on tag
 pushes, reusing the wheels built earlier in the CI pipeline.
 
 ```sh
-python release-gates/run_gate.py --candidate-wheel dist/ctranslate2-*.whl
+python tools/release-gates/run_gate.py --candidate-wheel dist/ctranslate2-*.whl
 ```
 
 Use `--candidate-wheel-pattern "dist/*.whl"` to require exactly one matching wheel.
