@@ -5,7 +5,7 @@ passing the gate. Thresholds are in `run_gate.py` (`RULES`).
 
 | Task | CI workload | Failure threshold |
 | --- | --- | --- |
-| Whisper tiny | 20 LibriSpeech dummy clean samples | WER increase >0.01 (1 percentage point) |
+| Whisper medium | 20 LibriSpeech dummy clean samples | WER increase >0.01 (1 percentage point) |
 | opus-mt-en-de | 500 WMT14 sentences | BLEU decrease >1 point |
 | T5Gemma 2 270M | 50 SQuAD validation prompts, default beam size, up to 64 output tokens | Missing completions |
 | All tasks | Median throughput | Confirmed drop >10% |
