@@ -67,7 +67,7 @@ def run_whisper_wer(limit=300, device="cpu"):
 
     def transcribe(batch):
         for audio, _, _ in batch:
-            segments, _ = model.transcribe(audio, language="en", beam_size=1,
+            segments, _ = model.transcribe(audio, language="en",
                                            temperature=0.0, vad_filter=False)
             yield " ".join(s.text for s in segments).strip().lower()
 
@@ -126,7 +126,7 @@ def run_opus_bleu(limit=500, device="cpu", model_dir=None):
         total_tokens = sum(len(t) for t in tokenized)
         results, elapsed = run_and_measure(
             translator.translate_batch, tokenized, warmup_size=16,
-            beam_size=4, max_batch_size=16)
+            max_batch_size=16)
 
     hyps = [tokenizer.decode(tokenizer.convert_tokens_to_ids(r.hypotheses[0]),
                              skip_special_tokens=True)
@@ -155,7 +155,7 @@ def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
         translator = load_task_model("t5gemma_generation", device, COMPUTE_TYPE, model_path)
         results, elapsed = run_and_measure(
             translator.translate_batch, inputs, warmup_size=8,
-            beam_size=1, sampling_topk=1, max_decoding_length=64, max_batch_size=8)
+            sampling_topk=1, max_decoding_length=64, max_batch_size=8)
     outputs = [tokenizer.decode(tokenizer.convert_tokens_to_ids(r.hypotheses[0]),
                                 skip_special_tokens=True).strip() for r in results]
     if len(outputs) != len(prompts):
