@@ -10,15 +10,23 @@ jobs:
       matrix:
         include:
           - os: ubuntu-22.04
+            device: cpu
             artifact: python-wheels-Linux-auto64
             wheel: "*-cp312-cp312-manylinux*x86_64.whl"
           - os: ubuntu-22.04-arm
+            device: cpu
             artifact: python-wheels-Linux-aarch64
             wheel: "*-cp312-cp312-manylinux*aarch64.whl"
           - os: macos-15
+            device: cpu
+            artifact: python-wheels-macOS-arm64
+            wheel: "*-cp312-cp312-macosx*arm64.whl"
+          - os: macos-15
+            device: mps
             artifact: python-wheels-macOS-arm64
             wheel: "*-cp312-cp312-macosx*arm64.whl"
           - os: windows-2022
+            device: cpu
             artifact: python-wheels-Windows-auto64
             wheel: "*-cp312-cp312-win_amd64.whl"
     runs-on: ${{ matrix.os }}
@@ -38,8 +46,9 @@ jobs:
       - name: Run release gate
         shell: bash
         env:
+          CT2_VERBOSE: "1"
           CANDIDATE_WHEEL_PATTERN: ${{ matrix.wheel }}
         run: >-
-          python release-gates/run_gate.py
+          python tools/release-gates/run_gate.py
           --candidate-wheel-pattern "candidate-wheels/$CANDIDATE_WHEEL_PATTERN"
-          --limit 20 --bleu-limit 500 --device cpu
+          --limit 20 --bleu-limit 500 --device ${{ matrix.device }}
