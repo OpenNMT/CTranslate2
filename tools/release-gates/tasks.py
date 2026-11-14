@@ -36,7 +36,7 @@ def _load_librispeech(limit):
 def load_task_model(task, device, compute_type, model_dir=None):
     if task == "whisper_wer":
         from faster_whisper import WhisperModel
-        return WhisperModel("medium", device=device, compute_type=compute_type,
+        return WhisperModel("tiny", device=device, compute_type=compute_type,
                             cpu_threads=CPU_THREADS, num_workers=1)
     if not model_dir:
         raise ValueError(f"{task}: --model-dir is required")

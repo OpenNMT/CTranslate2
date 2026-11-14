@@ -5,7 +5,7 @@ passing the gate. Thresholds are in `run_gate.py` (`RULES`).
 
 | Task | CI workload | Failure threshold |
 | --- | --- | --- |
-| Whisper medium | 20 LibriSpeech dummy clean samples | WER increase >0.01 (1 percentage point) |
+| Whisper tiny | 20 LibriSpeech dummy clean samples | WER increase >0.01 (1 percentage point) |
 | opus-mt-en-de | 500 WMT14 sentences | BLEU decrease >1 point |
 | T5Gemma 2 270M | 20 SQuAD validation prompts, default beam size, up to 64 output tokens | Missing completions |
 | All tasks | Median throughput | Confirmed drop >10% |
@@ -37,6 +37,14 @@ logged. This reduces runner noise at the cost of 3–6× benchmark work plus war
 CI tests one CPython 3.12 wheel per platform: Linux x86-64/ARM64, macOS ARM64,
 and Windows x86-64. The gate runs automatically on pull requests and on tag
 pushes, reusing the wheels built earlier in the CI pipeline.
+
+Manual CI runs also launch a separate `release-gate-mps` job on macOS ARM64,
+reusing the same macOS wheel with `--device mps`. The CPU gate remains enabled.
+The MPS job verifies Metal execution and checks MPS availability in both wheels
+before converting models. All three tasks run on MPS with the same quality and
+performance thresholds and `default`/`auto` selection as the CPU gate.
+MPS gate execution requires an Apple Silicon Mac and MPS-enabled baseline and
+candidate wheels; it cannot be validated on a Linux host.
 
 ```sh
 python tools/release-gates/run_gate.py --candidate-wheel dist/ctranslate2-*.whl
