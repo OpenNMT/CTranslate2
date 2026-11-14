@@ -41,11 +41,10 @@ pushes, reusing the wheels built earlier in the CI pipeline.
 The release-gate matrix also includes macOS ARM64 with `--device mps`,
 reusing the same macOS wheel. CPU and MPS gates run on the same events,
 including pull requests, tag pushes, and manual CI runs.
-The MPS job verifies Metal execution and checks MPS availability in both wheels
-before converting models. All three tasks run on MPS with the same quality and
+All three tasks run on MPS with the same quality and
 performance thresholds and `default`/`auto` selection as the CPU gate.
 MPS gate execution requires an Apple Silicon Mac and MPS-enabled baseline and
-candidate wheels; it cannot be validated on a Linux host.
+candidate wheels. Model loading fails if MPS is unavailable.
 
 ```sh
 python tools/release-gates/run_gate.py --candidate-wheel dist/ctranslate2-*.whl

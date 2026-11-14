@@ -216,16 +216,6 @@ def main():
         print("[gate] creating candidate venv")
         cand_py = make_venv(os.path.join(tmp, "candidate"), args.candidate_wheel)
 
-        if args.device == "mps":
-            for label, py in (("baseline", base_py), ("candidate", cand_py)):
-                print(f"[gate] checking {label} MPS support", flush=True)
-                subprocess.check_call([py, "-c",
-                    "import ctranslate2; "
-                    "count = getattr(ctranslate2, 'get_mps_device_count', lambda: 0)(); "
-                    f"assert count > 0, {f'{label}: MPS requires an MPS-enabled wheel and an Apple GPU'!r}; "
-                    "print('MPS supported compute types:', "
-                    "sorted(ctranslate2.get_supported_compute_types('mps')))"])
-
         model_dirs = {
             "baseline": convert_models(base_py, os.path.join(tmp, "baseline-models")),
             "candidate": convert_models(cand_py, os.path.join(tmp, "candidate-models")),

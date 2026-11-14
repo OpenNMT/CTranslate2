@@ -33,12 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
-      - name: Verify Apple Silicon and Metal execution
-        if: matrix.device == 'mps'
-        run: |
-          test "$(uname -m)" = "arm64"
-          swift python/tools/check_metal.swift
-
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
