@@ -39,6 +39,17 @@ RULES = {
 
 MetricResult = namedtuple("MetricResult", "baseline candidate failed performance")
 
+CONFIRMATION_MIN_PAIRS = 5
+CONFIRMATION_MAX_PAIRS = 9
+MAX_RELATIVE_IQR = 0.10
+
+
+def relative_iqr(values):
+    """Estimate timing spread using the middle half of the samples."""
+    q1, _, q3 = statistics.quantiles(values, n=4, method="inclusive")
+    median = statistics.median(values)
+    return (q3 - q1) / abs(median) if median else (0.0 if q3 == q1 else math.inf)
+
 def latest_version(pkg="ctranslate2"):
     with urllib.request.urlopen(f"https://pypi.org/pypi/{pkg}/json", timeout=30) as r:
         return json.load(r)["info"]["version"]
@@ -136,15 +147,19 @@ def compare_completions(base, cand):
 
 
 def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmation=False, compute_type="default"):
-    """Compare three sequential pairs; retain every quality failure."""
+    """Compare alternating pairs, adapting confirmation to measurement spread."""
     samples = {"baseline": [], "candidate": []}
     quality_failed = False
-    for repeat in range(3):
+    max_pairs = CONFIRMATION_MAX_PAIRS if confirmation else 3
+    min_pairs = CONFIRMATION_MIN_PAIRS if confirmation else 3
+    performance_metrics = [metric for metric, rule in RULES[task].items() if rule[2]]
+    stable = False
+    for repeat in range(max_pairs):
         order = ("baseline", "candidate")
         if (repeat + int(confirmation)) % 2:
             order = tuple(reversed(order))
         for label in order:
-            print(f"[gate] {task}: {label} measurement {repeat + 1}/3", flush=True)
+            print(f"[gate] {task}: {label} measurement {repeat + 1}/{max_pairs}", flush=True)
             result = run_task(base_py if label == "baseline" else cand_py,
                               task, limit, device,
                               model_dir=model_dirs[label].get(task), compute_type=compute_type)
@@ -155,6 +170,22 @@ def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmatio
             compare_completions(base, cand)
         quality_failed |= any(result.failed for result in judge(task, base, cand).values()
                               if not result.performance)
+
+        if repeat + 1 >= min_pairs:
+            spreads = {
+                (label, metric): relative_iqr([result[metric] for result in results])
+                for label, results in samples.items() for metric in performance_metrics
+            }
+            stable = all(spread <= MAX_RELATIVE_IQR for spread in spreads.values())
+            for (label, metric), spread in spreads.items():
+                print(f"[gate] {task}: {label}.{metric} IQR/median={spread:.1%} "
+                      f"({repeat + 1} pairs)", flush=True)
+            if not confirmation or stable:
+                break
+
+    if confirmation and not stable:
+        print(f"[gate] {task}: confirmation measurement budget exhausted; "
+              "timings remain noisy, applying median thresholds", flush=True)
 
     medians = {}
     for label, results in samples.items():
