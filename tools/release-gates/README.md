@@ -38,8 +38,9 @@ CI tests one CPython 3.12 wheel per platform: Linux x86-64/ARM64, macOS ARM64,
 and Windows x86-64. The gate runs automatically on pull requests and on tag
 pushes, reusing the wheels built earlier in the CI pipeline.
 
-Manual CI runs also launch a separate `release-gate-mps` job on macOS ARM64,
-reusing the same macOS wheel with `--device mps`. The CPU gate remains enabled.
+The release-gate matrix also includes macOS ARM64 with `--device mps`,
+reusing the same macOS wheel. CPU and MPS gates run on the same events,
+including pull requests, tag pushes, and manual CI runs.
 The MPS job verifies Metal execution and checks MPS availability in both wheels
 before converting models. All three tasks run on MPS with the same quality and
 performance thresholds and `default`/`auto` selection as the CPU gate.
