@@ -38,8 +38,40 @@ jobs:
       - name: Run release gate
         shell: bash
         env:
+          CT2_VERBOSE: "1"
           CANDIDATE_WHEEL_PATTERN: ${{ matrix.wheel }}
         run: >-
           python tools/release-gates/run_gate.py
           --candidate-wheel-pattern "candidate-wheels/$CANDIDATE_WHEEL_PATTERN"
           --limit 20 --bleu-limit 500 --device cpu
+
+  release-gate-mps:
+    # Keep CPU coverage; exercise the experimental MPS gate on manual runs first.
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify Apple Silicon and Metal execution
+        run: |
+          test "$(uname -m)" = "arm64"
+          swift python/tools/check_metal.swift
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download candidate wheels
+        uses: actions/download-artifact@v8
+        with:
+          name: python-wheels-macOS-arm64
+          path: candidate-wheels
+
+      - name: Run MPS release gate
+        shell: bash
+        env:
+          CT2_VERBOSE: "1"
+        run: >-
+          python tools/release-gates/run_gate.py
+          --candidate-wheel-pattern "candidate-wheels/*-cp312-cp312-macosx*arm64.whl"
+          --limit 20 --bleu-limit 500 --device mps
