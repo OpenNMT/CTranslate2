@@ -19,7 +19,9 @@ identically on both wheels. Models are converted once per wheel and reused.
 
 Measurements use three alternating baseline/candidate pairs in fresh processes,
 with warm-up, two CPU threads, and one worker. A median throughput drop >10%
-requires confirmation in three additional pairs. Quality failures remain blocking.
+requires confirmation in 5–9 additional pairs, stopping once both wheels have
+throughput IQR/median ≤10%. Spread is reported; if the budget is exhausted while
+timings remain noisy, median thresholds still apply. Quality failures remain blocking.
 
 ## Running
 

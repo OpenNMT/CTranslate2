@@ -152,6 +152,46 @@ class MetricValidationTest(unittest.TestCase):
                              {"wer": 0.01, "rtf_inverse": 90})
         self.assertFalse(any(result.failed for result in results.values()))
 
+    def test_adaptive_confirmation_stops_when_stable_or_at_budget(self):
+        for values, expected_pairs in (
+            ([80] * 9, 5),
+            ([40, 80, 120, 80, 100, 80, 80, 80], 8),
+            ([40, 120] * 5, 9),
+        ):
+            with self.subTest(values=values):
+                candidate_values = iter(values)
+
+                def result(py, *args, **kwargs):
+                    return {"bleu": 30, "tokens_per_sec":
+                            100 if py == "b" else next(candidate_values)}
+
+                output = io.StringIO()
+                with patch.object(run_gate, "run_task", side_effect=result) as task, \
+                     contextlib.redirect_stdout(output):
+                    quality, performance = run_gate.measure_round(
+                        "b", "c", "opus_bleu", 20, "cpu",
+                        {"baseline": {}, "candidate": {}}, confirmation=True)
+                self.assertEqual(task.call_count, expected_pairs * 2)
+                self.assertFalse(quality)
+                self.assertEqual(performance, {"tokens_per_sec"})
+                self.assertIn("IQR/median=", output.getvalue())
+                self.assertEqual("budget exhausted" in output.getvalue(), expected_pairs == 9)
+
+    def test_adaptive_confirmation_retains_late_quality_failure(self):
+        candidates = iter([100, 100, 100, 100, 28])
+
+        def result(py, *args, **kwargs):
+            return {"bleu": 30 if py == "b" else next(candidates),
+                    "tokens_per_sec": 100}
+
+        with patch.object(run_gate, "run_task", side_effect=result), \
+             contextlib.redirect_stdout(io.StringIO()):
+            quality, performance = run_gate.measure_round(
+                "b", "c", "opus_bleu", 20, "cpu",
+                {"baseline": {}, "candidate": {}}, confirmation=True)
+        self.assertTrue(quality)
+        self.assertEqual(performance, set())
+
 
 if __name__ == "__main__":
     unittest.main()
