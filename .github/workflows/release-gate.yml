@@ -17,12 +17,12 @@ jobs:
             device: cpu
             artifact: python-wheels-Linux-aarch64
             wheel: "*-cp312-cp312-manylinux*aarch64.whl"
+          - os: macos-15-intel
+            device: cpu
+            artifact: python-wheels-macOS-x86_64
+            wheel: "*-cp312-cp312-macosx*x86_64.whl"
           - os: macos-15
             device: cpu
-            artifact: python-wheels-macOS-arm64
-            wheel: "*-cp312-cp312-macosx*arm64.whl"
-          - os: macos-15
-            device: mps
             artifact: python-wheels-macOS-arm64
             wheel: "*-cp312-cp312-macosx*arm64.whl"
           - os: windows-2022
