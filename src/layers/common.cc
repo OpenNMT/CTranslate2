@@ -474,7 +474,8 @@ namespace ctranslate2 {
     }
 
 
-    LayerNorm::LayerNorm(const models::Model& model, const std::string& scope)
+    LayerNorm::LayerNorm(const models::Model& model, const std::string& scope,
+                         float input_scale, float output_scale)
       : _beta(model.get_variable_if_exists(scope + "/beta"))
       , _gamma(model.get_variable(scope + "/gamma"))
       , _use_residual(model.get_flag_with_default((scope + "/layer_norm_use_residual"), false)) {
@@ -483,6 +484,23 @@ namespace ctranslate2 {
         _epsilon = _beta ? 1e-5 : 1e-6;
       else
         _epsilon = epsilon_it->get<float>();
+
+      // RMSNorm(s*x, eps*s*s) == RMSNorm(x, eps). Scaling the post-norm
+      // gamma keeps residual branches in the same scaled representation.
+      if (input_scale != 1.f || output_scale != 1.f) {
+        if (_beta || _use_residual)
+          throw std::invalid_argument(
+              "Residual scaling requires a standard RMSNorm");
+        _epsilon *= input_scale * input_scale;
+        if (output_scale != 1.f) {
+          _scaled_gamma = StorageView(_gamma.dtype(), _gamma.device());
+          ops::Mul()(_gamma, StorageView(output_scale).to(_gamma.dtype()),
+                     _scaled_gamma);
+          // Layers are constructed on the caller thread and consumed by
+          // workers.
+          synchronize_stream(_gamma.device());
+        }
+      }
     }
 
     DataType LayerNorm::output_type() const {
@@ -493,13 +511,17 @@ namespace ctranslate2 {
       return _gamma.size();
     }
 
+    const StorageView& LayerNorm::gamma() const {
+      return _scaled_gamma.empty() ? _gamma : _scaled_gamma;
+    }
+
     void LayerNorm::operator()(const StorageView& input, StorageView& output) const {
       if (_beta) {
         const ops::LayerNorm norm_op(-1, _epsilon);
-        norm_op(*_beta, _gamma, input, output);
+        norm_op(*_beta, gamma(), input, output);
       } else {
         const ops::RMSNorm norm_op(_epsilon, _use_residual);
-        norm_op(_gamma, input, output);
+        norm_op(gamma(), input, output);
       }
     }
 
@@ -510,8 +532,7 @@ namespace ctranslate2 {
       if (!_beta)
         return false;
 
-      return ops::LayerNorm(-1, _epsilon).try_fused_bias_residual(*_beta,
-                                                                  _gamma,
+      return ops::LayerNorm(-1, _epsilon).try_fused_bias_residual(*_beta, gamma(),
                                                                   input,
                                                                   bias,
                                                                   residual,

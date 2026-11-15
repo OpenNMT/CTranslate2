@@ -163,7 +163,8 @@ namespace ctranslate2 {
     class LayerNorm : public Layer
     {
     public:
-      LayerNorm(const models::Model& model, const std::string& scope);
+      LayerNorm(const models::Model& model, const std::string& scope,
+                float input_scale = 1.f, float output_scale = 1.f);
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output) const;
@@ -173,8 +174,10 @@ namespace ctranslate2 {
                                      const StorageView& residual,
                                      StorageView& output) const;
     private:
+      const StorageView& gamma() const;
       const StorageView* _beta;
       const StorageView& _gamma;
+      StorageView _scaled_gamma;
       const bool _use_residual;
       float _epsilon;
     };

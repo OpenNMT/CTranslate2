@@ -1226,6 +1226,37 @@ TEST_P(OpDeviceFPTest, GELUTanh) {
   expect_storage_eq(output.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, GELUTanhLargeFiniteInputs) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const std::vector<float> values{-65504, -100, -20, -10, -5,  -1,   0,
+                                  1,      5,    10,  20,  100, 65504};
+  std::vector<float> expected;
+  for (double x : values)
+    expected.push_back(
+        0.5 * x *
+        (1 + std::tanh(0.7978845608028654 * (x + 0.044715 * x * x * x))));
+  const auto reference =
+      StorageView({dim_t(values.size())}, expected).to(dtype).to_float32();
+  StorageView input =
+      StorageView({dim_t(values.size())}, values, device).to(dtype);
+  StorageView output(dtype, device);
+  const ops::GELU gelu(ops::GELU::Approximation::Tanh);
+  gelu(input, output);
+  const auto check = [&](const StorageView& actual) {
+    const auto result = actual.to_float32().to_vector<float>();
+    for (size_t i = 0; i < values.size(); ++i) {
+      ASSERT_TRUE(std::isfinite(result[i])) << "input=" << values[i];
+      EXPECT_NEAR(result[i], reference.at<float>(i),
+                  GetParam().error + 2e-7f * std::abs(values[i]))
+          << "input=" << values[i];
+    }
+  };
+  check(output);
+  gelu(input, input);
+  check(input);
+}
+
 TEST_P(OpDeviceFPTest, GELUSigmoid) {
   const Device device = GetParam().device;
   const DataType dtype = GetParam().dtype;
@@ -1271,6 +1302,25 @@ TEST_P(OpDeviceFPTest, Tanh) {
                        device);
   ops::Tanh()(x.to(dtype), y);
   expect_storage_eq(y.to_float32(), expected, error);
+}
+
+TEST_P(OpDeviceFPTest, TanhLargeFiniteInputs) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const std::vector<float> values{-65504, -100, -20, -10, -5,  -1,   0,
+                                  1,      5,    10,  20,  100, 65504};
+  std::vector<float> expected;
+  for (float x : values)
+    expected.push_back(std::tanh(x));
+  const auto reference =
+      StorageView({dim_t(values.size())}, expected).to(dtype).to_float32();
+  StorageView input =
+      StorageView({dim_t(values.size())}, values, device).to(dtype);
+  StorageView output(dtype, device);
+  ops::Tanh()(input, output);
+  expect_storage_eq(output.to_float32(), reference, GetParam().error);
+  ops::Tanh()(input, input);
+  expect_storage_eq(input.to_float32(), reference, GetParam().error);
 }
 
 TEST_P(OpDeviceFPTest, Log) {
