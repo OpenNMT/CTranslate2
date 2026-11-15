@@ -39,6 +39,17 @@ add_executable(ctranslate2_test
 target_include_directories(ctranslate2_test PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../src
   )
+if(WITH_CUDA)
+  target_include_directories(ctranslate2_test BEFORE PRIVATE ${THRUST_INCLUDE_DIRS})
+endif()
+if(MSVC)
+  target_compile_options(ctranslate2_test PRIVATE /utf-8)
+  if(WITH_CUDA)
+    # CUDA toolkit headers require the standard-conforming MSVC preprocessor.
+    target_compile_options(ctranslate2_test PRIVATE /Zc:preprocessor)
+  endif()
+endif()
+
 target_link_libraries(ctranslate2_test PRIVATE
   ${PROJECT_NAME}
   gtest_main
