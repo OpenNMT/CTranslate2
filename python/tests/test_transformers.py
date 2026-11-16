@@ -122,8 +122,8 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "jordimas/t5gemma-2-270m-270m",
         ["<bos> Question : ▁Why ▁is ▁the ▁sky ▁blue ? ▁Answer :"],
         "",
-        "<unused6237> ▁The ▁sky ▁is ▁blue ▁because ▁the ▁sun ▁shines ▁on ▁it . "
-        "▁The ▁sun ▁is ▁the ▁source ▁of ▁all ▁the ▁light ▁in ▁the ▁sky .",
+        # Verified with the FP32 source model, beam 2 and length_penalty=0.
+        "<unused6237> ▁The ▁sky ▁is ▁blue ▁because ▁the ▁sun ▁shines ▁on ▁the ▁earth .",
         dict(max_decoding_length=50),
     ),
 ]

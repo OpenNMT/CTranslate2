@@ -5,6 +5,17 @@
 namespace ctranslate2 {
   namespace layers {
 
+    static float residual_scale(const models::Model& model) {
+      // T5Gemma2's trained post-norm scales can push the residual stream past
+      // 65504, even when every normalized activation is representable in FP16.
+      // A power-of-two scale adds exponent headroom without changing the
+      // attention/MLP inputs or the final normalized encoder/decoder outputs.
+      if (get_default_float_type(model.effective_compute_type()) != DataType::FLOAT16
+          || !model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight"))
+        return 1.f;
+      return 1.f / 16.f;
+    }
+
     FeedForwardNetwork::FeedForwardNetwork(const models::Model& model,
                                            const std::string& scope,
                                            const bool pre_norm,
@@ -70,10 +81,13 @@ namespace ctranslate2 {
                         num_heads,
                         /*self_attention=*/true,
                         pre_norm)))
-      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm"))
-      , _post_attention_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_attention_layer_norm"))
-      , _pre_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/pre_feedforward_layer_norm"))
-      , _post_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_feedforward_layer_norm"))
+      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm", residual_scale(model)))
+      , _post_attention_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_attention_layer_norm", 1.f,
+              residual_scale(model)))
+      , _pre_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/pre_feedforward_layer_norm",
+              residual_scale(model)))
+      , _post_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_feedforward_layer_norm", 1.f,
+              residual_scale(model)))
       , _ff(model, scope + "/ffn", pre_norm, activation_type) {
     }
 
@@ -172,13 +186,16 @@ namespace ctranslate2 {
                         /*is_decoder=*/true,
                         alibi)))
       , _shared_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/shared_layer_norm"))
-      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm"))
+      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm", residual_scale(model)))
       , _post_attention_layer_norm(build_optional_layer<LayerNorm>(
-                                     model, scope + "/post_attention_layer_norm"))
+                                     model, scope + "/post_attention_layer_norm", 1.f,
+              residual_scale(model)))
       , _pre_feedforward_layer_norm(build_optional_layer<LayerNorm>(
-                                     model, scope + "/pre_feedforward_layer_norm"))
+                                     model, scope + "/pre_feedforward_layer_norm",
+              residual_scale(model)))
       , _post_feedforward_layer_norm(build_optional_layer<LayerNorm>(
-                                     model, scope + "/post_feedforward_layer_norm"))
+                                     model, scope + "/post_feedforward_layer_norm", 1.f,
+              residual_scale(model)))
       , _encoder_attention(build_optional_layer<MultiHeadAttention>(model,
                                                                     scope + "/attention",
                                                                     num_heads,
@@ -397,10 +414,13 @@ namespace ctranslate2 {
       // The attribute can either be a boolean flag or the actual scale value.
       if (!scale || (scale->dtype() == DataType::INT8 && scale->as_scalar<int8_t>()))
         value = StorageView(std::sqrt(static_cast<float>(embeddings.output_size())));
-      else if (scale->dtype() != DataType::INT8 && scale->as_scalar<float>() != 1.f)
-        value = *scale;
       else
+        value = StorageView(scale->dtype() == DataType::INT8 ? 1.f : scale->as_scalar<float>());
+
+      const float factor = value.as_scalar<float>() * residual_scale(model);
+      if (factor == 1.f)
         return nullptr;
+      value = StorageView(factor);
 
       return std::make_unique<StorageView>(value.to(embeddings.output_type()));
     }
@@ -437,7 +457,7 @@ namespace ctranslate2 {
       , _num_heads(model.get_attribute_with_default<int32_t>(scope + "/num_heads", 8))
       , _compute_type(model.effective_compute_type())
       , _layernorm_embedding(build_optional_layer<LayerNorm>(model, scope + "/layernorm_embedding"))
-      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
+      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm", residual_scale(model)))
       , _use_flash_attention(model.use_flash_attention())
       , _layers(build_layers_list<const TransformerEncoderLayer>(
                   model,
@@ -523,7 +543,7 @@ namespace ctranslate2 {
                                                                false))
       , _embeddings_scale(build_embeddings_scale(model, scope, _embeddings))
       , _layernorm_embedding(build_optional_layer<LayerNorm>(model, scope + "/layernorm_embedding"))
-      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
+      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm", residual_scale(model)))
       , _project_in(build_optional_layer<Dense>(model, scope + "/project_in"))
       , _project_out(build_optional_layer<Dense>(model, scope + "/project_out"))
       , _alibi(make_alibi(model, scope))
@@ -681,10 +701,14 @@ namespace ctranslate2 {
         (*_layernorm_embedding)(layer_in, layer_in);
 
       const dim_t batch_size = layer_in.dim(0);
+      // Merged attention applies each layer's window to decoder keys only.
+      // Legacy chunking also mistakes packed token features for the time axis.
+      const dim_t sliding_window =
+          _layers.front()->has_merged_encoder_attention() ? 0 : _sliding_window;
       dim_t max_time;
 
-      if (_sliding_window > 0 && layer_in.dim(1) > _sliding_window) {
-        max_time = _sliding_window;
+      if (sliding_window > 0 && layer_in.dim(1) > sliding_window) {
+        max_time = sliding_window;
       } else
         max_time = layer_in.dim(1);
 
@@ -766,13 +790,13 @@ namespace ctranslate2 {
 
       while (true) {
         dim_t prompt_size = layer_in.dim(1);
-        if (_sliding_window == 0 || prompt_size <= _sliding_window || _use_flash_attention) {
+        if (sliding_window == 0 || prompt_size <= sliding_window || _use_flash_attention) {
           layer_ins.push_back(std::move(layer_in));
           break;
         }
-        if (layer_in.dim(1) > _sliding_window) {
+        if (layer_in.dim(1) > sliding_window) {
           StorageView tmp(dtype, device);
-          const ops::Split split_op(1, {_sliding_window, prompt_size - _sliding_window});
+          const ops::Split split_op(1, {sliding_window, prompt_size - sliding_window});
           split_op(layer_in, tmp, layer_in);
           layer_ins.push_back(std::move(tmp));
         }
@@ -801,10 +825,10 @@ namespace ctranslate2 {
           if (attention && heads_to_select)
             layer_attention = std::make_unique<StorageView>(dtype, device);
 
-          dim_t offset = _sliding_window * i + step;
+          dim_t offset = sliding_window * i + step;
           offset = offset < 0 ? 0 : offset;
           if (i > 0) {
-            auto max_tokens = _sliding_window + layer_in_chunk->dim(1);
+            auto max_tokens = sliding_window + layer_in_chunk->dim(1);
             StorageView tmp_lengths = StorageView(Shape{layer_in_chunk->dim(0)}, int32_t(max_tokens), device);
             int num_heads = _num_heads;
             if (_tensor_parallel) {
@@ -817,7 +841,7 @@ namespace ctranslate2 {
               /*mask_future=*/true,
               multi_query);
 
-            const ops::Slide slide_lengths_op(2, _sliding_window, layer_in_chunk->dim(1));
+            const ops::Slide slide_lengths_op(2, sliding_window, layer_in_chunk->dim(1));
             // reuse tmp_lengths
             slide_lengths_op(lengths_mask, tmp_lengths);
             input_lengths_mask = std::make_unique<StorageView>(std::move(tmp_lengths));

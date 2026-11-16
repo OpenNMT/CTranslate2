@@ -302,6 +302,47 @@ INSTANTIATE_TEST_SUITE_P(CPU, MergedAttentionTest, ::testing::Values(Device::CPU
 INSTANTIATE_TEST_SUITE_P(MPS, MergedAttentionTest, ::testing::Values(Device::MPS));
 #endif
 
+TEST(AttentionTest, EncoderWindowRecognizesPackedMemoryProjection) {
+  constexpr dim_t WIDTH = 4;
+  class WindowModel : public models::Model {
+  public:
+    WindowModel(bool packed) {
+      // Zero Q/K gives uniform attention over the sliding window; V/output
+      // are identity projections. Only the decoder marker's name changes.
+      std::vector<float> qkv(3 * WIDTH * WIDTH, 0.f), out(WIDTH * WIDTH, 0.f);
+      for (dim_t i = 0; i < WIDTH; ++i) {
+        qkv[2 * WIDTH * WIDTH + i * WIDTH + i] = 1.f;
+        out[i * WIDTH + i] = 1.f;
+      }
+      register_variable("attn/linear_0/weight", StorageView({3 * WIDTH, WIDTH}, qkv));
+      register_variable("attn/linear_1/weight", StorageView({WIDTH, WIDTH}, out));
+      register_variable("attn/sliding_window", StorageView(int32_t(3)));
+      register_variable(std::string("decoder/layer_0/self_attention/memory_kv/")
+                          + (packed ? "weight_packed" : "weight"),
+                        StorageView(0.f));
+      set_compute_type(ComputeType::FLOAT32, Device::CPU, 0, false);
+    }
+  protected:
+    std::unique_ptr<Model> clone() const override { return nullptr; }
+  };
+
+  std::vector<float> input_data, expected_data;
+  for (const float value : {1.f, 2.f, 4.f, 8.f, 16.f})
+    input_data.insert(input_data.end(), WIDTH, value);
+  for (const float value : {1.5f, 7.f / 3, 14.f / 3, 28.f / 3, 12.f})
+    expected_data.insert(expected_data.end(), WIDTH, value);
+  const StorageView input({1, 5, WIDTH}, input_data);
+  const StorageView expected({1, 5, WIDTH}, expected_data);
+  for (const bool packed : {false, true}) {
+    SCOPED_TRACE(packed);
+    WindowModel model(packed);
+    layers::MultiHeadAttention attention(model, "attn", 1, /*self_attention=*/true);
+    StorageView output;
+    attention(input, input, nullptr, output);
+    expect_storage_eq(output, expected, 1e-5);
+  }
+}
+
 // MHA: Each head has independent K/V
 TEST_F(CrossAttentionTest, StandardMultiHeadAttention) {
   MockModel model(NUM_HEADS, NUM_HEADS);
