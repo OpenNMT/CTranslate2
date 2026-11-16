@@ -419,15 +419,13 @@ namespace ctranslate2 {
       , _memory_kv((model.get_variable_if_exists(scope + "/memory_kv/weight")
                     || model.get_variable_if_exists(scope + "/memory_kv/weight_packed"))
                      ? std::make_unique<const Dense>(model, scope + "/memory_kv")
-                     : nullptr),
-          _bidirectional_window(
-              !is_decoder && self_attention &&
-                      (model.get_variable_if_exists(
-                           "decoder/layer_0/self_attention/memory_kv/weight") ||
-                       model.get_variable_if_exists(
-                           "decoder/layer_0/self_attention/memory_kv/weight_packed"))
-                  ? _sliding_window
-                  : 0)
+                     : nullptr)
+      , _bidirectional_window(
+          !is_decoder && self_attention
+              && (model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight")
+                  || model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight_packed"))
+            ? _sliding_window
+            : 0)
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;

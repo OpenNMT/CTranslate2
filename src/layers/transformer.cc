@@ -10,7 +10,8 @@ namespace ctranslate2 {
       // 65504, even when every normalized activation is representable in FP16.
       // A power-of-two scale adds exponent headroom without changing the
       // attention/MLP inputs or the final normalized encoder/decoder outputs.
-      if (get_default_float_type(model.effective_compute_type()) != DataType::FLOAT16
+      if (model.device() != Device::MPS
+          || get_default_float_type(model.effective_compute_type()) != DataType::FLOAT16
           || !model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight"))
         return 1.f;
       return 1.f / 16.f;
