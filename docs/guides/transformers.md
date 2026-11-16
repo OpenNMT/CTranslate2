@@ -643,17 +643,6 @@ To convert a model:
 ct2-transformers-converter --model google/t5gemma-2-270m-270m --output_dir t5gemma2_270m_270m.ct2
 ```
 
-```{note}
-Reconvert T5Gemma2 models with the updated converter. Older versions could use
-the decoder embeddings instead of a wrapped language-model output projection,
-and rounded the RMSNorm unit offset in BF16 instead of adding it in FP32.
-FP16 inference internally rescales the residual stream and RMSNorm epsilon to
-avoid residual overflow, while keeping projections and the KV cache in FP16.
-This prevents overflow without clipping activations; FP16 can still change
-logits and generated tokens compared with FP32. Use `compute_type="float32"`
-when validating numerical agreement with an FP32 reference.
-```
-
 Usage:
 
 ```python

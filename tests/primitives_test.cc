@@ -5,53 +5,6 @@
 class PrimitiveTest : public ::testing::TestWithParam<Device> {
 };
 
-TEST_P(PrimitiveTest, BidirectionalWindowAndPadding) {
-  const Device device = GetParam();
-  for (const dim_t window : {3, 4}) {
-    StorageView scores({2, 2, 5, 5}, 1.f, device);
-    std::vector<int32_t> lengths(20, 5);
-    std::fill(lengths.begin() + 10, lengths.end(), 3);
-    const StorageView mask({20}, lengths, device);
-    DEVICE_DISPATCH(device,
-                    primitives<D>::mask_merged_attention(
-                        scores.data<float>(), mask.data<int32_t>(), nullptr, 20,
-                        5, 0, 5, 0, (window + 1) / 2, window / 2 + 1));
-    const auto actual = scores.to(Device::CPU);
-    for (dim_t row = 0; row < 20; ++row) {
-      for (dim_t col = 0; col < 5; ++col) {
-        const dim_t distance = row % 5 - col;
-        const bool valid = col < lengths[row]
-          && (row % 5 >= lengths[row]
-              || (distance < (window + 1) / 2 && -distance < window / 2 + 1));
-        EXPECT_EQ(actual.at<float>({row / 10, row / 5 % 2, row % 5, col}),
-                  valid ? 1.f : -std::numeric_limits<float>::infinity());
-      }
-    }
-  }
-}
-
-TEST_P(PrimitiveTest, MergedAttentionMaskKeepsSeparateRanges) {
-  const Device device = GetParam();
-  const float inf = -std::numeric_limits<float>::infinity();
-  const StorageView self({4}, std::vector<int32_t>{3, 1, 99, -1}, device);
-  const StorageView memory({4}, std::vector<int32_t>{2, 0, 99, -1}, device);
-  StorageView scores({4, 8}, 1.f, device);
-  DEVICE_DISPATCH(device, primitives<D>::mask_merged_attention(
-                              scores.data<float>(), self.data<int32_t>(),
-                              memory.data<int32_t>(), 4, 3, 5, 2, 2, 2));
-  const StorageView expected(
-      {4, 8},
-      std::vector<float>{inf, 1,   1,   1,   1,   inf, inf, inf, inf, inf, inf,
-                         inf, inf, inf, inf, inf, inf, 1,   1,   1,   1,   1,
-                         1,   1,   inf, inf, inf, inf, inf, inf, inf, inf});
-  expect_storage_eq(scores, expected);
-  scores = StorageView({4, 8}, 1.f, device);
-  DEVICE_DISPATCH(
-      device, primitives<D>::mask_merged_attention(
-                  scores.data<float>(), nullptr, nullptr, 4, 3, 5, 2, 2, 0));
-  expect_storage_eq(scores, StorageView({4, 8}, 1.f));
-}
-
 TEST_P(PrimitiveTest, StridedFill) {
   const Device device = GetParam();
   StorageView x({3, 2}, float(0), device);

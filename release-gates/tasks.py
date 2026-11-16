@@ -61,22 +61,6 @@ OPUS_MODEL = "Helsinki-NLP/opus-mt-en-de"
 T5GEMMA_MODEL = "jordimas/t5gemma-2-270m-270m"
 T5GEMMA_REVISION = "dfb6d0d619d8e6d42f279a6197abb90dec0137c1"
 
-# At the pinned checkpoint, independent FP32 Transformers greedy decoding
-# produces [138, 107] * 32 (spaces/newlines) for this SQuAD input. Keep it out
-# of the nonempty-text benchmark for both baseline and candidate; select the
-# next sample instead. Never filter based on the candidate's generated output.
-T5GEMMA_WHITESPACE_SQUAD_IDS = frozenset({"5726d4a45951b619008f7f6c"})
-
-
-def _select_t5gemma_samples(samples, limit):
-    selected = []
-    for sample in samples:
-        if limit is not None and len(selected) >= limit:
-            break
-        if sample["id"] not in T5GEMMA_WHITESPACE_SQUAD_IDS:
-            selected.append(sample)
-    return selected
-
 
 def _converted_dir(stack, model_dir, convert):
     if model_dir:
@@ -136,11 +120,10 @@ def run_t5gemma_generation(limit=50, device="cpu", model_dir=None):
     import transformers
     from datasets import load_dataset
 
-    samples = _select_t5gemma_samples(
-        load_dataset("rajpurkar/squad", split="validation",
-                     revision=SQUAD_REVISION).shuffle(seed=42), limit)
-    prompts = [f"Context: {sample['context']} Question: {sample['question']} Answer:"
-               for sample in samples]
+    samples = load_dataset("rajpurkar/squad", split="validation",
+                           revision=SQUAD_REVISION).shuffle(seed=42)[:limit]
+    prompts = [f"Context: {context} Question: {question} Answer:"
+               for context, question in zip(samples["context"], samples["question"])]
     if not prompts:
         raise ValueError("Generation requires at least one prompt")
     tokenizer = transformers.AutoTokenizer.from_pretrained(T5GEMMA_MODEL, revision=T5GEMMA_REVISION)

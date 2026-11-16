@@ -352,55 +352,6 @@ namespace ctranslate2 {
                                                                                 mask);
   }
 
-  template <typename T>
-  __global__ void mask_merged_attention_kernel(
-      T* scores, const int32_t* self_lengths, const int32_t* memory_lengths,
-      dim_t rows, dim_t self_size, dim_t memory_size, dim_t query_size,
-      dim_t offset, dim_t window, dim_t right_window) {
-    const dim_t width = self_size + memory_size;
-    for (dim_t row = blockIdx.x; row < rows; row += gridDim.x) {
-      const dim_t length = self_lengths ? self_lengths[row] : self_size;
-      const dim_t first = window && !(right_window && row % query_size >= length)
-        ? max(dim_t(0), offset + row % query_size + 1 - window) : 0;
-      const dim_t self_end =
-          right_window ? min(length, offset + row % query_size + right_window)
-                       : length;
-      const dim_t memory_end =
-          memory_lengths ? memory_lengths[row] : memory_size;
-      for (dim_t col = threadIdx.x; col < width; col += blockDim.x) {
-        if (col < self_size ? (col < first || col >= self_end)
-                            : col - self_size >= memory_end)
-          scores[row * width + col] = T(-INFINITY);
-      }
-    }
-  }
-
-  template <>
-  template <typename T>
-  void primitives<Device::CUDA>::mask_merged_attention(
-      T* scores, const int32_t* self_lengths, const int32_t* memory_lengths,
-      dim_t rows, dim_t self_size, dim_t memory_size, dim_t query_size,
-      dim_t offset, dim_t window, dim_t right_window) {
-    if (rows == 0 || self_size + memory_size == 0)
-      return;
-    mask_merged_attention_kernel<<<std::min(rows, cuda::max_blocks),
-                                   std::min(self_size + memory_size,
-                                            cuda::max_threads),
-                                   0, cuda::get_cuda_stream()>>>(
-        cuda::device_cast(scores), self_lengths, memory_lengths, rows,
-        self_size, memory_size, query_size, offset, window, right_window);
-  }
-
-  template void primitives<Device::CUDA>::mask_merged_attention(
-      float*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t, dim_t,
-      dim_t, dim_t);
-  template void primitives<Device::CUDA>::mask_merged_attention(
-      float16_t*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t,
-      dim_t, dim_t, dim_t);
-  template void primitives<Device::CUDA>::mask_merged_attention(
-      bfloat16_t*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t,
-      dim_t, dim_t, dim_t);
-
   template<>
   template <typename T>
   void primitives<Device::CUDA>::transpose_2d(const T* a, const dim_t* dims, T* b) {

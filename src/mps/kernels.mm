@@ -80,18 +80,6 @@ struct SoftmaxArgs {
   uint log_output;
 };
 
-struct MergedMaskArgs {
-  ulong rows;
-  ulong self_size;
-  ulong memory_size;
-  ulong query_size;
-  ulong offset;
-  ulong window;
-  ulong right_window;
-  uint has_self_lengths;
-  uint has_memory_lengths;
-};
-
 struct FusedAttentionArgs {
   uint batch_size;
   uint query_length;
@@ -381,8 +369,6 @@ static inline float apply_unary(float x, uint op) {
     case 1: return log(x);
     case 2: return cos(x);
     case 3: return sin(x);
-    // fast::tanh can return NaN for large finite inputs under fast math.
-    // This helper also serves fused GEMM/bias activation epilogues.
     case 4: return precise::tanh(x);
     case 5: return max(x, 0.0f);
     case 6: return 0.5f * x * (1.0f + erf_approx(x * 0.7071067811865475f));
@@ -501,30 +487,6 @@ kernel void prepare_length_mask(device const int* lengths [[buffer(0)]],
     mask[gid] = length;
   }
 }
-
-#define MERGED_MASK_KERNEL(NAME, TYPE, NEG_INF) \
-kernel void NAME(device TYPE* scores [[buffer(0)]], \
-                 device const int* self_lengths [[buffer(1)]], \
-                 device const int* memory_lengths [[buffer(2)]], \
-                 constant MergedMaskArgs& args [[buffer(3)]], \
-                 uint gid [[thread_position_in_grid]]) { \
-  const ulong width = args.self_size + args.memory_size; \
-  if (ulong(gid) >= args.rows * width) return; \
-  const ulong row = ulong(gid) / width, col = ulong(gid) % width; \
-  const ulong pos = args.offset + row % args.query_size + 1; \
-  const long length = args.has_self_lengths ? self_lengths[row] : long(args.self_size); \
-  const bool padded_query = args.right_window && long(row % args.query_size) >= length; \
-  const ulong first = !padded_query && args.window && pos > args.window ? pos - args.window : 0; \
-  const long self_end = args.right_window ? min(length, long(pos - 1 + args.right_window)) : length; \
-  const long memory_end = args.has_memory_lengths ? memory_lengths[row] : long(args.memory_size); \
-  if (col < args.self_size ? (col < first || long(col) >= self_end) \
-                          : long(col - args.self_size) >= memory_end) \
-    scores[gid] = NEG_INF; \
-}
-
-MERGED_MASK_KERNEL(merged_mask_f32, float, -INFINITY)
-MERGED_MASK_KERNEL(merged_mask_f16, half, half(-INFINITY))
-MERGED_MASK_KERNEL(merged_mask_bf16, ushort, ushort(0xff80))
 
 kernel void unary_f32(device const float* x [[buffer(0)]],
                       device float* y [[buffer(1)]],
@@ -2886,18 +2848,6 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint32_t log_output;
       };
 
-      struct MergedMaskArgs {
-        uint64_t rows;
-        uint64_t self_size;
-        uint64_t memory_size;
-        uint64_t query_size;
-        uint64_t offset;
-        uint64_t window;
-        uint64_t right_window;
-        uint32_t has_self_lengths;
-        uint32_t has_memory_lengths;
-      };
-
       struct FusedAttentionArgs {
         uint32_t batch_size;
         uint32_t query_length;
@@ -5183,32 +5133,6 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
              &args,
              sizeof(args),
              2);
-    }
-
-    void mask_merged_attention(DataType dtype, void* scores,
-                               const int32_t* self_lengths,
-                               const int32_t* memory_lengths, dim_t rows,
-                               dim_t self_size, dim_t memory_size,
-                               dim_t query_size, dim_t offset, dim_t window,
-                               dim_t right_window) {
-      StreamGuard stream_guard;
-      if (rows == 0 || self_size + memory_size == 0)
-        return;
-      const MergedMaskArgs args{uint64_t(rows),          uint64_t(self_size),
-                                uint64_t(memory_size),   uint64_t(query_size),
-                                uint64_t(offset),        uint64_t(window),
-                                uint64_t(right_window),  self_lengths ? 1u : 0u,
-                                memory_lengths ? 1u : 0u};
-      const auto total = rows * (self_size + memory_size);
-      const size_t bytes = size_t(total) * dtype_size(dtype);
-      run_1d(
-          kernel_name("merged_mask", dtype), total,
-          {{scores, bytes},
-           {self_lengths ? static_cast<const void*>(self_lengths) : scores,
-            self_lengths ? size_t(rows) * sizeof(int32_t) : bytes},
-           {memory_lengths ? static_cast<const void*>(memory_lengths) : scores,
-            memory_lengths ? size_t(rows) * sizeof(int32_t) : bytes}},
-          &args, sizeof(args), 3);
     }
 
     void unary(DataType dtype, UnaryOp op, const void* x, void* y, dim_t size) {

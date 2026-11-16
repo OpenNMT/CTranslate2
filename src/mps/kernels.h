@@ -321,13 +321,6 @@ namespace ctranslate2 {
                  dim_t depth,
                  bool log);
 
-    void mask_merged_attention(DataType dtype, void* scores,
-                               const int32_t* self_lengths,
-                               const int32_t* memory_lengths, dim_t rows,
-                               dim_t self_size, dim_t memory_size,
-                               dim_t query_size, dim_t offset, dim_t window,
-                               dim_t right_window);
-
     // Computes softmax(scale * Q * K^T) * V for contiguous FP16 attention
     // matrices. Returns false when the shape is outside the specialized
     // decoder path so callers can use the generic operators.

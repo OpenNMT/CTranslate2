@@ -1253,6 +1253,20 @@ TEST_P(OpDeviceFPTest, GELUTanhLargeFiniteInputs) {
     }
   };
   check(output);
+  // GPT-2 also reaches tanh-GELU through fused bias and GEMM epilogues.
+  const ops::ActivationType activation = ops::ActivationType::GELUTanh;
+  const dim_t width = values.size();
+  const StorageView bias = StorageView({width}, 0.f, device).to(dtype);
+  const ops::BiasAdd bias_add(&activation);
+  bias_add(input, bias, output);
+  check(output);
+  std::vector<float> identity(width * width, 0.f);
+  for (dim_t i = 0; i < width; ++i)
+    identity[i * width + i] = 1.f;
+  const StorageView weight = StorageView({width, width}, identity, device).to(dtype);
+  input.reshape({1, width});
+  ops::Gemm(1.f, 0.f, false, false, false, false, &activation)(input, weight, output);
+  check(output);
   gelu(input, input);
   check(input);
 }

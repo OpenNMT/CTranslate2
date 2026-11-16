@@ -158,16 +158,6 @@ namespace ctranslate2 {
                                     bool multi_query,
                                     int32_t* mask);
 
-    // Mask [self keys | memory keys], whose valid ranges are disjoint.
-    // right_window optionally bounds bidirectional self attention
-    // (memory_size=0).
-    template <typename T>
-    static void mask_merged_attention(T* scores, const int32_t* self_lengths,
-                                      const int32_t* memory_lengths, dim_t rows,
-                                      dim_t self_size, dim_t memory_size,
-                                      dim_t query_size, dim_t offset,
-                                      dim_t window, dim_t right_window = 0);
-
     template <typename T>
     static void transpose_2d(const T* a, const dim_t* dims, T* b);
     template <typename T>

@@ -114,10 +114,6 @@ namespace ctranslate2 {
         return bool(_encoder_attention) || _has_merged_encoder_attention;
       }
 
-      bool has_merged_encoder_attention() const {
-        return _has_merged_encoder_attention;
-      }
-
       const AttentionLayer& get_self_attention() const {
         return *_self_attention;
       }

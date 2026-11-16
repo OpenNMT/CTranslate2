@@ -16,14 +16,6 @@ Prompts use `rajpurkar/squad` at revision `7b6d24c440a36b6815f21b70d25016731768d
 shuffled with seed 42 and capped at 512 input tokens.
 Invalid metrics and runtime errors fail immediately.
 
-The fixed sample selection excludes SQuAD ID `5726d4a45951b619008f7f6c` before
-applying the sample limit. At the pinned T5Gemma2 revision, independent FP32
-Transformers greedy decoding returns token IDs `[138, 107]` repeated 32 times
-(spaces and newlines) for this prompt. It cannot satisfy a nonempty-text check.
-Both baseline and candidate use the next shuffled sample instead, retaining
-50 prompts. Selection never depends on candidate outputs, and missing, empty,
-or whitespace-only completions in the selected workload still fail the gate.
-
 ## Performance
 
 Each task runs three sequential baseline/candidate pairs in alternating order.

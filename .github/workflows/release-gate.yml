@@ -29,9 +29,6 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Test release-gate validation
-        run: python -m unittest discover -s release-gates -p 'test_*.py' -v
-
       - name: Download candidate wheels
         uses: actions/download-artifact@v8
         with:
