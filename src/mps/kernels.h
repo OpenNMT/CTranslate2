@@ -130,6 +130,10 @@ namespace ctranslate2 {
                                              dim_t k,
                                              int activation);
 
+    void dense_f16_fp32(const float* input, const float16_t* weight,
+                         const float16_t* bias, const float* residual, float* output,
+                         dim_t rows, dim_t columns, dim_t depth);
+
     void gemv(DataType dtype,
               bool transpose_a,
               bool transpose_b,

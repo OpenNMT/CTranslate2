@@ -111,8 +111,48 @@ def merged_model(request, tmp_path_factory):
     return source, path
 
 
+@pytest.mark.parametrize("merged_model", [(1, False)], indirect=True)
+@pytest.mark.parametrize("dtype", ["float16", "bfloat16"])
+def test_t5gemma2_embedding_scale_retains_original_scalar(merged_model, dtype):
+    import torch
+
+    from ctranslate2.converters.transformers import T5Gemma2Loader
+
+    source = copy.deepcopy(merged_model[0]).to(getattr(torch, dtype))
+    expected = source.config.decoder.hidden_size**0.5
+    encoder_scale = float(source.model.encoder.text_model.embed_tokens.embed_scale)
+    assert float(source.model.decoder.embed_tokens.embed_scale) != expected
+    spec = T5Gemma2Loader().get_model_spec(source)
+    assert spec.encoder.scale_embeddings == encoder_scale
+    assert spec.decoder.scale_embeddings == expected
+
+
+@pytest.mark.parametrize("merged_model", [(1, False)], indirect=True)
+def test_t5gemma2_half_conversion_preserves_large_norm_offset(merged_model):
+    import torch
+
+    from ctranslate2.converters.transformers import T5Gemma2Loader
+
+    source = copy.deepcopy(merged_model[0]).half()
+    with torch.no_grad():
+        source.model.encoder.text_model.layers[
+            0
+        ].post_feedforward_layernorm.weight.fill_(4096)
+    spec = T5Gemma2Loader().get_model_spec(source)
+    vocab = [f"t{i}" for i in range(64)]
+    spec.register_source_vocabulary(vocab)
+    spec.register_target_vocabulary(vocab)
+    spec.validate()
+    spec.optimize(quantization="float16")
+    gamma = spec.encoder.layer[0].post_feedforward_layer_norm.gamma
+    assert gamma.dtype == "float32"
+    np.testing.assert_array_equal(gamma.numpy(), np.full(32, 4097, dtype=np.float32))
+    assert spec.encoder.layer[0].self_attention.linear[0].weight.dtype == "float16"
+
+
 @test_utils.require_mps
-def test_t5gemma2_float16_large_residuals(merged_model, tmp_path):
+@pytest.mark.parametrize("saved_dtype", ["float32", "float16"])
+def test_t5gemma2_float16_large_residuals(merged_model, tmp_path, saved_dtype):
     import torch
 
     from ctranslate2.converters.transformers import T5Gemma2Loader
@@ -156,7 +196,7 @@ def test_t5gemma2_float16_large_residuals(merged_model, tmp_path):
     spec.config.decoder_start_token = "t2"
     spec.config.layer_norm_epsilon = 1e-6
     spec.validate()
-    spec.optimize(quantization="float32")
+    spec.optimize(quantization=saved_dtype)
     spec.save(tmp_path)
     translator = ctranslate2.Translator(
         str(tmp_path), device="mps", compute_type="float16", intra_threads=2
@@ -243,7 +283,8 @@ def test_merged_attention_padded_batch_beams_and_source(
                             )
                             score = (
                                 reference[
-                                    torch.arange(len(candidate_ids)), candidate_ids
+                                    torch.arange(len(candidate_ids)),
+                                    candidate_ids,
                                 ]
                                 .mean()
                                 .item()
@@ -290,7 +331,11 @@ def test_merged_attention_causal_prefix_scoring(merged_model, device, dtype):
 
     source, path = merged_model
     translator = ctranslate2.Translator(
-        str(path), device=device, compute_type=dtype, intra_threads=2, inter_threads=1
+        str(path),
+        device=device,
+        compute_type=dtype,
+        intra_threads=2,
+        inter_threads=1,
     )
     source_ids = [[4, 5, 6], [7, 8, 9, 10, 11, 12, 13]]
     inputs = [[f"t{i}" for i in row] for row in source_ids]

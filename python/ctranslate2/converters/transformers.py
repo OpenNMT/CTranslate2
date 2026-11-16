@@ -4845,7 +4845,13 @@ class T5Gemma2Loader(ModelLoader):
             gc.collect()
 
     def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
-        embed_scale = getattr(module.embed_tokens, "embed_scale", None)
+        # The decoder's canonical FP32 initialization uses this original scalar.
+        # Loading weights in BF16 otherwise rounds its nonpersistent buffer.
+        embed_scale = getattr(
+            module.embed_tokens,
+            "scalar_embed_scale",
+            getattr(module.embed_tokens, "embed_scale", None),
+        )
         spec.scale_embeddings = float(embed_scale) if embed_scale is not None else False
         spec.start_from_zero_embedding = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)

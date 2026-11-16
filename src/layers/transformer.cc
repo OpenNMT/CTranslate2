@@ -11,6 +11,7 @@ namespace ctranslate2 {
       // A power-of-two scale adds exponent headroom without changing the
       // attention/MLP inputs or the final normalized encoder/decoder outputs.
       if (model.device() != Device::MPS
+          || model.use_float32_activations()
           || get_default_float_type(model.effective_compute_type()) != DataType::FLOAT16
           || !model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight"))
         return 1.f;
@@ -108,8 +109,16 @@ namespace ctranslate2 {
                                         && _pre_feedforward_layer_norm && _post_feedforward_layer_norm;
 
       if (pre_post_layer_norm) {
-        StorageView hidden(dtype, device);
-        StorageView context(dtype, device);
+        const DataType activation_dtype = _input_layer_norm->output_type();
+        StorageView hidden(activation_dtype, device);
+        StorageView context(activation_dtype, device);
+        StorageView promoted;
+        const StorageView* residual = &input;
+        if (_post_attention_layer_norm->output_type() == DataType::FLOAT32
+            && input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          residual = &promoted;
+        }
 
         (*_input_layer_norm)(input, hidden);
 
@@ -130,18 +139,18 @@ namespace ctranslate2 {
         (*_post_attention_layer_norm)(context, output);
 
         // residual + hidden_states
-        ops::Add()(input, output, output);
+        ops::Add()(*residual, output, output);
 
         context = std::move(output);
         (*_pre_feedforward_layer_norm)(context, output);
         hidden = std::move(output);
 
         // mlp
-        _ff(hidden, output);
+        StorageView feedforward(activation_dtype, device);
+        _ff(hidden, feedforward);
 
         // post_feedforward_layernorm
-        hidden = std::move(output);
-        (*_post_feedforward_layer_norm)(hidden, output);
+        (*_post_feedforward_layer_norm)(feedforward, output);
 
         // residual + hidden_states
         ops::Add()(context, output, output);
@@ -237,8 +246,16 @@ namespace ctranslate2 {
 
       const bool pre_post_layer_norm = _post_feedforward_layer_norm && _pre_feedforward_layer_norm;
       if (pre_post_layer_norm) {
-        StorageView hidden(dtype, device);
-        StorageView context(dtype, device);
+        const DataType activation_dtype = _input_layer_norm->output_type();
+        StorageView hidden(activation_dtype, device);
+        StorageView context(activation_dtype, device);
+        StorageView promoted;
+        const StorageView* residual = &input;
+        if (_post_attention_layer_norm->output_type() == DataType::FLOAT32
+            && input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          residual = &promoted;
+        }
         (*_input_layer_norm)(input, hidden);
 
         if (_has_merged_encoder_attention) {
@@ -270,7 +287,7 @@ namespace ctranslate2 {
                              offset);
         }
         (*_post_attention_layer_norm)(context, output);
-        ops::Add()(output, input, output);
+        ops::Add()(output, *residual, output);
 
         if (_encoder_attention) {
             StorageView cross_attn_in = output;  // save for residual
@@ -304,10 +321,10 @@ namespace ctranslate2 {
         (*_pre_feedforward_layer_norm)(context, output);
         hidden = std::move(output);
 
-        _ff(hidden, output);
+        StorageView feedforward(activation_dtype, device);
+        _ff(hidden, feedforward);
 
-        hidden = std::move(output);
-        (*_post_feedforward_layer_norm)(hidden, output);
+        (*_post_feedforward_layer_norm)(feedforward, output);
         ops::Add()(output, context, output);
 
         // Gemma 4 layer scalar

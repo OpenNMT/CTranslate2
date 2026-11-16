@@ -179,6 +179,8 @@ namespace ctranslate2 {
       const StorageView& _gamma;
       StorageView _scaled_gamma;
       const bool _use_residual;
+      bool _float32_math = false;
+      DataType _output_type;
       float _epsilon;
     };
 
