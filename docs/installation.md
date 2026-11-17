@@ -75,6 +75,12 @@ sudo ldconfig
 
 By default, the library is compiled with the [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) backend which should be installed separately. See the {ref}`installation:build options` to select or add another backend.
 
+```{note}
+CUDA 13 is supported for source builds only. The Python wheels stay on CUDA 12.8.
+
+A CUDA 13 build needs NVIDIA driver 580 or newer. CUDA 13 does not support compute capability below 7.5, so `CMAKE_CUDA_ARCHITECTURES` must not list 53, 60, 61 or 70 (the release wheel list). Use `native`, or a list such as `75;80;86;89;90;100;120`.
+```
+
 ### Compile the Python wrapper
 
 Once the C++ library is installed, you can compile the Python wrapper which uses [pybind11](https://github.com/pybind/pybind11). This step requires the Python development libraries to be installed on the system.
