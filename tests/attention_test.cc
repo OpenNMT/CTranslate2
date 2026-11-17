@@ -298,6 +298,10 @@ TEST_P(MergedAttentionTest, PaddedBatchWithBeams) {
 }
 
 INSTANTIATE_TEST_SUITE_P(CPU, MergedAttentionTest, ::testing::Values(Device::CPU));
+#ifdef CT2_WITH_CUDA
+INSTANTIATE_TEST_SUITE_P(CUDA, MergedAttentionTest,
+                        ::testing::Values(Device::CUDA));
+#endif
 #ifdef CT2_WITH_MPS
 INSTANTIATE_TEST_SUITE_P(MPS, MergedAttentionTest, ::testing::Values(Device::MPS));
 #endif
