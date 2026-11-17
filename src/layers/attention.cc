@@ -819,13 +819,7 @@ namespace ctranslate2 {
         values_proj.shallow_copy(*cached_self_values);
       }
 
-      // Compute beam_size: queries batch = batch * beam_size; memory cache at batch granularity.
-      // During the first decoding step memory is not yet cached; use the live memory batch.
       const bool memory_already_cached = cached_memory_keys && !cached_memory_keys->empty();
-      const dim_t batch_size_no_beam = memory_already_cached
-                                          ? cached_memory_keys->dim(0)
-                                          : (memory ? memory->dim(0) : queries.dim(0));
-      const dim_t beam_size = queries.dim(0) / batch_size_no_beam;
 
       // Project encoder memory through memory_kv (no RoPE; k_norm only).
       // Memory K/V is stored at batch granularity (without beam expansion).
@@ -857,6 +851,10 @@ namespace ctranslate2 {
           *cached_memory_values = memory_values;
         }
       }
+
+      // Live memory may contain packed token rows. The projected keys have
+      // their padding restored and always retain the encoder batch dimension.
+      const dim_t beam_size = queries_proj.dim(0) / memory_keys.dim(0);
 
       // Expand memory K/V from [batch, heads, src_len, d] to [batch*beam, heads, src_len, d].
       if (beam_size > 1) {
