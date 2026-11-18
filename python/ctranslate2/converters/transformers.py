@@ -1923,6 +1923,12 @@ class MT5Loader(T5Loader):
     def architecture_name(self):
         return "MT5ForConditionalGeneration"
 
+    def _scale_decoder_outputs(self, config):
+        # Transformers 4 rescales when the word embeddings are tied. Transformers 5
+        # never rescales mT5 outputs and always sets tie_word_embeddings=True.
+        transformers_major_version = int(transformers.__version__.split(".")[0])
+        return transformers_major_version < 5 and config.tie_word_embeddings
+
 
 @register_loader("UMT5Config")
 class UMT5Loader(T5Loader):

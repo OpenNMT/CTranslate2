@@ -108,7 +108,7 @@ _TRANSFORMERS_TRANSLATION_TESTS = [
         "▁Es ▁ist ▁in ▁den ▁süd amerikanische n ▁And en ▁ver breite t ▁und "
         "▁eine ▁vom ▁Guan ako ▁ab sta mmende ▁ Haustier form . </s>",
         "",
-        "▁Was ▁ist ▁ein ▁Lama - L ama ?",
+        "▁Was ▁ist ▁Lama ▁glam a ?",
         dict(),
     ),
     (
