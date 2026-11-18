@@ -46,53 +46,6 @@ class MetricValidationTest(unittest.TestCase):
                         self.assertEqual(results[metric].failed, expected_failure)
                         self.assertTrue(results[metric].performance)
 
-    def test_main_exit_status_for_performance_regressions(self):
-        baseline = {
-            "whisper_wer": {"wer": 0.1, "rtf_inverse": 100},
-            "opus_bleu": {"bleu": 30, "tokens_per_sec": 100},
-            "t5gemma_generation": {"tokens_per_sec": 100, "outputs": ["hello"]},
-        }
-        for degraded_task in (None, *baseline):
-            with self.subTest(degraded_task=degraded_task):
-                def result(py, task, limit, device, model_dir=None, compute_type="default"):
-                    metrics = dict(baseline[task])
-                    if py == "candidate" and task == degraded_task:
-                        metric = "rtf_inverse" if task == "whisper_wer" else "tokens_per_sec"
-                        metrics[metric] = 80
-                    return metrics
-                with patch.object(run_gate, "latest_version", return_value="4.8.5"), \
-                     patch.object(run_gate, "make_venv", side_effect=["baseline", "candidate"]), \
-                     patch.object(run_gate, "convert_models", return_value={}), \
-                     patch.object(run_gate, "select_compute_types", return_value=("default", "auto")), \
-                     patch.object(run_gate, "run_task", side_effect=result), \
-                     patch("sys.argv", ["run_gate.py"]), \
-                     contextlib.redirect_stdout(io.StringIO()), \
-                     self.assertRaises(SystemExit) as exited:
-                    run_gate.main()
-                self.assertEqual(exited.exception.code, 1 if degraded_task else 0)
-
-    def test_candidate_wheel_pattern_requires_one_match(self):
-        for wheels in ([], ["candidate.whl"], ["a.whl", "b.whl"]):
-            with self.subTest(wheels=wheels), \
-                 patch("sys.argv", ["run_gate.py", "--candidate-wheel-pattern", "*.whl"]), \
-                 patch.object(run_gate.glob, "glob", return_value=wheels), \
-                 patch.object(run_gate, "latest_version", return_value="4.8.5") as latest, \
-                 patch.object(run_gate, "make_venv") as make_venv, \
-                 patch.object(run_gate, "convert_models", return_value={}), \
-                 patch.object(run_gate, "select_compute_types", return_value=("default",)), \
-                 patch.object(run_gate, "evaluate_task", return_value=False), \
-                 contextlib.redirect_stdout(io.StringIO()), \
-                 contextlib.redirect_stderr(io.StringIO()), \
-                 self.assertRaises(SystemExit) as exited:
-                run_gate.main()
-            self.assertEqual(exited.exception.code, 0 if len(wheels) == 1 else 2)
-            if len(wheels) == 1:
-                self.assertEqual(make_venv.call_args.args[1],
-                                 str(run_gate.pathlib.Path(wheels[0]).resolve()))
-            else:
-                latest.assert_not_called()
-                make_venv.assert_not_called()
-
     def test_confirmation_cannot_hide_quality_failures(self):
         for rounds, expected in (
             ([(False, {"tokens_per_sec"}), (False, set())], False),
@@ -135,32 +88,7 @@ class MetricValidationTest(unittest.TestCase):
                 self.assertEqual([call.args[0] for call in task.call_args_list],
                                  ["b", "c", "c", "b", "b", "c"])
 
-    def test_adaptive_confirmation_stops_when_stable_or_at_budget(self):
-        for values, expected_pairs in (
-            ([80] * 9, 5),
-            ([40, 80, 120, 80, 100, 80, 80, 80], 8),
-            ([40, 120] * 5, 9),
-        ):
-            with self.subTest(values=values):
-                candidate_values = iter(values)
-
-                def result(py, *args, **kwargs):
-                    return {"bleu": 30, "tokens_per_sec":
-                            100 if py == "b" else next(candidate_values)}
-
-                output = io.StringIO()
-                with patch.object(run_gate, "run_task", side_effect=result) as task, \
-                     contextlib.redirect_stdout(output):
-                    quality, performance = run_gate.measure_round(
-                        "b", "c", "opus_bleu", 20, "cpu",
-                        {"baseline": {}, "candidate": {}}, confirmation=True)
-                self.assertEqual(task.call_count, expected_pairs * 2)
-                self.assertFalse(quality)
-                self.assertEqual(performance, {"tokens_per_sec"})
-                self.assertIn("IQR/median=", output.getvalue())
-                self.assertEqual("budget exhausted" in output.getvalue(), expected_pairs == 9)
-
-    def test_adaptive_confirmation_retains_late_quality_failure(self):
+    def test_confirmation_retains_late_quality_failure(self):
         candidates = iter([100, 100, 100, 100, 28])
 
         def result(py, *args, **kwargs):

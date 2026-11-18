@@ -41,16 +41,9 @@ RULES = {
 
 MetricResult = namedtuple("MetricResult", "baseline candidate failed performance")
 
-CONFIRMATION_MIN_PAIRS = 5
-CONFIRMATION_MAX_PAIRS = 9
-MAX_RELATIVE_IQR = 0.10
+MEASUREMENT_PAIRS = 3
+CONFIRMATION_PAIRS = 5
 
-
-def relative_iqr(values):
-    """Estimate timing spread using the middle half of the samples."""
-    q1, _, q3 = statistics.quantiles(values, n=4, method="inclusive")
-    median = statistics.median(values)
-    return (q3 - q1) / abs(median) if median else (0.0 if q3 == q1 else math.inf)
 
 def latest_version(pkg="ctranslate2"):
     with urllib.request.urlopen(f"https://pypi.org/pypi/{pkg}/json", timeout=30) as r:
@@ -137,57 +130,24 @@ def judge(task, base, cand):
     return results
 
 
-def compare_completions(base, cand):
-    baseline, candidate = base["outputs"], cand["outputs"]
-    if (not baseline or len(baseline) != len(candidate)
-            or any(not isinstance(s, str) for s in baseline + candidate)):
-        raise ValueError("Expected equal, nonempty sets of string completions")
-    changed = [(i, b, c) for i, (b, c) in enumerate(zip(baseline, candidate), 1) if b != c]
-    print(f"[gate] changed completions: {len(changed)}/{len(baseline)} [informational]")
-    for i, b, c in changed:
-        print(f"  prompt {i}: baseline={b!r} candidate={c!r}")
-    return len(changed)
-
-
 def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmation=False, compute_type="default"):
-    """Compare alternating pairs, adapting confirmation to measurement spread."""
+    """Compare alternating baseline/candidate pairs and judge the medians."""
     samples = {"baseline": [], "candidate": []}
     quality_failed = False
-    max_pairs = CONFIRMATION_MAX_PAIRS if confirmation else 3
-    min_pairs = CONFIRMATION_MIN_PAIRS if confirmation else 3
-    performance_metrics = [metric for metric, rule in RULES[task].items() if rule[2]]
-    stable = False
-    for repeat in range(max_pairs):
+    pairs = CONFIRMATION_PAIRS if confirmation else MEASUREMENT_PAIRS
+    for repeat in range(pairs):
         order = ("baseline", "candidate")
         if (repeat + int(confirmation)) % 2:
             order = tuple(reversed(order))
         for label in order:
-            print(f"[gate] {task}: {label} measurement {repeat + 1}/{max_pairs}", flush=True)
+            print(f"[gate] {task}: {label} measurement {repeat + 1}/{pairs}", flush=True)
             result = run_task(base_py if label == "baseline" else cand_py,
                               task, limit, device,
                               model_dir=model_dirs[label].get(task), compute_type=compute_type)
             samples[label].append(result)
         base, cand = samples["baseline"][-1], samples["candidate"][-1]
-        if task == "t5gemma_generation":
-            compare_completions(base, cand)
         quality_failed |= any(result.failed for result in judge(task, base, cand).values()
                               if not result.performance)
-
-        if repeat + 1 >= min_pairs:
-            spreads = {
-                (label, metric): relative_iqr([result[metric] for result in results])
-                for label, results in samples.items() for metric in performance_metrics
-            }
-            stable = all(spread <= MAX_RELATIVE_IQR for spread in spreads.values())
-            for (label, metric), spread in spreads.items():
-                print(f"[gate] {task}: {label}.{metric} IQR/median={spread:.1%} "
-                      f"({repeat + 1} pairs)", flush=True)
-            if not confirmation or stable:
-                break
-
-    if confirmation and not stable:
-        print(f"[gate] {task}: confirmation measurement budget exhausted; "
-              "timings remain noisy, applying median thresholds", flush=True)
 
     medians = {}
     for label, results in samples.items():

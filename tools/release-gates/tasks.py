@@ -1,4 +1,4 @@
-"""Release-gate tasks returning metrics and optional generated outputs."""
+"""Release-gate tasks returning metrics."""
 
 import time
 
@@ -140,12 +140,7 @@ def run_t5gemma_generation(limit=50, device="cpu", *, model_dir, compute_type="d
     results, elapsed = run_and_measure(
         translator.translate_batch, inputs, warmup_size=8,
         sampling_topk=1, max_decoding_length=64, max_batch_size=8)
-    outputs = [tokenizer.decode(tokenizer.convert_tokens_to_ids(r.hypotheses[0]),
-                                skip_special_tokens=True).strip() for r in results]
-    if len(outputs) != len(prompts):
-        raise ValueError("Generation returned missing completions")
-    return {"outputs": outputs,
-            "tokens_per_sec": sum(len(r.hypotheses[0]) for r in results) / elapsed,
+    return {"tokens_per_sec": sum(len(r.hypotheses[0]) for r in results) / elapsed,
             "compute_type": translator.compute_type}
 
 
