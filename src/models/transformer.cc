@@ -118,6 +118,11 @@ namespace ctranslate2 {
       return std::make_unique<DecoderReplica>(model, std::move(decoder));
     }
 
+    bool TransformerDecoderModel::is_quantizable(const std::string& name) const {
+      // Routers stay floating-point and unpacked for FP32 projection/selection.
+      return Model::is_quantizable(name) && name.find("/ffn/router/") == std::string::npos;
+    }
+
     bool TransformerDecoderModel::is_linear_weight(const std::string& variable_name) const {
       return is_quantizable(variable_name) && variable_name.find("embeddings") == std::string::npos;
     }

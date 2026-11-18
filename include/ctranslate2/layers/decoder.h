@@ -22,6 +22,11 @@ namespace ctranslate2 {
 
       virtual DecoderState initial_state(bool iterative_decoding = true) const = 0;
 
+      // Give context-dependent position encodings the complete initial prompt
+      // length before it is split for prefill. True means static-prefix caches
+      // cannot be reused independently of that length.
+      virtual bool set_sequence_length_hint(dim_t) { return false; }
+
       // Forwards one step.
       virtual void operator()(dim_t step,
                               const StorageView& ids,
@@ -79,6 +84,9 @@ namespace ctranslate2 {
       DataType output_type() const override {
         return const_cast<Decoder&>(*this).output_layer().output_type();
       }
+
+      // Logits can retain greater precision than decoder activations/caches.
+      virtual DataType logits_type() const { return output_type(); }
 
       dim_t output_size() const override {
         return const_cast<Decoder&>(*this).output_layer().output_size();

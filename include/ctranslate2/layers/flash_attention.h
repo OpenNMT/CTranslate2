@@ -36,6 +36,15 @@ namespace ctranslate2 {
       }
 
     private:
+      void compute_mps(const StorageView& queries, const StorageView* lengths,
+                        StorageView& output, StorageView* cached_keys,
+                        StorageView* cached_values, StorageView* attention,
+                        const Padder* padder, bool normalized_attention, dim_t offset) const;
+
+      std::unique_ptr<const LayerNorm> _mps_q_norm;
+      std::unique_ptr<const LayerNorm> _mps_k_norm;
+      std::unique_ptr<const LayerNorm> _mps_v_norm;
+
       static void split_heads(StorageView& x,
                                dim_t num_heads,
                                const Padder* padder = nullptr,
@@ -46,6 +55,7 @@ namespace ctranslate2 {
                                 const Padder* padder = nullptr,
                                 dim_t beam_size = 1);
 
+      unsigned _mps_kv_cache_bits = 0;
       const dim_t _cache_time_dim;
       static constexpr dim_t _offset_free_space{512};
     };

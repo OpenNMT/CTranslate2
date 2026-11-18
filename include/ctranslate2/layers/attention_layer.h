@@ -45,6 +45,12 @@ namespace ctranslate2 {
         return _multi_query;
       }
 
+      bool interleaved_length_mask() const {
+        return _interleaved_lengths;
+      }
+
+      bool set_sequence_length_hint(dim_t length);
+
       static StorageView prepare_length_mask(const StorageView& lengths,
                                              const dim_t num_heads,
                                              const dim_t num_queries,
@@ -67,6 +73,8 @@ namespace ctranslate2 {
       const bool _multi_query;
       const dim_t _num_heads_kv;
       const dim_t _sliding_window;
+      const bool _absolute_window;
+      const bool _interleaved_lengths;
     };
 
     enum class RotaryScalingType {
@@ -93,6 +101,11 @@ namespace ctranslate2 {
                        const bool transpose = true);
 
       void apply(StorageView& x, const dim_t offset = 0, bool fa2 = false);
+
+      bool set_sequence_length_hint(dim_t length) {
+        _sequence_length_hint = length;
+        return _scaling_type == RotaryScalingType::Su;
+      }
 
       StorageView& get_cos_half() {
         return *_cos_half;
@@ -126,6 +139,8 @@ namespace ctranslate2 {
       const dim_t _max_position_embeddings;
       const ops::Rotary _rotary_op;
       const bool _transpose;
+      bool _using_long_factor = false;
+      dim_t _sequence_length_hint = 0;
 
       StorageView _sin;
       StorageView _cos;

@@ -70,7 +70,7 @@ if(NOT MSVC)
 endif()
 
 if(WITH_MPS)
-  target_sources(ctranslate2_test PRIVATE mps_error_test.cc)
+  target_sources(ctranslate2_test PRIVATE mps_error_test.cc mps_attention_test.cc mps_flash_attention_test.cc mps_moe_test.cc)
 
   add_executable(benchmark_mps
     benchmark_mps.cc
@@ -78,6 +78,7 @@ if(WITH_MPS)
   target_link_libraries(benchmark_mps
     ${PROJECT_NAME}
     )
+  target_include_directories(benchmark_mps PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/../src)
 endif()
 
 if(WITH_CUDA)

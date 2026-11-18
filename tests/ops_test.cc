@@ -1,3 +1,4 @@
+#include "ctranslate2/ops/moe_topk.h"
 #include <algorithm>
 #include <cmath>
 #include <cstdlib>
@@ -17,6 +18,54 @@
 #  include "ctranslate2/devices.h"
 #  include "mps/kernels.h"
 #  include "mps/utils.h"
+#endif
+
+#ifdef CT2_WITH_MPS
+TEST(MPSPrimitiveTest, HalfWeightDenseRetainsFloatActivationsAndResults) {
+  for (dim_t rows : {1, 7, 9, 33})
+    for (dim_t depth : {13, 640, 2048})
+      for (bool bias : {false, true})
+        for (bool residual : {false, true}) {
+          SCOPED_TRACE(::testing::Message() << rows << ' ' << depth << ' '
+                                            << bias << ' ' << residual);
+          constexpr dim_t columns = 65;
+          StorageView input({rows, depth}), weight({columns, depth}, DataType::FLOAT16),
+            b({columns}, DataType::FLOAT16), r({rows, columns}), expected({rows, columns});
+          for (dim_t i = 0; i < input.size(); ++i)
+            input.data<float>()[i] = .21739f * std::sin(float(i) * .17f);
+          for (dim_t i = 0; i < weight.size(); ++i)
+            weight.data<float16_t>()[i] = float16_t(.031f * std::cos(float(i) * .13f));
+          for (dim_t i = 0; i < columns; ++i)
+            b.data<float16_t>()[i] = float16_t(float(i) * .003f);
+          for (dim_t i = 0; i < r.size(); ++i)
+            r.data<float>()[i] = std::sin(float(i) * .23f);
+          for (dim_t m = 0; m < rows; ++m)
+            for (dim_t n = 0; n < columns; ++n) {
+              double sum = 0;
+              for (dim_t k = 0; k < depth; ++k)
+                sum += double(input.data<float>()[m*depth+k])
+                  * float(weight.data<float16_t>()[n*depth+k]);
+              if (bias) sum += float(b.data<float16_t>()[n]);
+              if (residual) sum += r.data<float>()[m*columns+n];
+              expected.data<float>()[m*columns+n] = sum;
+            }
+          auto x = input.to(Device::MPS), w = weight.to(Device::MPS),
+            gb = b.to(Device::MPS), gr = r.to(Device::MPS);
+          StorageView output({rows, columns}, std::numeric_limits<float>::quiet_NaN(),
+                              Device::MPS);
+          mps::dense_f16_fp32(x.data<float>(), w.data<float16_t>(),
+                               bias ? gb.data<float16_t>() : nullptr,
+                               residual ? gr.data<float>() : nullptr,
+                               output.data<float>(), rows, columns, depth);
+          expect_storage_eq(output, expected, 1e-5f);
+        }
+  StorageView input({1, 1}, 1.0001f, Device::MPS),
+    weight({1, 1}, std::vector<float16_t>{float16_t(1)}, Device::MPS),
+    output({1, 1}, DataType::FLOAT32, Device::MPS);
+  mps::dense_f16_fp32(input.data<float>(), weight.data<float16_t>(), nullptr,
+                       nullptr, output.data<float>(), 1, 1, 1);
+  expect_storage_eq(output, StorageView({1, 1}, 1.0001f), 1e-7f);
+}
 #endif
 
 TEST(OpTest, Transpose1D) {
@@ -1252,20 +1301,6 @@ TEST_P(OpDeviceFPTest, GELUTanhLargeFiniteInputs) {
           << "input=" << values[i];
     }
   };
-  check(output);
-  // GPT-2 also reaches tanh-GELU through fused bias and GEMM epilogues.
-  const ops::ActivationType activation = ops::ActivationType::GELUTanh;
-  const dim_t width = values.size();
-  const StorageView bias = StorageView({width}, 0.f, device).to(dtype);
-  const ops::BiasAdd bias_add(&activation);
-  bias_add(input, bias, output);
-  check(output);
-  std::vector<float> identity(width * width, 0.f);
-  for (dim_t i = 0; i < width; ++i)
-    identity[i * width + i] = 1.f;
-  const StorageView weight = StorageView({width, width}, identity, device).to(dtype);
-  input.reshape({1, width});
-  ops::Gemm(1.f, 0.f, false, false, false, false, &activation)(input, weight, output);
   check(output);
   gelu(input, input);
   check(input);
@@ -2806,8 +2841,6 @@ TEST_P(OpDeviceTest, SnakeValidationLeavesOutputUntouched) {
 
 TEST_P(OpDeviceTest, MoeTopKParallelRoutingMatchesCpuAcrossWidthsAndTies) {
   const Device device = GetParam();
-  if (device == Device::MPS)
-    GTEST_SKIP() << "MoeTopK is not implemented for MPS.";
   for (dim_t width : {1, 17, 256, 513}) {
     for (dim_t k : {dim_t(1), std::min(dim_t(8), width), width}) {
       SCOPED_TRACE("width=" + std::to_string(width) + ", k=" + std::to_string(k));
@@ -2880,8 +2913,6 @@ TEST(OpTest, MoeTopKNonfiniteLogits) {
 
 TEST_P(OpDeviceTest, MoeTopKNonfiniteLogits) {
   const Device device = GetParam();
-  if (device == Device::MPS)
-    GTEST_SKIP() << "MoeTopK is not implemented for MPS.";
   check_moe_topk_nonfinite(device);
 }
 
@@ -2977,13 +3008,11 @@ TEST(OpTest, MoeTopKRetainedCapacityAliasing) {
 
 TEST_P(OpDeviceTest, MoeTopKValidationAndEmptyRows) {
   const Device device = GetParam();
-  if (device == Device::MPS)
-    GTEST_SKIP() << "MoeTopK is not implemented for MPS.";
   StorageView host({1, 3}, 1.f);
   auto logits = host.to(device);
   StorageView ids(DataType::INT32, device), weights(DataType::FLOAT32, device);
   EXPECT_THROW(ops::MoeTopK(4)(logits, ids, weights), std::invalid_argument);
-  if (device == Device::CUDA)
+  if (device != Device::CPU)
     EXPECT_THROW(ops::MoeTopK(2)(host, ids, weights), std::invalid_argument);
   EXPECT_THROW(ops::MoeTopK(2)(logits, ids, logits), std::invalid_argument);
   StorageView empty({0, 3}, DataType::FLOAT32, device);

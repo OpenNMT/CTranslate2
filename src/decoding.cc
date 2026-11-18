@@ -228,9 +228,16 @@ namespace ctranslate2 {
     else
       result.attention.clear();
 
-    if (keep_logits_vocab)
+    if (keep_logits_vocab) {
       result.logits_vocab = index_vector(result.logits_vocab, idx);
-    else
+      // These deep copies belong to the producing worker's Metal stream.
+      // Complete them before handing the result to a different caller thread.
+      for (const auto& hypothesis : result.logits_vocab)
+        if (!hypothesis.empty() && hypothesis.front().device() == Device::MPS) {
+          synchronize_stream(Device::MPS);
+          break;
+        }
+    } else
       result.logits_vocab.clear();
   }
 
@@ -440,7 +447,7 @@ namespace ctranslate2 {
                      const std::vector<std::vector<size_t>>* prefix_ids) const {
     PROFILE("beam_search");
     const Device device = decoder.device();
-    const DataType dtype = decoder.output_type();
+    const DataType dtype = decoder.logits_type();
     const dim_t vocabulary_size = decoder.output_size();
     const dim_t batch_size = start_ids.size();
 
@@ -494,7 +501,7 @@ namespace ctranslate2 {
       const bool is_expanded = (!expand_after_first_step || step > 0);
 
       // Compute log probs for the current step.
-      StorageView attention_step(dtype, device);
+      StorageView attention_step(decoder.output_type(), device);
       convert_to_original_word_ids(decoder, topk_ids);
       decoder(start_step + step,
               topk_ids.to(device),
@@ -832,7 +839,7 @@ namespace ctranslate2 {
 
     PROFILE("greedy_search");
     const Device device = decoder.device();
-    const DataType dtype = decoder.output_type();
+    const DataType dtype = decoder.logits_type();
     const bool gather_attention = (return_attention || (return_scores && _coverage_penalty != 0));
 
     StorageView sample_from({batch_size}, DataType::INT32);
@@ -854,7 +861,7 @@ namespace ctranslate2 {
     StorageView best_probs(dtype);
     StorageView alive_seq(DataType::INT32);
     StorageView attention_step;
-    StorageView attention_step_device(dtype, device);
+    StorageView attention_step_device(decoder.output_type(), device);
 
     const dim_t max_step = get_max_step(max_length, return_prefix, prefix_ids);
 

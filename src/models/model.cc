@@ -3,6 +3,7 @@
 #include <spdlog/spdlog.h>
 
 #include <limits>
+#include <cmath>
 
 #include "ctranslate2/models/model_factory.h"
 #include "ctranslate2/ops/ops.h"
@@ -164,8 +165,11 @@ namespace ctranslate2 {
 
     Model::~Model() {
       if (!_variable_index.empty()) {
+        if (_device == Device::MPS)
+          synchronize_device(_device, _device_index);  // Retain weights until queued work finishes.
         _variable_index.clear();
-        synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
+        if (_device != Device::MPS)
+          synchronize_device(_device, _device_index);  // Wait for asynchronous deallocations.
       }
     }
 
@@ -190,6 +194,38 @@ namespace ctranslate2 {
       if (_device != Device::CPU)
         throw std::runtime_error("set_compute_type expects the variables to be on CPU");
 
+      // Native INT4 uses its own packed variable names, so legacy INT8 dtype
+      // conversion never mistakes nibbles for signed byte weights.
+      const auto int4_variables = _variable_index;
+      for (const auto& pair : int4_variables) {
+        if (!ends_with(pair.first, "/weight_int4")) continue;
+        const auto scope = pair.first.substr(0, pair.first.size()-12);
+        const auto& packed = *pair.second;
+        const auto& scales = get_variable(scope + "/weight_int4_scale");
+        const dim_t depth = get_attribute<int32_t>(scope + "/int4_depth");
+        if (packed.dtype() != DataType::INT8 || packed.rank() != 2 || depth <= 0 ||
+            packed.dim(0) <= 0 || packed.dim(1) != (depth+1)/2 ||
+            scales.dtype() != DataType::FLOAT32 || scales.shape() != Shape{packed.dim(0),(depth+63)/64} ||
+            get_variable_if_exists(scope + "/weight") || _tensor_parallel)
+          throw std::invalid_argument("Invalid or unsupported native INT4 matrix: " + scope);
+        for (dim_t i=0;i<scales.size();++i)
+          if (!std::isfinite(scales.data<float>()[i]) || scales.data<float>()[i] <= 0)
+            throw std::invalid_argument("INT4 scales must be finite and positive");
+        if (device == Device::CPU) {
+          StorageView unpacked({packed.dim(0),depth},DataType::FLOAT32);
+          const auto* bytes = reinterpret_cast<const uint8_t*>(packed.buffer());
+          for(dim_t n=0;n<packed.dim(0);++n) for(dim_t k=0;k<depth;++k) {
+            const int q = int((bytes[n*packed.dim(1)+k/2] >> ((k%2)*4))&15)-8;
+            unpacked.data<float>()[n*depth+k] = float(float16_t(q*scales.data<float>()[n*scales.dim(1)+k/64]));
+          }
+          register_variable(scope + "/weight",std::move(unpacked));
+          remove_variable(pair.first);
+          remove_variable(scope + "/weight_int4_scale");
+          remove_variable(scope + "/int4_depth");
+        } else if (device != Device::MPS ||
+                   (type != ComputeType::DEFAULT && type != ComputeType::AUTO && type != ComputeType::FLOAT16))
+          throw std::invalid_argument("Native INT4 supports MPS float16 or a CPU reference");
+      }
       prepare_weights(type, device, device_index, update_weight);
       _saved_compute_type = infer_compute_type();
       _requested_compute_type = type;
@@ -197,6 +233,13 @@ namespace ctranslate2 {
                                                      _saved_compute_type,
                                                      device,
                                                      device_index);
+      // T5Gemma2 has large post-norm scales. Keep its activation graph in FP32
+      // while native Metal projections read the original FP16 model matrices.
+      _float32_activations = device == Device::MPS
+        && _effective_compute_type == ComputeType::FLOAT16
+        && get_variable_if_exists("decoder/layer_0/post_feedforward_layer_norm/gamma")
+        && (get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight")
+            || get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight_packed"));
       _preferred_size_multiple = get_preferred_size_multiple(_effective_compute_type,
                                                              device,
                                                              device_index);
@@ -205,6 +248,9 @@ namespace ctranslate2 {
         DataType weight_dtype = DataType::FLOAT32;
         DataType float_dtype = DataType::FLOAT32;
         std::tie(weight_dtype, float_dtype) = compute_type_to_data_type(_effective_compute_type);
+        if (_kv_cache_type != "auto" && float_dtype != DataType::FLOAT16)
+          throw std::invalid_argument(
+              "Explicit MPS KV cache formats require float16 activations");
         if (_use_flash_attention && (float_dtype != DataType::FLOAT16 && float_dtype != DataType::BFLOAT16))
           throw std::runtime_error("FlashAttention only support fp16 and bf16 data type");
 
@@ -238,6 +284,7 @@ namespace ctranslate2 {
               variable.reshape({variable.dim(0), variable.dim(1) / kernel_size, kernel_size});
             }
           } else if (is_convertible(variable, name)
+                     && !(_float32_activations && ends_with(name, "/gamma"))
                      && is_float_type(variable.dtype())
                      && variable.dtype() != float_dtype)
             variable = variable.to(float_dtype);
@@ -310,7 +357,9 @@ namespace ctranslate2 {
     }
 
     bool Model::is_convertible(const StorageView& variable, const std::string& name) const {
-      return !variable.is_scalar() && name.find("_scale") == std::string::npos;
+      return !variable.is_scalar() && name.find("_scale") == std::string::npos
+             && !ends_with(name, "/rotary_scaling_long_factor")
+             && !ends_with(name, "/rotary_scaling_short_factor");
     }
 
     void Model::ensure_dtype(const std::string& name,
@@ -560,22 +609,30 @@ namespace ctranslate2 {
       return VARIABLE_TYPE::OTHERS;
     }
 
-    std::shared_ptr<const Model> Model::load(const std::string& path,
-                                             Device device,
-                                             int device_index,
-                                             ComputeType compute_type,
-                                             bool use_flash_attention,
-                                             bool tensor_parallel) {
+    std::shared_ptr<const Model>
+    Model::load(const std::string& path, Device device, int device_index,
+                ComputeType compute_type, bool use_flash_attention,
+                bool tensor_parallel, const std::string& kv_cache_type) {
       ModelFileReader model_reader(path);
-      return load(model_reader, device, device_index, compute_type, use_flash_attention, tensor_parallel);
+      return load(model_reader, device, device_index, compute_type,
+                  use_flash_attention, tensor_parallel, kv_cache_type);
     }
 
-    std::shared_ptr<const Model> Model::load(ModelReader& model_reader,
-                                             Device device,
-                                             int device_index,
-                                             ComputeType compute_type,
-                                             bool use_flash_attention,
-                                             bool tensor_parallel) {
+    std::shared_ptr<const Model>
+    Model::load(ModelReader& model_reader, Device device, int device_index,
+                ComputeType compute_type, bool use_flash_attention,
+                bool tensor_parallel, const std::string& kv_cache_type) {
+      const std::string cache_type =
+          kv_cache_type == "fp16" ? "float16" : kv_cache_type;
+      if (cache_type != "auto" && cache_type != "float16" &&
+          cache_type != "int8" && cache_type != "int5" && cache_type != "int4")
+        throw std::invalid_argument(
+            "kv_cache_type must be auto, float16, int8, int5, or int4");
+      if (cache_type != "auto" &&
+          (device != Device::MPS || !use_flash_attention || tensor_parallel))
+        throw std::invalid_argument(
+            "Explicit KV cache formats require MPS flash_attention=True "
+            "without tensor parallelism");
       {
         // Log the system configuration the first time a model is loaded.
         static std::once_flag log_once;
@@ -615,7 +672,11 @@ namespace ctranslate2 {
         spec_revision = 1;
       }
 
+      if (cache_type != "auto" && spec != "TransformerDecoderSpec")
+        throw std::invalid_argument("Explicit KV cache formats currently "
+                                    "support decoder-only Transformers");
       auto model = create_model(spec);
+      model->_kv_cache_type = cache_type;
       model->_binary_version = binary_version;
       model->_spec_revision = spec_revision;
       model->_use_flash_attention = use_flash_attention;
@@ -900,8 +961,9 @@ namespace ctranslate2 {
         std::shared_ptr<const Model> model;
 
         if (models.empty())
-          model = Model::load(*model_reader, device, device_index, compute_type,
-                              use_flash_attention, tensor_parallel);
+          model =
+              Model::load(*model_reader, device, device_index, compute_type,
+                          use_flash_attention, tensor_parallel, kv_cache_type);
         else
           model = models.back()->copy_to(device, device_index);
 

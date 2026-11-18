@@ -155,6 +155,7 @@ set(SOURCES
   src/layers/drama/fish_dac_transformer.cc
   src/layers/drama/fish_dac_upsample.cc
   src/layers/decoder.cc
+  src/layers/moe.cc
   src/layers/transformer.cc
   src/layers/wav2vec2.cc
   src/layers/wav2vec2bert.cc
@@ -861,6 +862,10 @@ if(WITH_MPS)
     src/ops/beam_search_topk_mps.mm
     src/ops/bias_add_mps.mm
     src/ops/concat_mps.mm
+    src/ops/flash_attention_mps.mm
+    src/layers/flash_attention_mps.cc
+    src/layers/moe_mps.mm
+    src/ops/moe_topk_mps.mm
     src/ops/conv1d_mps.mm
     src/ops/dequantize_mps.mm
     src/ops/gather_mps.mm

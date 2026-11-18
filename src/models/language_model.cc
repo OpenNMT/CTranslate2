@@ -183,6 +183,10 @@ namespace ctranslate2 {
 
       std::vector<std::vector<size_t>> start_ids = vocabulary.to_ids(start_tokens);
       layers::DecoderState state = _decoder->initial_state();
+      dim_t prompt_length = 0;
+      for (const auto& ids : start_ids)
+        prompt_length = std::max(prompt_length, dim_t(ids.size() + options.static_prompt.size()));
+      const bool dynamic_positions = _decoder->set_sequence_length_hint(prompt_length);
 
       if (!options.static_prompt.empty()) {
         std::vector<size_t> static_prompt_ids;
@@ -192,7 +196,7 @@ namespace ctranslate2 {
 
         auto& cache = _model->get_state_cache();
         const dim_t batch_size = start_ids.size();
-        const layers::DecoderState* cached_state = (options.cache_static_prompt
+        const layers::DecoderState* cached_state = (options.cache_static_prompt && !dynamic_positions
                                                     ? cache.get(static_prompt_ids)
                                                     : nullptr);
 
@@ -207,7 +211,7 @@ namespace ctranslate2 {
           (*_decoder)(0, static_prompt, static_state);
           copy_state(static_state, state, batch_size);
 
-          if (options.cache_static_prompt)
+          if (options.cache_static_prompt && !dynamic_positions)
             cache.save(static_prompt_ids, std::move(static_state));
         }
 
@@ -293,7 +297,7 @@ namespace ctranslate2 {
       decoder.update_output_layer(_model->preferred_size_multiple());
       auto state = decoder.initial_state(/*iterative_decoding=*/false);
 
-      StorageView logits(decoder.output_type(), decoder.device());
+      StorageView logits(decoder.logits_type(), decoder.device());
       decoder(ids, lengths, state, logits);
       return logits;
     }

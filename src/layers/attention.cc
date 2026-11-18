@@ -11,12 +11,17 @@
 #include <numeric>
 #include <cstdint>
 #include <stdexcept>
+#include <limits>
 
 #include "dispatch.h"
 #include "cpu/parallel.h"
 
 #ifdef CT2_WITH_CUDA
 #  include "cuda/utils.h"
+#endif
+
+#ifdef CT2_WITH_MPS
+#  include "mps/kernels.h"
 #endif
 
 namespace ctranslate2 {
@@ -215,10 +220,74 @@ namespace ctranslate2 {
                                dim_t beam_size,
                                Alibi* alibi,
                                StorageView* position_bias,
-                               bool interleaved_queries) {
+                               bool interleaved_queries, dim_t window, dim_t offset,
+                               dim_t bidirectional_window,
+                               float attn_logit_softcapping) {
       PROFILE("dot_product_attention");
 
-      if (!relative_position_keys
+#ifdef CT2_WITH_MPS
+      // Windowed decoder attention also uses the native online-softmax kernels
+      // when the caller does not need scores or positional bias. The generic
+      // path below remains available for unsupported dtypes and head sizes.
+      if (queries.device() == Device::MPS && window > 0 && is_decoder
+          && queries.rank() == 4 && keys.rank() == 4
+          && keys.shape() == values.shape()
+          && keys.device() == Device::MPS && values.device() == Device::MPS
+          && keys.dtype() == queries.dtype() && values.dtype() == queries.dtype()
+          && output.device() == Device::MPS && output.dtype() == queries.dtype()
+          && keys.dim(0) == queries.dim(0) && keys.dim(3) == queries.dim(3)
+          && !interleaved_queries && !bidirectional_window
+          && !attn_logit_softcapping && !relative_position_keys
+          && !relative_asymmetric_position_keys && !relative_position_values
+          && !relative_attention_bias && !alibi && !attention
+          && (!position_bias || position_bias->empty())
+          && queries.dim(-1) <= 256
+          && (queries.dtype() == DataType::FLOAT16
+              || queries.dtype() == DataType::BFLOAT16)) {
+        const dim_t batch = queries.dim(0), heads = queries.dim(1);
+        const dim_t count = queries.dim(2), depth = queries.dim(3);
+        const dim_t length = keys.dim(2);
+        const int32_t* lengths = values_lengths && !values_lengths->empty()
+          ? values_lengths->data<int32_t>() : nullptr;
+        if (!lengths || values_lengths->size() == batch * heads * count) {
+          // Match the established compact-attention cutoff: short prefills do
+          // not amortize a 32-query tile and keep the existing generic path.
+          if (count >= 64) {
+            StorageView q(queries.dtype(), Device::MPS),
+              k(queries.dtype(), Device::MPS), v(queries.dtype(), Device::MPS),
+              result({batch, count, heads, depth}, queries.dtype(), Device::MPS);
+            transpose_op(queries, q);
+            transpose_op(keys, k);
+            transpose_op(values, v);
+            if (mps::flash_prefill(queries.dtype(), q.buffer(), k.buffer(),
+                                   v.buffer(), lengths, result.buffer(), batch,
+                                   heads, keys.dim(1), count, length, length,
+                                   depth, queries_scale, offset, window, true,
+                                   false)) {
+              transpose_op(result, output);
+              return;
+            }
+          } else if (count == 1) {
+            const dim_t splits = (length + 255) / 256;
+            StorageView workspace({batch * heads, splits, depth + 2},
+                                   DataType::FLOAT32, Device::MPS);
+            output.resize(queries.shape());
+            if (mps::flash_decode(queries.dtype(), queries.buffer(), keys.buffer(),
+                                  values.buffer(), lengths, output.buffer(),
+                                  workspace.data<float>(), workspace.size(),
+                                  batch, heads, keys.dim(1), length, length, depth,
+                                  queries_scale, offset, window, true, count,
+                                  false, false))
+              return;
+          }
+        }
+      }
+#endif
+
+      if (!window
+          && !bidirectional_window
+          && !attn_logit_softcapping
+          && !relative_position_keys
           && !relative_asymmetric_position_keys
           && !relative_position_values
           && !relative_attention_bias
@@ -260,7 +329,8 @@ namespace ctranslate2 {
                               beam_size,
                               alibi,
                               position_bias,
-                              false);
+                              false, window, offset, bidirectional_window,
+                              attn_logit_softcapping);
         transpose_op(standard_output, output);
         return;
       }
@@ -311,6 +381,12 @@ namespace ctranslate2 {
                                        keys_matmul,
                                        scores);
       }
+      if (attn_logit_softcapping) {
+        // Apply the cap before any mask: tanh(-inf) would otherwise unmask keys.
+        ops::Mul()(scores, StorageView(1.f / attn_logit_softcapping).to(scores.dtype()), scores);
+        ops::Tanh()(scores, scores);
+        ops::Mul()(scores, StorageView(attn_logit_softcapping).to(scores.dtype()), scores);
+      }
       if (relative_attention_bias) {
         StorageView local_position_bias(scores.dtype(), scores.device());
 
@@ -346,8 +422,29 @@ namespace ctranslate2 {
                                                                     scores.size()));
       }
 
+      if (bidirectional_window) {
+        DEVICE_AND_FLOAT_DISPATCH(
+            "BidirectionalAttentionMask", scores.device(), scores.dtype(),
+            (primitives<D>::mask_merged_attention(
+                scores.data<T>(),
+                values_lengths ? values_lengths->data<int32_t>() : nullptr,
+                nullptr, scores.size() / scores.dim(-1), scores.dim(-1), 0,
+                queries.dim(2), 0, (bidirectional_window + 1) / 2,
+                bidirectional_window / 2 + 1)));
+      }
+
       if (alibi)
         alibi->apply(scores, queries_scale);
+
+      // Absolute window masks also cover prefills longer than the window.
+      if (window) {
+        DEVICE_AND_FLOAT_DISPATCH(
+            "WindowAttentionMask", scores.device(), scores.dtype(),
+            (primitives<D>::mask_merged_attention(
+                scores.data<T>(), values_lengths ? values_lengths->data<int32_t>() : nullptr,
+                nullptr, scores.size() / scores.dim(-1), scores.dim(-1), 0,
+                queries.dim(2), offset, window, 1)));
+      }
 
       StorageView attn(scores.dtype(), scores.device());
       if (attention && !return_normalized_attention) {
@@ -397,6 +494,7 @@ namespace ctranslate2 {
       , _relative_asymmetric_position_keys(model.get_variable_if_exists(scope + "/relative_asymmetric_position_keys"))
       , _relative_position_values(model.get_variable_if_exists(scope + "/relative_position_values"))
       , _merge_time_and_head_dims(_multi_query
+                                  && !_absolute_window
                                   && !_relative_attention_bias
                                   && !_relative_position_keys
                                   && !_relative_position_values)
@@ -407,8 +505,21 @@ namespace ctranslate2 {
       , _memory_kv((model.get_variable_if_exists(scope + "/memory_kv/weight")
                     || model.get_variable_if_exists(scope + "/memory_kv/weight_packed"))
                      ? std::make_unique<const Dense>(model, scope + "/memory_kv")
-                     : nullptr)
+                     : nullptr),
+          _bidirectional_window(
+              !is_decoder && self_attention &&
+                      (model.get_variable_if_exists(
+                           "decoder/layer_0/self_attention/memory_kv/weight") ||
+                       model.get_variable_if_exists(
+                           "decoder/layer_0/self_attention/memory_kv/weight_packed"))
+                  ? _sliding_window
+                  : 0)
+      , _attn_logit_softcapping(model.get_attribute_with_default<float>(
+                                    scope + "/attn_logit_softcapping", 0.f))
+      , _float16_cache(model.use_float32_activations() && model.kv_cache_type() == "float16")
     {
+      if (!std::isfinite(_attn_logit_softcapping) || _attn_logit_softcapping < 0)
+        throw std::invalid_argument("Attention logit softcap must be finite and nonnegative");
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
       else if (_relative_asymmetric_position_keys) {
@@ -651,18 +762,25 @@ namespace ctranslate2 {
         }
 
         if (cached_keys != nullptr) {
+          if (_float16_cache) {
+            keys_proj = keys_proj.to(DataType::FLOAT16);
+            values_proj = values_proj.to(DataType::FLOAT16);
+          }
           if (cached_keys->empty()) {
             *cached_keys = std::move(keys_proj);
             *cached_values = std::move(values_proj);
           } else {
             const ops::Concat concat_op(_cache_time_dim);
-            StorageView& tmp = fused_proj;  // Reuse storage.
+            // Move assignment swaps dtypes as well as buffers. A half cache
+            // cannot use the float projection as its concatenation scratch.
+            StorageView cache_scratch(keys_proj.dtype(), device);
+            StorageView& tmp = _float16_cache ? cache_scratch : fused_proj;
             tmp = std::move(*cached_keys);
             concat_op({&tmp, &keys_proj}, *cached_keys);
             tmp = std::move(*cached_values);
             concat_op({&tmp, &values_proj}, *cached_values);
 
-            if (!prefilling && _sliding_window > 0 && cached_keys->shape()[2] > _sliding_window) {
+            if (!_absolute_window && !prefilling && _sliding_window > 0 && cached_keys->shape()[2] > _sliding_window) {
               // only for generation
               const ops::Slide slide_op(2, 1, cached_keys->shape()[2] - 1);
               slide_op(*cached_keys, tmp);
@@ -675,8 +793,13 @@ namespace ctranslate2 {
       }
 
       if (cached_keys) {
-        keys_proj.shallow_copy(*cached_keys);
-        values_proj.shallow_copy(*cached_values);
+        if (_float16_cache) {
+          keys_proj = cached_keys->to(dtype);
+          values_proj = cached_values->to(dtype);
+        } else {
+          keys_proj.shallow_copy(*cached_keys);
+          values_proj.shallow_copy(*cached_values);
+        }
       }
 
       StorageView& context = fused_proj;  // Reuse storage.
@@ -700,9 +823,12 @@ namespace ctranslate2 {
                             beam_size,
                             _alibi,
                             position_bias,
-                            interleaved_beam_layout);
+                            interleaved_beam_layout,
+                            _absolute_window && _self_attention && !_bidirectional_window
+                              ? _sliding_window : 0,
+                            offset, _bidirectional_window, _attn_logit_softcapping);
 
-      if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
+      if (!_absolute_window && prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
         // set only last sliding_window tokens to cached_keys and cached_values after computing attention
         const ops::Slide slide_op(2, cached_keys->shape()[2] - _sliding_window, _sliding_window);
         StorageView tmp(dtype, device);
@@ -852,9 +978,14 @@ namespace ctranslate2 {
         }
       }
 
-      // Live memory may contain packed token rows. The projected keys have
-      // their padding restored and always retain the encoder batch dimension.
-      const dim_t beam_size = queries_proj.dim(0) / memory_keys.dim(0);
+      // Padding removal flattens live memory to packed token rows. Only the
+      // restored key tensor (or its cache) has the encoder batch dimension.
+      const dim_t batch_size_no_beam = memory_keys.dim(0);
+      if (batch_size_no_beam == 0 ||
+          queries_proj.dim(0) % batch_size_no_beam != 0)
+        throw std::invalid_argument(
+            "Merged attention has incompatible query and memory batches");
+      const dim_t beam_size = queries_proj.dim(0) / batch_size_no_beam;
 
       // Expand memory K/V from [batch, heads, src_len, d] to [batch*beam, heads, src_len, d].
       if (beam_size > 1) {
@@ -870,43 +1001,27 @@ namespace ctranslate2 {
       time_concat({&keys_proj, &memory_keys}, merged_keys);
       time_concat({&values_proj, &memory_values}, merged_values);
 
-      // Build merged lengths mask.
-      // During prefix processing (training-style), both self_lengths_mask and
-      // memory_lengths_mask are provided; we add them to get the merged valid count.
-      // During single-step generation, self_lengths_mask is null; we create a
-      // full-coverage mask that allows attending to all merged keys.
-      const dim_t total_keys = merged_keys.dim(2);
-      const dim_t q_len = queries_proj.dim(2);
-
-      std::unique_ptr<StorageView> merged_lengths;
-      if (self_lengths_mask && memory_lengths_mask) {
-        // Normalise memory_lengths_mask shape to match self_lengths_mask if needed
-        // (beam search may produce different leading dims).
-        std::unique_ptr<StorageView> norm_mem_lengths;
-        const StorageView* mem_len_ptr = memory_lengths_mask;
-        if (memory_lengths_mask->shape() != self_lengths_mask->shape()) {
-          norm_mem_lengths = std::make_unique<StorageView>(*memory_lengths_mask);
-          norm_mem_lengths->reshape(self_lengths_mask->shape());
-          mem_len_ptr = norm_mem_lengths.get();
-        }
-        merged_lengths = std::make_unique<StorageView>(self_lengths_mask->dtype(), device);
-        merged_lengths->resize_as(*self_lengths_mask);
-        ops::Add()(*self_lengths_mask, *mem_len_ptr, *merged_lengths);
-      } else if (self_lengths_mask) {
-        merged_lengths = std::make_unique<StorageView>(*self_lengths_mask);
-      } else {
-        // Single-step generation: no causal mask needed (only 1 query), and all
-        // merged keys are valid. Create a constant mask = total_keys for each query.
-        const dim_t batch_queries = queries_proj.dim(0) * _num_heads * q_len;
-        merged_lengths = std::make_unique<StorageView>(
-          Shape{batch_queries}, int32_t(total_keys), device);
-      }
-
+      // Decoder causal/window bounds and encoder padding are separate ranges;
+      // summing their lengths would expose future decoder keys or source pads.
+      const dim_t rows = queries_proj.dim(0) * _num_heads * queries_proj.dim(2);
+      if ((self_lengths_mask && self_lengths_mask->size() != rows) ||
+          (memory_lengths_mask && memory_lengths_mask->size() != rows))
+        throw std::invalid_argument(
+            "Merged attention length mask does not match query rows");
       StorageView context(dtype, device);
       const ops::MatMul keys_matmul(false, true, _queries_scale);
       keys_matmul(queries_proj, merged_keys, context);
+      DEVICE_AND_FLOAT_DISPATCH(
+          "MergedAttentionMask", device, dtype,
+          (primitives<D>::mask_merged_attention(
+              context.data<T>(),
+              self_lengths_mask ? self_lengths_mask->data<int32_t>() : nullptr,
+              memory_lengths_mask ? memory_lengths_mask->data<int32_t>()
+                                  : nullptr,
+              rows, keys_proj.dim(2), memory_keys.dim(2), queries_proj.dim(2),
+              offset, _sliding_window)));
       StorageView attn(dtype, device);
-      ops::SoftMax()(context, merged_lengths.get(), attn);
+      ops::SoftMax()(context, attn);
       const ops::MatMul values_matmul;
       values_matmul(attn, merged_values, context);
 

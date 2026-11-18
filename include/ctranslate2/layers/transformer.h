@@ -3,6 +3,7 @@
 #include "ctranslate2/layers/attention.h"
 #include "ctranslate2/layers/flash_attention.h"
 #include "ctranslate2/layers/common.h"
+#include "ctranslate2/layers/moe.h"
 #include "ctranslate2/layers/decoder.h"
 #include "ctranslate2/layers/encoder.h"
 #include "ctranslate2/padder.h"
@@ -21,20 +22,21 @@ namespace ctranslate2 {
       void operator()(const StorageView& input, StorageView& output) const;
 
       DataType output_type() const override {
-        return _ff2.output_type();
+        return _moe ? _moe->output_type() : _ff2->output_type();
       }
 
       dim_t output_size() const override {
-        return _ff2.output_size();
+        return _moe ? _moe->output_size() : _ff2->output_size();
       }
 
     private:
       const std::unique_ptr<const LayerNorm> _layer_norm;
       const bool _pre_norm;
       const ops::ActivationType _activation_type;
-      const Dense _ff1;
+      const std::unique_ptr<const MixtureOfExperts> _moe;
+      const std::unique_ptr<const Dense> _ff1;
       const std::unique_ptr<const Dense> _ff1_noact;
-      const Dense _ff2;
+      const std::unique_ptr<const Dense> _ff2;
       const bool _tensor_parallel;
     };
 
@@ -114,6 +116,14 @@ namespace ctranslate2 {
         return bool(_encoder_attention) || _has_merged_encoder_attention;
       }
 
+      bool has_merged_encoder_attention() const {
+        return _has_merged_encoder_attention;
+      }
+
+      bool set_sequence_length_hint(dim_t length) const {
+        return _self_attention->set_sequence_length_hint(length);
+      }
+
       const AttentionLayer& get_self_attention() const {
         return *_self_attention;
       }
@@ -174,8 +184,12 @@ namespace ctranslate2 {
     {
     public:
       TransformerDecoder(const models::Model& model, const std::string& scope);
+      DataType logits_type() const override {
+        return _fp32_logits ? DataType::FLOAT32 : output_type();
+      }
 
       DecoderState initial_state(bool iterative_decoding = true) const override;
+      bool set_sequence_length_hint(dim_t length) override;
       bool replicate_state(const std::string& name) const override;
 
       void operator()(dim_t step,
@@ -230,6 +244,7 @@ namespace ctranslate2 {
       std::vector<std::vector<dim_t>> _alignment_heads;
       bool _average_alignment_heads;
       Dense _proj;
+      const bool _fp32_logits;
       const dim_t _sliding_window;
       const bool _tensor_parallel;
       const float _final_logit_softcapping;

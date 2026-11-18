@@ -25,6 +25,7 @@ OPTIONAL = "__optional"
 CURRENT_BINARY_VERSION = 6
 
 ACCEPTED_MODEL_TYPES = (
+    "int4_float16",
     "int8",
     "int8_float32",
     "int8_float16",
@@ -35,7 +36,12 @@ ACCEPTED_MODEL_TYPES = (
     "float32",
 )
 
-SKIP_CREATING_ALIAS = ("rotary_scaling_long_factor", "rotary_scaling_short_factor")
+SKIP_CREATING_ALIAS = (
+    "rotary_scaling_long_factor",
+    "rotary_scaling_short_factor",
+    "weight_int4",
+    "weight_int4_scale",
+)
 
 
 def _join_scope(scope, name):
@@ -196,6 +202,60 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 % (quantization, ", ".join(ACCEPTED_MODEL_TYPES))
             )
 
+        decoder_layers = getattr(getattr(self, "decoder", None), "layer", [])
+        keep_norm_gamma = quantization == "float16" and bool(
+            decoder_layers and hasattr(decoder_layers[0].self_attention, "memory_kv")
+        )
+
+        int4 = quantization == "int4_float16"
+        if int4:
+            # Leave embeddings, routers, scalar shared gates and the vocabulary
+            # head in FP16. Linear matrices are packed once into low/high nibbles.
+            def _pack(spec, name, value):
+                if (
+                    (name == "weight" or name.endswith("/weight"))
+                    and hasattr(spec, "weight_int4")
+                    and isinstance(value, Variable)
+                    and len(value.shape) == 2
+                    and "/projection/" not in name
+                    and "/shared_expert_gate/" not in name
+                ):
+                    if value.dtype not in ("float32", "float16", "bfloat16") or any(
+                        not (
+                            isinstance(getattr(spec, key), str)
+                            and getattr(spec, key) == OPTIONAL
+                        )
+                        for key in ("weight_scale", "weight_zero")
+                    ):
+                        raise ValueError(
+                            "Native INT4 requires unquantized floating-point linear weights"
+                        )
+                    w = value.to("float32").numpy()
+                    if not np.isfinite(w).all():
+                        raise ValueError("INT4 weights must be finite")
+                    n, k = w.shape
+                    if n <= 0 or k <= 0:
+                        raise ValueError("INT4 matrices must be nonempty")
+                    groups = (k + 63) // 64
+                    padded = np.zeros((n, groups * 64), dtype=np.float32)
+                    padded[:, :k] = w
+                    blocks = padded.reshape(n, groups, 64)
+                    scale = np.max(np.abs(blocks), axis=-1) / np.float32(7)
+                    scale[scale == 0] = 1
+                    scale = np.maximum(scale, np.finfo(np.float32).tiny)
+                    q = np.rint(blocks / scale[..., None]).clip(-7, 7).astype(np.int8)
+                    q = (q.reshape(n, -1)[:, :k] + 8).astype(np.uint8)
+                    if k % 2:
+                        q = np.pad(q, ((0, 0), (0, 1)), constant_values=8)
+                    packed = (q[:, ::2] | (q[:, 1::2] << 4)).view(np.int8)
+                    spec.weight_int4 = NumpyVariable(packed)
+                    spec.weight_int4_scale = NumpyVariable(scale)
+                    spec.int4_depth = NumpyVariable(np.int32(k))
+                    spec.weight = OPTIONAL
+
+            self._visit(_pack)
+            quantization = "float16"
+
         def _quantize(spec, name, value):
             if variable_filter is not None and not variable_filter(name):
                 return
@@ -203,6 +263,18 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 return
 
             key = _split_scope(name)[-1]
+            if keep_norm_gamma and key == "gamma":
+                # T5Gemma2 normalization includes large learned unit offsets.
+                # Keep them exact for the mixed-precision Metal activation path.
+                setattr(spec, key, value.to("float32"))
+                return
+            if key in ("rotary_scaling_long_factor", "rotary_scaling_short_factor"):
+                # Positional constants are not activations. Rounding the factors
+                # to FP16/BF16 changes long-context rotary frequencies.
+                setattr(spec, key, value.to("float32"))
+                return
+            if int4 and key in ("weight_int4", "weight_int4_scale", "int4_depth"):
+                return
             scale = None
             is_quantizable = hasattr(spec, "%s_scale" % key)
             is_convertible = value.dtype in ("float32", "float16", "bfloat16")
@@ -270,11 +342,15 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
         * Quantize weights.
 
         Arguments:
-          quantization: Weight quantization scheme (possible values are: int8, int8_float32,
+          quantization: Weight quantization scheme (int4_float16, int8, int8_float32,
             int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
         """
-        self._alias_variables()
-        self._quantize(quantization)
+        if quantization == "int4_float16":
+            self._quantize(quantization)
+            self._alias_variables()
+        else:
+            self._alias_variables()
+            self._quantize(quantization)
 
     def _visit(self, fn):
         """Recursively visits this layer and its children."""

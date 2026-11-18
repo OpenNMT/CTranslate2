@@ -6,9 +6,7 @@
 #include "ctranslate2/ops/causal_depthwise_conv1d.h"
 #include "ctranslate2/ops/conv_transpose1d.h"
 #include "ctranslate2/ops/dequantize_fp8.h"
-#include "ctranslate2/ops/flash_attention.h"
 #include "ctranslate2/ops/gated_delta_net.h"
-#include "ctranslate2/ops/moe_topk.h"
 #include "ctranslate2/ops/nccl_ops.h"
 #include "ctranslate2/ops/snake.h"
 #include "type_dispatch.h"
@@ -17,23 +15,6 @@ namespace ctranslate2 {
   namespace ops {
 
 #define THROW_MPS(NAME) throw std::runtime_error("MPS " #NAME " not implemented");
-
-    template<>
-    void FlashAttention::compute<Device::MPS>(StorageView&,
-                                               StorageView&,
-                                               StorageView&,
-                                               StorageView&,
-                                               StorageView*,
-                                               StorageView*,
-                                               StorageView*,
-                                               bool,
-                                               StorageView*,
-                                               StorageView*,
-                                               bool,
-                                               StorageView*,
-                                               dim_t) const {
-      THROW_MPS(FlashAttention)
-    }
 
     template<>
     void DequantizeAwq::dequantize<Device::MPS, int32_t, float16_t>(
@@ -132,13 +113,6 @@ namespace ctranslate2 {
                                             const StorageView&,
                                             StorageView&) const {
       THROW_MPS(Snake)
-    }
-
-    template<>
-    void MoeTopK::compute<Device::MPS, float>(const StorageView&,
-                                              StorageView&,
-                                              StorageView&) const {
-      THROW_MPS(MoeTopK)
     }
 
 #undef THROW_MPS

@@ -5,6 +5,9 @@
 #include "ctranslate2/ops/activation.h"
 #include "cpu/backend.h"
 #include "dispatch.h"
+#ifdef CT2_WITH_MPS
+#include "mps/kernels.h"
+#endif
 
 namespace ctranslate2 {
   namespace layers {
@@ -48,7 +51,8 @@ namespace ctranslate2 {
 
     Embeddings::Embeddings(const models::Model& model, const std::string& scope)
       : _embeddings(model.get_variable(scope + "/weight"))
-      , _output_type(get_default_float_type(model.effective_compute_type()))
+      , _output_type(model.use_float32_residuals() ? DataType::FLOAT32
+                     : get_default_float_type(model.effective_compute_type()))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
     {
     }
@@ -75,6 +79,10 @@ namespace ctranslate2 {
           _gather_op(*_qscale, ids, scale);
           ops::Dequantize()(gathered, scale, output);
         }
+      } else if (_embeddings.dtype() != _output_type) {
+        StorageView gathered(_embeddings.dtype(), output.device());
+        _gather_op(_embeddings, ids, gathered);
+        output = gathered.to(_output_type);
       } else {
         _gather_op(_embeddings, ids, output);
       }
@@ -260,7 +268,8 @@ namespace ctranslate2 {
         return *weight;
       }
       *is_packed = false;
-      return model.get_variable(scope + "/weight");
+      weight = model.get_variable_if_exists(scope + "/weight_int4");
+      return weight ? *weight : model.get_variable(scope + "/weight");
     }
 
     Dense::Dense(const models::Model& model,
@@ -272,6 +281,9 @@ namespace ctranslate2 {
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
       , _qzero(model.get_variable_if_exists(scope + "/weight_zero"))
+      , _int4_scale(model.get_variable_if_exists(scope + "/weight_int4_scale"))
+      , _int4_depth(model.get_attribute_with_default<int32_t>(scope + "/int4_depth", 0))
+      , _partial_int4_scale(_weight.device(), DataType::FLOAT32)
       , _u8_shift_compensation((_weight.device() == Device::CPU
                                 && _weight.dtype() == DataType::INT8
                                 && cpu::prefer_u8s8s32_gemm())
@@ -281,7 +293,8 @@ namespace ctranslate2 {
       , _partial_bias(_weight.device(), _bias ? _bias->dtype() : DataType::FLOAT32)
       , _partial_qscale(_weight.device(), DataType::FLOAT32)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
-      , _output_type(get_default_float_type(model.effective_compute_type()))
+      , _output_type(model.use_float32_activations() ? DataType::FLOAT32
+                     : get_default_float_type(model.effective_compute_type()))
       , _quant_method(model.quant_method())
       , _quantized_gemm(_weight.dtype() == DataType::INT16 || _weight.dtype() == DataType::INT8)
       , _gemm_op(/*alpha=*/1,
@@ -326,14 +339,54 @@ namespace ctranslate2 {
 
         if (_u8_shift_compensation)
           ops::Gather()(*_u8_shift_compensation, *index, _partial_u8_shift_compensation);
+        if (_int4_scale) ops::Gather()(*_int4_scale, *index, _partial_int4_scale);
         if (_qscale && !_qscale->is_scalar())
           ops::Gather()(*_qscale, *index, _partial_qscale);
       } else {
         _partial_weight.clear();
         _partial_bias.clear();
         _partial_qscale.clear();
+        _partial_int4_scale.clear();
         _partial_u8_shift_compensation.clear();
       }
+    }
+
+    bool Dense::supports_float32_output() const {
+#ifdef CT2_WITH_MPS
+      return _weight.device() == Device::MPS && _weight.dtype() == DataType::FLOAT16
+             && !_packed_weight && !_qscale && !_qzero && !_activation_type;
+#else
+      return false;
+#endif
+    }
+
+    void Dense::forward_float32(const StorageView& input, StorageView& output) const {
+#ifdef CT2_WITH_MPS
+      if (!supports_float32_output() || input.device() != Device::MPS ||
+          (input.dtype() != DataType::FLOAT16 && input.dtype() != DataType::FLOAT32) || output.device() != Device::MPS ||
+          output.dtype() != DataType::FLOAT32 || &input == &output)
+        throw std::invalid_argument("Unsupported precise MPS output projection");
+      const auto& weight = _partial_weight.empty() ? _weight : _partial_weight;
+      const auto* bias = _partial_bias.empty() ? _bias : &_partial_bias;
+      if (input.rank() < 2 || input.dim(-1) != weight.dim(1))
+        throw std::invalid_argument("Invalid precise MPS output projection dimensions");
+      Shape shape(input.shape());
+      shape.back() = weight.dim(0);
+      output.resize(shape);
+      if (input.dtype() == DataType::FLOAT32) {
+        mps::dense_f16_fp32(input.data<float>(), weight.data<float16_t>(),
+                            bias ? bias->data<float16_t>() : nullptr, nullptr,
+                            output.data<float>(), input.size()/weight.dim(1),
+                            weight.dim(0), weight.dim(1));
+        return;
+      }
+      mps::gemm_f16_f32_output(input.data<float16_t>(), weight.data<float16_t>(),
+                               bias ? bias->data<float16_t>() : nullptr,
+                               output.data<float>(), input.size()/weight.dim(1),
+                               weight.dim(0), weight.dim(1));
+#else
+      throw std::invalid_argument("Precise output projection requires MPS");
+#endif
     }
 
     void Dense::operator()(const StorageView& input, StorageView& output, const StorageView* residual) const {
@@ -345,10 +398,65 @@ namespace ctranslate2 {
                                          ? _u8_shift_compensation
                                          : &_partial_u8_shift_compensation);
 
+#ifdef CT2_WITH_MPS
+      if (input.device() == Device::MPS && _output_type == DataType::FLOAT32
+          && weight->dtype() == DataType::FLOAT16 && !_packed_weight) {
+        const dim_t rows = input.size() / weight->dim(1);
+        StorageView promoted;
+        const StorageView* x = &input;
+        if (&input == &output || input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          x = &promoted;
+        }
+        Shape shape = input.shape();
+        shape.back() = weight->dim(0);
+        if (output.dtype() != DataType::FLOAT32)
+          output = StorageView(DataType::FLOAT32, input.device());
+        output.resize(std::move(shape));
+        mps::dense_f16_fp32(x->data<float>(), weight->data<float16_t>(),
+                           bias ? bias->data<float16_t>() : nullptr,
+                           residual ? residual->data<float>() : nullptr,
+                           output.data<float>(), rows,
+                           weight->dim(0), weight->dim(1));
+        if (_activation_type)
+          ops::get_activation_op(*_activation_type)(output, output);
+        return;
+      }
+#endif
+
       bool affected_by_tp = ScopedMPISetter::getNRanks() > 1 && _is_layer_out;
       if (affected_by_tp && ScopedMPISetter::getCurRank() != 0) {
         bias = nullptr;
         residual = nullptr;
+      }
+      if (_int4_scale) {
+#ifdef CT2_WITH_MPS
+        if (input.device() != Device::MPS || input.dtype() != _output_type ||
+            (input.dtype() != DataType::FLOAT16 && input.dtype() != DataType::FLOAT32) ||
+            input.dim(-1) != _int4_depth || affected_by_tp)
+          throw std::invalid_argument("Native INT4 Dense requires MPS FP16 activations");
+        const dim_t rows = input.size() / _int4_depth;
+        StorageView copied;
+        const StorageView* x = &input;
+        if (&input == &output) { copied = input; x = &copied; }
+        Shape shape=input.shape(); shape.back()=weight->dim(0);
+        if (output.dtype() != _output_type) output = StorageView(_output_type, input.device());
+        output.resize(shape);
+        const auto& scales = _partial_int4_scale.empty() ? *_int4_scale : _partial_int4_scale;
+        if (_output_type == DataType::FLOAT32)
+          mps::gemm_int4_f32(x->data<float>(), weight->data<int8_t>(), scales.data<float>(),
+                           bias ? bias->data<float16_t>() : nullptr, output.data<float>(),
+                           rows, weight->dim(0), _int4_depth);
+        else
+          mps::gemm_int4(x->data<float16_t>(),weight->data<int8_t>(),scales.data<float>(),
+                       bias ? bias->data<float16_t>() : nullptr,output.data<float16_t>(),
+                       rows,weight->dim(0),_int4_depth);
+        if (_activation_type) ops::get_activation_op(*_activation_type)(output,output);
+        if (residual) ops::Add()(output,*residual,output);
+        return;
+#else
+        throw std::invalid_argument("Native INT4 Dense requires MPS");
+#endif
       }
       if (_quantized_gemm) {
         const auto device = input.device();
@@ -474,32 +582,76 @@ namespace ctranslate2 {
     }
 
 
-    LayerNorm::LayerNorm(const models::Model& model, const std::string& scope)
+    LayerNorm::LayerNorm(const models::Model& model, const std::string& scope,
+                         float input_scale, float output_scale)
       : _beta(model.get_variable_if_exists(scope + "/beta"))
       , _gamma(model.get_variable(scope + "/gamma"))
       , _use_residual(model.get_flag_with_default((scope + "/layer_norm_use_residual"), false)) {
+      _output_type = _gamma.dtype();
+      _float32_math = !_beta && model.use_float32_residuals();
+      if (_float32_math) {
+        _output_type = DataType::FLOAT32;
+        if (_gamma.dtype() != DataType::FLOAT32) {
+          _scaled_gamma = _gamma.to_float32();
+          synchronize_stream(_gamma.device());
+        }
+      }
       auto epsilon_it = model.config.find("layer_norm_epsilon");
       if (epsilon_it == model.config.end() || epsilon_it->is_null())
         _epsilon = _beta ? 1e-5 : 1e-6;
       else
         _epsilon = epsilon_it->get<float>();
+
+      // RMSNorm(s*x, eps*s*s) == RMSNorm(x, eps). Scaling the post-norm
+      // gamma keeps residual branches in the same scaled representation.
+      if (input_scale != 1.f || output_scale != 1.f) {
+        if (_beta || _use_residual)
+          throw std::invalid_argument(
+              "Residual scaling requires a standard RMSNorm");
+        _epsilon *= input_scale * input_scale;
+        if (output_scale != 1.f) {
+          _scaled_gamma = StorageView(_gamma.dtype(), _gamma.device());
+          ops::Mul()(_gamma, StorageView(output_scale).to(_gamma.dtype()),
+                     _scaled_gamma);
+          // Layers are constructed on the caller thread and consumed by
+          // workers.
+          synchronize_stream(_gamma.device());
+        }
+      }
     }
 
     DataType LayerNorm::output_type() const {
-      return _gamma.dtype();
+      return _output_type;
     }
 
     dim_t LayerNorm::output_size() const {
       return _gamma.size();
     }
 
+    const StorageView& LayerNorm::gamma() const {
+      return _scaled_gamma.empty() ? _gamma : _scaled_gamma;
+    }
+
     void LayerNorm::operator()(const StorageView& input, StorageView& output) const {
+      if (_float32_math) {
+        StorageView promoted;
+        const StorageView* x = &input;
+        if (input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          x = &promoted;
+        }
+        StorageView normalized(DataType::FLOAT32, input.device());
+        ops::RMSNorm(_epsilon, _use_residual)(gamma(), *x, normalized);
+        output = _output_type == DataType::FLOAT32
+          ? std::move(normalized) : normalized.to(_output_type);
+        return;
+      }
       if (_beta) {
         const ops::LayerNorm norm_op(-1, _epsilon);
-        norm_op(*_beta, _gamma, input, output);
+        norm_op(*_beta, gamma(), input, output);
       } else {
         const ops::RMSNorm norm_op(_epsilon, _use_residual);
-        norm_op(_gamma, input, output);
+        norm_op(gamma(), input, output);
       }
     }
 
@@ -510,8 +662,7 @@ namespace ctranslate2 {
       if (!_beta)
         return false;
 
-      return ops::LayerNorm(-1, _epsilon).try_fused_bias_residual(*_beta,
-                                                                  _gamma,
+      return ops::LayerNorm(-1, _epsilon).try_fused_bias_residual(*_beta, gamma(),
                                                                   input,
                                                                   bias,
                                                                   residual,

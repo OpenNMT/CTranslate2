@@ -139,12 +139,17 @@ namespace ctranslate2 {
                                         const LayerNorm& layer_norm,
                                         StorageView& output) const;
       void select_weights(const StorageView* index, const StorageView* extra_bias = nullptr);
+      bool supports_float32_output() const;
+      void forward_float32(const StorageView& input, StorageView& output) const;
     private:
       bool _packed_weight;
       const StorageView& _weight;
       const StorageView* _bias;
       const StorageView* _qscale;
       const StorageView* _qzero;
+      const StorageView* _int4_scale;
+      const dim_t _int4_depth;
+      StorageView _partial_int4_scale;
       const StorageView* _u8_shift_compensation;
       StorageView _partial_weight;
       StorageView _partial_bias;
@@ -163,7 +168,8 @@ namespace ctranslate2 {
     class LayerNorm : public Layer
     {
     public:
-      LayerNorm(const models::Model& model, const std::string& scope);
+      LayerNorm(const models::Model& model, const std::string& scope,
+                float input_scale = 1.f, float output_scale = 1.f);
       DataType output_type() const override;
       dim_t output_size() const override;
       void operator()(const StorageView& input, StorageView& output) const;
@@ -173,9 +179,13 @@ namespace ctranslate2 {
                                      const StorageView& residual,
                                      StorageView& output) const;
     private:
+      const StorageView& gamma() const;
       const StorageView* _beta;
       const StorageView& _gamma;
+      StorageView _scaled_gamma;
       const bool _use_residual;
+      bool _float32_math = false;
+      DataType _output_type;
       float _epsilon;
     };
 

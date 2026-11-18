@@ -5,6 +5,33 @@
 namespace ctranslate2 {
   namespace layers {
 
+    static bool use_flash_for_attention(const models::Model& model,
+                                        const std::string& scope,
+                                        bool requested) {
+      if (!requested || !model.get_attribute_with_default<float>(
+                             scope + "/attn_logit_softcapping", 0.f))
+        return requested;
+      // Current fused kernels have no softcap parameter. Preserve the model's
+      // semantics with the generic GPU path, rather than dropping its cap.
+      const auto& cache = model.kv_cache_type();
+      if (cache == "int8" || cache == "int5" || cache == "int4")
+        throw std::invalid_argument(
+            "Quantized KV caches do not support attention logit softcapping");
+      return false;
+    }
+
+    static float residual_scale(const models::Model& model) {
+      // T5Gemma2's trained post-norm scales can push the residual stream past
+      // 65504, even when every normalized activation is representable in FP16.
+      // A power-of-two scale adds exponent headroom without changing the
+      // attention/MLP inputs or the final normalized encoder/decoder outputs.
+      if (model.device() != Device::MPS || model.use_float32_activations()
+          || get_default_float_type(model.effective_compute_type()) != DataType::FLOAT16
+          || !model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight"))
+        return 1.f;
+      return 1.f / 16.f;
+    }
+
     FeedForwardNetwork::FeedForwardNetwork(const models::Model& model,
                                            const std::string& scope,
                                            const bool pre_norm,
@@ -12,9 +39,10 @@ namespace ctranslate2 {
       : _layer_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
       , _pre_norm(pre_norm)
       , _activation_type(activation_type)
-      , _ff1(model, scope + "/linear_0", &_activation_type)
+      , _moe(model.layer_exists(scope + "/router") ? std::make_unique<MixtureOfExperts>(model, scope) : nullptr)
+      , _ff1(_moe ? nullptr : std::make_unique<Dense>(model, scope + "/linear_0", &_activation_type))
       , _ff1_noact(build_optional_layer<Dense>(model, scope + "/linear_0_noact"))
-      , _ff2(model, scope + "/linear_1", nullptr, true)
+      , _ff2(_moe ? nullptr : std::make_unique<Dense>(model, scope + "/linear_1", nullptr, true))
       , _tensor_parallel(model.tensor_parallel()) {
     }
 
@@ -29,7 +57,17 @@ namespace ctranslate2 {
       const DataType dtype = input.dtype();
 
       StorageView inner(dtype, device);
-      _ff1(*x, inner);
+      if (_moe) {
+        (*_moe)(*x, inner);
+        if (_layer_norm)
+          ops::Add()(inner, input, output);
+        else
+          output = std::move(inner);
+        if (_layer_norm && !_pre_norm)
+          (*_layer_norm)(output, output);
+        return;
+      }
+      (*_ff1)(*x, inner);
       if (_ff1_noact) {
         StorageView linear(dtype, device);
         (*_ff1_noact)(*x, linear);
@@ -38,9 +76,9 @@ namespace ctranslate2 {
 
       const bool fuse_post_norm = _layer_norm && !_pre_norm && !_tensor_parallel;
       if (fuse_post_norm)
-        _ff2.forward_with_post_layer_norm(inner, input, *_layer_norm, output);
+        _ff2->forward_with_post_layer_norm(inner, input, *_layer_norm, output);
       else
-        _ff2(inner, output, _layer_norm ? &input : nullptr);
+        (*_ff2)(inner, output, _layer_norm ? &input : nullptr);
 
       if (_tensor_parallel) {
         Shape shape = output.shape();
@@ -61,7 +99,7 @@ namespace ctranslate2 {
                                                      const bool pre_norm,
                                                      const ops::ActivationType activation_type,
                                                      const bool use_flash_attention)
-      : _self_attention(!use_flash_attention ? std::unique_ptr<AttentionLayer>(new MultiHeadAttention(model,
+      : _self_attention(!use_flash_for_attention(model, scope + "/self_attention", use_flash_attention) ? std::unique_ptr<AttentionLayer>(new MultiHeadAttention(model,
                         scope + "/self_attention",
                         num_heads,
                         /*self_attention=*/true,
@@ -70,10 +108,13 @@ namespace ctranslate2 {
                         num_heads,
                         /*self_attention=*/true,
                         pre_norm)))
-      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm"))
-      , _post_attention_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_attention_layer_norm"))
-      , _pre_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/pre_feedforward_layer_norm"))
-      , _post_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_feedforward_layer_norm"))
+      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm", residual_scale(model)))
+      , _post_attention_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_attention_layer_norm", 1.f,
+              residual_scale(model)))
+      , _pre_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/pre_feedforward_layer_norm",
+              residual_scale(model)))
+      , _post_feedforward_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/post_feedforward_layer_norm", 1.f,
+              residual_scale(model)))
       , _ff(model, scope + "/ffn", pre_norm, activation_type) {
     }
 
@@ -93,8 +134,16 @@ namespace ctranslate2 {
                                         && _pre_feedforward_layer_norm && _post_feedforward_layer_norm;
 
       if (pre_post_layer_norm) {
-        StorageView hidden(dtype, device);
-        StorageView context(dtype, device);
+        const DataType activation_dtype = _input_layer_norm->output_type();
+        StorageView hidden(activation_dtype, device);
+        StorageView context(activation_dtype, device);
+        StorageView promoted;
+        const StorageView* residual = &input;
+        if (_post_attention_layer_norm->output_type() == DataType::FLOAT32
+            && input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          residual = &promoted;
+        }
 
         (*_input_layer_norm)(input, hidden);
 
@@ -115,18 +164,18 @@ namespace ctranslate2 {
         (*_post_attention_layer_norm)(context, output);
 
         // residual + hidden_states
-        ops::Add()(input, output, output);
+        ops::Add()(*residual, output, output);
 
         context = std::move(output);
         (*_pre_feedforward_layer_norm)(context, output);
         hidden = std::move(output);
 
         // mlp
-        _ff(hidden, output);
+        StorageView feedforward(activation_dtype, device);
+        _ff(hidden, feedforward);
 
         // post_feedforward_layernorm
-        hidden = std::move(output);
-        (*_post_feedforward_layer_norm)(hidden, output);
+        (*_post_feedforward_layer_norm)(feedforward, output);
 
         // residual + hidden_states
         ops::Add()(context, output, output);
@@ -158,7 +207,7 @@ namespace ctranslate2 {
                                                      const ops::ActivationType activation_type,
                                                      const bool use_flash_attention,
                                                      Alibi* alibi)
-      : _self_attention(!use_flash_attention ? std::unique_ptr<AttentionLayer>(new MultiHeadAttention(model,
+      : _self_attention(!use_flash_for_attention(model, scope + "/self_attention", use_flash_attention) ? std::unique_ptr<AttentionLayer>(new MultiHeadAttention(model,
                         scope + "/self_attention",
                         num_heads,
                         /*self_attention=*/true,
@@ -172,13 +221,16 @@ namespace ctranslate2 {
                         /*is_decoder=*/true,
                         alibi)))
       , _shared_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/shared_layer_norm"))
-      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm"))
+      , _input_layer_norm(build_optional_layer<LayerNorm>(model, scope + "/input_layer_norm", residual_scale(model)))
       , _post_attention_layer_norm(build_optional_layer<LayerNorm>(
-                                     model, scope + "/post_attention_layer_norm"))
+                                     model, scope + "/post_attention_layer_norm", 1.f,
+              residual_scale(model)))
       , _pre_feedforward_layer_norm(build_optional_layer<LayerNorm>(
-                                     model, scope + "/pre_feedforward_layer_norm"))
+                                     model, scope + "/pre_feedforward_layer_norm",
+              residual_scale(model)))
       , _post_feedforward_layer_norm(build_optional_layer<LayerNorm>(
-                                     model, scope + "/post_feedforward_layer_norm"))
+                                     model, scope + "/post_feedforward_layer_norm", 1.f,
+              residual_scale(model)))
       , _encoder_attention(build_optional_layer<MultiHeadAttention>(model,
                                                                     scope + "/attention",
                                                                     num_heads,
@@ -219,8 +271,16 @@ namespace ctranslate2 {
 
       const bool pre_post_layer_norm = _post_feedforward_layer_norm && _pre_feedforward_layer_norm;
       if (pre_post_layer_norm) {
-        StorageView hidden(dtype, device);
-        StorageView context(dtype, device);
+        const DataType activation_dtype = _input_layer_norm->output_type();
+        StorageView hidden(activation_dtype, device);
+        StorageView context(activation_dtype, device);
+        StorageView promoted;
+        const StorageView* residual = &input;
+        if (_post_attention_layer_norm->output_type() == DataType::FLOAT32
+            && input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          residual = &promoted;
+        }
         (*_input_layer_norm)(input, hidden);
 
         if (_has_merged_encoder_attention) {
@@ -252,7 +312,7 @@ namespace ctranslate2 {
                              offset);
         }
         (*_post_attention_layer_norm)(context, output);
-        ops::Add()(output, input, output);
+        ops::Add()(output, *residual, output);
 
         if (_encoder_attention) {
             StorageView cross_attn_in = output;  // save for residual
@@ -286,10 +346,10 @@ namespace ctranslate2 {
         (*_pre_feedforward_layer_norm)(context, output);
         hidden = std::move(output);
 
-        _ff(hidden, output);
+        StorageView feedforward(activation_dtype, device);
+        _ff(hidden, feedforward);
 
-        hidden = std::move(output);
-        (*_post_feedforward_layer_norm)(hidden, output);
+        (*_post_feedforward_layer_norm)(feedforward, output);
         ops::Add()(output, context, output);
 
         // Gemma 4 layer scalar
@@ -397,10 +457,13 @@ namespace ctranslate2 {
       // The attribute can either be a boolean flag or the actual scale value.
       if (!scale || (scale->dtype() == DataType::INT8 && scale->as_scalar<int8_t>()))
         value = StorageView(std::sqrt(static_cast<float>(embeddings.output_size())));
-      else if (scale->dtype() != DataType::INT8 && scale->as_scalar<float>() != 1.f)
-        value = *scale;
       else
+        value = StorageView(scale->dtype() == DataType::INT8 ? 1.f : scale->as_scalar<float>());
+
+      const float factor = value.as_scalar<float>() * residual_scale(model);
+      if (factor == 1.f)
         return nullptr;
+      value = StorageView(factor);
 
       return std::make_unique<StorageView>(value.to(embeddings.output_type()));
     }
@@ -437,7 +500,7 @@ namespace ctranslate2 {
       , _num_heads(model.get_attribute_with_default<int32_t>(scope + "/num_heads", 8))
       , _compute_type(model.effective_compute_type())
       , _layernorm_embedding(build_optional_layer<LayerNorm>(model, scope + "/layernorm_embedding"))
-      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
+      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm", residual_scale(model)))
       , _use_flash_attention(model.use_flash_attention())
       , _layers(build_layers_list<const TransformerEncoderLayer>(
                   model,
@@ -523,7 +586,7 @@ namespace ctranslate2 {
                                                                false))
       , _embeddings_scale(build_embeddings_scale(model, scope, _embeddings))
       , _layernorm_embedding(build_optional_layer<LayerNorm>(model, scope + "/layernorm_embedding"))
-      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm"))
+      , _output_norm(build_optional_layer<LayerNorm>(model, scope + "/layer_norm", residual_scale(model)))
       , _project_in(build_optional_layer<Dense>(model, scope + "/project_in"))
       , _project_out(build_optional_layer<Dense>(model, scope + "/project_out"))
       , _alibi(make_alibi(model, scope))
@@ -541,6 +604,7 @@ namespace ctranslate2 {
                           : build_position_encoder(model, scope + "/position_encodings", _embeddings))
       , _with_encoder_attention(_layers.front()->has_cross_attention())
       , _proj(model, scope + "/projection")
+      , _fp32_logits(!_with_encoder_attention && _proj.supports_float32_output())
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
       , _tensor_parallel(model.tensor_parallel())
       , _final_logit_softcapping(model.get_attribute_with_default<float>(scope + "/final_logit_softcapping", 0.f))
@@ -649,6 +713,13 @@ namespace ctranslate2 {
       return decode(ids, &lengths, -1, state, &logits, attention);
     }
 
+    bool TransformerDecoder::set_sequence_length_hint(dim_t length) {
+      bool dynamic = false;
+      for (const auto& layer : _layers)
+        dynamic = layer->set_sequence_length_hint(length) || dynamic;
+      return dynamic;
+    }
+
     void TransformerDecoder::decode(const StorageView& ids,
                                     const StorageView* lengths,
                                     dim_t step,
@@ -657,6 +728,8 @@ namespace ctranslate2 {
                                     StorageView* attention,
                                     bool return_logits) {
       PROFILE("TransformerDecoder");
+      if (step < 0)
+        set_sequence_length_hint(0);
       const DataType dtype = output_type();
       const Device device = ids.device();
       const bool is_sequence = ids.rank() > 1;
@@ -681,10 +754,14 @@ namespace ctranslate2 {
         (*_layernorm_embedding)(layer_in, layer_in);
 
       const dim_t batch_size = layer_in.dim(0);
+      // Merged attention applies each layer's window to decoder keys only.
+      // Legacy chunking also mistakes packed token features for the time axis.
+      const dim_t sliding_window =
+          _layers.front()->has_merged_encoder_attention() ? 0 : _sliding_window;
       dim_t max_time;
 
-      if (_sliding_window > 0 && layer_in.dim(1) > _sliding_window) {
-        max_time = _sliding_window;
+      if (sliding_window > 0 && layer_in.dim(1) > sliding_window) {
+        max_time = sliding_window;
       } else
         max_time = layer_in.dim(1);
 
@@ -699,7 +776,7 @@ namespace ctranslate2 {
         lengths = input_lengths.get();
       }
 
-      bool multi_query = _layers.front()->get_self_attention().multi_query();
+      bool multi_query = _layers.front()->get_self_attention().interleaved_length_mask();
 
       if (lengths) {
         if (allow_padding_removal) {
@@ -766,13 +843,13 @@ namespace ctranslate2 {
 
       while (true) {
         dim_t prompt_size = layer_in.dim(1);
-        if (_sliding_window == 0 || prompt_size <= _sliding_window || _use_flash_attention) {
+        if (sliding_window == 0 || prompt_size <= sliding_window || _use_flash_attention) {
           layer_ins.push_back(std::move(layer_in));
           break;
         }
-        if (layer_in.dim(1) > _sliding_window) {
+        if (layer_in.dim(1) > sliding_window) {
           StorageView tmp(dtype, device);
-          const ops::Split split_op(1, {_sliding_window, prompt_size - _sliding_window});
+          const ops::Split split_op(1, {sliding_window, prompt_size - sliding_window});
           split_op(layer_in, tmp, layer_in);
           layer_ins.push_back(std::move(tmp));
         }
@@ -801,10 +878,10 @@ namespace ctranslate2 {
           if (attention && heads_to_select)
             layer_attention = std::make_unique<StorageView>(dtype, device);
 
-          dim_t offset = _sliding_window * i + step;
+          dim_t offset = sliding_window * i + step;
           offset = offset < 0 ? 0 : offset;
           if (i > 0) {
-            auto max_tokens = _sliding_window + layer_in_chunk->dim(1);
+            auto max_tokens = sliding_window + layer_in_chunk->dim(1);
             StorageView tmp_lengths = StorageView(Shape{layer_in_chunk->dim(0)}, int32_t(max_tokens), device);
             int num_heads = _num_heads;
             if (_tensor_parallel) {
@@ -817,7 +894,7 @@ namespace ctranslate2 {
               /*mask_future=*/true,
               multi_query);
 
-            const ops::Slide slide_lengths_op(2, _sliding_window, layer_in_chunk->dim(1));
+            const ops::Slide slide_lengths_op(2, sliding_window, layer_in_chunk->dim(1));
             // reuse tmp_lengths
             slide_lengths_op(lengths_mask, tmp_lengths);
             input_lengths_mask = std::make_unique<StorageView>(std::move(tmp_lengths));
@@ -883,7 +960,10 @@ namespace ctranslate2 {
           ops::Mul()(layer_in, *_outputs_scale, layer_in);
 
         if (return_logits) {
-          _proj(layer_in, *outputs);
+          if (_fp32_logits)
+            _proj.forward_float32(layer_in, *outputs);
+          else
+            _proj(layer_in, *outputs);
           if (_final_logit_softcapping != 0.f) {
             // logits = tanh(logits / cap) * cap  — squashes logits to (-cap, cap)
             const auto dtype = outputs->dtype();
