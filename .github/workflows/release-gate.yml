@@ -21,6 +21,10 @@ jobs:
             device: cpu
             artifact: python-wheels-macOS-arm64
             wheel: "*-cp312-cp312-macosx*arm64.whl"
+          - os: macos-15
+            device: mps
+            artifact: python-wheels-macOS-arm64
+            wheel: "*-cp312-cp312-macosx*arm64.whl"
           - os: windows-2022
             device: cpu
             artifact: python-wheels-Windows-auto64
@@ -28,6 +32,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v5
+
+      - name: Verify Apple Silicon and execute a Metal kernel
+        if: ${{ matrix.device == 'mps' }}
+        shell: bash
+        run: |
+          test "$(uname -m)" = "arm64"
+          system_profiler SPHardwareDataType SPDisplaysDataType | tee runner-hardware.txt
+          swift python/tools/check_metal.swift | tee metal-probe.txt
 
       - uses: actions/setup-python@v6
         with:
