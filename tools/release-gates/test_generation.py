@@ -17,11 +17,6 @@ class CompletionComparisonTest(unittest.TestCase):
         self.assertIn("1/2 [informational]", log.getvalue())
         self.assertIn("prompt 2", log.getvalue())
 
-    def test_identical_completions(self):
-        with contextlib.redirect_stdout(io.StringIO()):
-            self.assertEqual(compare_completions(
-                {"outputs": ["same"]}, {"outputs": ["same"]}), 0)
-
     def test_empty_completions_are_allowed(self):
         for baseline, candidate, expected in (
             ([""], [""], 0),

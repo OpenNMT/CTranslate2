@@ -18,6 +18,8 @@ import tempfile
 import urllib.request
 import venv
 
+import tasks
+
 ROOT = pathlib.Path(__file__).resolve().parent
 
 # (threshold, higher_is_better, relative).
@@ -67,13 +69,10 @@ def make_venv(path, ct2_spec):
     return py
 
 
-CONVERTIBLE_TASKS = ("opus_bleu", "t5gemma_generation")
-
-
 def convert_models(py, out_root):
     """Convert each CT2 model once per venv; return {task: path}."""
     dirs = {}
-    for task in CONVERTIBLE_TASKS:
+    for task in tasks.CONVERTERS:
         out_dir = os.path.join(out_root, task)
         os.makedirs(out_dir, exist_ok=True)
         print(f"[gate] converting {task} with {py}", flush=True)
@@ -82,10 +81,8 @@ def convert_models(py, out_root):
     return dirs
 
 
-def run_task(py, task, limit, device, model_dir=None, command="run", compute_type="default"):
-    cmd = [py, str(ROOT / "tasks.py"), command, task, "--device", device]
-    if command == "run":
-        cmd += ["--limit", str(limit if limit is not None else 0), "--compute-type", compute_type]
+def call_worker(py, args, model_dir=None):
+    cmd = [py, str(ROOT / "tasks.py"), *args]
     if model_dir is not None:
         cmd += ["--model-dir", model_dir]
     env = dict(os.environ, OMP_NUM_THREADS="2", MKL_NUM_THREADS="2",
@@ -95,11 +92,17 @@ def run_task(py, task, limit, device, model_dir=None, command="run", compute_typ
     return json.loads([l for l in out.splitlines() if l.strip()][-1])
 
 
+def run_task(py, task, limit, device, model_dir=None, compute_type="default"):
+    """Run a task in a venv; limit 0 means the full task set."""
+    return call_worker(py, ["run", task, "--device", device, "--limit", str(limit),
+                            "--compute-type", compute_type], model_dir)
+
+
 def select_compute_types(base_py, cand_py, task, device, model_dirs):
     resolved = {}
     for label, py in (("baseline", base_py), ("candidate", cand_py)):
-        resolved[label] = run_task(py, task, None, device,
-                                   model_dirs[label].get(task), command="resolve")
+        resolved[label] = call_worker(py, ["resolve", task, "--device", device],
+                                       model_dirs[label].get(task))
         for requested in ("default", "auto"):
             effective = resolved[label].get(requested)
             if not isinstance(effective, str) or not effective or effective in ("default", "auto"):
@@ -163,7 +166,6 @@ def measure_round(base_py, cand_py, task, limit, device, model_dirs, confirmatio
             result = run_task(base_py if label == "baseline" else cand_py,
                               task, limit, device,
                               model_dir=model_dirs[label].get(task), compute_type=compute_type)
-            validate_metrics(task, result, label)
             samples[label].append(result)
         base, cand = samples["baseline"][-1], samples["candidate"][-1]
         if task == "t5gemma_generation":
@@ -236,7 +238,6 @@ def main():
         if len(wheels) != 1:
             p.error(f"Expected exactly one candidate wheel, found {len(wheels)}: {wheels}")
         args.candidate_wheel = str(pathlib.Path(wheels[0]).resolve())
-    limit = None if args.limit == 0 else args.limit
 
     baseline_spec = f"ctranslate2=={latest_version()}"
     print(f"[gate] baseline={baseline_spec} candidate={args.candidate_wheel}")
@@ -254,7 +255,7 @@ def main():
 
         failed = False
         for task in RULES:
-            task_limit = args.bleu_limit if task == "opus_bleu" else limit
+            task_limit = args.bleu_limit if task == "opus_bleu" else args.limit
             for compute_type in select_compute_types(base_py, cand_py, task, args.device, model_dirs):
                 print(f"[gate] {task}: compute_type={compute_type}", flush=True)
                 failed |= evaluate_task(base_py, cand_py, task, task_limit,

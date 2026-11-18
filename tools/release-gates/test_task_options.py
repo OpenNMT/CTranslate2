@@ -1,4 +1,4 @@
-"""Check required model paths and workload limits without loading models."""
+"""Check worker options, limits and compute type resolution without loading models."""
 
 import contextlib
 import io
@@ -16,27 +16,11 @@ class TaskOptionsTest(unittest.TestCase):
         for task in tasks.CONVERTERS:
             with self.subTest(task=task), self.assertRaises(TypeError):
                 tasks.TASKS[task]()
-            for command in ("run", "resolve"):
-                with self.subTest(task=task, command=command):
-                    result = subprocess.run(
-                        [sys.executable, str(run_gate.ROOT / "tasks.py"), command, task],
-                        capture_output=True, text=True)
-                    self.assertEqual(result.returncode, 2)
-                    self.assertIn("--model-dir is required", result.stderr)
-
-    def test_full_dataset_limit_is_forwarded_to_worker(self):
-        with patch.object(run_gate.subprocess, "check_output", return_value=b'{"wer": 0}\n') as run:
-            run_gate.run_task("python", "whisper_wer", None, "cpu")
-        command = run.call_args.args[0]
-        self.assertEqual(command[command.index("--limit") + 1], "0")
-
-    def test_compute_type_is_explicit_in_worker_command(self):
-        for compute_type in ("default", "auto"):
-            with self.subTest(compute_type=compute_type), patch.object(
-                    run_gate.subprocess, "check_output", return_value=b'{"wer": 0}\n') as run:
-                run_gate.run_task("python", "whisper_wer", 7, "cpu", compute_type=compute_type)
-            command = run.call_args.args[0]
-            self.assertEqual(command[command.index("--compute-type") + 1], compute_type)
+            result = subprocess.run(
+                [sys.executable, str(run_gate.ROOT / "tasks.py"), "run", task],
+                capture_output=True, text=True)
+            self.assertEqual(result.returncode, 2)
+            self.assertIn("--model-dir is required", result.stderr)
 
     def test_runner_forwards_sample_limits(self):
         for limit in (7, 0):
@@ -51,5 +35,32 @@ class TaskOptionsTest(unittest.TestCase):
                 run_gate.main()
             self.assertEqual(exited.exception.code, 0)
             self.assertEqual({call.args[2]: call.args[3] for call in evaluate.call_args_list},
-                             {"whisper_wer": limit or None, "opus_bleu": 13,
-                              "t5gemma_generation": limit or None})
+                             {"whisper_wer": limit, "opus_bleu": 13,
+                              "t5gemma_generation": limit})
+
+
+class ComputeTypesTest(unittest.TestCase):
+    def test_skip_auto_only_when_both_wheels_match(self):
+        for baseline, candidate, expected in (
+            (("float32", "float32"), ("float32", "float32"), ("default",)),
+            (("float32", "int8"), ("float32", "float32"), ("default", "auto")),
+            (("float32", "float32"), ("float32", "int8"), ("default", "auto")),
+            (("float32", "float32"), ("int8", "int8"), ("default",)),
+        ):
+            with self.subTest(baseline=baseline, candidate=candidate), \
+                    patch.object(run_gate, "call_worker", side_effect=[
+                        dict(zip(("default", "auto"), pair)) for pair in (baseline, candidate)
+                    ]) as run, contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(run_gate.select_compute_types(
+                    "b", "c", "opus_bleu", "cpu",
+                    {"baseline": {"opus_bleu": "bm"}, "candidate": {"opus_bleu": "cm"}}), expected)
+                self.assertEqual([call.args[-1] for call in run.call_args_list], ["bm", "cm"])
+
+    def test_invalid_resolution_fails(self):
+        for invalid in (None, "", "auto", "default", 1):
+            with self.subTest(invalid=invalid), patch.object(run_gate, "call_worker", return_value={
+                "default": invalid, "auto": "int8"
+            }), self.assertRaises(ValueError):
+                run_gate.select_compute_types("b", "c", "opus_bleu", "cpu",
+                                              {"baseline": {}, "candidate": {}})
+

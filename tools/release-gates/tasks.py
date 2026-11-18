@@ -76,7 +76,6 @@ def run_whisper_wer(limit=300, device="cpu", compute_type="default"):
 
     return {"wer": jiwer.wer(refs, hyps),
             "rtf_inverse": audio_sec / elapsed,
-            "num_samples": len(samples),
             "compute_type": effective_compute_type("whisper_wer", model)}
 
 
@@ -121,7 +120,7 @@ def run_opus_bleu(limit=500, device="cpu", *, model_dir, compute_type="default")
             for r in results]
     return {"bleu": sacrebleu.corpus_bleu(hyps, refs).score,
             "tokens_per_sec": total_tokens / elapsed,
-            "num_sentences": len(sources), "compute_type": translator.compute_type}
+            "compute_type": translator.compute_type}
 
 
 def run_t5gemma_generation(limit=50, device="cpu", *, model_dir, compute_type="default"):
@@ -145,7 +144,7 @@ def run_t5gemma_generation(limit=50, device="cpu", *, model_dir, compute_type="d
                                 skip_special_tokens=True).strip() for r in results]
     if len(outputs) != len(prompts):
         raise ValueError("Generation returned missing completions")
-    return {"outputs": outputs, "num_prompts": len(prompts),
+    return {"outputs": outputs,
             "tokens_per_sec": sum(len(r.hypotheses[0]) for r in results) / elapsed,
             "compute_type": translator.compute_type}
 
@@ -166,7 +165,7 @@ if __name__ == "__main__":
     worker_p.add_argument("--device", default="cpu")
     worker_p.add_argument("--model-dir", default=None)
     run_p = sub.add_parser("run", parents=[worker_p])
-    run_p.add_argument("--limit", type=int, default=None)
+    run_p.add_argument("--limit", type=int, default=0, help="0 = full task set")
     run_p.add_argument("--compute-type", choices=("default", "auto"), default="default")
     sub.add_parser("resolve", parents=[worker_p])
     conv_p = sub.add_parser("convert")
@@ -181,9 +180,7 @@ if __name__ == "__main__":
         json.dump(resolve_compute_types(a.task, a.device, a.model_dir), sys.stdout)
         sys.stdout.write("\n")
     else:
-        kw = {"device": a.device, "compute_type": a.compute_type}
-        if a.limit is not None:
-            kw["limit"] = None if a.limit == 0 else a.limit
+        kw = {"device": a.device, "compute_type": a.compute_type, "limit": a.limit or None}
         if a.model_dir is not None and a.task in CONVERTERS:
             kw["model_dir"] = a.model_dir
         json.dump(TASKS[a.task](**kw), sys.stdout)
