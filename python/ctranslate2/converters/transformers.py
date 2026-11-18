@@ -1808,10 +1808,15 @@ class T5Loader(ModelLoader):
         self.set_stack(spec.decoder, model.decoder, is_decoder=True)
         self.set_linear(spec.decoder.projection, model.lm_head)
 
-        if model.config.tie_word_embeddings:
+        if self._scale_decoder_outputs(model.config):
             spec.decoder.scale_outputs = model.config.d_model**-0.5
 
         return spec
+
+    def _scale_decoder_outputs(self, config):
+        # Transformers 4 rescales when the word embeddings are tied. Transformers 5
+        # always sets tie_word_embeddings=True and decides with scale_decoder_outputs.
+        return getattr(config, "scale_decoder_outputs", config.tie_word_embeddings)
 
     def get_vocabulary(self, model, tokenizer):
         tokens = super().get_vocabulary(model, tokenizer)
