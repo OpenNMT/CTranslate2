@@ -1301,7 +1301,7 @@ def test_umt5_loader_keeps_one_relative_attention_bias_per_layer():
 #    `initializer_factor` is kept small to stay well-conditioned through the gated FFN.
 
 
-def _tiny_umt5_vocabulary(vocab_size):
+def _tiny_t5_vocabulary(vocab_size):
     return ["<pad>", "</s>", "<unk>"] + ["tok%d" % i for i in range(3, vocab_size)]
 
 
@@ -1381,9 +1381,12 @@ def _build_umt5_with_biases(
 def _save_umt5(model, output_dir):
     from ctranslate2.converters.transformers import UMT5Loader
 
-    loader = UMT5Loader()
+    return _save_t5_family_model(model, output_dir, UMT5Loader())
+
+
+def _save_t5_family_model(model, output_dir, loader):
     spec = loader.get_model_spec(model)
-    tokens = _tiny_umt5_vocabulary(model.config.vocab_size)
+    tokens = _tiny_t5_vocabulary(model.config.vocab_size)
     loader.set_vocabulary(spec, tokens)
     spec.config.bos_token = "<pad>"
     spec.config.eos_token = "</s>"
@@ -1415,7 +1418,7 @@ def _save_umt5_encoder(model, output_dir):
     spec = transformer_spec.TransformerEncoderModelSpec(encoder)
     UMT5Loader().set_stack(spec.encoder, model.encoder)
 
-    tokens = _tiny_umt5_vocabulary(config.vocab_size)
+    tokens = _tiny_t5_vocabulary(config.vocab_size)
     spec.register_vocabulary(tokens)
     spec.config.bos_token = "<pad>"
     spec.config.eos_token = "</s>"
@@ -1432,7 +1435,7 @@ _UMT5_SOURCE = [5, 9, 14, 23, 7, 33, 41, 18, 52, 11, 27, 6, 44, 30, 21, 38]
 _UMT5_TARGET = [11, 4, 19, 30, 27, 48, 13, 36, 8, 25, 55, 17, 42, 9, 31, 20]
 
 
-def _umt5_log_probs(model_dir, tokens, source, target):
+def _t5_log_probs(model_dir, tokens, source, target):
     translator = ctranslate2.Translator(
         model_dir,
         device="cpu",
@@ -1446,7 +1449,7 @@ def _umt5_log_probs(model_dir, tokens, source, target):
     return np.array(result.log_probs)
 
 
-def _umt5_reference_log_probs(model, source, target):
+def _t5_reference_log_probs(model, source, target):
     import torch
 
     # score_batch appends </s> to the target itself.
@@ -1521,13 +1524,13 @@ def test_umt5_runtime_uses_per_layer_bias_in_decoder(tmp_dir):
     tokens = _save_umt5(distinct, str(tmp_dir.join("distinct")))
     _save_umt5(shared, str(tmp_dir.join("shared")))
 
-    got_distinct = _umt5_log_probs(
+    got_distinct = _t5_log_probs(
         str(tmp_dir.join("distinct")), tokens, _UMT5_SOURCE, _UMT5_TARGET
     )
-    got_shared = _umt5_log_probs(
+    got_shared = _t5_log_probs(
         str(tmp_dir.join("shared")), tokens, _UMT5_SOURCE, _UMT5_TARGET
     )
-    expected = _umt5_reference_log_probs(distinct, _UMT5_SOURCE, _UMT5_TARGET)
+    expected = _t5_reference_log_probs(distinct, _UMT5_SOURCE, _UMT5_TARGET)
 
     assert np.abs(got_distinct - expected).max() < 1e-4
     assert np.abs(got_distinct - got_shared).max() > 1e-4
@@ -1540,12 +1543,33 @@ def test_umt5_runtime_matches_transformers_with_distinct_biases_in_both_stacks(t
     model = _build_umt5_with_biases(True, True, amplify_decoder_values=30.0)
     tokens = _save_umt5(model, str(tmp_dir.join("model")))
 
-    got = _umt5_log_probs(
-        str(tmp_dir.join("model")), tokens, _UMT5_SOURCE, _UMT5_TARGET
-    )
-    expected = _umt5_reference_log_probs(model, _UMT5_SOURCE, _UMT5_TARGET)
+    got = _t5_log_probs(str(tmp_dir.join("model")), tokens, _UMT5_SOURCE, _UMT5_TARGET)
+    expected = _t5_reference_log_probs(model, _UMT5_SOURCE, _UMT5_TARGET)
 
     assert np.abs(got - expected).max() < 1e-4
+
+
+@test_utils.only_on_linux
+@pytest.mark.parametrize("tie_word_embeddings", [False, True])
+def test_t5_decoder_output_scaling_matches_transformers(tie_word_embeddings, tmp_dir):
+    import torch
+    import transformers
+
+    from ctranslate2.converters.transformers import T5Loader
+
+    torch.manual_seed(0)
+    model = _build_tiny_t5_family_model(
+        transformers.T5ForConditionalGeneration,
+        transformers.T5Config,
+        tie_word_embeddings=tie_word_embeddings,
+        decoder_start_token_id=0,
+    )
+    model_dir = str(tmp_dir.join("model"))
+    tokens = _save_t5_family_model(model, model_dir, T5Loader())
+    source, target = [5, 9, 14], [11, 4, 19]
+    actual = _t5_log_probs(model_dir, tokens, source, target)
+    expected = _t5_reference_log_probs(model, source, target)
+    np.testing.assert_allclose(actual, expected, rtol=0, atol=1e-4)
 
 
 @test_utils.only_on_linux
