@@ -9,7 +9,7 @@
 #  include "cuda/utils.h"
 
 TEST(AttentionTest, Float16ScoreAccumulation) {
-  const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(true);
+  const ctranslate2::cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(true);
   // The unscaled dot product (160000) overflows FP16; the scaled score (20000) fits.
   for (const dim_t heads : {1, 2}) {
     StorageView queries = StorageView({1, heads, 1, 64}, 50.f).to(Device::CUDA).to_float16();
@@ -24,7 +24,7 @@ TEST(AttentionTest, Float16ScoreAccumulation) {
                                     use_relative_keys ? &relative_keys : nullptr,
                                     nullptr, nullptr, nullptr,
                                     0, 0, 1, output, &attention, true, 0.125f);
-      EXPECT_TRUE(cuda::use_true_fp16_gemm());
+      EXPECT_TRUE(ctranslate2::cuda::use_true_fp16_gemm());
       expect_storage_eq(output.to_float32(), StorageView({1, heads, 1, 64}, 2.f));
       expect_storage_eq(attention.to_float32(), StorageView({1, heads, 1, 2}, 0.5f));
     }
@@ -298,6 +298,10 @@ TEST_P(MergedAttentionTest, PaddedBatchWithBeams) {
 }
 
 INSTANTIATE_TEST_SUITE_P(CPU, MergedAttentionTest, ::testing::Values(Device::CPU));
+#ifdef CT2_WITH_CUDA
+INSTANTIATE_TEST_SUITE_P(CUDA, MergedAttentionTest,
+                        ::testing::Values(Device::CUDA));
+#endif
 #ifdef CT2_WITH_MPS
 INSTANTIATE_TEST_SUITE_P(MPS, MergedAttentionTest, ::testing::Values(Device::MPS));
 #endif

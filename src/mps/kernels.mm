@@ -381,8 +381,6 @@ static inline float apply_unary(float x, uint op) {
     case 1: return log(x);
     case 2: return cos(x);
     case 3: return sin(x);
-    // fast::tanh can return NaN for large finite inputs under fast math.
-    // This helper also serves fused GEMM/bias activation epilogues.
     case 4: return precise::tanh(x);
     case 5: return max(x, 0.0f);
     case 6: return 0.5f * x * (1.0f + erf_approx(x * 0.7071067811865475f));
