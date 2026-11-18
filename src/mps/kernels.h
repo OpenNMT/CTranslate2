@@ -130,6 +130,10 @@ namespace ctranslate2 {
                                              dim_t k,
                                              int activation);
 
+    void dense_f16_fp32(const float* input, const float16_t* weight,
+                         const float16_t* bias, const float* residual, float* output,
+                         dim_t rows, dim_t columns, dim_t depth);
+
     void gemv(DataType dtype,
               bool transpose_a,
               bool transpose_b,
@@ -320,6 +324,13 @@ namespace ctranslate2 {
                  dim_t batch_size,
                  dim_t depth,
                  bool log);
+
+    void mask_merged_attention(DataType dtype, void* scores,
+                               const int32_t* self_lengths,
+                               const int32_t* memory_lengths, dim_t rows,
+                               dim_t self_size, dim_t memory_size,
+                               dim_t query_size, dim_t offset, dim_t window,
+                               dim_t right_window);
 
     // Computes softmax(scale * Q * K^T) * V for contiguous FP16 attention
     // matrices. Returns false when the shape is outside the specialized

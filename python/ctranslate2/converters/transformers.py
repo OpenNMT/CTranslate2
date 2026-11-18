@@ -4789,8 +4789,9 @@ class T5Gemma2Loader(ModelLoader):
         self.set_decoder(spec.decoder, model.model.decoder)
         self._apply_layer_types(decoder_config, spec.decoder.layer)
 
-        if hasattr(model.lm_head, "weight"):
-            self.set_linear(spec.decoder.projection, model.lm_head)
+        lm_head = getattr(model.lm_head, "out_proj", model.lm_head)
+        if hasattr(lm_head, "weight"):
+            self.set_linear(spec.decoder.projection, lm_head)
         else:
             self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
         return spec
@@ -4844,7 +4845,13 @@ class T5Gemma2Loader(ModelLoader):
             gc.collect()
 
     def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
-        embed_scale = getattr(module.embed_tokens, "embed_scale", None)
+        # The decoder's canonical FP32 initialization uses this original scalar.
+        # Loading weights in BF16 otherwise rounds its nonpersistent buffer.
+        embed_scale = getattr(
+            module.embed_tokens,
+            "scalar_embed_scale",
+            getattr(module.embed_tokens, "embed_scale", None),
+        )
         spec.scale_embeddings = float(embed_scale) if embed_scale is not None else False
         spec.start_from_zero_embedding = False
         self.set_embeddings(spec.embeddings, module.embed_tokens)
@@ -4904,4 +4911,6 @@ class T5Gemma2Loader(ModelLoader):
         self.set_layer_norm(attn_spec.k_norm, layer.self_attn.k_norm)
 
     def set_layer_norm(self, spec, layer_norm):
-        spec.gamma = (layer_norm.weight.data + 1.0).float()
+        # T5Gemma2 applies the offset in FP32, even with BF16 source weights.
+        # Adding in BF16 first can lose the unit offset for large trained norms.
+        spec.gamma = layer_norm.weight.data.float() + 1.0

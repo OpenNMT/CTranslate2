@@ -197,6 +197,13 @@ namespace ctranslate2 {
                                                      _saved_compute_type,
                                                      device,
                                                      device_index);
+      // T5Gemma2 has large post-norm scales. Keep its activation graph in FP32
+      // while native Metal projections read the original FP16 model matrices.
+      _float32_activations = device == Device::MPS
+        && _effective_compute_type == ComputeType::FLOAT16
+        && get_variable_if_exists("decoder/layer_0/post_feedforward_layer_norm/gamma")
+        && (get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight")
+            || get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight_packed"));
       _preferred_size_multiple = get_preferred_size_multiple(_effective_compute_type,
                                                              device,
                                                              device_index);
@@ -205,6 +212,7 @@ namespace ctranslate2 {
         DataType weight_dtype = DataType::FLOAT32;
         DataType float_dtype = DataType::FLOAT32;
         std::tie(weight_dtype, float_dtype) = compute_type_to_data_type(_effective_compute_type);
+        const bool preserve_norm_gamma = _float32_activations;
         if (_use_flash_attention && (float_dtype != DataType::FLOAT16 && float_dtype != DataType::BFLOAT16))
           throw std::runtime_error("FlashAttention only support fp16 and bf16 data type");
 
@@ -238,6 +246,7 @@ namespace ctranslate2 {
               variable.reshape({variable.dim(0), variable.dim(1) / kernel_size, kernel_size});
             }
           } else if (is_convertible(variable, name)
+                     && !(preserve_norm_gamma && ends_with(name, "/gamma"))
                      && is_float_type(variable.dtype())
                      && variable.dtype() != float_dtype)
             variable = variable.to(float_dtype);
