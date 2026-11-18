@@ -644,14 +644,13 @@ ct2-transformers-converter --model google/t5gemma-2-270m-270m --output_dir t5gem
 ```
 
 ```{note}
-Reconvert T5Gemma2 models with the updated converter. Older versions could use
-the decoder embeddings instead of a wrapped language-model output projection,
-and rounded the RMSNorm unit offset in BF16 instead of adding it in FP32.
-FP16 inference internally rescales the residual stream and RMSNorm epsilon to
-avoid residual overflow, while keeping projections and the KV cache in FP16.
-This prevents overflow without clipping activations; FP16 can still change
-logits and generated tokens compared with FP32. Use `compute_type="float32"`
-when validating numerical agreement with an FP32 reference.
+Reconvert T5Gemma2 models with the updated converter to preserve the original
+decoder embedding scale, add the RMSNorm unit offset in FP32, retain FP32
+normalization scales in FP16 models, and support wrapped output projections.
+On MPS, `compute_type="float16"` reads FP16 model weights directly while keeping
+activations, normalization, residual additions and the KV cache in FP32. This
+avoids residual overflow and accumulated rounding errors at the cost of larger
+activation and cache buffers. Other devices retain their existing compute paths.
 ```
 
 Usage:
