@@ -21,10 +21,12 @@ jobs:
             device: cpu
             artifact: python-wheels-macOS-arm64
             wheel: "*-cp312-cp312-macosx*arm64.whl"
-          - os: macos-15
-            device: mps
-            artifact: python-wheels-macOS-arm64
-            wheel: "*-cp312-cp312-macosx*arm64.whl"
+          # Disabled: the 4.9.0 baseline crashes on t5gemma_generation with
+          # "MPS pointer is not backed by a registered Metal buffer".
+          # - os: macos-15
+          #   device: mps
+          #   artifact: python-wheels-macOS-arm64
+          #   wheel: "*-cp312-cp312-macosx*arm64.whl"
           - os: windows-2022
             device: cpu
             artifact: python-wheels-Windows-auto64
