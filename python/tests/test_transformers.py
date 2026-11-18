@@ -1453,7 +1453,7 @@ def _umt5_reference_log_probs(model, source, target):
     target = target + [model.config.eos_token_id]
     with torch.no_grad():
         outputs = model(
-            input_ids=torch.tensor([source + [model.config.eos_token_id]]),
+            input_ids=torch.tensor([source]),
             decoder_input_ids=torch.tensor(
                 [[model.config.decoder_start_token_id] + target[:-1]]
             ),
