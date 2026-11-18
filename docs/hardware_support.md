@@ -62,5 +62,9 @@ original decoder embedding scale. Other devices retain their existing compute
 paths.
 
 The MPS backend cannot be enabled together with CUDA or HIP in the same build.
-FlashAttention, AWQ INT4, INT16 GEMM, distributed collectives, and
-packed/shifted-u8 INT8 GEMM are not currently implemented on MPS.
+AWQ INT4, INT16 GEMM, distributed collectives, and packed/shifted-u8 INT8 GEMM
+are not currently implemented on MPS. Native compact FlashAttention supports
+decoder prefill and incremental decoding. Native `int4_float16` conversion packs
+decoder linear weights with FP16 activations; it is a separate format from AWQ.
+Qwen/Mixtral MoE, shared experts, and explicit window schedules are supported
+within the limits in [MPS decoder inference](mps_decoder_inference.md).

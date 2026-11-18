@@ -138,6 +138,8 @@ namespace ctranslate2 {
                                             _num_heads * ScopedMPISetter::getNRanks()) / ScopedMPISetter::getNRanks()
                       : model.get_attribute_with_default<int32_t>(scope + "/num_heads_kv", _num_heads)))
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
+      , _absolute_window(model.get_flag_with_default(scope + "/absolute_window", false))
+      , _interleaved_lengths(_multi_query && (is_flash_attn || !_absolute_window))
     {
     }
 
@@ -204,10 +206,16 @@ namespace ctranslate2 {
       , _rotary_op(dim, interleave)
       , _transpose(transpose)
     {
-      if (_rotary_scaling_long_factor && _rotary_scaling_long_factor->device() != Device::CPU)
-        _rotary_scaling_long_factor = std::make_unique<StorageView>(_rotary_scaling_long_factor->to(Device::CPU));
-      if (_rotary_scaling_short_factor && _rotary_scaling_short_factor->device() != Device::CPU)
-        _rotary_scaling_short_factor = std::make_unique<StorageView>(_rotary_scaling_short_factor->to(Device::CPU));
+      if (_rotary_scaling_long_factor)
+        _rotary_scaling_long_factor = std::make_unique<StorageView>(
+            _rotary_scaling_long_factor->to(Device::CPU).to(DataType::FLOAT32));
+      if (_rotary_scaling_short_factor)
+        _rotary_scaling_short_factor = std::make_unique<StorageView>(
+            _rotary_scaling_short_factor->to(Device::CPU).to(DataType::FLOAT32));
+    }
+
+    bool AttentionLayer::set_sequence_length_hint(dim_t length) {
+      return _rotary_embeddings && _rotary_embeddings->set_sequence_length_hint(length);
     }
 
     void RotaryEmbeddings::apply(StorageView& x, const dim_t offset, bool fa2) {
@@ -215,13 +223,20 @@ namespace ctranslate2 {
       const DataType dtype = x.dtype();
       const dim_t max_time = _transpose ? x.dim(-2) : x.dim(-3);
       const dim_t dim = _dim == 0 ? x.dim(-1) : _dim;
+      const bool use_long_factor = _scaling_type == RotaryScalingType::Su
+                                  && std::max(offset + max_time, _sequence_length_hint)
+                                       > _original_max_position_embeddings;
 
       if (!_sin || _sin.device() != device || _sin.device_index() != x.device_index()
-          || _sin.dtype() != dtype || offset + max_time > _sin.dim(0)) {
+          || _sin.dtype() != dtype || offset + max_time > _sin.dim(0)
+          || use_long_factor != _using_long_factor) {
         _sin_half.reset();
         _cos_half.reset();
         const dim_t cur_num_positions = _sin ? _sin.dim(0) : 0;
-        const dim_t new_num_positions = std::max(offset + max_time, cur_num_positions + _num_initial_positions);
+        const dim_t new_num_positions = std::max(
+            offset + max_time,
+            cur_num_positions + (offset + max_time > cur_num_positions ? _num_initial_positions : 0));
+        _using_long_factor = use_long_factor;
         initialize(new_num_positions, dim, device, dtype);
         if (fa2) {
           if (!_sin_half)
@@ -260,7 +275,9 @@ namespace ctranslate2 {
       if (_scaling_type == RotaryScalingType::Su) {
         StorageView* scaling_factor;
         for (dim_t i = 0; i < inv_freq.size(); ++i) {
-          if (num_positions > _original_max_position_embeddings)
+          // Table capacity is rounded up and may already exceed the original
+          // context for a short request. Select factors from the live sequence.
+          if (_using_long_factor)
             scaling_factor = _rotary_scaling_long_factor.get();
           else
             scaling_factor = _rotary_scaling_short_factor.get();
@@ -331,7 +348,7 @@ namespace ctranslate2 {
       // implementations also scale in float32 before casting.
       if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0 && _scaling_type != RotaryScalingType::Llama3) {
         StorageView scaling_factor;
-        float scale = _max_position_embeddings / _original_max_position_embeddings;
+        float scale = float(_max_position_embeddings) / _original_max_position_embeddings;
         if (scale <= 1)
           scaling_factor = StorageView(1.0f);
         else

@@ -3,6 +3,7 @@
 #ifdef __APPLE__
 
 #include "ctranslate2/types.h"
+#include <stdexcept>
 
 namespace ctranslate2 {
   namespace mps {
@@ -130,10 +131,6 @@ namespace ctranslate2 {
                                              dim_t k,
                                              int activation);
 
-    void dense_f16_fp32(const float* input, const float16_t* weight,
-                         const float16_t* bias, const float* residual, float* output,
-                         dim_t rows, dim_t columns, dim_t depth);
-
     void gemv(DataType dtype,
               bool transpose_a,
               bool transpose_b,
@@ -174,6 +171,9 @@ namespace ctranslate2 {
                   int activation = -1);
 
     bool supports_gemm_type(DataType dtype);
+    void gemm_f16_f32_output(const float16_t* input, const float16_t* weight,
+                              const float16_t* bias, float* output,
+                              dim_t rows, dim_t columns, dim_t depth);
 
     // Drops cached output-major weight metadata before the backing allocation
     // is released. The argument is the opaque MTLBuffer returned by utils.
@@ -348,6 +348,85 @@ namespace ctranslate2 {
                          float scale,
                          dim_t interleaved_num_heads = 0);
 
+    // Compact cache layout [B,capacity,Hkv,D]. Copy old valid rows only on
+    // growth; ordinary decoding writes the new rows in place.
+    void append_compact_kv(const void* keys, const void* values,
+                           const void* old_keys, const void* old_values,
+                           void* cached_keys, void* cached_values,
+                           dim_t batch, dim_t queries, dim_t heads, dim_t depth,
+                           dim_t offset, dim_t old_capacity, dim_t capacity,
+                           bool copy_past);
+
+    inline dim_t packed_kv_row_bytes(dim_t depth, unsigned bits) {
+      if (depth <= 0 || depth > 256 || (bits != 4 && bits != 5 && bits != 8))
+        throw std::invalid_argument("invalid quantized KV cache format");
+      return ((depth + 31) / 32) * (4 + 4 * bits);
+    }
+    void append_quantized_kv(const void* keys, const void* values,
+                             const void* old_keys, const void* old_values,
+                             void* cached_keys, void* cached_values,
+                             dim_t batch, dim_t queries, dim_t heads,
+                             dim_t depth, dim_t offset, dim_t old_capacity,
+                             dim_t capacity, bool copy_past, unsigned bits);
+    void unpack_quantized_kv(const void* input, void* output, dim_t batch,
+                             dim_t tokens, dim_t heads, dim_t depth,
+                             dim_t capacity, unsigned bits);
+
+    // Split-K decode/small-query online-softmax attention. Workspace, when needed,
+    // contains B*Hq*Q*ceil(K/256)*(D+2) floats, never a Q-by-K matrix.
+    bool flash_decode(DataType dtype, const void* queries, const void* keys,
+                      const void* values, const int32_t* lengths, void* output,
+                      float* workspace, size_t workspace_floats, dim_t batch,
+                      dim_t heads, dim_t kv_heads, dim_t keys_length,
+                      dim_t capacity, dim_t depth, float scale, dim_t offset,
+                      dim_t window = 0, bool causal = true,
+                      dim_t query_length = 1, bool kv_interleaved = true,
+                      bool queries_interleaved = true, unsigned cache_bits = 0);
+
+    void mask_flash_scores(DataType dtype, void* scores, const int32_t* lengths,
+                           int32_t* bounds, dim_t rows, dim_t heads, dim_t queries, dim_t keys,
+                           dim_t offset, dim_t window, bool causal, bool interleaved_lengths = false);
+
+    // FP32 router TopK, sorted by decreasing score and then increasing expert
+    // index, followed by softmax over the selected experts. Entirely on GPU.
+    void moe_topk(const float* logits, int32_t* indices, float* weights,
+                  dim_t rows, dim_t experts, dim_t k, bool normalize_selected = true);
+
+    bool moe_use_gemv(dim_t rows);
+    bool flash_prefill(DataType dtype, const void* queries, const void* keys,
+                       const void* values, const int32_t* lengths, void* output,
+                       dim_t batch, dim_t heads, dim_t kv_heads,
+                       dim_t queries_length, dim_t keys_length, dim_t capacity,
+                       dim_t depth, float scale, dim_t offset, dim_t window,
+                       bool causal, bool interleaved_lengths,
+                       unsigned cache_bits = 0);
+    void dense_f16_fp32(const float* input, const float16_t* weight,
+                        const float16_t* bias, const float* residual, float* output,
+                        dim_t rows, dim_t columns, dim_t depth);
+    void gemm_int4_f32(const float* input, const int8_t* weight, const float* scales,
+                       const float16_t* bias, float* output,
+                       dim_t rows, dim_t columns, dim_t depth);
+    void gemm_int4(const float16_t* input, const int8_t* weight, const float* scales,
+                   const float16_t* bias, float16_t* output,
+                   dim_t rows, dim_t columns, dim_t depth);
+    void moe_add_shared(DataType dtype, const void* shared, const void* gates,
+                        void* output, dim_t rows, dim_t hidden);
+    void moe_router(DataType dtype, const void* input, const float* router,
+                    float* logits, dim_t rows, dim_t experts, dim_t hidden);
+    void moe_dispatch_plan(const int32_t* ids, int32_t* offsets, int32_t* permutation,
+                           int32_t* inverse, int32_t* indirect, dim_t rows, dim_t experts,
+                           dim_t topk, dim_t hidden, dim_t intermediate, bool decode,
+                           bool wide = false, bool force_generic = false);
+    void moe_expert_project(DataType dtype, const void* input, const void* gate,
+                            const void* up, void* output, const int32_t* offsets,
+                            const int32_t* permutation, const int32_t* indirect,
+                            dim_t rows, dim_t experts, dim_t expert, dim_t topk,
+                            dim_t n, dim_t k, bool gated, bool decode, bool wide = false,
+                            const float* gate_scale = nullptr, const float* up_scale = nullptr);
+    void moe_aggregate(DataType dtype, const void* expert_output, const int32_t* inverse,
+                       const int32_t* ids, const float* weights, void* output,
+                       dim_t rows, dim_t experts, dim_t topk, dim_t hidden);
+
     void mean(DataType dtype,
               const void* input,
               void* output,
@@ -411,7 +490,8 @@ namespace ctranslate2 {
                 dim_t max_time,
                 dim_t ndims,
                 dim_t depth,
-                bool interleave);
+                bool interleave,
+                dim_t interleaved_heads = 1);
 
     void im2col_conv1d(DataType dtype,
                        const void* input,

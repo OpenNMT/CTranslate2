@@ -63,6 +63,16 @@ If you have an AMD ROCm GPU, we provide specific Python wheels on the [releases 
 
 **Apple Metal (experimental).** Apple Silicon GPUs can be used with `device="mps"`. The backend is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`. It remains an explicit runtime opt-in: `device="auto"` always selects CPU. See [hardware support](docs/hardware_support.md) for the supported features.
 
+Decoder-only models can use native Metal FlashAttention, weight-only
+`int4_float16`, and compatible Qwen/Mixtral MoE layers. See
+[MPS decoder inference](docs/mps_decoder_inference.md) for supported configurations,
+limitations, and validation instructions. Recorded
+[model results](docs/mps_model_results.md) include matched llama.cpp baselines,
+measured decode improvements and remaining quality gaps.
+`Generator(..., kv_cache_type="float16")` explicitly selects FP16 KV storage;
+experimental INT8/INT5/INT4 cache options and their current quality limitations
+are documented there.
+
 ## Recommended libraries
 
 * [ctranslate2-web-server](https://github.com/jordimas/ctranslate2-web-server): a web server exposing an OpenAI-compatible REST API for CTranslate2 models.

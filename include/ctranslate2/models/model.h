@@ -29,18 +29,18 @@ namespace ctranslate2 {
     // Base class for models.
     class Model : public std::enable_shared_from_this<Model> {
     public:
-      static std::shared_ptr<const Model> load(const std::string& path,
-                                               Device device = Device::CPU,
-                                               int device_index = 0,
-                                               ComputeType compute_type = ComputeType::DEFAULT,
-                                               bool use_flash_attention = false,
-                                               bool tensor_parallel = false);
-      static std::shared_ptr<const Model> load(ModelReader& model_reader,
-                                               Device device = Device::CPU,
-                                               int device_index = 0,
-                                               ComputeType compute_type = ComputeType::DEFAULT,
-                                               bool use_flash_attention = false,
-                                               bool tensor_parallel = false);
+      static std::shared_ptr<const Model>
+      load(const std::string& path, Device device = Device::CPU,
+           int device_index = 0,
+           ComputeType compute_type = ComputeType::DEFAULT,
+           bool use_flash_attention = false, bool tensor_parallel = false,
+           const std::string& kv_cache_type = "auto");
+      static std::shared_ptr<const Model>
+      load(ModelReader& model_reader, Device device = Device::CPU,
+           int device_index = 0,
+           ComputeType compute_type = ComputeType::DEFAULT,
+           bool use_flash_attention = false, bool tensor_parallel = false,
+           const std::string& kv_cache_type = "auto");
 
       virtual std::unique_ptr<SequenceToSequenceReplica> as_sequence_to_sequence() const;
       virtual std::unique_ptr<SequenceGeneratorReplica> as_sequence_generator() const;
@@ -81,12 +81,13 @@ namespace ctranslate2 {
       }
 
       bool use_float32_activations() const {
-        return _device == Device::MPS && _float32_activations;
+        return _device == Device::MPS && (_float32_activations
+          || (_effective_compute_type == ComputeType::FLOAT16
+              && get_variable_if_exists("decoder/layer_0/post_feedforward_layer_norm/gamma")
+              && get_attribute_with_default<float>("decoder/final_logit_softcapping", 0.f) > 0));
       }
 
-      bool use_float32_residuals() const {
-        return use_float32_activations();
-      }
+      bool use_float32_residuals() const { return use_float32_activations(); }
 
       dim_t preferred_size_multiple() const {
         return _preferred_size_multiple;
@@ -103,6 +104,8 @@ namespace ctranslate2 {
       bool use_flash_attention() const {
         return _use_flash_attention;
       }
+
+      const std::string& kv_cache_type() const { return _kv_cache_type; }
 
       QUANTIZATION_TYPE quant_method() const {
         return _quant_method;
@@ -206,6 +209,7 @@ namespace ctranslate2 {
       dim_t _preferred_size_multiple = 1;
       std::unordered_map<std::string, std::shared_ptr<StorageView>> _variable_index;
       bool _use_flash_attention = false;
+      std::string _kv_cache_type = "auto";
       bool _tensor_parallel = false;
       QUANTIZATION_TYPE _quant_method = QUANTIZATION_TYPE::CT2;
     };
@@ -237,6 +241,7 @@ namespace ctranslate2 {
       size_t num_replicas_per_device = 1;
       ComputeType compute_type = ComputeType::DEFAULT;
       bool use_flash_attention = false;
+      std::string kv_cache_type = "auto";
       bool tensor_parallel = false;
     };
 

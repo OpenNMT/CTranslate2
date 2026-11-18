@@ -6,7 +6,7 @@
 #include "cpu/backend.h"
 #include "dispatch.h"
 #ifdef CT2_WITH_MPS
-#  include "mps/kernels.h"
+#include "mps/kernels.h"
 #endif
 
 namespace ctranslate2 {
@@ -268,7 +268,8 @@ namespace ctranslate2 {
         return *weight;
       }
       *is_packed = false;
-      return model.get_variable(scope + "/weight");
+      weight = model.get_variable_if_exists(scope + "/weight_int4");
+      return weight ? *weight : model.get_variable(scope + "/weight");
     }
 
     Dense::Dense(const models::Model& model,
@@ -280,6 +281,9 @@ namespace ctranslate2 {
       , _bias(model.get_variable_if_exists(scope + "/bias"))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
       , _qzero(model.get_variable_if_exists(scope + "/weight_zero"))
+      , _int4_scale(model.get_variable_if_exists(scope + "/weight_int4_scale"))
+      , _int4_depth(model.get_attribute_with_default<int32_t>(scope + "/int4_depth", 0))
+      , _partial_int4_scale(_weight.device(), DataType::FLOAT32)
       , _u8_shift_compensation((_weight.device() == Device::CPU
                                 && _weight.dtype() == DataType::INT8
                                 && cpu::prefer_u8s8s32_gemm())
@@ -335,14 +339,54 @@ namespace ctranslate2 {
 
         if (_u8_shift_compensation)
           ops::Gather()(*_u8_shift_compensation, *index, _partial_u8_shift_compensation);
+        if (_int4_scale) ops::Gather()(*_int4_scale, *index, _partial_int4_scale);
         if (_qscale && !_qscale->is_scalar())
           ops::Gather()(*_qscale, *index, _partial_qscale);
       } else {
         _partial_weight.clear();
         _partial_bias.clear();
         _partial_qscale.clear();
+        _partial_int4_scale.clear();
         _partial_u8_shift_compensation.clear();
       }
+    }
+
+    bool Dense::supports_float32_output() const {
+#ifdef CT2_WITH_MPS
+      return _weight.device() == Device::MPS && _weight.dtype() == DataType::FLOAT16
+             && !_packed_weight && !_qscale && !_qzero && !_activation_type;
+#else
+      return false;
+#endif
+    }
+
+    void Dense::forward_float32(const StorageView& input, StorageView& output) const {
+#ifdef CT2_WITH_MPS
+      if (!supports_float32_output() || input.device() != Device::MPS ||
+          (input.dtype() != DataType::FLOAT16 && input.dtype() != DataType::FLOAT32) || output.device() != Device::MPS ||
+          output.dtype() != DataType::FLOAT32 || &input == &output)
+        throw std::invalid_argument("Unsupported precise MPS output projection");
+      const auto& weight = _partial_weight.empty() ? _weight : _partial_weight;
+      const auto* bias = _partial_bias.empty() ? _bias : &_partial_bias;
+      if (input.rank() < 2 || input.dim(-1) != weight.dim(1))
+        throw std::invalid_argument("Invalid precise MPS output projection dimensions");
+      Shape shape(input.shape());
+      shape.back() = weight.dim(0);
+      output.resize(shape);
+      if (input.dtype() == DataType::FLOAT32) {
+        mps::dense_f16_fp32(input.data<float>(), weight.data<float16_t>(),
+                            bias ? bias->data<float16_t>() : nullptr, nullptr,
+                            output.data<float>(), input.size()/weight.dim(1),
+                            weight.dim(0), weight.dim(1));
+        return;
+      }
+      mps::gemm_f16_f32_output(input.data<float16_t>(), weight.data<float16_t>(),
+                               bias ? bias->data<float16_t>() : nullptr,
+                               output.data<float>(), input.size()/weight.dim(1),
+                               weight.dim(0), weight.dim(1));
+#else
+      throw std::invalid_argument("Precise output projection requires MPS");
+#endif
     }
 
     void Dense::operator()(const StorageView& input, StorageView& output, const StorageView* residual) const {
@@ -384,6 +428,35 @@ namespace ctranslate2 {
       if (affected_by_tp && ScopedMPISetter::getCurRank() != 0) {
         bias = nullptr;
         residual = nullptr;
+      }
+      if (_int4_scale) {
+#ifdef CT2_WITH_MPS
+        if (input.device() != Device::MPS || input.dtype() != _output_type ||
+            (input.dtype() != DataType::FLOAT16 && input.dtype() != DataType::FLOAT32) ||
+            input.dim(-1) != _int4_depth || affected_by_tp)
+          throw std::invalid_argument("Native INT4 Dense requires MPS FP16 activations");
+        const dim_t rows = input.size() / _int4_depth;
+        StorageView copied;
+        const StorageView* x = &input;
+        if (&input == &output) { copied = input; x = &copied; }
+        Shape shape=input.shape(); shape.back()=weight->dim(0);
+        if (output.dtype() != _output_type) output = StorageView(_output_type, input.device());
+        output.resize(shape);
+        const auto& scales = _partial_int4_scale.empty() ? *_int4_scale : _partial_int4_scale;
+        if (_output_type == DataType::FLOAT32)
+          mps::gemm_int4_f32(x->data<float>(), weight->data<int8_t>(), scales.data<float>(),
+                           bias ? bias->data<float16_t>() : nullptr, output.data<float>(),
+                           rows, weight->dim(0), _int4_depth);
+        else
+          mps::gemm_int4(x->data<float16_t>(),weight->data<int8_t>(),scales.data<float>(),
+                       bias ? bias->data<float16_t>() : nullptr,output.data<float16_t>(),
+                       rows,weight->dim(0),_int4_depth);
+        if (_activation_type) ops::get_activation_op(*_activation_type)(output,output);
+        if (residual) ops::Add()(output,*residual,output);
+        return;
+#else
+        throw std::invalid_argument("Native INT4 Dense requires MPS");
+#endif
       }
       if (_quantized_gemm) {
         const auto device = input.device();

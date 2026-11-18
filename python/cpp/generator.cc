@@ -123,9 +123,8 @@ namespace ctranslate2 {
 
 
     void register_generator(py::module& m) {
-      py::class_<GeneratorWrapper>(
-        m, "Generator",
-        R"pbdoc(
+      py::class_<GeneratorWrapper>(m, "Generator",
+                                   R"pbdoc(
             A text generator.
 
             Example:
@@ -134,19 +133,18 @@ namespace ctranslate2 {
                 >>> generator.generate_batch([["<s>"]], max_length=50, sampling_topk=20)
         )pbdoc")
 
-        .def(py::init<const std::string&, const std::string&, const std::variant<int, std::vector<int>>&, const StringOrMap&, size_t, size_t, long, bool, bool, py::object>(),
-             py::arg("model_path"),
-             py::arg("device")="cpu",
-             py::kw_only(),
-             py::arg("device_index")=0,
-             py::arg("compute_type")="default",
-             py::arg("inter_threads")=1,
-             py::arg("intra_threads")=0,
-             py::arg("max_queued_batches")=0,
-             py::arg("flash_attention")=false,
-             py::arg("tensor_parallel")=false,
-             py::arg("files")=py::none(),
-             R"pbdoc(
+          .def(py::init<const std::string&, const std::string&,
+                        const std::variant<int, std::vector<int>>&,
+                        const StringOrMap&, size_t, size_t, long, bool, bool,
+                        py::object, const std::string&>(),
+               py::arg("model_path"), py::arg("device") = "cpu", py::kw_only(),
+               py::arg("device_index") = 0, py::arg("compute_type") = "default",
+               py::arg("inter_threads") = 1, py::arg("intra_threads") = 0,
+               py::arg("max_queued_batches") = 0,
+               py::arg("flash_attention") = false,
+               py::arg("tensor_parallel") = false,
+               py::arg("files") = py::none(), py::arg("kv_cache_type") = "auto",
+               R"pbdoc(
                  Initializes the generator.
 
                  Arguments:
@@ -161,59 +159,66 @@ namespace ctranslate2 {
                    max_queued_batches: Maximum numbers of batches in the queue (-1 for unlimited,
                      0 for an automatic value). When the queue is full, future requests will block
                      until a free slot is available.
-                   flash_attention: run model with flash attention 2 for self-attention layer
+                   flash_attention: use device-specific fused self-attention and KV caching when supported
+                   kv_cache_type: KV cache storage: auto (activation type), float16 (fp16),
+                     int8, int5, or int4. Explicit formats require MPS FP16 decoder-only
+                     models with flash_attention=True. Quantized caches are experimental and lossy;
+                     validate model quality before deployment.
                    tensor_parallel: run model with tensor parallel mode.
                    files: Load model files from the memory. This argument is a dictionary mapping
                      file names to file contents as file-like or bytes objects. If this is set,
                      :obj:`model_path` acts as an identifier for this model.
              )pbdoc")
 
-        .def_property_readonly("device", &GeneratorWrapper::device,
-                               "Device this generator is running on.")
-        .def_property_readonly("device_index", &GeneratorWrapper::device_index,
-                               "List of device IDs where this generator is running on.")
-        .def_property_readonly("compute_type", &GeneratorWrapper::compute_type,
-                               "Computation type used by the model.")
-        .def_property_readonly("num_generators", &GeneratorWrapper::num_replicas,
-                               "Number of generators backing this instance.")
-        .def_property_readonly("num_queued_batches", &GeneratorWrapper::num_queued_batches,
-                               "Number of batches waiting to be processed.")
-        .def_property_readonly("tensor_parallel", &GeneratorWrapper::tensor_parallel,
-                               "Run model with tensor parallel mode.")
-        .def_property_readonly("num_active_batches", &GeneratorWrapper::num_active_batches,
-                               "Number of batches waiting to be processed or currently processed.")
+          .def_property_readonly("device", &GeneratorWrapper::device,
+                                 "Device this generator is running on.")
+          .def_property_readonly(
+              "device_index", &GeneratorWrapper::device_index,
+              "List of device IDs where this generator is running on.")
+          .def_property_readonly("compute_type",
+                                 &GeneratorWrapper::compute_type,
+                                 "Computation type used by the model.")
+          .def_property_readonly("kv_cache_type",
+                                 &GeneratorWrapper::kv_cache_type,
+                                 "Resolved KV cache storage format.")
+          .def_property_readonly("num_generators",
+                                 &GeneratorWrapper::num_replicas,
+                                 "Number of generators backing this instance.")
+          .def_property_readonly("num_queued_batches",
+                                 &GeneratorWrapper::num_queued_batches,
+                                 "Number of batches waiting to be processed.")
+          .def_property_readonly("tensor_parallel",
+                                 &GeneratorWrapper::tensor_parallel,
+                                 "Run model with tensor parallel mode.")
+          .def_property_readonly("num_active_batches",
+                                 &GeneratorWrapper::num_active_batches,
+                                 "Number of batches waiting to be processed or "
+                                 "currently processed.")
 
-        .def("generate_batch", &GeneratorWrapper::generate_batch,
-             py::arg("start_tokens"),
-             py::kw_only(),
-             py::arg("max_batch_size")=0,
-             py::arg("batch_type")="examples",
-             py::arg("asynchronous")=false,
-             py::arg("beam_size")=1,
-             py::arg("patience")=1,
-             py::arg("num_hypotheses")=1,
-             py::arg("length_penalty")=1,
-             py::arg("repetition_penalty")=1,
-             py::arg("no_repeat_ngram_size")=0,
-             py::arg("disable_unk")=false,
-             py::arg("suppress_sequences")=py::none(),
-             py::arg("end_token")=py::none(),
-             py::arg("return_end_token")=false,
-             py::arg("max_length")=512,
-             py::arg("min_length")=0,
-             py::arg("static_prompt")=py::none(),
-             py::arg("cache_static_prompt")=true,
-             py::arg("include_prompt_in_result")=true,
-             py::arg("return_scores")=false,
-             py::arg("return_logits_vocab")=false,
-             py::arg("return_alternatives")=false,
-             py::arg("min_alternative_expansion_prob")=0,
-             py::arg("sampling_topk")=1,
-             py::arg("sampling_topp")=1,
-             py::arg("sampling_temperature")=1,
-             py::arg("callback")=nullptr,
-             py::call_guard<py::gil_scoped_release>(),
-             R"pbdoc(
+          .def("generate_batch", &GeneratorWrapper::generate_batch,
+               py::arg("start_tokens"), py::kw_only(),
+               py::arg("max_batch_size") = 0,
+               py::arg("batch_type") = "examples",
+               py::arg("asynchronous") = false, py::arg("beam_size") = 1,
+               py::arg("patience") = 1, py::arg("num_hypotheses") = 1,
+               py::arg("length_penalty") = 1, py::arg("repetition_penalty") = 1,
+               py::arg("no_repeat_ngram_size") = 0,
+               py::arg("disable_unk") = false,
+               py::arg("suppress_sequences") = py::none(),
+               py::arg("end_token") = py::none(),
+               py::arg("return_end_token") = false, py::arg("max_length") = 512,
+               py::arg("min_length") = 0, py::arg("static_prompt") = py::none(),
+               py::arg("cache_static_prompt") = true,
+               py::arg("include_prompt_in_result") = true,
+               py::arg("return_scores") = false,
+               py::arg("return_logits_vocab") = false,
+               py::arg("return_alternatives") = false,
+               py::arg("min_alternative_expansion_prob") = 0,
+               py::arg("sampling_topk") = 1, py::arg("sampling_topp") = 1,
+               py::arg("sampling_temperature") = 1,
+               py::arg("callback") = nullptr,
+               py::call_guard<py::gil_scoped_release>(),
+               R"pbdoc(
                  Generates from a batch of start tokens.
 
                  Note:
@@ -281,15 +286,13 @@ namespace ctranslate2 {
                    `GenerationOptions <https://github.com/OpenNMT/CTranslate2/blob/master/include/ctranslate2/generation.h>`_ structure in the C++ library.
              )pbdoc")
 
-        .def("score_batch", &GeneratorWrapper::score_batch,
-             py::arg("tokens"),
-             py::kw_only(),
-             py::arg("max_batch_size")=0,
-             py::arg("batch_type")="examples",
-             py::arg("max_input_length")=1024,
-             py::arg("asynchronous")=false,
-             py::call_guard<py::gil_scoped_release>(),
-             R"pbdoc(
+          .def("score_batch", &GeneratorWrapper::score_batch, py::arg("tokens"),
+               py::kw_only(), py::arg("max_batch_size") = 0,
+               py::arg("batch_type") = "examples",
+               py::arg("max_input_length") = 1024,
+               py::arg("asynchronous") = false,
+               py::call_guard<py::gil_scoped_release>(),
+               R"pbdoc(
                  Scores a batch of tokens.
 
                  Arguments:
@@ -307,13 +310,11 @@ namespace ctranslate2 {
                    A list of scoring results.
              )pbdoc")
 
-        .def("forward_batch", &GeneratorWrapper::forward_batch,
-             py::arg("inputs"),
-             py::arg("lengths")=py::none(),
-             py::kw_only(),
-             py::arg("return_log_probs")=false,
-             py::call_guard<py::gil_scoped_release>(),
-             R"pbdoc(
+          .def("forward_batch", &GeneratorWrapper::forward_batch,
+               py::arg("inputs"), py::arg("lengths") = py::none(),
+               py::kw_only(), py::arg("return_log_probs") = false,
+               py::call_guard<py::gil_scoped_release>(),
+               R"pbdoc(
                  Forwards a batch of sequences in the generator.
 
                  Arguments:
@@ -330,10 +331,10 @@ namespace ctranslate2 {
                    is enabled.
              )pbdoc")
 
-        .def("unload_model", &GeneratorWrapper::unload_model,
-             py::arg("to_cpu")=false,
-             py::call_guard<py::gil_scoped_release>(),
-             R"pbdoc(
+          .def("unload_model", &GeneratorWrapper::unload_model,
+               py::arg("to_cpu") = false,
+               py::call_guard<py::gil_scoped_release>(),
+               R"pbdoc(
                  Unloads the model attached to this generator but keep enough runtime context
                  to quickly resume generator on the initial device. The model is not guaranteed
                  to be unloaded if generations are running concurrently.
@@ -342,19 +343,20 @@ namespace ctranslate2 {
                    to_cpu: If ``True``, the model is moved to the CPU memory and not fully unloaded.
              )pbdoc")
 
-        .def("load_model", &GeneratorWrapper::load_model,
-             py::arg("keep_cache")=false,
-             py::call_guard<py::gil_scoped_release>(),
-             R"pbdoc(
+          .def("load_model", &GeneratorWrapper::load_model,
+               py::arg("keep_cache") = false,
+               py::call_guard<py::gil_scoped_release>(),
+               R"pbdoc(
                  Loads the model back to the initial device.
 
                  Arguments:
                    keep_cache: If ``True``, the model cache in the CPU memory is not deleted if it exists.
              )pbdoc")
 
-        .def_property_readonly("model_is_loaded", &GeneratorWrapper::model_is_loaded,
-                               "Whether the model is loaded on the initial device and ready to be used.")
-        ;
+          .def_property_readonly("model_is_loaded",
+                                 &GeneratorWrapper::model_is_loaded,
+                                 "Whether the model is loaded on the initial "
+                                 "device and ready to be used.");
     }
 
   }

@@ -19,6 +19,7 @@
 #include <vector>
 
 #include "mps/kernels.h"
+#include "ctranslate2/profiler.h"
 #include "mps/utils.h"
 #include "ctranslate2/random.h"
 
@@ -109,6 +110,7 @@ struct MeanArgs {
   uint get_sum;
 };
 
+
 struct NormArgs {
   ulong outer_size;
   ulong axis_size;
@@ -125,6 +127,7 @@ struct RotaryArgs {
   ulong ndims;
   ulong depth;
   uint interleave;
+  uint interleaved_heads;
 };
 
 struct Im2Col1DArgs {
@@ -381,6 +384,8 @@ static inline float apply_unary(float x, uint op) {
     case 1: return log(x);
     case 2: return cos(x);
     case 3: return sin(x);
+    // fast::tanh can return NaN for large finite inputs under fast math.
+    // This helper also serves fused GEMM/bias activation epilogues.
     case 4: return precise::tanh(x);
     case 5: return max(x, 0.0f);
     case 6: return 0.5f * x * (1.0f + erf_approx(x * 0.7071067811865475f));
@@ -2535,6 +2540,10 @@ kernel void fused_attention_f16(
   }
 }
 
+inline float attention_value(ushort value, bool bf16) {
+  return bf16 ? as_type<float>(uint(value) << 16) : float(as_type<half>(value));
+}
+
 #define MEAN_KERNEL(NAME, TYPE, LOAD, STORE)                                           \
 kernel void NAME(device const TYPE* x [[buffer(0)]],                                   \
                  device TYPE* y [[buffer(1)]],                                         \
@@ -2778,7 +2787,7 @@ kernel void NAME(device const TYPE* input [[buffer(0)]],                        
   ulong idx = (ulong)gid;                                                              \
   if (idx >= args.size) return;                                                        \
   ulong i = idx % args.depth;                                                          \
-  ulong t = (idx / args.depth) % args.max_time;                                        \
+  ulong t = (idx / args.depth / args.interleaved_heads) % args.max_time;                                        \
   if (i >= args.ndims) {                                                               \
     output[idx] = input[idx];                                                          \
     return;                                                                            \
@@ -2834,8 +2843,20 @@ IM2COL_KERNEL(im2col_conv1d_f16, half)
 IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
 
 )METAL"
+// Shader fragments have declaration dependencies; preserve this order.
+// clang-format off
+#include "mps/kv_cache_metal.h"
+#include "mps/flash_attention_metal.h"
+#include "mps/flash_decode_metal.h"
+#include "mps/flash_prefill_metal.h"
+#include "mps/moe_metal.h"
+#include "mps/moe_expert_metal.h"
+#include "mps/moe_prefill_metal.h"
+#include "mps/mixed_gemm_metal.h"
+#include "mps/int4_metal.h"
 #include "mps/precise_dense_metal.h"
 ;
+      // clang-format on
 
       struct ElementwiseArgs {
         uint64_t size;
@@ -2915,6 +2936,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint32_t get_sum;
       };
 
+
       struct NormArgs {
         uint64_t outer_size;
         uint64_t axis_size;
@@ -2931,6 +2953,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint64_t ndims;
         uint64_t depth;
         uint32_t interleave;
+        uint32_t interleaved_heads;
       };
 
       struct Im2Col1DArgs {
@@ -3763,6 +3786,42 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       return enabled;
     }
 
+    static bool simdgroup_gemm_layout_supported(const void* a,
+                                                dim_t lda,
+                                                const void* b,
+                                                dim_t ldb,
+                                                dim_t m,
+                                                dim_t n,
+                                                dim_t k,
+                                                dim_t ldc) {
+      // The vector copies require 16-byte row alignment and the Metal kernel
+      // uses 32-bit element indices. Check spans as well as individual strides.
+      if (m < 64 || n <= 0 || k <= 0 || lda < k || ldb < k || ldc < n
+          || !fits_u32(m) || !fits_u32(n) || !fits_u32(k)
+          || !fits_u32(lda) || !fits_u32(ldb) || !fits_u32(ldc)
+          || lda % 8 != 0 || ldb % 8 != 0
+          || (reinterpret_cast<uintptr_t>(a) & 15u) != 0
+          || (reinterpret_cast<uintptr_t>(b) & 15u) != 0
+          || uint64_t(m - 1) * lda + k > UINT32_MAX
+          || uint64_t(n - 1) * ldb + k > UINT32_MAX
+          || uint64_t(m - 1) * ldc + n > UINT32_MAX)
+        return false;
+      static const bool supported = []() {
+        id<MTLDevice> device = (__bridge id<MTLDevice>)get_device();
+        return device && [device supportsFamily:MTLGPUFamilyApple7];
+      }();
+      return supported;
+    }
+
+    static bool needs_native_prefill_gemm(dim_t m, dim_t n, dim_t k, float beta) {
+      // Repeated real Qwen prefill on M1/macOS 27 produced NaNs inside
+      // MPSMatrixMultiplication with finite operands. Bypass that large dense
+      // projection path using the existing FP32-accumulating native kernel.
+      // Keep small projections and other GEMM configurations on their existing
+      // paths; this is a correctness workaround, not a driver root-cause claim.
+      return m >= 1024 && n >= 1024 && k >= 1024 && beta == 0.f;
+    }
+
     static void simdgroup_gemm_nt_f16(dim_t m,
                                       dim_t n,
                                       dim_t k,
@@ -4454,9 +4513,7 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
           || dtype != DataType::FLOAT16
           || transpose_a
           || !transpose_b
-          || m < 64
-          || !fits_u32(m) || !fits_u32(n) || !fits_u32(k)
-          || !fits_u32(lda) || !fits_u32(ldb) || !fits_u32(ldc))
+          || !simdgroup_gemm_layout_supported(a, lda, b, ldb, m, n, k, ldc))
         return false;
 
       log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
@@ -4466,8 +4523,6 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                             bias, residual, activation);
       return true;
     }
-
-    #include "mps/precise_dense_kernels.inc"
 
     void gemm(DataType dtype,
               bool transpose_a,
@@ -4547,22 +4602,31 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         return;
       }
 
-      // CTranslate2 Dense weights use the output-major [N, K] layout. On
-      // Apple Silicon, MPSMatrixMultiplication leaves substantial throughput
-      // on the table for these medium-M FP16 projections (especially the
-      // vocabulary projection). Keep this opt-in while its shape thresholds
-      // are benchmarked across supported GPU generations.
-      if (simdgroup_gemm_enabled()
-          && dtype == DataType::FLOAT16
+      // CTranslate2 Dense weights use the output-major [N, K] layout. Large
+      // prefill projections need the native path for correctness. The wider
+      // medium-M tuning range remains opt-in and is not an automatic epilogue
+      // fusion: keep the established separate bias/activation boundaries.
+      if (dtype == DataType::FLOAT16
           && !transpose_a
           && transpose_b
-          && m >= 64
-          && fits_u32(m) && fits_u32(n) && fits_u32(k)
-          && fits_u32(lda) && fits_u32(ldb) && fits_u32(ldc)) {
+          && (needs_native_prefill_gemm(m, n, k, beta) || simdgroup_gemm_enabled())
+          && simdgroup_gemm_layout_supported(a, lda, b, ldb, m, n, k, ldc)) {
         log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
                  1, 0, 0, 0, "simdgroup_nt_f16");
         simdgroup_gemm_nt_f16(m, n, k, alpha,
                               a, lda, b, ldb, beta, c, ldc);
+        return;
+      }
+
+      if (dtype == DataType::FLOAT16 && !transpose_a && transpose_b
+          && needs_native_prefill_gemm(m, n, k, beta)) {
+        // Unsupported SIMD-group hardware, alignment or index spans must not
+        // silently re-enter the affected MPSMatrix route. The scalar tiled
+        // Metal implementation supports these layouts without host copies.
+        log_gemm(dtype, transpose_a, transpose_b, m, n, k, lda, ldb, ldc,
+                 1, 0, 0, 0, "generic_prefill_fallback");
+        generic_gemm(dtype, transpose_a, transpose_b, m, n, k, alpha,
+                     a, lda, 0, b, ldb, 0, beta, c, ldc, 0, 1);
         return;
       }
 
@@ -5820,6 +5884,13 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       return true;
     }
 
+#include "mps/flash_attention_kernels.inc"
+#include "mps/int4_kernels.inc"
+#include "mps/precise_dense_kernels.inc"
+#include "mps/kv_cache_kernels.inc"
+#include "mps/mixed_gemm_kernels.inc"
+#include "mps/moe_kernels.inc"
+
     void mean(DataType dtype,
               const void* input,
               void* output,
@@ -5967,7 +6038,8 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                 dim_t max_time,
                 dim_t ndims,
                 dim_t depth,
-                bool interleave) {
+                bool interleave,
+                dim_t interleaved_heads) {
       StreamGuard stream_guard;
       const size_t element_size = dtype_size(dtype);
       const uint64_t size = static_cast<uint64_t>(batch_size * max_time * depth);
@@ -5975,7 +6047,8 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                             static_cast<uint64_t>(max_time),
                             static_cast<uint64_t>(ndims),
                             static_cast<uint64_t>(depth),
-                            interleave ? 1u : 0u};
+                            interleave ? 1u : 0u,
+                            static_cast<uint32_t>(interleaved_heads)};
       run_1d(kernel_name("rotary", dtype),
              size,
              {{input, static_cast<size_t>(size) * element_size},

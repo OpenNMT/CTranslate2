@@ -327,3 +327,39 @@ def test_torch_variables(
     assert variables["dense/bias"].dtype == expected_bias_dtype
 
     model.save(tmp_dir)
+
+
+def test_native_int4_packing_odd_depth_and_zero_groups():
+    from ctranslate2.specs import common_spec
+    from ctranslate2.specs.model_spec import NumpyVariable
+
+    linear = common_spec.LinearSpec()
+    w = np.zeros((2, 67), dtype=np.float32)
+    w[0, :8] = [-7, -6, -1, 0, 1, 2, 6, 7]
+    w[0, 64:] = [-14, 0, 14]
+    linear.weight = NumpyVariable(w)
+    linear.optimize("int4_float16")
+    assert linear.weight_int4.dtype == "int8"
+    assert linear.weight_int4.shape == (2, 34)
+    assert linear.weight_int4_scale.dtype == "float32"
+    np.testing.assert_array_equal(linear.weight_int4_scale.numpy(), [[1, 2], [1, 1]])
+    packed = linear.weight_int4.numpy().view(np.uint8)
+    np.testing.assert_array_equal(packed[0, :4], [0x21, 0x87, 0xA9, 0xFE])
+    np.testing.assert_array_equal(packed[0, 32:], [0x81, 0x8F])
+    np.testing.assert_array_equal(packed[1], np.full(34, 0x88, np.uint8))
+    before = packed.copy()
+    linear.optimize("int4_float16")
+    np.testing.assert_array_equal(linear.weight_int4.numpy().view(np.uint8), before)
+
+
+def test_native_int4_rejects_prequantized_linear_weights():
+    from ctranslate2.specs import common_spec
+    from ctranslate2.specs.model_spec import NumpyVariable
+
+    for dtype, metadata in ((np.int8, False), (np.int32, True), (np.float32, True)):
+        linear = common_spec.LinearSpec()
+        linear.weight = NumpyVariable(np.ones((2, 8), dtype=dtype))
+        if metadata:
+            linear.weight_scale = NumpyVariable(np.ones((2, 1), dtype=np.float32))
+        with pytest.raises(ValueError, match="unquantized"):
+            linear.optimize("int4_float16")

@@ -32,6 +32,7 @@ namespace ctranslate2 {
       std::unique_ptr<SequenceGeneratorReplica> as_sequence_generator() const override;
 
     protected:
+      bool is_quantizable(const std::string& variable_name) const override;
       bool is_linear_weight(const std::string& variable_name) const override;
       void initialize(ModelReader& model_reader) override;
       std::unique_ptr<Model> clone() const override;

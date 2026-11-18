@@ -449,6 +449,27 @@ class FeedForwardSpec(model_spec.LayerSpec):
             self.linear_0_noact = common_spec.LinearSpec()
 
 
+class MoERouterSpec(model_spec.LayerSpec):
+    def __init__(self):
+        # Routers are never quantized as expert matrices.
+        self.weight = None
+
+
+class MoEFeedForwardSpec(model_spec.LayerSpec):
+    def __init__(self, num_experts, topk, normalize_topk=True):
+        if num_experts <= 0 or not 0 < topk <= num_experts:
+            raise ValueError("MoE requires 0 < topk <= num_experts")
+        self.layer_norm = common_spec.LayerNormSpec(rms_norm=True)
+        self.router = MoERouterSpec()
+        self.shared_expert = model_spec.OPTIONAL
+        self.shared_expert_gate = model_spec.OPTIONAL
+        self.num_experts_per_token = np.int32(topk)
+        self.normalize_topk = np.int8(normalize_topk)
+        self.experts = [FeedForwardSpec(glu=True) for _ in range(num_experts)]
+        for expert in self.experts:
+            delattr(expert, "layer_norm")
+
+
 class PositionEncoderSpec(model_spec.LayerSpec):
     def __init__(self):
         self.encodings = model_spec.OPTIONAL

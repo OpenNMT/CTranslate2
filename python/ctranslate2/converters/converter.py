@@ -67,7 +67,7 @@ class Converter(abc.ABC):
           output_dir: Output directory where the CTranslate2 model is saved.
           vmap: Optional path to a vocabulary mapping file that will be included
             in the converted model directory.
-          quantization: Weight quantization scheme (possible values are: int8, int8_float32,
+          quantization: Weight quantization scheme (int4_float16, int8, int8_float32,
             int8_float16, int8_bfloat16, int16, float16, bfloat16, float32).
           force: Override the output directory if it already exists.
 
@@ -91,6 +91,13 @@ class Converter(abc.ABC):
             raise NotImplementedError(
                 "This model is not supported by CTranslate2 or this converter"
             )
+        if quantization == "int4_float16":
+            from ctranslate2.specs.transformer_spec import TransformerDecoderModelSpec
+
+            if not isinstance(model_spec, TransformerDecoderModelSpec):
+                raise ValueError(
+                    "Native INT4 conversion currently supports decoder-only Transformer models"
+                )
         if vmap is not None:
             model_spec.register_vocabulary_mapping(vmap)
 

@@ -305,6 +305,9 @@ jobs:
           python -m pytest -v \
             python/tests/test_storage_view.py python/tests/test_translator.py \
             python/tests/test_mps_t5gemma_numerics.py \
+            python/tests/test_mps_issue_regressions.py \
+            python/tests/test_mps_gemma_phi.py \
+            python/tests/test_moe_decoder.py python/tests/test_mps_kv_cache.py \
             --junitxml=python-mps-results.xml
 
       - name: Upload hardware details and test reports

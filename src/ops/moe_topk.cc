@@ -9,8 +9,8 @@
 namespace ctranslate2 {
   namespace ops {
 
-    MoeTopK::MoeTopK(dim_t k)
-      : _k(k) {
+    MoeTopK::MoeTopK(dim_t k, bool normalize_selected)
+      : _k(k), _normalize_selected(normalize_selected) {
       if (k <= 0)
         throw std::invalid_argument("MoeTopK k must be positive");
     }
@@ -18,6 +18,8 @@ namespace ctranslate2 {
     void MoeTopK::operator()(const StorageView& router_logits, StorageView& expert_indices,
                              StorageView& routing_weights) const {
       PROFILE("MoeTopK");
+      if (!_normalize_selected && router_logits.device() == Device::CUDA)
+        throw std::invalid_argument("Full-softmax MoE routing supports CPU and MPS");
       if (expert_indices.device() != router_logits.device()
           || routing_weights.device() != router_logits.device()
           || expert_indices.device_index() != router_logits.device_index()

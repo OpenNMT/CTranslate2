@@ -190,6 +190,46 @@ TEST_P(LayerDeviceFPTest, RotaryEmbedding) {
   }
 }
 
+TEST_P(LayerDeviceFPTest, LongRoPEUsesLiveLengthAndCompletePromptHint) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float tolerance = dtype == DataType::FLOAT32 ? 1e-5f : 0.003f;
+  const StorageView short_factors = StorageView({2}, std::vector<float>{1.25f, 1.5f}).to(dtype);
+  const StorageView long_factors = StorageView({2}, std::vector<float>{2.5f, 3.25f}).to(dtype);
+  layers::RotaryEmbeddings rotary(
+      4, false, layers::RotaryScalingType::Su, 1.f, 10000.f, 2048,
+      &long_factors, &short_factors, 1.f, 4.f, 8, 64, true);
+  const auto check = [&](dim_t length, dim_t hint) {
+    ASSERT_TRUE(rotary.set_sequence_length_hint(hint));
+    StorageView actual = StorageView({1, 1, length, 4}, 1.f, device).to(dtype);
+    rotary.apply(actual);
+    StorageView expected({1, 1, length, 4}, DataType::FLOAT32);
+    const bool use_long = std::max(length, hint) > 8;
+    const float factors[] = {use_long ? 2.5f : 1.25f, use_long ? 3.25f : 1.5f};
+    for (dim_t position = 0; position < length; ++position) {
+      for (dim_t index = 0; index < 2; ++index) {
+        const float angle = position / (factors[index] * std::pow(10000.f, index / 2.f));
+        // The rotary tables and output are stored in the activation dtype.
+        // Account for those roundings independently in the scalar reference.
+        const StorageView trigonometry = StorageView(
+            {2}, std::vector<float>{std::sin(angle) * std::sqrt(2.f),
+                                   std::cos(angle) * std::sqrt(2.f)}).to(dtype).to_float32();
+        const float sine = trigonometry.data<float>()[0];
+        const float cosine = trigonometry.data<float>()[1];
+        expected.data<float>()[position * 4 + index] = cosine - sine;
+        expected.data<float>()[position * 4 + index + 2] = cosine + sine;
+      }
+    }
+    expect_storage_eq(actual.to(Device::CPU).to_float32(),
+                      expected.to(dtype).to_float32(), tolerance);
+  };
+  check(3, 0);
+  check(9, 0);
+  check(3, 0);
+  check(3, 9);  // Prefill excludes the final token of a nine-token prompt.
+  check(3, 0);
+}
+
 TEST_P(LayerDeviceFPTest, RotaryEmbeddingAttentionScaling) {
   const Device device = GetParam().device;
   const DataType dtype = GetParam().dtype;

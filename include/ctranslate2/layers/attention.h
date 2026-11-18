@@ -111,6 +111,8 @@ namespace ctranslate2 {
       std::unique_ptr<const LayerNorm> _v_norm;  // Value normalization (no learnable scale)
       std::unique_ptr<const Dense> _memory_kv;  // Fused K+V projection of encoder memory (merged attention)
       const dim_t _bidirectional_window;
+      const float _attn_logit_softcapping;
+      const bool _float16_cache;
     };
   }
 }

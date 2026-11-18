@@ -139,12 +139,17 @@ namespace ctranslate2 {
                                         const LayerNorm& layer_norm,
                                         StorageView& output) const;
       void select_weights(const StorageView* index, const StorageView* extra_bias = nullptr);
+      bool supports_float32_output() const;
+      void forward_float32(const StorageView& input, StorageView& output) const;
     private:
       bool _packed_weight;
       const StorageView& _weight;
       const StorageView* _bias;
       const StorageView* _qscale;
       const StorageView* _qzero;
+      const StorageView* _int4_scale;
+      const dim_t _int4_depth;
+      StorageView _partial_int4_scale;
       const StorageView* _u8_shift_compensation;
       StorageView _partial_weight;
       StorageView _partial_bias;

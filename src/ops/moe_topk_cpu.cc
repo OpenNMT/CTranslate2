@@ -42,6 +42,14 @@ namespace ctranslate2 {
               : maximum == INFINITY ? double(value == maximum) : std::exp(value - maximum);
             sum += probabilities[i];
           }
+          if (!_normalize_selected) {
+            sum = 0;
+            for (dim_t e = 0; e < experts; ++e) {
+              const double value = values[e];
+              sum += std::isnan(value) || maximum == -INFINITY ? 0.
+                : maximum == INFINITY ? double(value == maximum) : std::exp(value - maximum);
+            }
+          }
           for (dim_t i = 0; i < _k; ++i) {
             indices[row * _k + i] = order[i];
             weights[row * _k + i] = static_cast<T>(sum ? probabilities[i] / sum : 0.);

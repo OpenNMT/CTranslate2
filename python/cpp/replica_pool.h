@@ -41,17 +41,14 @@ namespace ctranslate2 {
       ReplicaPoolHelper(const std::string& model_path,
                         const std::string& device,
                         const std::variant<int, std::vector<int>>& device_index,
-                        const StringOrMap& compute_type,
-                        size_t inter_threads,
-                        size_t intra_threads,
-                        long max_queued_batches,
-                        bool flash_attention,
-                        bool tensor_parallel,
-                        py::object files)
-        : _model_loader(create_model_reader(model_path, files))
-        , _device(str_to_device(device))
-        , _num_replicas_per_device(inter_threads)
-      {
+                        const StringOrMap& compute_type, size_t inter_threads,
+                        size_t intra_threads, long max_queued_batches,
+                        bool flash_attention, bool tensor_parallel,
+                        py::object files,
+                        const std::string& kv_cache_type = "auto")
+          : _model_loader(create_model_reader(model_path, files)),
+            _device(str_to_device(device)),
+            _num_replicas_per_device(inter_threads) {
         pybind11::gil_scoped_release nogil;
 
         _model_loader.device = str_to_device(device);
@@ -60,6 +57,7 @@ namespace ctranslate2 {
         _model_loader.num_replicas_per_device = inter_threads;
         _model_loader.use_flash_attention = flash_attention;
         _model_loader.tensor_parallel = tensor_parallel;
+        _model_loader.kv_cache_type = kv_cache_type;
 
         _pool_config.num_threads_per_replica = intra_threads;
         _pool_config.max_queued_batches = max_queued_batches;
@@ -84,6 +82,15 @@ namespace ctranslate2 {
 
       std::string compute_type() const {
         return compute_type_to_str(model()->effective_compute_type());
+      }
+
+      std::string kv_cache_type() const {
+        const auto& type = model()->kv_cache_type();
+        return type == "auto"
+                   ? dtype_name(compute_type_to_data_type(
+                                    model()->effective_compute_type())
+                                    .second)
+                   : type;
       }
 
       bool tensor_parallel() const {

@@ -27,7 +27,8 @@ void Rotary::compute<Device::MPS, T>(const StorageView& input,              \
               max_time,                                                     \
               ndims,                                                        \
               depth,                                                        \
-              _interleave);                                                 \
+              _interleave,                                                \
+              is_transposed ? 1 : input.dim(-2));                          \
 }
 
 DECLARE_IMPL(float, DataType::FLOAT32)
