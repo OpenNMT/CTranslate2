@@ -1550,22 +1550,26 @@ def test_umt5_runtime_matches_transformers_with_distinct_biases_in_both_stacks(t
 
 
 @test_utils.only_on_linux
+@pytest.mark.parametrize("architecture", ["T5", "MT5"])
 @pytest.mark.parametrize("tie_word_embeddings", [False, True])
-def test_t5_decoder_output_scaling_matches_transformers(tie_word_embeddings, tmp_dir):
+def test_t5_decoder_output_scaling_matches_transformers(
+    architecture, tie_word_embeddings, tmp_dir
+):
     import torch
     import transformers
 
-    from ctranslate2.converters.transformers import T5Loader
+    from ctranslate2.converters import transformers as converters
 
     torch.manual_seed(0)
     model = _build_tiny_t5_family_model(
-        transformers.T5ForConditionalGeneration,
-        transformers.T5Config,
+        getattr(transformers, architecture + "ForConditionalGeneration"),
+        getattr(transformers, architecture + "Config"),
         tie_word_embeddings=tie_word_embeddings,
         decoder_start_token_id=0,
     )
+    loader = getattr(converters, architecture + "Loader")()
     model_dir = str(tmp_dir.join("model"))
-    tokens = _save_t5_family_model(model, model_dir, T5Loader())
+    tokens = _save_t5_family_model(model, model_dir, loader)
     source, target = [5, 9, 14], [11, 4, 19]
     actual = _t5_log_probs(model_dir, tokens, source, target)
     expected = _t5_reference_log_probs(model, source, target)
