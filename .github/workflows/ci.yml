@@ -36,7 +36,7 @@ jobs:
           CT2_USE_MKL: 1
         run: |
           python/tools/install_mkl.sh "$MKL_VERSION"
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_RUY=ON .
 
       - name: Cache oneDNN
         if: matrix.backend == 'dnnl'
@@ -70,6 +70,12 @@ jobs:
         if: matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
+        run: |
+          tests/ctranslate2_test tests/data
+      - name: Test without the MKL backend
+        if: matrix.backend == 'mkl'
+        env:
+          CT2_USE_MKL: 0
         run: |
           tests/ctranslate2_test tests/data
       - name: Test DNNL
