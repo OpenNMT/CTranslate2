@@ -2,6 +2,8 @@
 
 #include <algorithm>
 #include <limits>
+#include <stdexcept>
+#include <string>
 
 #include "ops/tile.h"
 #include "storage_view.h"
@@ -39,6 +41,13 @@ namespace ctranslate2 {
                   const float disable_value = std::numeric_limits<float>::lowest());
 
     void add(dim_t batch_id, dim_t token_id) {
+      // Token ids can come from user options (suppress_tokens, end_token, ...). Huge size_t
+      // values appear here as negative. Never write outside the logits.
+      if (token_id < 0 || token_id >= _vocabulary_size)
+        throw std::invalid_argument("Token id " + std::to_string(token_id)
+                                    + " is outside the vocabulary (size "
+                                    + std::to_string(_vocabulary_size) + ")");
+
       const auto flat_index = batch_id * _vocabulary_size + token_id;
 
       if (_logits_data) {

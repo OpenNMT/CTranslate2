@@ -63,6 +63,9 @@ elif sys.platform == "win32":
     package_data["ctranslate2"] = ["*.dll"]
 elif sys.platform == "linux":
     cflags.append("-fPIC")
+    # Strip debug info; auditwheel only strips the bundled libs, not _ext.so.
+    cflags.append("-g0")
+    ldflags.append("-Wl,--strip-debug")
     for path in library_rpaths:
         ldflags.append("-Wl,-rpath,%s" % path)
     ldflags.append("-Wl,-rpath,/usr/local/lib64:/usr/local/lib")
