@@ -2259,6 +2259,9 @@ class Gemma2Loader(ModelLoader):
         self.set_decoder(spec.decoder, model.model)
         self.set_linear(spec.decoder.projection, model.lm_head)
         spec.decoder.embeddings.multiply_by_sqrt_depth = model.config.hidden_size**0.5
+        final_softcap = getattr(model.config, "final_logit_softcapping", None)
+        if final_softcap is not None and final_softcap > 0:
+            spec.decoder.final_logit_softcapping = np.float32(final_softcap)
         return spec
 
     def get_vocabulary(self, model, tokenizer):
@@ -2584,6 +2587,9 @@ class Gemma3Loader(ModelLoader):
         text_model = getattr(model.model, "language_model", model.model)
         self.set_decoder(spec.decoder, text_model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
+        final_softcap = getattr(text_config, "final_logit_softcapping", None)
+        if final_softcap is not None and final_softcap > 0:
+            spec.decoder.final_logit_softcapping = np.float32(final_softcap)
         return spec
 
     def get_vocabulary(self, model, tokenizer):
@@ -4532,6 +4538,9 @@ class T5GemmaLoader(ModelLoader):
 
         # Tie_word_embeddings
         self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
+        final_softcap = getattr(decoder_config, "final_logit_softcapping", None)
+        if final_softcap is not None and final_softcap > 0:
+            spec.decoder.final_logit_softcapping = np.float32(final_softcap)
         return spec
 
     def set_vocabulary(self, spec, tokens):
