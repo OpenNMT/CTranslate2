@@ -8,6 +8,7 @@
 
 #ifdef CT2_WITH_MKL
 #  include <mkl.h>
+#  include "cpu/backend.h"
 #endif
 
 namespace ctranslate2 {
@@ -79,10 +80,12 @@ namespace ctranslate2 {
   Allocator& get_allocator<Device::CPU>() {
     constexpr size_t alignment = 64;
 #ifdef CT2_WITH_MKL
-    static cpu::MklAllocator allocator(alignment);
-#else
-    static cpu::AlignedAllocator allocator(alignment);
+    if (cpu::mayiuse_mkl()) {
+      static cpu::MklAllocator allocator(alignment);
+      return allocator;
+    }
 #endif
+    static cpu::AlignedAllocator allocator(alignment);
     return allocator;
   }
 
