@@ -89,4 +89,16 @@ namespace ctranslate2 {
     return allocator;
   }
 
+  namespace cpu {
+
+    bool allocator_uses_mkl() {
+#ifdef CT2_WITH_MKL
+      return dynamic_cast<MklAllocator*>(&get_allocator<Device::CPU>()) != nullptr;
+#else
+      return false;
+#endif
+    }
+
+  }
+
 }

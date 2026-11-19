@@ -22,6 +22,7 @@ namespace ctranslate2 {
 
     std::string gemm_backend_to_str(GemmBackend gemm_backend);
     bool mayiuse_mkl();
+    bool allocator_uses_mkl();
     GemmBackend get_gemm_backend(ComputeType compute_type);
     bool has_gemm_backend(ComputeType compute_type);
     bool prefer_u8s8s32_gemm();
