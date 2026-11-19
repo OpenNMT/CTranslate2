@@ -10,6 +10,7 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * Falcon
 * Gemma 2
 * Gemma 3 (text only)
+* Gemma 4 (text only)
 * Llama
 * M2M100
 * MarianMT
@@ -26,6 +27,8 @@ CTranslate2 supports selected models from Hugging Face's [Transformers](https://
 * Qwen 3
 * T5
 * T5Gemma
+* T5Gemma2
+* UMT5
 * Whisper
 * XLM-RoBERTa
 
@@ -190,32 +193,64 @@ print(output)
 
 ## Gemma 3 (text only)
 
-
-[Gemma 3](https://ai.google.dev/gemma/docs/core) is Google's latest family of lightweight, open-weight AI models, built on the same technology as Gemini.
+[Gemma 3](https://ai.google.dev/gemma/docs/core) is Google's family of lightweight, open-weight AI models, built on the same technology as Gemini.
 
 Gemma models come in two flavors: instruction tuned (it) models and base models.
 
 Instruction tuned models expect a specific [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) which you should use.
 
-When converting an instruction-tuned model, CTranslate sets `<end_of_turn>` as the default end-of-sequence token.
+When converting an instruction-tuned model, CTranslate2 sets `<end_of_turn>` as the default end-of-sequence token.
 
-
-To convert a model:
+To convert the 12B instruction-tuned model:
 
 ```bash
-ct2-transformers-converter --model google/gemma-3-1b-it --output_dir gemma-3-1b-it
+ct2-transformers-converter --model google/gemma-3-12b-it --quantization float16 --output_dir gemma-3-12b-it
 ```
 
-Gemma 3 usage sample:
-
+Usage sample:
 
 ```python
-
 from transformers import AutoTokenizer
 import ctranslate2
 
-tok = AutoTokenizer.from_pretrained("google/gemma-3-1b-it")
-gen = ctranslate2.Generator("gemma-3-1b-it")
+tok = AutoTokenizer.from_pretrained("google/gemma-3-12b-it")
+gen = ctranslate2.Generator("gemma-3-12b-it", device="cuda")
+
+prompt = "<start_of_turn>user\nGenerate a 200 word text talking about George Orwell.<end_of_turn>\n<start_of_turn>model\n"
+tokens = tok.convert_ids_to_tokens(tok.encode(prompt))
+
+res = gen.generate_batch([tokens], max_length=2048, sampling_temperature=0.1, include_prompt_in_result=False)
+print(tok.convert_tokens_to_string(res[0].sequences[0]))
+```
+
+## Gemma 4 (text only)
+
+[Gemma 4](https://ai.google.dev/gemma/docs/gemma4) is Google's next generation of lightweight open-weight models, featuring a hybrid attention architecture with interleaved global and sliding-window attention layers.
+
+```{note}
+Only the 31B and 12B dense models are currently supported. The MoE variants (E2B, E4B) are not supported.
+```
+
+Gemma 4 models come in two flavors: instruction tuned (it) models and pre-trained models.
+
+Instruction tuned models use the same [prompt template format](https://ai.google.dev/gemma/docs/core/prompt-structure) as Gemma 3.
+
+When converting an instruction-tuned model, CTranslate2 sets `<end_of_turn>` as the default end-of-sequence token.
+
+To convert the 12B instruction-tuned model:
+
+```bash
+ct2-transformers-converter --model google/gemma-4-12B-it --quantization float16 --output_dir gemma-4-12b-it
+```
+
+Usage sample:
+
+```python
+from transformers import AutoTokenizer
+import ctranslate2
+
+tok = AutoTokenizer.from_pretrained("google/gemma-4-12B-it")
+gen = ctranslate2.Generator("gemma-4-12b-it", device="auto")
 
 prompt = "<start_of_turn>user\nGenerate a 200 word text talking about George Orwell.<end_of_turn>\n<start_of_turn>model\n"
 tokens = tok.convert_ids_to_tokens(tok.encode(prompt))
@@ -595,6 +630,110 @@ translations = [
 ]
 final_translation = " ".join(translations)
 print(final_translation)
+```
+
+
+## T5Gemma2
+
+[T5Gemma2](https://huggingface.co/collections/google/t5gemma2-686038abe6c47de48d6d3aa4) is a collection of Google encoder-decoder models that combines the T5 encoder-decoder architecture with Gemma 2 decoder components, featuring sliding-window and full attention layers.
+
+To convert a model:
+
+```bash
+ct2-transformers-converter --model google/t5gemma-2-270m-270m --output_dir t5gemma2_270m_270m.ct2
+```
+
+Usage:
+
+```python
+import ctranslate2
+import transformers
+
+translator = ctranslate2.Translator("t5gemma2_270m_270m.ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("google/t5gemma-2-270m-270m")
+
+sentences = ["Question: Why is the sky blue? Answer:"]
+
+tokenized_sentences = [
+    tokenizer.convert_ids_to_tokens(tokenizer.encode(sentence))
+    for sentence in sentences
+]
+
+translated_batches = translator.translate_batch(
+    tokenized_sentences, beam_size=1, repetition_penalty=1.2, max_decoding_length=50
+)
+
+translations = [
+    tokenizer.decode(tokenizer.convert_tokens_to_ids(t.hypotheses[0]))
+    for t in translated_batches
+]
+print(translations[0])
+```
+
+
+## UMT5
+
+[UMT5](https://huggingface.co/docs/transformers/model_doc/umt5) is a multilingual T5 variant
+pretrained with the UniMax sampling strategy. Unlike T5 and mT5, each UMT5 self-attention layer
+has its own relative attention bias.
+
+```{note}
+The `google/umt5-*` configurations were published before `model_type` became required by
+`AutoConfig`, so the model must be saved locally with that key added before it can be converted.
+Checkpoints that already declare `"model_type": "umt5"` can be converted directly.
+```
+
+```python
+import json
+
+import transformers
+
+model_name = "google/umt5-small"
+model_dir = "umt5-small"
+
+transformers.UMT5ForConditionalGeneration.from_pretrained(model_name).save_pretrained(model_dir)
+transformers.AutoTokenizer.from_pretrained(model_name).save_pretrained(model_dir)
+
+config_path = "%s/config.json" % model_dir
+with open(config_path) as config_file:
+    config = json.load(config_file)
+config["model_type"] = "umt5"
+with open(config_path, "w") as config_file:
+    json.dump(config, config_file, indent=2)
+```
+
+```bash
+ct2-transformers-converter --model umt5-small --output_dir umt5-small-ct2
+```
+
+```python
+import ctranslate2
+import transformers
+
+translator = ctranslate2.Translator("umt5-small-ct2")
+tokenizer = transformers.AutoTokenizer.from_pretrained("umt5-small")
+
+input_text = "Translate English to French: The house is wonderful."
+input_tokens = tokenizer.convert_ids_to_tokens(tokenizer.encode(input_text))
+
+results = translator.translate_batch([input_tokens])
+
+output_tokens = results[0].hypotheses[0]
+output_text = tokenizer.decode(tokenizer.convert_tokens_to_ids(output_tokens))
+
+print(output_text)
+```
+
+```{note}
+`google/umt5-*` are pretrained-only checkpoints: they were trained on span corruption and not
+fine-tuned on any downstream task, so they respond to the prompt above with sentinel tokens
+rather than a translation. Use a fine-tuned UMT5 checkpoint for meaningful output. The
+CTranslate2 output matches Hugging Face for the same inputs in either case.
+```
+
+```{attention}
+On GPU, large T5-family models can overflow the float16 dynamic range. Use
+`compute_type="float32"` if the output degrades.
 ```
 
 

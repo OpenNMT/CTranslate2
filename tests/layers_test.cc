@@ -190,6 +190,66 @@ TEST_P(LayerDeviceFPTest, RotaryEmbedding) {
   }
 }
 
+TEST_P(LayerDeviceFPTest, RotaryEmbeddingAttentionScaling) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+
+  // Linear scaling with factor 1 keeps the default inv_freq, so the only
+  // difference from an unscaled rotary is the attention_scaling multiplier
+  // applied to the sin/cos tables. Rotary is linear in (cos, sin), so scaling
+  // both tables by s scales the output by s, elementwise.
+  const StorageView input({1, 2, 2, 6}, std::vector<float>{
+      0.8822692632675171, 0.9150039553642273, 0.38286375999450684, 0.9593056440353394,
+      0.3904482126235962, 0.600895345211029, 0.10531491041183472, 0.26949483156204224,
+      -0.75f, 0.6f, 0.125f, -0.25f, 0.8f, -0.55f, 0.375f, -0.9f,
+      0.99f, -0.0625f, 0.45f, -0.7f, 0.05f, -0.35f, 0.65f, -0.15f,
+  }, device);
+
+  const auto run = [&](layers::RotaryEmbeddings& rotary) {
+    StorageView x = input.to(dtype);
+    rotary.apply(x, /*offset=*/2);
+    return x;
+  };
+
+  const auto to_cpu_f32 = [](const StorageView& x) {
+    return x.to(Device::CPU).to_float32();
+  };
+
+  layers::RotaryEmbeddings baseline(6, true);
+  const StorageView baseline_output = to_cpu_f32(run(baseline));
+
+  // scale = 16/4 = 4 > 1: scaling = sqrt(1 + log(4)/log(4)) = sqrt(2).
+  layers::RotaryEmbeddings grown(
+      /*dim=*/6, /*interleave=*/true, layers::RotaryScalingType::Linear,
+      /*scaling_factor=*/1.f, /*base=*/10000.f, /*num_initial_positions=*/2048,
+      /*long_scaling_factor=*/nullptr, /*short_scaling_factor=*/nullptr,
+      /*low_freq_factor=*/1.f, /*high_freq_factor=*/4.f,
+      /*original_max_position_embeddings=*/4, /*max_position_embeddings=*/16,
+      /*transpose=*/true);
+  const StorageView grown_output = to_cpu_f32(run(grown));
+
+  // scale = 4/16 < 1: the multiplier is 1.0 and the output matches the
+  // baseline. This branch used to segfault on CUDA for fp16/bf16 (and fp32):
+  // the scalar was allocated on the GPU but read by the host.
+  layers::RotaryEmbeddings shrunk(
+      /*dim=*/6, /*interleave=*/true, layers::RotaryScalingType::Linear,
+      /*scaling_factor=*/1.f, /*base=*/10000.f, /*num_initial_positions=*/2048,
+      /*long_scaling_factor=*/nullptr, /*short_scaling_factor=*/nullptr,
+      /*low_freq_factor=*/1.f, /*high_freq_factor=*/4.f,
+      /*original_max_position_embeddings=*/16, /*max_position_embeddings=*/4,
+      /*transpose=*/true);
+  const StorageView shrunk_output = to_cpu_f32(run(shrunk));
+
+  const float scaling = std::sqrt(1 + std::log(4.f) / std::log(4.f));
+
+  StorageView expected(baseline_output.shape(), DataType::FLOAT32, Device::CPU);
+  for (dim_t i = 0; i < expected.size(); ++i)
+    expected.at<float>(i) = scaling * baseline_output.at<float>(i);
+  expect_storage_eq(grown_output, expected, error);
+  expect_storage_eq(shrunk_output, baseline_output, error);
+}
+
 TEST(LayerTest, Padder) {
   const StorageView lengths({3}, std::vector<int32_t>{2, 3, 1});
   const Padder padder(lengths, /*max_time=*/4);
@@ -266,5 +326,37 @@ INSTANTIATE_TEST_SUITE_P(CUDA, LayerDeviceFPTest,
                          ::testing::Values(FloatType{Device::CUDA, DataType::FLOAT32, 1e-5},
                                            FloatType{Device::CUDA, DataType::FLOAT16, 1e-2},
                                            FloatType{Device::CUDA, DataType::BFLOAT16, 1e-2}),
+                         fp_test_name);
+#endif
+#ifdef CT2_WITH_MPS
+class QuantizedDenseModel : public models::Model {
+public:
+  QuantizedDenseModel() {
+    // Negative weights on a positive input: the ReLU has to take all of it to zero.
+    register_variable("dense/weight", StorageView({2, 4}, std::vector<int8_t>(8, -1)));
+    register_variable("dense/weight_scale", StorageView({2}, std::vector<float>(2, 1.f)));
+    set_compute_type(ComputeType::INT8_FLOAT16, Device::MPS, 0, false);
+    set_device(Device::MPS);
+  }
+protected:
+  std::unique_ptr<Model> clone() const override { return nullptr; }
+};
+
+// A Dense with quantized weights gives its Gemm no activation, because the portable
+// path applies it in Dequantize. The fused INT8 path has to receive the layer's.
+TEST(MPSLayerTest, QuantizedDenseAppliesItsActivation) {
+  QuantizedDenseModel model;
+  const ops::ActivationType relu = ops::ActivationType::ReLU;
+  layers::Dense dense(model, "dense", &relu);
+  StorageView input = StorageView({1, 4}, 1.f).to_float16().to(Device::MPS);
+  StorageView output(DataType::FLOAT16, Device::MPS);
+  dense(input, output);
+  expect_storage_eq(output.to_float32(), StorageView({1, 2}, 0.f, Device::MPS));
+}
+
+INSTANTIATE_TEST_SUITE_P(MPS, LayerDeviceFPTest,
+                         ::testing::Values(FloatType{Device::MPS, DataType::FLOAT32, 1e-5},
+                                           FloatType{Device::MPS, DataType::FLOAT16, 1e-2},
+                                           FloatType{Device::MPS, DataType::BFLOAT16, 1e-2}),
                          fp_test_name);
 #endif

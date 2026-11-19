@@ -533,8 +533,23 @@ namespace ctranslate2 {
           logits_vec = build_logits(logits, cur_batch_size);
       }
 
+      bool used_fused_beam_search = false;
+      if (is_expanded
+          && !bias_towards_prefix
+          && topk_scores) {
+        used_fused_beam_search = sampler.try_beam_search_topk(logits,
+                                                              topk_scores,
+                                                              _beam_size,
+                                                              num_candidates,
+                                                              topk_ids,
+                                                              topk_scores);
+      }
+
       StorageView log_probs(dtype, device);
-      if (bias_towards_prefix) {
+      if (used_fused_beam_search) {
+        // The fused kernel already applied log-softmax, previous beam scores,
+        // flattening, and deterministic TopK selection.
+      } else if (bias_towards_prefix) {
         biased_decoder->decode(cur_batch_size,
                                step,
                                batch_offset,
@@ -547,7 +562,7 @@ namespace ctranslate2 {
       }
 
       // Multiply by the current beam log probs.
-      if (topk_scores) {
+      if (!used_fused_beam_search && topk_scores) {
         DEVICE_AND_TYPE_DISPATCH(log_probs.device(), log_probs.dtype(),
                                  primitives<D>::add_depth_broadcast(topk_scores.to(device).data<T>(),
                                                                     log_probs.data<T>(),
@@ -556,10 +571,12 @@ namespace ctranslate2 {
       }
 
       // Flatten the probs into a list of candidates.
-      log_probs.reshape({cur_batch_size, -1});
+      if (!used_fused_beam_search)
+        log_probs.reshape({cur_batch_size, -1});
 
       // TopK candidates.
-      sampler(log_probs, topk_ids, topk_scores, num_candidates);
+      if (!used_fused_beam_search)
+        sampler(log_probs, topk_ids, topk_scores, num_candidates);
 
       // Unflatten the ids.
       StorageView gather_indices = unflatten_ids(topk_ids, _beam_size, vocabulary_size, is_expanded);

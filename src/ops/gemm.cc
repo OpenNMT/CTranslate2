@@ -32,14 +32,75 @@ namespace ctranslate2 {
                bool a_is_packed,
                bool b_is_packed,
                const ActivationType* activation_type)
-      : _alpha(alpha)
+      : _activation_type(activation_type)
+      , _alpha(alpha)
       , _beta(beta)
       , _trans_a(trans_a)
       , _trans_b(trans_b)
       , _a_is_packed(a_is_packed)
       , _b_is_packed(b_is_packed)
-      , _activation_type(activation_type)
     {
+    }
+
+    template<>
+    bool Gemm::try_compute_with_epilogue<Device::CPU>(const StorageView&,
+                                                       const StorageView&,
+                                                       StorageView&,
+                                                       const StorageView*,
+                                                       const StorageView*,
+                                                       const StorageView*) const {
+      return false;
+    }
+
+    template<>
+    bool Gemm::try_compute_with_epilogue<Device::CUDA>(const StorageView&,
+                                                        const StorageView&,
+                                                        StorageView&,
+                                                        const StorageView*,
+                                                        const StorageView*,
+                                                        const StorageView*) const {
+      return false;
+    }
+
+    template<>
+    bool Gemm::try_weight_only_int8<Device::CPU>(const StorageView&,
+                                                  const StorageView&,
+                                                  const StorageView&,
+                                                  StorageView&,
+                                                  const ActivationType*,
+                                                  const StorageView*,
+                                                  const StorageView*) const {
+      return false;
+    }
+
+    template<>
+    bool Gemm::try_weight_only_int8<Device::CUDA>(const StorageView&,
+                                                   const StorageView&,
+                                                   const StorageView&,
+                                                   StorageView&,
+                                                   const ActivationType*,
+                                                   const StorageView*,
+                                                   const StorageView*) const {
+      return false;
+    }
+
+    bool Gemm::try_weight_only_int8(const StorageView& input,
+                                    const StorageView& weight,
+                                    const StorageView& scale,
+                                    StorageView& output,
+                                    const ActivationType* activation,
+                                    const StorageView* bias,
+                                    const StorageView* residual) const {
+      bool supported = false;
+      DEVICE_DISPATCH(input.device(),
+                      supported = try_weight_only_int8<D>(input,
+                                                          weight,
+                                                          scale,
+                                                          output,
+                                                          activation,
+                                                          bias,
+                                                          residual));
+      return supported;
     }
 
     void Gemm::operator()(const StorageView& a,
@@ -49,6 +110,17 @@ namespace ctranslate2 {
                           const StorageView* bias,
                           const StorageView* residual) const {
       PROFILE("Gemm");
+
+      bool fused = false;
+      DEVICE_DISPATCH(a.device(),
+                      fused = try_compute_with_epilogue<D>(a,
+                                                           b,
+                                                           c,
+                                                           a_shift_compensation,
+                                                           bias,
+                                                           residual));
+      if (fused)
+        return;
 
       switch (a.dtype()) {
       case DataType::INT8:

@@ -191,7 +191,7 @@ namespace ctranslate2 {
 
                  Arguments:
                    model_path: Path to the CTranslate2 model directory.
-                   device: Device to use (possible values are: cpu, cuda, auto).
+                   device: Device to use (possible values are: cpu, cuda, mps (experimental), auto).
                    device_index: Device IDs where to place this model on.
                    compute_type: Model computation type or a dictionary mapping a device name
                      to the computation type (possible values are: default, auto, int8, int8_float32,

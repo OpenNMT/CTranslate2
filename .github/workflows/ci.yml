@@ -9,6 +9,11 @@ on:
   pull_request:
     branches:
       - master
+  workflow_dispatch:
+
+env:
+  MKL_VERSION: 2025.3
+  DNNL_VERSION: 3.1.1
 
 jobs:
   build-and-test-cpp-x86_64:
@@ -21,34 +26,34 @@ jobs:
         backend: [mkl, dnnl]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - name: Install Intel oneAPI
-        if: startsWith(matrix.os, 'ubuntu')
-        run: |
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo apt-key add *.PUB
-          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
-          sudo apt-get update
-
       - name: Configure with MKL
-        if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'mkl'
+        if: matrix.backend == 'mkl'
         env:
           CT2_USE_MKL: 1
-          MKL_VERSION: 2023.0.0
         run: |
-          sudo apt-get install -y intel-oneapi-mkl-devel-$MKL_VERSION
+          python/tools/install_mkl.sh "$MKL_VERSION"
           cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON .
 
+      - name: Cache oneDNN
+        if: matrix.backend == 'dnnl'
+        id: cache-onednn
+        uses: actions/cache@v5
+        with:
+          path: ${{ runner.temp }}/onednn
+          key: onednn-${{ matrix.os }}-${{ runner.arch }}-${{ env.DNNL_VERSION }}-${{ hashFiles('python/tools/build_onednn.sh') }}
+
+      - name: Build oneDNN
+        if: matrix.backend == 'dnnl' && steps.cache-onednn.outputs.cache-hit != 'true'
+        run: python/tools/build_onednn.sh "$DNNL_VERSION" oneapi-src/oneDNN "$RUNNER_TEMP/onednn"
+
       - name: Configure with DNNL
-        if: startsWith(matrix.os, 'ubuntu') && matrix.backend == 'dnnl'
-        env:
-          DNNL_VERSION: 2023.0.0-25399
+        if: matrix.backend == 'dnnl'
         run: |
-          sudo apt-get install -y intel-oneapi-dnnl-devel=$DNNL_VERSION intel-oneapi-dnnl=$DNNL_VERSION
-          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
+          cmake -DCMAKE_PREFIX_PATH="$RUNNER_TEMP/onednn" -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP -DWITH_DNNL=ON .
 
       - name: Build
         run: |
@@ -78,27 +83,19 @@ jobs:
       CT2_VERBOSE: 1
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
-
-      - name: Install Intel oneAPI
-        run: |
-          wget https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PRODUCTS.PUB
-          sudo apt-key add *.PUB
-          sudo sh -c 'echo "deb https://apt.repos.intel.com/oneapi all main" > /etc/apt/sources.list.d/oneAPI.list'
-          sudo apt update
 
       - name: Install MKL
         env:
           CT2_USE_MKL: 1
-          MKL_VERSION: 2023.0.0
         run: |
-          sudo apt install -y intel-oneapi-mkl-devel-$MKL_VERSION
+          python/tools/install_mkl.sh "$MKL_VERSION"
 
       - name: Install Clang
         run: |
-          sudo apt install -y clang  
+          sudo apt install -y clang
 
       - name: Configure with MKL and Clang
         env:
@@ -122,7 +119,50 @@ jobs:
           CT2_USE_MKL: 1
         run: |
           ASAN_OPTIONS=detect_leaks=1:print_stats=1 tests/ctranslate2_test tests/data
-          
+
+  build-and-test-cpp-x86_64-thread_sanitizer:
+    runs-on: ubuntu-22.04
+    env:
+      CT2_VERBOSE: 1
+
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Install MKL
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          python/tools/install_mkl.sh "$MKL_VERSION"
+
+      - name: Install Clang
+        run: |
+          sudo apt install -y clang
+
+      - name: Configure with MKL and Clang
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          cmake -DCMAKE_INSTALL_PREFIX=$PWD/install -DBUILD_TESTS=ON -DCMAKE_C_COMPILER=/usr/bin/clang -DCMAKE_CXX_COMPILER=/usr/bin/clang++ -DENABLE_THREAD_SANITIZER=ON -DCMAKE_BUILD_TYPE=Debug .
+
+      - name: Build
+        run: |
+          make -j $(nproc) install
+
+      - name: Download test data
+        working-directory: tests/data/models
+        run: |
+          wget https://opennmt-models.s3.amazonaws.com/pi_lm_step_5000.pt
+          wget https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
+          tar xf transliteration-aren-all.tar.gz
+
+      - name: Test ThreadSanitizer
+        env:
+          CT2_USE_MKL: 1
+        run: |
+          TSAN_OPTIONS="ignore_noninstrumented_modules=1:halt_on_error=1" tests/ctranslate2_test tests/data
+
   build-and-test-cpp-arm64:
     runs-on: ${{ matrix.os }}
     env:
@@ -136,7 +176,7 @@ jobs:
           - os: macos-15
             backend: ruy
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -181,6 +221,103 @@ jobs:
         run: |
           tests/ctranslate2_test tests/data
 
+  build-and-test-mps:
+    runs-on: macos-15
+    timeout-minutes: 30
+    env:
+      CT2_VERBOSE: 1
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Verify Apple Silicon and execute a Metal kernel
+        run: |
+          test "$(uname -m)" = "arm64"
+          system_profiler SPHardwareDataType SPDisplaysDataType | tee runner-hardware.txt
+          swift python/tools/check_metal.swift | tee metal-probe.txt
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Configure MPS build
+        run: |
+          cmake -S . -B build-mps \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_INSTALL_PREFIX="$PWD/install-mps" \
+            -DCMAKE_OSX_ARCHITECTURES=arm64 \
+            -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+            -DBUILD_TESTS=ON \
+            -DWITH_MPS=ON \
+            -DWITH_ACCELERATE=ON \
+            -DWITH_MKL=OFF \
+            -DWITH_RUY=ON \
+            -DOPENMP_RUNTIME=NONE
+
+      - name: Build and install MPS library
+        run: |
+          cmake --build build-mps --parallel "$(sysctl -n hw.logicalcpu)"
+          cmake --install build-mps
+
+      - name: Download test data
+        id: test_data
+        working-directory: tests/data/models
+        run: |
+          curl --fail --location --output transliteration-aren-all.tar.gz \
+            https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
+          tar xf transliteration-aren-all.tar.gz
+
+      - name: Run MPS runtime test suite
+        run: |
+          build-mps/tests/ctranslate2_test tests/data \
+            --gtest_filter='MPSBackendTest.*:MPSPrimitiveTest.*:MPSLayerTest.*:MPSCommandErrorTest.*:TranslatorTest.MPS*:MPS/*' \
+            --gtest_output=xml:mps-results.xml
+
+      - name: Run CPU and shared test suite from MPS build
+        if: ${{ !cancelled() && steps.test_data.outcome == 'success' }}
+        run: |
+          build-mps/tests/ctranslate2_test tests/data \
+            --gtest_filter='-MPSBackendTest.*:MPSPrimitiveTest.*:MPSLayerTest.*:MPSCommandErrorTest.*:TranslatorTest.MPS*:MPS/*' \
+            --gtest_output=xml:cpu-results.xml
+
+      - name: Build MPS Python bindings
+        id: build_python
+        if: ${{ !cancelled() && steps.test_data.outcome == 'success' }}
+        env:
+          CTRANSLATE2_ROOT: ${{ github.workspace }}/install-mps
+          CMAKE_BUILD_PARALLEL_LEVEL: 5
+        run: |
+          python -m pip install -r python/install_requirements.txt pytest
+          python -m pip install ./python
+
+      - name: Test Python CPU selection and explicit MPS inference
+        if: ${{ !cancelled() && steps.build_python.outcome == 'success' }}
+        env:
+          CT2_TEST_MPS: 1
+        run: |
+          python -m pytest -v \
+            python/tests/test_storage_view.py python/tests/test_translator.py \
+            --junitxml=python-mps-results.xml
+
+      - name: Upload hardware details and test reports
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mps-macos-15-results
+          retention-days: 7
+          path: |
+            runner-hardware.txt
+            metal-probe.txt
+            mps-results.xml
+            cpu-results.xml
+            python-mps-results.xml
+
   build-python-wheels:
     runs-on: ${{ matrix.os }}
     strategy:
@@ -188,7 +325,7 @@ jobs:
         os: [ubuntu-22.04, windows-2022]
         arch: [auto64]
         include:
-        - os: ubuntu-22.04
+        - os: ubuntu-22.04-arm
           arch: aarch64
         - os: macos-15
           arch: arm64
@@ -196,16 +333,21 @@ jobs:
           arch: x86_64
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
-      - uses: docker/setup-qemu-action@v2
-        if: ${{ matrix.arch == 'aarch64' }}
-        name: Set up QEMU
+      - name: Cache MKL and oneDNN (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v5
+        with:
+          path: |
+            C:/Program Files (x86)/Intel/oneAPI
+            C:/Program Files (x86)/oneDNN
+          key: windows-mkl-onednn-${{ hashFiles('python/tools/prepare_build_environment_windows.sh') }}
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v4.2.1
         with:
           package-dir: python
           output-dir: python/wheelhouse
@@ -217,30 +359,46 @@ jobs:
           CIBW_BEFORE_ALL_MACOS: python/tools/prepare_build_environment_macos.sh
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows.sh
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
+          # Windows DLLs are already bundled by the preparation script.
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ""
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux_2_28
           CIBW_ARCHS: ${{ matrix.arch }}
           CIBW_SKIP: "*-musllinux_*"
 
       - name: Upload Python wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: python-wheels-${{ runner.os }}-${{ matrix.arch }}
           path: python/wheelhouse
+
+  release-gate:
+    if: github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && startsWith(github.ref, 'refs/tags/'))
+    needs: [build-python-wheels]
+    uses: ./.github/workflows/release-gate.yml
 
   build-python-wheels-rocm:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-24.04, windows-2025]
+        os: [ubuntu-24.04, windows-2022]
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
+      - name: Cache MKL and oneDNN (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/cache@v5
+        with:
+          path: |
+            C:/Program Files (x86)/Intel/oneAPI
+            C:/Program Files (x86)/oneDNN
+          key: windows-mkl-onednn-${{ hashFiles('python/tools/prepare_build_environment_windows_rocm.sh') }}
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v3.2.1
+        uses: pypa/cibuildwheel@v4.2.1
         with:
           package-dir: python
           output-dir: python/wheelhouse
@@ -250,6 +408,8 @@ jobs:
           CIBW_BEFORE_ALL_LINUX: python/tools/prepare_build_environment_linux_rocm.sh
           CIBW_BEFORE_ALL_WINDOWS: bash python/tools/prepare_build_environment_windows_rocm.sh
           CIBW_BEFORE_BUILD: pip install -r python/install_requirements.txt
+          # Windows DLLs are already bundled by the preparation script.
+          CIBW_REPAIR_WHEEL_COMMAND_WINDOWS: ""
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux_2_28
           CIBW_ARCHS: auto64
           CIBW_SKIP: "*-musllinux_*"
@@ -265,42 +425,71 @@ jobs:
   # We could test the Python wheels using cibuildwheel but we prefer to run the tests outside
   # the build environment to ensure wheels correctly embed all dependencies.
   test-python-wheels:
-    needs: [build-python-wheels]
+    needs: [build-python-wheels, build-python-wheels-rocm]
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
         include:
           - os: ubuntu-22.04
             artifact_pattern: python-wheels-Linux-auto64
-            wheel_pattern: "*cp310*manylinux*x86_64.whl"
+            wheel_pattern: "*cp312*manylinux*x86_64.whl"
 
           - os: ubuntu-22.04-arm
             artifact_pattern: python-wheels-Linux-aarch64
-            wheel_pattern: "*cp310*manylinux*_aarch64.whl"
+            wheel_pattern: "*cp312*manylinux*_aarch64.whl"
 
           - os: windows-2022
             artifact_pattern: python-wheels-Windows-auto64
-            wheel_pattern: "*cp310*win*amd64.whl"
+            wheel_pattern: "*cp312*win*amd64.whl"
 
           - os: macos-15
             artifact_pattern: python-wheels-macOS-arm64
-            wheel_pattern: "*cp310*macosx*arm64.whl"
+            wheel_pattern: "*cp312*macosx*arm64.whl"
+
+          - os: ubuntu-24.04
+            artifact_pattern: rocm-python-wheels-Linux
+            wheel_pattern: "*cp312*manylinux*x86_64.whl"
+            rocm: true
+
+          - os: windows-2022
+            artifact_pattern: rocm-python-wheels-Windows
+            wheel_pattern: "*cp312*win*amd64.whl"
+            rocm: true
 
     steps:
-      - name: Set up Python 3.10.11
-        uses: actions/setup-python@v5
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.10.11"
+          python-version: "3.12"
 
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - name: Prepare test environment
         shell: bash
         run: |
           ./python/tools/prepare_test_environment.sh
 
+      - name: Install ROCm runtime (Linux)
+        if: matrix.rocm && runner.os == 'Linux'
+        shell: bash
+        run: |
+          curl -fLO https://repo.radeon.com/amdgpu-install/7.2/ubuntu/noble/amdgpu-install_7.2.70200-1_all.deb
+          sudo apt-get update
+          sudo apt-get install -y ./amdgpu-install_7.2.70200-1_all.deb
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends rocm-hip-libraries
+          echo "LD_LIBRARY_PATH=/opt/rocm/lib:/opt/rocm/lib/llvm/lib" >> "$GITHUB_ENV"
+
+      - name: Install ROCm runtime (Windows)
+        if: matrix.rocm && runner.os == 'Windows'
+        shell: bash
+        run: |
+          python -m pip install \
+            https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_core-7.2.0.dev0-py3-none-win_amd64.whl \
+            https://repo.radeon.com/rocm/windows/rocm-rel-7.2/rocm_sdk_libraries_custom-7.2.0.dev0-py3-none-win_amd64.whl
+
       - name: Download Python wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: ${{ matrix.artifact_pattern }}
           merge-multiple: true
@@ -313,23 +502,94 @@ jobs:
 
       - name: Test Python wheel
         run: |
-          pytest -v python/tests/ --ignore=python/tests/test_opennmt_tf.py
+          pytest -v python/tests/ --ignore=python/tests/test_fairseq.py --ignore=python/tests/test_opennmt_py.py --ignore=python/tests/test_opennmt_tf.py
 
+
+  test-python314-native-finalizer:
+    # CPython 3.13+ frees heap-type tp_doc via PyMem_Free. An older pybind11
+    # uses PyObject_MALLOC, which can abort during interpreter shutdown.
+    needs: [build-python-wheels]
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Set up Python 3.14
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Download Linux x86-64 release wheels
+        uses: actions/download-artifact@v7
+        with:
+          name: python-wheels-Linux-auto64
+          path: python/wheelhouse
+
+      - name: Require CPython 3.14 wheel and a clean debug allocator exit
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          wheels=(python/wheelhouse/*-cp314-cp314-manylinux*x86_64.whl)
+          if (( ${#wheels[@]} != 1 )); then
+            echo "Expected exactly one CPython 3.14 Linux x86-64 wheel" >&2
+            exit 1
+          fi
+          python -m pip install "${wheels[0]}"
+          # Exit status is essential: the affected wheel imports successfully
+          # but aborts with exit 134 while Python releases heap types.
+          python -X dev -W error::ResourceWarning \
+            -c 'import ctranslate2; print(ctranslate2.__version__)'
+
+  test-legacy-converters:
+    needs: [build-python-wheels]
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.10"
+
+      - name: Download Python wheels
+        uses: actions/download-artifact@v7
+        with:
+          pattern: python-wheels-Linux-auto64
+          merge-multiple: true
+          path: .
+
+      - name: Install wheel and legacy dependencies
+        run: |
+          pip install 'pip<24.1'
+          pip install *cp310*manylinux*x86_64.whl
+          pip install -r python/tests/requirements-legacy.txt --extra-index-url https://download.pytorch.org/whl/cpu
+          pip install --upgrade hydra-core
+
+      - name: Download test data
+        run: |
+          curl -o transliteration-aren-all.tar.gz https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
+          tar xf transliteration-aren-all.tar.gz -C tests/data/models/
+          rm transliteration-aren-all.tar.gz
+
+      - name: Test legacy converters
+        env:
+          TORCH_FORCE_NO_WEIGHTS_ONLY_LOAD: 1
+        run: |
+          pytest -v python/tests/test_fairseq.py python/tests/test_opennmt_py.py python/tests/test_opennmt_tf.py -p no:hydra
 
   check-python-style:
     runs-on: ubuntu-latest
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - name: Set up Python 3.10.11
-        uses: actions/setup-python@v5
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.10.11"
+          python-version: "3.12"
 
       - name: Install dependencies
         run: |
-          python -m pip install black==22.* flake8==3.8.* isort==5.*
+          python -m pip install black==22.* flake8==7.* isort==5.*
 
       - name: Check code format with Black
         working-directory: python
@@ -350,33 +610,50 @@ jobs:
 
   publish-python-wheels-on-pypi:
     if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-    needs: [build-and-test-cpp-x86_64, build-and-test-cpp-arm64, build-python-wheels, test-python-wheels, check-python-style]
+    needs:
+      - build-and-test-cpp-x86_64
+      - build-and-test-cpp-x86_64-address_sanitizer
+      - build-and-test-cpp-arm64
+      - build-python-wheels
+      - test-python-wheels
+      - test-python314-native-finalizer
+      - test-legacy-converters
+      - check-python-style
+      - release-gate
     runs-on: ubuntu-22.04
 
     steps:
       - name: Download Python wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: python-wheels-*
           merge-multiple: true
-          path: .
+          path: dist
 
       - name: Publish Python wheels to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
         with:
           user: __token__
           password: ${{ secrets.PYPI_API_TOKEN }}
-          packages-dir: .
+          packages-dir: dist
 
 
   build-and-push-docker-images:
+    needs:
+      - build-and-test-cpp-x86_64
+      - build-and-test-cpp-x86_64-address_sanitizer
+      - build-and-test-cpp-arm64
+      - build-python-wheels
+      - test-python-wheels
+      - test-legacy-converters
+      - check-python-style
     runs-on: ubuntu-22.04
     strategy:
       matrix:
         gpu: [cuda, rocm]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           submodules: recursive
 
@@ -409,7 +686,7 @@ jobs:
 
       - name: Login to DockerHub
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: docker/login-action@v2
+        uses: docker/login-action@v4
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -423,25 +700,25 @@ jobs:
 
   build-and-deploy-docs:
     runs-on: ubuntu-latest
-    needs: [check-python-style, build-python-wheels, build-python-wheels-rocm]
+    needs: [check-python-style, build-python-wheels, build-python-wheels-rocm, test-python-wheels]
 
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
-      - name: Set up Python 3.10.11
-        uses: actions/setup-python@v5
+      - uses: actions/checkout@v5
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
         with:
-          python-version: "3.10.11"
+          python-version: "3.12"
       - name: Download CTranslate2 wheels
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           pattern: python-wheels-${{ runner.os }}-*
           merge-multiple: true
           path: .
       - name: Install CTranslate2 wheel
         run: |
-          pip install *cp310*manylinux*x86_64.whl
+          pip install *cp312*manylinux*x86_64.whl
       - name: Install dependencies to build docs
         working-directory: docs
         run: |
@@ -478,6 +755,6 @@ jobs:
 
       - name: Create GitHub Release
         if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           files: release-zips/*.zip

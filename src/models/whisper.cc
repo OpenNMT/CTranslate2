@@ -510,7 +510,13 @@ namespace ctranslate2 {
 
       std::vector<std::vector<std::pair<dim_t, dim_t>>> alignments;
 
-      if (variable_num_frames) {
+      if (std::all_of(num_frames.begin(), num_frames.end(), [](size_t size) { return size == 0; })) {
+        // A window shorter than the encoder stride (num_frames < 2) has no
+        // frames left to align against: running the attention post-processing
+        // on zero-size tensors is at best undefined. Return empty alignments.
+        alignments.resize(batch_size);
+
+      } else if (variable_num_frames) {
         const StorageView frame_sizes({batch_size},
                                       std::vector<int32_t>(num_frames.begin(), num_frames.end()),
                                       device);
@@ -524,6 +530,11 @@ namespace ctranslate2 {
         alignments.reserve(batch_size);
 
         for (dim_t b = 0; b < batch_size; ++b) {
+          if (num_frames[b] == 0) {
+            alignments.emplace_back();
+            continue;
+          }
+
           // Retrieve attention probs for batch and remove padding.
           StorageView batch_id({1}, int32_t(b), device);
           StorageView attention_probs(dtype, device);

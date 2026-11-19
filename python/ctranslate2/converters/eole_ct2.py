@@ -1,4 +1,5 @@
 import argparse
+import math
 
 from eole.config.run import PredictConfig
 from eole.constants import PositionEncodingType
@@ -301,10 +302,11 @@ def set_multi_head_attention(spec, variables, scope, self_attention=False):
         utils.fuse_linear(spec.linear[1], split_layers)
     set_linear(spec.linear[-1], variables, "%s.final_linear" % scope)
     if hasattr(spec, "relative_position_keys"):
-        spec.relative_position_keys = _get_variable(
+        rel = _get_variable(
             variables, "%s.relative_positions_embeddings.weight" % scope
         )
-        spec.relative_position_values = spec.relative_position_keys
+        spec.relative_position_values = rel
+        spec.relative_position_keys = rel * math.sqrt(rel.shape[-1])
 
 
 def set_layer_norm(spec, variables, scope):

@@ -34,7 +34,9 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         sliding_window=None,
         qk_norm=False,
         qk_norm_rms=True,
+        v_norm=False,
         has_norm=True,
+        merged_encoder_attention=False,
     ):
         self.queries_scale = model_spec.OPTIONAL
 
@@ -47,6 +49,9 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         if qk_norm:
             self.q_norm = common_spec.LayerNormSpec(rms_norm=qk_norm_rms)
             self.k_norm = common_spec.LayerNormSpec(rms_norm=qk_norm_rms)
+
+        if v_norm:
+            self.v_norm = common_spec.LayerNormSpec(rms_norm=True)
 
         if relative_position:
             self.relative_position_keys = None
@@ -96,3 +101,7 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
 
         if sliding_window is not None:
             self.sliding_window = np.dtype("int32").type(sliding_window)
+
+        if merged_encoder_attention:
+            self.merged_encoder_attention = True
+            self.memory_kv = common_spec.LinearSpec()

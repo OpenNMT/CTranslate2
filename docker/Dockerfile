@@ -23,7 +23,7 @@ RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PROD
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip --no-cache-dir install cmake==3.22.*
+RUN python3 -m pip --no-cache-dir install cmake==3.24.*
 
 ENV ONEDNN_VERSION=3.1.1
 RUN wget -q https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz && \
@@ -55,10 +55,9 @@ COPY CMakeLists.txt .
 
 ARG CXX_FLAGS
 ENV CXX_FLAGS=${CXX_FLAGS:-"-msse4.1"}
-ARG CUDA_NVCC_FLAGS
-ENV CUDA_NVCC_FLAGS=${CUDA_NVCC_FLAGS:-"-Xfatbin=-compress-all"}
-ARG CUDA_ARCH_LIST
-ENV CUDA_ARCH_LIST=${CUDA_ARCH_LIST:-"Common"}
+ARG CMAKE_CUDA_FLAGS
+ENV CMAKE_CUDA_FLAGS=${CMAKE_CUDA_FLAGS:-"-Xfatbin=-compress-all"}
+ARG CMAKE_CUDA_ARCHITECTURES="53-real;60-real;61-real;70-real;75-real;80-real;86"
 ENV CTRANSLATE2_ROOT=/opt/ctranslate2
 ENV LD_LIBRARY_PATH=/usr/local/lib/:${LD_LIBRARY_PATH}
 
@@ -67,7 +66,8 @@ RUN mkdir build_tmp && \
     cmake -DCMAKE_INSTALL_PREFIX=${CTRANSLATE2_ROOT} \
           -DWITH_CUDA=ON -DWITH_CUDNN=ON -DWITH_MKL=ON -DWITH_DNNL=ON -DOPENMP_RUNTIME=COMP \
           -DCMAKE_BUILD_TYPE=Release -DCMAKE_CXX_FLAGS="${CXX_FLAGS}" \
-          -DCUDA_NVCC_FLAGS="${CUDA_NVCC_FLAGS}" -DCUDA_ARCH_LIST="${CUDA_ARCH_LIST}" -DWITH_TENSOR_PARALLEL=ON .. && \
+          -DCMAKE_CUDA_FLAGS="${CMAKE_CUDA_FLAGS}" \
+          -DCMAKE_CUDA_ARCHITECTURES="${CMAKE_CUDA_ARCHITECTURES}" -DWITH_TENSOR_PARALLEL=ON .. && \
     VERBOSE=1 make -j$(nproc) install
 
 ENV LANG=en_US.UTF-8

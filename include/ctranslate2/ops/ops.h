@@ -2,6 +2,7 @@
 
 #include "add.h"
 #include "bias_add.h"
+#include "beam_search_topk.h"
 #include "concat.h"
 #include "conv1d.h"
 #include "cos.h"
@@ -40,9 +41,16 @@
 #include "slide.h"
 #include "nccl_ops.h"
 #include "flash_attention.h"
+#include "fused_attention.h"
 #ifndef CT2_USE_HIP
 #include "awq/gemm.h"
 #include "awq/gemv.h"
 #include "awq/dequantize_awq.h"
 #endif
 #include "sum.h"
+#include "causal_depthwise_conv1d.h"
+#include "conv_transpose1d.h"
+#include "dequantize_fp8.h"
+#include "gated_delta_net.h"
+#include "moe_topk.h"
+#include "snake.h"

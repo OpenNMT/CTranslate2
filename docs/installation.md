@@ -18,6 +18,8 @@ The Python wheels have the following requirements:
 The Linux and Windows Python wheels support GPU execution. Install [CUDA](https://developer.nvidia.com/cuda-toolkit) 12.x to use the GPU.
 
 If you plan to run models with convolutional layers (e.g. for speech recognition), you should also install [cuDNN 8](https://developer.nvidia.com/cudnn) for CUDA 12.x.
+
+If you have an AMD ROCm GPU, prebuilt Python wheels are available on the [releases page](https://github.com/OpenNMT/CTranslate2/releases/). To build from source on Windows with ROCm, see the {doc}`building_rocm_windows` guide.
 ```
 
 ```{note}
@@ -61,7 +63,7 @@ git clone --recursive https://github.com/OpenNMT/CTranslate2.git
 
 ### Compile the C++ library
 
-Compiling the library requires a compiler supporting C++17 and CMake 3.15 or greater.
+Compiling the library requires a compiler supporting C++17 and CMake 3.24 or greater.
 
 ```bash
 mkdir build && cd build
@@ -88,7 +90,55 @@ pip install dist/*.whl
 If you installed the C++ library in a custom directory, you should configure additional environment variables:
 
 * When running `setup.py`, set `CTRANSLATE2_ROOT` to the CTranslate2 install directory.
+  On macOS, this also embeds that library directory in the Python extension runtime search path so it loads the matching `libctranslate2` instead of falling back to `/usr/local/lib`.
 * When running your Python application, add the CTranslate2 library path to `LD_LIBRARY_PATH`.
+```
+
+### NVIDIA Jetson (aarch64 + CUDA)
+
+The prebuilt aarch64 wheels on PyPI are CPU-only. On NVIDIA Jetson devices (Orin Nano, Orin NX, AGX Orin) running JetPack 6.x, build from source with CUDA enabled:
+
+```bash
+sudo apt-get install -y build-essential cmake git python3-pip python3-venv
+```
+
+CUDA and cuDNN are provided by JetPack — no separate install needed.
+
+Compile the C++ library with CUDA:
+
+```bash
+git clone --recursive https://github.com/OpenNMT/CTranslate2.git
+cd CTranslate2
+mkdir build && cd build
+cmake .. -DWITH_CUDA=ON -DWITH_CUDNN=ON -DWITH_MKL=OFF -DOPENMP_RUNTIME=COMP
+make -j$(nproc)
+sudo make install
+sudo ldconfig
+```
+
+```{note}
+`-DWITH_MKL=OFF` is required because Intel MKL is not available on ARM. `-DOPENMP_RUNTIME=COMP` uses the compiler's OpenMP instead of Intel's.
+```
+
+Build and install the Python wheel:
+
+```bash
+cd ../python
+pip install -r install_requirements.txt
+python setup.py bdist_wheel
+pip install dist/ctranslate2*.whl
+```
+
+Verify CUDA support:
+
+```python
+import ctranslate2
+print(ctranslate2.get_supported_compute_types("cuda"))
+# {'float16', 'float32', 'int8', 'int8_float16', 'int8_float32', 'bfloat16', 'int8_bfloat16'}
+```
+
+```{tip}
+If using a virtual environment, you may need to set `LD_LIBRARY_PATH=/usr/local/cuda/lib64` at runtime.
 ```
 
 ### Build options
@@ -101,9 +151,9 @@ The following options can be set with `-DOPTION=VALUE` during the CMake configur
 | BUILD_TESTS | **OFF**, ON | Compiles the tests |
 | CMAKE_CXX_FLAGS | *compiler flags* | Defines additional compiler flags |
 | CMAKE_INSTALL_PREFIX | *path* | Defines the installation path of the library |
-| CUDA_ARCH_LIST | **Auto** | List of CUDA architectures to compile for (see [`cuda_select_nvcc_arch_flags`](https://cmake.org/cmake/help/latest/module/FindCUDA.html) in the CMake documentation) |
+| CMAKE_CUDA_ARCHITECTURES | *compiler default, or CUDAARCHS environment variable* | CUDA architectures to compile for; use `native` to target local GPUs. Release architectures are defined in the [Linux wheel build script](../python/tools/prepare_build_environment_linux.sh) (see also [CMake documentation](https://cmake.org/cmake/help/latest/prop_tgt/CUDA_ARCHITECTURES.html)) |
 | CUDA_DYNAMIC_LOADING | **OFF**, ON | Enables the dynamic loading of CUDA libraries at runtime instead of linking against them (requires CUDA >= 11) |
-| CUDA_NVCC_FLAGS | *compiler flags* | Defines additional compilation flags for `nvcc` |
+| CMAKE_CUDA_FLAGS | *compiler flags* | Defines additional CUDA compiler flags |
 | ENABLE_CPU_DISPATCH | OFF, **ON** | Compiles CPU kernels for multiple ISA and dispatches at runtime (should be disabled when explicitly targeting an architecture with the `-march` compilation flag) |
 | ENABLE_PROFILING | **OFF**, ON | Enables the integrated profiler (usually disabled in production builds) |
 | OPENMP_RUNTIME | **INTEL**, COMP, NONE | Selects the OpenMP runtime:<ul><li>INTEL: Intel OpenMP</li><li>COMP: OpenMP runtime provided by the compiler</li><li>NONE: no OpenMP runtime (a custom threading implementation will be used)</li></ul> |
@@ -112,6 +162,7 @@ The following options can be set with `-DOPTION=VALUE` during the CMake configur
 | WITH_DNNL | **OFF**, ON | Compiles with the oneDNN backend (a.k.a. DNNL) |
 | WITH_MKL | OFF, **ON** | Compiles with the Intel MKL backend |
 | WITH_ACCELERATE | **OFF**, ON | Compiles with the Apple Accelerate backend |
+| WITH_MPS | **OFF**, ON | Compiles the experimental Apple Metal/MPS backend |
 | WITH_OPENBLAS | **OFF**, ON | Compiles with the OpenBLAS backend |
 | WITH_RUY | **OFF**, ON | Compiles with the Ruy backend |
 | WITH_HIP | **OFF**, ON | Compiles with the AMD HIP GPU backend |
@@ -123,11 +174,31 @@ Some build options require additional dependencies. See their respective documen
 * `-DWITH_MKL=ON` requires [Intel MKL](https://www.intel.com/content/www/us/en/developer/tools/oneapi/onemkl.html) >= 2019.5
 * `-DWITH_DNNL=ON` requires [oneDNN](https://github.com/oneapi-src/oneDNN) >= 3.0
 * `-DWITH_ACCELERATE=ON` requires [Accelerate](https://developer.apple.com/documentation/accelerate)
+* `-DWITH_MPS=ON` requires an Apple Silicon Mac with the Metal and Metal Performance Shaders frameworks
 * `-DWITH_OPENBLAS=ON` requires [OpenBLAS](https://github.com/xianyi/OpenBLAS)
-* `-DWITH_HIP=ON` requires [ROCm libraries](https://rocm.docs.amd.com/en/latest/reference/api-libraries.html)
+* `-DWITH_HIP=ON` requires [ROCm libraries](https://rocm.docs.amd.com/en/latest/reference/api-libraries.html). For a complete Windows build guide, see {doc}`building_rocm_windows`.
 
 Multiple backends can be enabled for a single build, for example:
 
 * `-DWITH_MKL=ON -DWITH_CUDA=ON`: enable CPU and GPU support
 * `-DWITH_MKL=ON -DWITH_DNNL=ON`: during runtime, the library will select Intel MKL when running on Intel and oneDNN when running on AMD
 * `-DWITH_OPENBLAS=ON -DWITH_RUY=ON`: use Ruy for quantized models and OpenBLAS for non quantized models
+
+To build a native Release library with CPU and MPS execution on Apple Silicon:
+
+```bash
+cmake -S . -B build-mps \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DCMAKE_POLICY_VERSION_MINIMUM=3.5 \
+  -DWITH_MPS=ON \
+  -DWITH_ACCELERATE=ON \
+  -DWITH_MKL=OFF \
+  -DWITH_RUY=ON \
+  -DOPENMP_RUNTIME=NONE
+cmake --build build-mps -j
+cmake --install build-mps --prefix install-mps
+```
+
+`WITH_MPS` cannot be combined with `WITH_CUDA` or `WITH_HIP` in the same
+build. See [Hardware support](hardware_support.md) for current backend
+limitations.

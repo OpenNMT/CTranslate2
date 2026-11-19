@@ -8,6 +8,26 @@ add_executable(ctranslate2_test
   attention_test.cc
   batching_test.cc
   decoding_test.cc
+  devices_test.cc
+  gated_delta_layer_test.cc
+  moe_layer_test.cc
+  drama3_serialization_test.cc
+  drama_device_weights_test.cc
+  drama3_model_test.cc
+  drama3_mixed_precision_test.cc
+  drama_attention_test.cc
+  drama_block_test.cc
+  drama_backbone_test.cc
+  drama3_backbone_parity_test.cc
+  drama3_attention_parity_test.cc
+  drama_tower_test.cc
+  fish_dac_test.cc
+  fish_dac_parity_test.cc
+  fish_dac_full_parity_test.cc
+  fish_dac_codebooks_test.cc
+  fish_dac_transformer_test.cc
+  fish_dac_upsample_test.cc
+  conv1d_dilation_test.cc
   layers_test.cc
   model_test.cc
   storage_view_test.cc
@@ -19,10 +39,25 @@ add_executable(ctranslate2_test
 target_include_directories(ctranslate2_test PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../src
   )
+if(WITH_CUDA)
+  target_include_directories(ctranslate2_test BEFORE PRIVATE ${THRUST_INCLUDE_DIRS})
+endif()
+if(MSVC)
+  target_compile_options(ctranslate2_test PRIVATE /utf-8)
+  if(WITH_CUDA)
+    # CUDA toolkit headers require the standard-conforming MSVC preprocessor.
+    target_compile_options(ctranslate2_test PRIVATE /Zc:preprocessor)
+  endif()
+endif()
+
 target_link_libraries(ctranslate2_test PRIVATE
   ${PROJECT_NAME}
   gtest_main
   )
+if(WITH_RUY)
+  # Tests include cpu/backend.h, which exposes the Ruy context declaration.
+  target_link_libraries(ctranslate2_test PRIVATE ruy)
+endif()
 
 add_executable(benchmark_ops
   benchmark_ops.cc
@@ -34,11 +69,24 @@ if(NOT MSVC)
   target_compile_options(benchmark_ops PRIVATE -Wno-unused-result)
 endif()
 
+if(WITH_MPS)
+  target_sources(ctranslate2_test PRIVATE mps_error_test.cc)
+
+  add_executable(benchmark_mps
+    benchmark_mps.cc
+    )
+  target_link_libraries(benchmark_mps
+    ${PROJECT_NAME}
+    )
+endif()
+
 if(WITH_CUDA)
-  target_link_libraries(benchmark_ops PRIVATE ${CUDA_LIBRARIES})
+  target_link_libraries(benchmark_ops PRIVATE CUDA::cudart)
 
 elseif(WITH_HIP)
   enable_language(HIP)
+  # attention_test includes cuda/utils.h, whose ROCm headers require HIP mode.
+  set_source_files_properties(attention_test.cc PROPERTIES LANGUAGE HIP)
   list(APPEND CMAKE_PREFIX_PATH ${ROCM_PATH})
   link_directories(${ROCM_PATH}/lib)
 

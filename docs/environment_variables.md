@@ -17,8 +17,8 @@ Boolean environment variables can be enabled with `"1"` or `"true"`.
 
 Allocating memory on the GPU with `cudaMalloc` is costly and is best avoided in high-performance code. For this reason CTranslate2 integrates caching allocators which enable a fast reuse of previously allocated buffers. The following allocators are integrated:
 
-* `cuda_malloc_async` (default for CUDA >= 11.2)<br/>Uses the [asynchronous allocator with memory pools](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY__POOLS.html) introduced in CUDA 11.2.
-* `cub_caching` (default for CUDA < 11.2)<br/>Uses the caching allocator from the [CUB project](https://github.com/NVIDIA/cub).
+* `cuda_malloc_async` (default for NVIDIA CUDA >= 11.2)<br/>Uses the [asynchronous allocator with memory pools](https://docs.nvidia.com/cuda/cuda-runtime-api/group__CUDART__MEMORY__POOLS.html) introduced in CUDA 11.2.
+* `cub_caching` (default for CUDA < 11.2 and HIP/ROCm)<br/>Uses the caching allocator from the [CUB project](https://github.com/NVIDIA/cub).
 
 ## `CT2_CUDA_ALLOW_BF16`
 
@@ -51,6 +51,53 @@ export CT2_CUDA_CACHING_ALLOCATOR_CONFIG=8,3,7,6291455
 
 See the description of each parameter in the [allocator implementation](https://github.com/NVIDIA/cub/blob/main/cub/util_allocator.cuh).
 
+```{attention}
+**Apple Metal (experimental).** The `CT2_MPS_*` variables below configure the experimental Apple Metal (MPS) backend. It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`. It remains an explicit runtime opt-in with `device="mps"`; `device="auto"` continues to select CPU. The variables and their defaults may change.
+```
+
+## `CT2_MPS_MAX_COMPUTE_OPS`
+
+Set the maximum number of compute operations encoded before the current MPS
+command buffer is committed without waiting. The default is `16`.
+
+## `CT2_MPS_MAX_BLIT_OPS`
+
+Set the maximum number of copy/blit operations encoded before the current MPS
+command buffer is committed without waiting. The default is `64`.
+
+## `CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS`
+
+Set the maximum number of unfinished MPS command buffers. The default is `8`,
+which keeps useful CPU/GPU overlap while bounding Metal temporary resources on
+unified-memory systems. Increasing this value can help large-memory devices,
+but should be validated with cold, end-to-end inference rather than GEMM-only
+benchmarks.
+
+## `CT2_MPS_PROFILE`
+
+Print aggregated MPS execution counters at process exit, including command
+buffers, dispatches, synchronization points, GEMM paths, TopK calls, copies,
+allocations, and buffer lookups. Profiling is disabled by default.
+
+This is an unstable debugging interface and its output may change without
+notice.
+
+## `CT2_MPS_LOG_GEMM`
+
+Log each MPS GEMM shape, transpose and stride configuration, and selected
+execution path. This option is intended for debugging and benchmarking.
+
+This is an unstable debugging interface and its output may change without
+notice.
+
+## `CT2_MPS_LOG_SYNC`
+
+Log each MPS synchronization together with its reason and host-visible byte
+count.
+
+This is an unstable debugging interface and its output may change without
+notice.
+
 ## `CT2_FORCE_CPU_ISA`
 
 Force CTranslate2 to select a specific instruction set architecture (ISA). Possible values are:
@@ -64,9 +111,35 @@ Force CTranslate2 to select a specific instruction set architecture (ISA). Possi
 This does not impact backend libraries (such as Intel MKL) which usually have their own environment variables to configure ISA dispatching.
 ```
 
-## `CT2_USE_EXPERIMENTAL_PACKED_GEMM`
+## `CT2_DRAMA3_CPU_MMAP`
 
-Enable the packed GEMM API for Intel MKL which can improve performance for single-core decoding. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
+Set to `1` to memory-map Drama3's byte-encoded expert weights from a local
+checkpoint on Linux or macOS with `device="cpu"`. Default: `0`.
+Requires `compute_type="default"` or `"float32"`. FP8 projections decode on demand;
+standard quantized weights may allocate converted copies.
+
+Mapped pages are reclaimable, but other weights and inference state still use
+RAM. This does not set a memory limit. Performance depends on disk speed and
+filesystem cache. Keep the checkpoint unchanged while loaded.
+
+## `CT2_DRAMA3_GPU_EXPERT_CACHE_GB`
+
+Limit Drama3's GPU expert weights and quantization scales in decimal GB
+(e.g. `CT2_DRAMA3_GPU_EXPERT_CACHE_GB=8`). Unset, empty, or `0` means unlimited;
+invalid values raise an error. Requires Linux, a local checkpoint, and
+`device="cuda"` (CUDA or ROCm).
+
+The budget is split equally across backbone layers, each with LRU eviction.
+Each layer must fit its selected routed experts and shared expert; smaller
+budgets raise an error. Cache size depends on compute type. Byte-encoded CPU experts are
+memory-mapped; floating-point CPU weights remain resident.
+
+This limits the expert cache, not total VRAM or RAM. Other weights, inference
+state, temporary allocations, and allocator overhead require additional memory.
+
+## `CT2_PACKED_GEMM`
+
+Enable or disable the packed GEMM API for Intel MKL. Packed GEMM is enabled by default when using the MKL backend and improves decoding performance by pre-packing weight matrices at model load time. Set to `0` to disable it. See [Intel's article](https://software.intel.com/content/www/us/en/develop/articles/introducing-the-new-packed-apis-for-gemm.html) to learn more about packed GEMM.
 
 ## `CT2_USE_MKL`
 

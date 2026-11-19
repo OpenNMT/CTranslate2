@@ -1,6 +1,10 @@
 *.pyc
 /.vs
 /build
+/build-*/
+/install-*/
+**/.DS_Store
+python/ctranslate2/_ext*.so
 
 CMake*.json
 .idea

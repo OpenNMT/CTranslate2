@@ -216,7 +216,10 @@ namespace ctranslate2 {
       const dim_t max_time = _transpose ? x.dim(-2) : x.dim(-3);
       const dim_t dim = _dim == 0 ? x.dim(-1) : _dim;
 
-      if (!_sin || offset + max_time > _sin.dim(0)) {
+      if (!_sin || _sin.device() != device || _sin.device_index() != x.device_index()
+          || _sin.dtype() != dtype || offset + max_time > _sin.dim(0)) {
+        _sin_half.reset();
+        _cos_half.reset();
         const dim_t cur_num_positions = _sin ? _sin.dim(0) : 0;
         const dim_t new_num_positions = std::max(offset + max_time, cur_num_positions + _num_initial_positions);
         initialize(new_num_positions, dim, device, dtype);
@@ -317,29 +320,36 @@ namespace ctranslate2 {
 
       StorageView sin(device);
       ops::Sin()(emb, sin);
+
+      StorageView cos(device);
+      ops::Cos()(emb, cos);
+
+      // Apply the longrope attention scaling while the tables are still in
+      // float32: ops::Mul() requires both operands to share the dtype of the
+      // first one, so scaling after the conversion to a float16/bfloat16
+      // dtype would be rejected by the dtype check. The reference
+      // implementations also scale in float32 before casting.
+      if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0 && _scaling_type != RotaryScalingType::Llama3) {
+        StorageView scaling_factor;
+        float scale = _max_position_embeddings / _original_max_position_embeddings;
+        if (scale <= 1)
+          scaling_factor = StorageView(1.0f);
+        else
+          scaling_factor = StorageView(static_cast<float>(sqrt(1 + std::log(scale) / std::log(_original_max_position_embeddings))));
+
+        ops::Mul()(sin, scaling_factor, sin);
+        ops::Mul()(cos, scaling_factor, cos);
+      }
+
       if (sin.dtype() == dtype)
         _sin = std::move(sin);
       else
         _sin = sin.to(dtype);
 
-      StorageView cos(device);
-      ops::Cos()(emb, cos);
       if (cos.dtype() == dtype)
         _cos = std::move(cos);
       else
         _cos = cos.to(dtype);
-
-      if (_original_max_position_embeddings != 0 && _max_position_embeddings != 0 && _scaling_type != RotaryScalingType::Llama3) {
-        StorageView scaling_factor;
-        float scale = _max_position_embeddings / _original_max_position_embeddings;
-        if (scale <= 1)
-          scaling_factor = StorageView(1.0f, device);
-        else
-          scaling_factor = StorageView(static_cast<float>(sqrt(1 + std::log(scale) / std::log(_original_max_position_embeddings))));
-
-        ops::Mul()(_sin, scaling_factor, _sin);
-        ops::Mul()(_cos, scaling_factor, _cos);
-      }
     }
 
 
@@ -359,9 +369,10 @@ namespace ctranslate2 {
         const dim_t num_heads = x.dim(1);
         const dim_t new_length = cur_length + _num_initial_positions;
         _alibi = build_alibi(num_heads, new_length, _use_positive_positions, _scale_alibi ? scale : 1);
-        _alibi.move_to(x.device(), x.dtype());
       }
 
+      // Attention score dtype can change between calls even when the cached length is unchanged.
+      _alibi.move_to(x.device(), x.dtype());
       _alibi_op(x, _alibi, x);
     }
 

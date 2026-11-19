@@ -116,6 +116,25 @@ def test_int8_quantization():
     )
 
 
+@pytest.mark.parametrize("tiny_weight", [1e-38, 1e-40])
+def test_int8_quantization_tiny_row_scale_is_finite(tiny_weight):
+    class Spec(ctranslate2.specs.LayerSpec):
+        def __init__(self):
+            self.weight = np.array(
+                [[tiny_weight, -tiny_weight, 0, 0]], dtype=np.float32
+            )
+            self.weight_scale = OPTIONAL
+
+    spec = Spec()
+    spec.validate()
+    with np.errstate(over="raise", invalid="raise"):
+        spec.optimize(quantization="int8")
+    assert np.isfinite(spec.weight.numpy()).all()
+    assert np.isfinite(spec.weight_scale.numpy()).all()
+    assert (spec.weight_scale.numpy() > 0).all()
+    assert spec.weight.dtype == "int8"
+
+
 @pytest.mark.parametrize(
     "quantization,expected_weight,expected_weight_scale,expected_bias",
     [

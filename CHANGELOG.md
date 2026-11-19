@@ -1,12 +1,133 @@
-## [Unreleased]
+## [v4.9.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.0) (2026-11-10)
 
 ### New features
 
+* Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (#2077) by [@TBO22](https://github.com/TBO22). It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`; `device="auto"` continues to select CPU on Apple Silicon
+* Include `gfx1031`, `gfx1032`, `gfx1035`, and `gfx1103` targets in the ROCm wheels (#2142) by [@jordimas](https://github.com/jordimas)
+
 ### Fixes and improvements
+
+* Scale rotary embeddings in float32 before the dtype conversion to preserve precision in FP16 and BF16 models (#2146) by [@Kyozzz](https://github.com/Kyozzz)
+* Replace the deprecated `FindCUDA` CMake module with native CMake CUDA support (#2067) by [@gaborlukacs](https://github.com/gaborlukacs)
+* Bump the CI MKL to 2025.3 and reuse shared build scripts (#2145) by [@jordimas](https://github.com/jordimas)
+* Add performance and accuracy regression tests to CI (#2147) by [@jordimas](https://github.com/jordimas)
+
+## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-11-02)
+
+### New features
+
+* Cache Drama 3 prompt prefixes with LRU eviction, cache controls, and hit/miss diagnostics (#2133, #2144) by [@jordimas](https://github.com/jordimas)
+* Add native CPU reference-audio encoding for Drama 3 voice cloning (#2141) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Preserve FP32 attention scores through softmax to fix CUDA alignment precision with FP16 and BF16 models (#2143) by [@jordimas](https://github.com/jordimas)
+* Improve Drama 3 prefill performance by increasing the default chunk size from 16 to 128, and fuse gated-delta projections during GPU decoding (#2133) by [@jordimas](https://github.com/jordimas)
+* Fix caching allocator shutdown crashes when the allocating thread exits (#2136) by [@jordimas](https://github.com/jordimas)
+* Fix FP16 overflow in CUDA attention score accumulation (#2131) by [@jordimas](https://github.com/jordimas)
+* Fix the eole converter scale for relative position keys (#2138) by [@maksimcialehin](https://github.com/maksimcialehin)
+* Add a Windows ROCm/HIP build guide and document AMD GPU support (#2041) by T0nd3 and [@jordimas](https://github.com/jordimas)
+* Add CUDA build instructions for NVIDIA Jetson devices (#2019) by [@vimalk78](https://github.com/vimalk78)
+
+## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-25)
+
+### New features
+
+* Build Python 3.15 wheels (#2129) by [@shaanmajid](https://github.com/shaanmajid)
+
+* Add an **experimental implementation** of Drama 3 offline text-to-speech, including model conversion and waveform decoding on CPU with optional CUDA and ROCm acceleration by [@jordimas](https://github.com/jordimas)
+* Add CPU and GPU implementations of CausalDepthwiseConv1D, ConvTranspose1D, DequantizeFP8, GatedDeltaNet, MoeTopK, and Snake operations for audio models (#2121) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Guard integer overflow in tensor size computation, reshape, and growth (#2097) by [@Kyozzz](https://github.com/Kyozzz) and [@jordimas](https://github.com/jordimas)
+* Fix CPU Conv1D dilation and INT8 quantization scale overflow for tiny weight rows (#2117) by [@jordimas](https://github.com/jordimas)
+* Use the caching allocator by default on HIP (#2118) by [@jordimas](https://github.com/jordimas)
+* Fix Wav2Vec2 lookups of packed linear weights (#2119) by [@arcusbuilds](https://github.com/arcusbuilds)
+* Fix Wav2Vec2-BERT float16 inference (#2126) by [@jordimas](https://github.com/jordimas)
+* Rebuild rotary caches when the device or data type changes by [@jordimas](https://github.com/jordimas)
+* Restore the Transformer include in the public attention header by [@jordimas](https://github.com/jordimas)
+* Improve CI reliability with updated GitHub Actions and retries for ROCm package index updates and macOS OneAPI downloads (#2125) by [@jordimas](https://github.com/jordimas)
+
+## [v4.8.3](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.3) (2026-10-13)
+
+### New features
+
+* Support converting UMT5 models from Hugging Face Transformers (#2103) by [@the-cross-art](https://github.com/the-cross-art)
+
+### Fixes and improvements
+
+* Support Transformer models where each layer has its own relative attention bias by [@the-cross-art](https://github.com/the-cross-art)
+* Fix Windows ROCm Translator hangs and DLL loading (#2106) by [@0xDELUXA](https://github.com/0xDELUXA)
+* Fix crashes when loading model files from Python file-like objects (#2110) by [@Purfview](https://github.com/Purfview)
+* Upgrade pybind11 to 2.13.6 for CPython 3.14 allocator safety (#2108) by [@cepeter](https://github.com/cepeter)
+* Guard exhausted candidates in CUDA TopK stage 2 (#2104) by [@mzggr0914](https://github.com/mzggr0914)
+* Fix Windows shutdown deadlocks and memory leaks with the Ruy backend (#2076) by [@timo9378](https://github.com/timo9378)
+* Add Clang ThreadSanitizer testing (#1986) by [@3manifold](https://github.com/3manifold)
+* Improve ROCm wheel testing and release checks; upgrade build actions to Node.js 24 (#2112) by [@jordimas](https://github.com/jordimas)
+* Add local CUDA and ROCm release validation with CI wheels and commit status reporting by [@jordimas](https://github.com/jordimas)
+
+
+## [v4.8.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.2) (2026-08-31)
+
+### Fixes and improvements
+
+* Import Python converters and specs lazily to avoid loading torch for inference-only use (#2080) by [@Anai-Guo](https://github.com/Anai-Guo)
+* Fix out-of-bounds reads in StorageView index validation (#2073) by [@jordimas](https://github.com/jordimas), reported by Nathan Keys (Halo Forge Labs)
+* Update cxxopts to v3.3.1 for GCC 15 compatibility (#2084) by [@bekard](https://github.com/bekard)
+* Validate model variable sizes before allocation (#2091) by [@jordimas](https://github.com/jordimas), reported by Hyeonbell
+* Check StorageView reserve byte size before allocation (#2094) by [@infinityscroll](https://github.com/infinityscroll)
+* Remove the runtime dependency on setuptools (#2096) by [@Ravencentric](https://github.com/Ravencentric)
+
+## [v4.8.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.1) (2026-07-03)
+
+### New features
+
+* Support for Gemma4 12B dense model (#2060) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Harden legacy converter checkpoint loading (#2036) by [@igorsantosgrueiro](https://github.com/igorsantosgrueiro)
+* Fix model load heap overflow (#2068) by [@jordimas](https://github.com/jordimas), reported by Chegne Eu Joe (Project Umbra)
+* Fix process-killing integer division by zero when Whisper align() gets a window with no frames (#2065) by [@MAkcanca](https://github.com/MAkcanca)
+* CI/CD compilation fixes for Windows (#2069) by [@jordimas](https://github.com/jordimas)
+* Optimize attention softmax buffer reuse (#2066) by [@jordimas](https://github.com/jordimas)
+
+## [v4.8.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.0) (2026-06-06)
+
+### New features
+
+* Add support for Google T5Gemma2 (#2058) by [@jordimas](https://github.com/jordimas)
+* Enables PACKED_GEMM by default for Intel MKL to improve Intel CPU performance (#2055) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Upgrade Thrust submodule from 1.12.0 to CCCL 2.7.0 (#2062) by [@jordimas](https://github.com/jordimas)
+* Adopt latest BS_thread_pool library version v5.1.0 (#2053) by [@3manifold](https://github.com/3manifold)
+* Upgrade CI system dependencies and reduce build time (#2056) by [@jordimas](https://github.com/jordimas)
+* Fix PyPI publish: download wheels to dist/ to avoid directory hash error (#2050) by [@jordimas](https://github.com/jordimas)
+* Fix flaky transformers_wav2vec2 test (#1996) by [@3manifold](https://github.com/3manifold)
+
+## [v4.7.2](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.2) (2026-05-18)
+
+### New features
+
+* Gemma4 support for dense model (#2048) by [@jordimas](https://github.com/jordimas)
+
+## Fixes and improvements
+
+* Gemma 3 model conversion fixes (#2037) by [@jordimas](https://github.com/jordimas)
+* Update source ROCM version from 7.2 to 7.2.1 (#2030) by [@racedale](https://github.com/racedale)
+* Free curand states before the thread is destroyed (#1912) by [@no1d](https://github.com/no1d)
+
 
 ## [v4.7.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.1) (2026-02-04)
 
-* Fix Windows build (#2007) [@sssshhhhhh](https://github.com/sssshhhhhh)
+## Fixes and improvements
+
+* Fix Windows build (#2007) by [@sssshhhhhh](https://github.com/sssshhhhhh)
+
+## [v4.7.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.7.0) (2026-02-03)
 
 ### New features
 
