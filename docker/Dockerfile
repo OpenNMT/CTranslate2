@@ -57,7 +57,7 @@ ARG CXX_FLAGS
 ENV CXX_FLAGS=${CXX_FLAGS:-"-msse4.1"}
 ARG CMAKE_CUDA_FLAGS
 ENV CMAKE_CUDA_FLAGS=${CMAKE_CUDA_FLAGS:-"-Xfatbin=-compress-all"}
-ARG CMAKE_CUDA_ARCHITECTURES="53-real;60-real;61-real;70-real;75-real;80-real;86"
+ARG CMAKE_CUDA_ARCHITECTURES="53-real;60-real;61-real;70-real;75-real;80-real;86;100-real;120-real"
 ENV CTRANSLATE2_ROOT=/opt/ctranslate2
 ENV LD_LIBRARY_PATH=/usr/local/lib/:${LD_LIBRARY_PATH}
 
