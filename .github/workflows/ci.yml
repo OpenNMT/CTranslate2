@@ -613,6 +613,7 @@ jobs:
     needs:
       - build-and-test-cpp-x86_64
       - build-and-test-cpp-x86_64-address_sanitizer
+      - build-and-test-cpp-x86_64-thread_sanitizer
       - build-and-test-cpp-arm64
       - build-python-wheels
       - test-python-wheels
@@ -642,6 +643,7 @@ jobs:
     needs:
       - build-and-test-cpp-x86_64
       - build-and-test-cpp-x86_64-address_sanitizer
+      - build-and-test-cpp-x86_64-thread_sanitizer
       - build-and-test-cpp-arm64
       - build-python-wheels
       - test-python-wheels

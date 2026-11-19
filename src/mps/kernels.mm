@@ -369,10 +369,10 @@ static inline float apply_unary(float x, uint op) {
     case 1: return log(x);
     case 2: return cos(x);
     case 3: return sin(x);
-    case 4: return tanh(x);
+    case 4: return precise::tanh(x);
     case 5: return max(x, 0.0f);
     case 6: return 0.5f * x * (1.0f + erf_approx(x * 0.7071067811865475f));
-    case 7: return 0.5f * x * (1.0f + tanh(0.7978845608028654f * (x + 0.044715f * x * x * x)));
+    case 7: return 0.5f * x * (1.0f + precise::tanh(0.7978845608028654f * (x + 0.044715f * x * x * x)));
     case 8: return x / (1.0f + exp(-1.702f * x));
     case 9: return 1.0f / (1.0f + exp(-x));
     case 10: return x / (1.0f + exp(-x));

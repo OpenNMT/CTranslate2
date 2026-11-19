@@ -1808,10 +1808,15 @@ class T5Loader(ModelLoader):
         self.set_stack(spec.decoder, model.decoder, is_decoder=True)
         self.set_linear(spec.decoder.projection, model.lm_head)
 
-        if model.config.tie_word_embeddings:
+        if self._scale_decoder_outputs(model.config):
             spec.decoder.scale_outputs = model.config.d_model**-0.5
 
         return spec
+
+    def _scale_decoder_outputs(self, config):
+        # Transformers 4 rescales when the word embeddings are tied. Transformers 5
+        # always sets tie_word_embeddings=True and decides with scale_decoder_outputs.
+        return getattr(config, "scale_decoder_outputs", config.tie_word_embeddings)
 
     def get_vocabulary(self, model, tokenizer):
         tokens = super().get_vocabulary(model, tokenizer)
@@ -1917,6 +1922,12 @@ class MT5Loader(T5Loader):
     @property
     def architecture_name(self):
         return "MT5ForConditionalGeneration"
+
+    def _scale_decoder_outputs(self, config):
+        # Transformers 4 rescales when the word embeddings are tied. Transformers 5
+        # never rescales mT5 outputs and always sets tie_word_embeddings=True.
+        transformers_major_version = int(transformers.__version__.split(".")[0])
+        return transformers_major_version < 5 and config.tie_word_embeddings
 
 
 @register_loader("UMT5Config")

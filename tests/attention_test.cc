@@ -9,7 +9,7 @@
 #  include "cuda/utils.h"
 
 TEST(AttentionTest, Float16ScoreAccumulation) {
-  const cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(true);
+  const ctranslate2::cuda::UseTrueFp16GemmInScope use_true_fp16_gemm(true);
   // The unscaled dot product (160000) overflows FP16; the scaled score (20000) fits.
   for (const dim_t heads : {1, 2}) {
     StorageView queries = StorageView({1, heads, 1, 64}, 50.f).to(Device::CUDA).to_float16();
@@ -24,7 +24,7 @@ TEST(AttentionTest, Float16ScoreAccumulation) {
                                     use_relative_keys ? &relative_keys : nullptr,
                                     nullptr, nullptr, nullptr,
                                     0, 0, 1, output, &attention, true, 0.125f);
-      EXPECT_TRUE(cuda::use_true_fp16_gemm());
+      EXPECT_TRUE(ctranslate2::cuda::use_true_fp16_gemm());
       expect_storage_eq(output.to_float32(), StorageView({1, heads, 1, 64}, 2.f));
       expect_storage_eq(attention.to_float32(), StorageView({1, heads, 1, 2}, 0.5f));
     }
@@ -231,7 +231,11 @@ TEST_F(CrossAttentionTest, GroupedQueryAttention) {
 // Merged self+cross attention (T5Gemma2 style): self-attention layer also
 // projects encoder memory through a separate `memory_kv` linear and concatenates
 // the result onto the self-attention K/V before softmax.
-TEST(MergedAttentionTest, ForwardMergedProducesOutput) {
+class MergedAttentionTest : public ::testing::TestWithParam<Device> {
+};
+
+TEST_P(MergedAttentionTest, PaddedBatchWithBeams) {
+  const Device device = GetParam();
   constexpr dim_t NUM_HEADS = 4, NUM_KV = 1, D_HEAD = 16;
   constexpr dim_t D_MODEL = NUM_HEADS * D_HEAD;
   constexpr dim_t QKV_ROWS = (NUM_HEADS + 2 * NUM_KV) * D_HEAD;
@@ -239,7 +243,7 @@ TEST(MergedAttentionTest, ForwardMergedProducesOutput) {
 
   class MergedMockModel : public models::Model {
   public:
-    MergedMockModel() {
+    MergedMockModel(Device device) {
       register_variable("attn/linear_0/weight",
                         StorageView({QKV_ROWS, D_MODEL}, std::vector<float>(QKV_ROWS * D_MODEL, 0.01f)));
       register_variable("attn/linear_1/weight",
@@ -250,30 +254,57 @@ TEST(MergedAttentionTest, ForwardMergedProducesOutput) {
       register_variable("attn/q_norm/gamma", StorageView({D_HEAD}, std::vector<float>(D_HEAD, 1.0f)));
       register_variable("attn/k_norm/gamma", StorageView({D_HEAD}, std::vector<float>(D_HEAD, 1.0f)));
       register_variable("attn/num_heads_kv", StorageView(static_cast<int32_t>(NUM_KV)));
-      set_compute_type(ComputeType::FLOAT32, Device::CPU, 0, false);
+      set_compute_type(ComputeType::FLOAT32, device, 0, false);
+      set_device(device);
     }
   protected:
     std::unique_ptr<Model> clone() const override { return nullptr; }
   };
 
-  MergedMockModel model;
+  MergedMockModel model(device);
   layers::MultiHeadAttention attention(model, "attn", NUM_HEADS, /*self_attention=*/true);
   ASSERT_TRUE(attention.has_merged_encoder_attention());
 
-  constexpr dim_t B = 1, Q_LEN = 1, MEM_LEN = 5;
-  StorageView queries({B, Q_LEN, D_MODEL}, std::vector<float>(B * Q_LEN * D_MODEL, 1.0f));
-  StorageView memory({B, MEM_LEN, D_MODEL}, std::vector<float>(B * MEM_LEN * D_MODEL, 1.0f));
-  StorageView output(DataType::FLOAT32);
-  StorageView self_k(DataType::FLOAT32), self_v(DataType::FLOAT32);
-  StorageView mem_k(DataType::FLOAT32), mem_v(DataType::FLOAT32);
+  constexpr dim_t B = 2, BEAM = 2, Q_LEN = 1, MEM_LEN = 5;
+  StorageView queries({B * BEAM, Q_LEN, D_MODEL}, 1.f, device);
+  std::vector<float> memory_data(B * MEM_LEN * D_MODEL, 1.f);
+  std::fill(memory_data.begin() + MEM_LEN * D_MODEL, memory_data.end(), 2.f);
+  StorageView memory({B, MEM_LEN, D_MODEL}, memory_data, device);
+  const StorageView lengths({B}, std::vector<int32_t>{3, 5}, device);
+  const Padder padder(lengths, MEM_LEN);
+  StorageView packed_memory(memory);
+  padder.remove_padding(packed_memory);
+  ASSERT_EQ(packed_memory.dim(0), 8);
 
-  attention.forward_merged(queries, &memory, nullptr, nullptr, output,
-                           &self_k, &self_v, &mem_k, &mem_v, nullptr, nullptr, /*offset=*/0);
+  StorageView output(device), reference(device);
+  StorageView self_k(device), self_v(device), mem_k(device), mem_v(device);
+  StorageView ref_self_k(device), ref_self_v(device), ref_mem_k(device), ref_mem_v(device);
+  for (dim_t step = 0; step < 2; ++step) {
+    // Padded values duplicate the last live token, matching Padder::add_padding.
+    attention.forward_merged(queries, step == 0 ? &memory : nullptr,
+                             nullptr, nullptr, reference,
+                             &ref_self_k, &ref_self_v, &ref_mem_k, &ref_mem_v,
+                             nullptr, nullptr, step);
+    attention.forward_merged(queries, step == 0 ? &packed_memory : nullptr,
+                             nullptr, nullptr, output,
+                             &self_k, &self_v, &mem_k, &mem_v,
+                             nullptr, &padder, step);
 
-  EXPECT_EQ(output.shape(), (Shape{B, Q_LEN, D_MODEL}));
-  EXPECT_EQ(mem_k.shape(), (Shape{B, NUM_HEADS, MEM_LEN, D_HEAD}));
-  EXPECT_EQ(self_k.shape(), (Shape{B, NUM_HEADS, Q_LEN, D_HEAD}));
+    expect_storage_eq(output, reference, 1e-5);
+    EXPECT_EQ(output.shape(), (Shape{B * BEAM, Q_LEN, D_MODEL}));
+    EXPECT_EQ(mem_k.shape(), (Shape{B, NUM_HEADS, MEM_LEN, D_HEAD}));
+    EXPECT_EQ(self_k.shape(), (Shape{B * BEAM, NUM_HEADS, step + 1, D_HEAD}));
+  }
 }
+
+INSTANTIATE_TEST_SUITE_P(CPU, MergedAttentionTest, ::testing::Values(Device::CPU));
+#ifdef CT2_WITH_CUDA
+INSTANTIATE_TEST_SUITE_P(CUDA, MergedAttentionTest,
+                        ::testing::Values(Device::CUDA));
+#endif
+#ifdef CT2_WITH_MPS
+INSTANTIATE_TEST_SUITE_P(MPS, MergedAttentionTest, ::testing::Values(Device::MPS));
+#endif
 
 // MHA: Each head has independent K/V
 TEST_F(CrossAttentionTest, StandardMultiHeadAttention) {
