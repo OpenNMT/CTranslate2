@@ -89,6 +89,15 @@ namespace ctranslate2 {
       return std::make_unique<EncoderDecoderReplica>(model, std::move(encoder), std::move(decoder));
     }
 
+    std::unique_ptr<SequenceEncoderReplica> TransformerModel::as_sequence_encoder() const {
+      const auto scoped_device_setter = get_scoped_device_setter();
+
+      auto encoder = std::make_unique<layers::TransformerEncoder>(*this, "encoder");
+
+      const auto model = std::static_pointer_cast<const TransformerEncoderModel>(shared_from_this());
+      return std::make_unique<EncoderReplica>(model, std::move(encoder));
+    }
+
     std::unique_ptr<Model> TransformerModel::clone() const {
       return std::make_unique<TransformerModel>(*this);
     }
