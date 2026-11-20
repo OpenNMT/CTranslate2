@@ -37,7 +37,7 @@ RUN wget -q https://apt.repos.intel.com/intel-gpg-keys/GPG-PUB-KEY-INTEL-SW-PROD
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN python3 -m pip --no-cache-dir install cmake==3.22.*
+RUN python3 -m pip --no-cache-dir install cmake==3.24.*
 
 ENV ONEDNN_VERSION=3.10.2
 RUN wget -q https://github.com/oneapi-src/oneDNN/archive/refs/tags/v${ONEDNN_VERSION}.tar.gz && \

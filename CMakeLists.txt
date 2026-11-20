@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.7)
+cmake_minimum_required(VERSION 3.24)
 
 # Set policy for setting the MSVC runtime library for static MSVC builds
 if(POLICY CMP0091)
@@ -15,6 +15,7 @@ option(WITH_RUY "Compile with Ruy backend" OFF)
 option(WITH_CUDA "Compile with CUDA backend" OFF)
 option(WITH_CUDNN "Compile with cuDNN backend" OFF)
 option(WITH_HIP "Compile with AMD HIP GPU backend" OFF)
+option(WITH_MPS "Compile with Apple Metal Performance Shaders backend" OFF)
 option(CUDA_DYNAMIC_LOADING "Dynamically load CUDA libraries at runtime" OFF)
 option(ENABLE_CPU_DISPATCH "Compile CPU kernels for multiple ISA and dispatch at runtime" ON)
 option(ENABLE_PROFILING "Compile with profiling support" OFF)
@@ -65,7 +66,13 @@ endif(NOT CMAKE_BUILD_TYPE)
 set(CMAKE_CXX_STANDARD 17)
 
 if(APPLE)
-  set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13)
+  if(WITH_MPS)
+    # Apple Silicon Macs ship with macOS 11 or newer. This also covers the
+    # Metal APIs used by the persistent command stream and MPSMatrix paths.
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 11.0)
+  else()
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.13)
+  endif()
 endif()
 
 
@@ -169,6 +176,7 @@ set(SOURCES
   src/ops/add.cc
   src/ops/alibi_add.cc
   src/ops/alibi_add_cpu.cc
+  src/ops/beam_search_topk.cc
   src/ops/bias_add.cc
   src/ops/bias_add_cpu.cc
   src/ops/concat.cc
@@ -192,6 +200,7 @@ set(SOURCES
   src/ops/dequantize_cpu.cc
   src/ops/flash_attention.cc
   src/ops/flash_attention_cpu.cc
+  src/ops/fused_attention.cc
   src/ops/gather.cc
   src/ops/gather_cpu.cc
   src/ops/gelu.cc
@@ -356,11 +365,11 @@ endif()
 
 if(NOT OPENMP_RUNTIME STREQUAL "NONE")
   if(MSVC)
-    add_compile_options("/openmp")
+    add_compile_options("$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:/openmp>")
   else()
     find_package(OpenMP)
     if(OpenMP_CXX_FOUND)
-      add_compile_options(${OpenMP_CXX_FLAGS})
+      add_compile_options("$<$<NOT:$<COMPILE_LANGUAGE:CUDA>>:SHELL:${OpenMP_CXX_FLAGS}>")
     endif()
   endif()
 
@@ -547,7 +556,14 @@ if (WITH_CUDA)
   if(WITH_HIP)
     message(FATAL_ERROR "WITH_CUDA=ON incompatible with WITH_HIP=ON")
   endif()
-  find_package(CUDA 11.0 REQUIRED)
+  # First-class CUDA language support (replaces the removed FindCUDA module).
+  # Let CMake initialize architectures from CUDAARCHS or the compiler default.
+  # Release builds pass an explicit list to preserve their GPU coverage.
+  set(CMAKE_CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
+  set(CMAKE_CUDA_STANDARD 17)
+  set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+  enable_language(CUDA)
+  find_package(CUDAToolkit 11.0 REQUIRED)
   list(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
   if (WITH_TENSOR_PARALLEL)
     find_package(MPI REQUIRED)
@@ -564,44 +580,37 @@ if (WITH_CUDA)
     endif ()
     add_definitions(-DCT2_WITH_TENSOR_PARALLEL)
   endif ()
-  include_directories(${CUDA_TOOLKIT_ROOT_DIR}/include)
+  include_directories(${CUDAToolkit_INCLUDE_DIRS})
 
   add_definitions(-DCT2_WITH_CUDA)
+
+  # Per-language CUDA compile options, applied to the target below through a
+  # $<COMPILE_LANGUAGE:CUDA> generator expression. The C++ standard and target
+  # architectures are handled by CMAKE_CUDA_STANDARD / CMAKE_CUDA_ARCHITECTURES.
+  set(CUDA_COMPILE_FLAGS "")
   if(MSVC)
+    if(NOT OPENMP_RUNTIME STREQUAL "NONE")
+      list(APPEND CUDA_COMPILE_FLAGS "-Xcompiler=/openmp")
+    endif()
     if(BUILD_SHARED_LIBS)
-      list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=/MD$<$<CONFIG:Debug>:d>")
+      list(APPEND CUDA_COMPILE_FLAGS "-Xcompiler=/MD$<$<CONFIG:Debug>:d>")
     else()
-      list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=/MT$<$<CONFIG:Debug>:d>")
+      list(APPEND CUDA_COMPILE_FLAGS "-Xcompiler=/MT$<$<CONFIG:Debug>:d>")
     endif()
   endif()
-  list(APPEND CUDA_NVCC_FLAGS "-std=c++17")
   if(OpenMP_CXX_FOUND)
-    list(APPEND CUDA_NVCC_FLAGS "-Xcompiler=${OpenMP_CXX_FLAGS}")
+    list(APPEND CUDA_COMPILE_FLAGS "-Xcompiler=${OpenMP_CXX_FLAGS}")
   endif()
-
-  if(NOT CUDA_ARCH_LIST)
-    set(CUDA_ARCH_LIST "Auto")
-  elseif(CUDA_ARCH_LIST STREQUAL "Common")
-    set(CUDA_ARCH_LIST ${CUDA_COMMON_GPU_ARCHITECTURES})
-    # Keep deprecated but not yet dropped Compute Capabilities.
-    if(CUDA_VERSION_MAJOR EQUAL 11)
-      list(INSERT CUDA_ARCH_LIST 0 "3.5" "5.0")
-    endif()
-    list(REMOVE_DUPLICATES CUDA_ARCH_LIST)
-  endif()
-
-  cuda_select_nvcc_arch_flags(ARCH_FLAGS ${CUDA_ARCH_LIST})
-  list(APPEND CUDA_NVCC_FLAGS ${ARCH_FLAGS})
-  set(CUDA_HOST_COMPILER ${CMAKE_CXX_COMPILER})
 
   # flags for flash attention
   if (WITH_FLASH_ATTN)
-    list(APPEND CUDA_NVCC_FLAGS "--expt-relaxed-constexpr")
-    list(APPEND CUDA_NVCC_FLAGS "--expt-extended-lambda")
+    list(APPEND CUDA_COMPILE_FLAGS "--expt-relaxed-constexpr")
+    list(APPEND CUDA_COMPILE_FLAGS "--expt-extended-lambda")
   endif()
 
-  message(STATUS "NVCC host compiler: ${CUDA_HOST_COMPILER}")
-  message(STATUS "NVCC compilation flags: ${CUDA_NVCC_FLAGS}")
+  message(STATUS "CUDA host compiler: ${CMAKE_CUDA_HOST_COMPILER}")
+  message(STATUS "CUDA architectures: ${CMAKE_CUDA_ARCHITECTURES}")
+  message(STATUS "CUDA compile flags: ${CUDA_COMPILE_FLAGS}")
 
   # We should ensure that the Thrust include directories appear before
   # -I/usr/local/cuda/include for both GCC and NVCC, so that the headers
@@ -611,18 +620,17 @@ if (WITH_CUDA)
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/thrust
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/thrust/libcudacxx/include
     )
-  cuda_include_directories(${THRUST_INCLUDE_DIRS})
   list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${THRUST_INCLUDE_DIRS})
 
   set(CUTLASS_INCLUDE_DIRS
     ${CMAKE_CURRENT_SOURCE_DIR}/third_party/cutlass/include
   )
-  cuda_include_directories(${CUTLASS_INCLUDE_DIRS})
   list(APPEND PRIVATE_INCLUDE_DIRECTORIES ${CUTLASS_INCLUDE_DIRS})
 
   if(WITH_CUDNN)
     # Find cuDNN includes.
-    find_path(CUDNN_INCLUDE_DIR NAMES cudnn.h HINTS ${CUDA_TOOLKIT_ROOT_DIR}/include)
+    find_path(CUDNN_INCLUDE_DIR NAMES cudnn.h
+      HINTS ${CUDAToolkit_INCLUDE_DIRS} ${CUDAToolkit_LIBRARY_DIR}/../include)
     if(CUDNN_INCLUDE_DIR)
       message(STATUS "Found cuDNN include directory: ${CUDNN_INCLUDE_DIR}")
     else()
@@ -633,9 +641,8 @@ if (WITH_CUDA)
     find_library(CUDNN_LIBRARIES
       NAMES cudnn
       HINTS
-      ${CUDA_TOOLKIT_ROOT_DIR}/lib
-      ${CUDA_TOOLKIT_ROOT_DIR}/lib64
-      ${CUDA_TOOLKIT_ROOT_DIR}/lib/x64
+      ${CUDAToolkit_LIBRARY_DIR}
+      ${CUDAToolkit_LIBRARY_DIR}/x64
     )
     if(CUDNN_LIBRARIES)
       message(STATUS "Found cuDNN libraries: ${CUDNN_LIBRARIES}")
@@ -655,7 +662,7 @@ if (WITH_CUDA)
   if(CUDA_DYNAMIC_LOADING)
     list(APPEND SOURCES src/cuda/cublas_stub.cc)
   else()
-    list(APPEND LIBRARIES ${CUDA_CUBLAS_LIBRARIES})
+    list(APPEND LIBRARIES CUDA::cudart CUDA::cublas)
   endif()
   if (WITH_FLASH_ATTN)
     add_definitions(-DCT2_WITH_FLASH_ATTN)
@@ -729,11 +736,12 @@ if (WITH_CUDA)
       src/ops/flash-attention/flash_fwd_split_hdim256_fp16_sm80.cu
       PROPERTIES COMPILE_FLAGS "--use_fast_math")
   endif()
-  set(CUDA_LINK_LIBRARIES_KEYWORD PRIVATE)
-  cuda_add_library(${PROJECT_NAME}
+  add_library(${PROJECT_NAME}
     ${SOURCES}
     ${CUDA_SOURCES}
   )
+  target_compile_options(${PROJECT_NAME} PRIVATE
+    $<$<COMPILE_LANGUAGE:CUDA>:${CUDA_COMPILE_FLAGS}>)
 
 
 elseif(WITH_HIP)
@@ -828,6 +836,61 @@ elseif(WITH_CUDNN)
   message(FATAL_ERROR "WITH_CUDNN=ON requires WITH_CUDA=ON")
 else()
   add_library(${PROJECT_NAME} ${SOURCES})
+endif()
+
+if(WITH_MPS)
+  if(NOT APPLE)
+    message(FATAL_ERROR "WITH_MPS=ON is only supported on Apple platforms")
+  endif()
+  if(WITH_CUDA OR WITH_HIP)
+    message(FATAL_ERROR "WITH_MPS cannot be enabled together with CUDA or HIP")
+  endif()
+
+  message(STATUS "Enabling MPS (Metal) backend for Apple Silicon")
+  enable_language(OBJCXX)
+  target_compile_definitions(${PROJECT_NAME} PUBLIC CT2_WITH_MPS)
+
+  set(MPS_SOURCES
+    src/mps/allocator.mm
+    src/mps/kernels.mm
+    src/mps/ops_utils.mm
+    src/mps/ops_stubs.mm
+    src/mps/primitives.mm
+    src/mps/utils.mm
+    src/ops/alibi_add_mps.mm
+    src/ops/beam_search_topk_mps.mm
+    src/ops/bias_add_mps.mm
+    src/ops/concat_mps.mm
+    src/ops/conv1d_mps.mm
+    src/ops/dequantize_mps.mm
+    src/ops/gather_mps.mm
+    src/ops/gemm_mps.mm
+    src/ops/fused_attention_mps.mm
+    src/ops/gumbel_max_mps.mm
+    src/ops/layer_norm_mps.mm
+    src/ops/mean_mps.mm
+    src/ops/median_filter_mps.mm
+    src/ops/multinomial_mps.mm
+    src/ops/quantize_mps.mm
+    src/ops/rms_norm_mps.mm
+    src/ops/rotary_mps.mm
+    src/ops/slide_mps.mm
+    src/ops/softmax_mps.cc
+    src/ops/split_mps.mm
+    src/ops/tile_mps.mm
+    src/ops/topk_mps.mm
+    src/ops/topp_mask_mps.mm
+  )
+  target_sources(${PROJECT_NAME} PRIVATE ${MPS_SOURCES})
+
+  find_library(METAL_LIBRARY Metal REQUIRED)
+  find_library(MPS_LIBRARY MetalPerformanceShaders REQUIRED)
+  find_library(FOUNDATION_LIBRARY Foundation REQUIRED)
+  target_link_libraries(${PROJECT_NAME} PRIVATE
+    ${METAL_LIBRARY}
+    ${MPS_LIBRARY}
+    ${FOUNDATION_LIBRARY}
+  )
 endif()
 
 include(GenerateExportHeader)

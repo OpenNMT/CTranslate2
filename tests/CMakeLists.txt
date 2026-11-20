@@ -8,6 +8,7 @@ add_executable(ctranslate2_test
   attention_test.cc
   batching_test.cc
   decoding_test.cc
+  devices_test.cc
   gated_delta_layer_test.cc
   moe_layer_test.cc
   drama3_serialization_test.cc
@@ -38,6 +39,17 @@ add_executable(ctranslate2_test
 target_include_directories(ctranslate2_test PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/../src
   )
+if(WITH_CUDA)
+  target_include_directories(ctranslate2_test BEFORE PRIVATE ${THRUST_INCLUDE_DIRS})
+endif()
+if(MSVC)
+  target_compile_options(ctranslate2_test PRIVATE /utf-8)
+  if(WITH_CUDA)
+    # CUDA toolkit headers require the standard-conforming MSVC preprocessor.
+    target_compile_options(ctranslate2_test PRIVATE /Zc:preprocessor)
+  endif()
+endif()
+
 target_link_libraries(ctranslate2_test PRIVATE
   ${PROJECT_NAME}
   gtest_main
@@ -57,8 +69,19 @@ if(NOT MSVC)
   target_compile_options(benchmark_ops PRIVATE -Wno-unused-result)
 endif()
 
+if(WITH_MPS)
+  target_sources(ctranslate2_test PRIVATE mps_error_test.cc)
+
+  add_executable(benchmark_mps
+    benchmark_mps.cc
+    )
+  target_link_libraries(benchmark_mps
+    ${PROJECT_NAME}
+    )
+endif()
+
 if(WITH_CUDA)
-  target_link_libraries(benchmark_ops PRIVATE ${CUDA_LIBRARIES})
+  target_link_libraries(benchmark_ops PRIVATE CUDA::cudart)
 
 elseif(WITH_HIP)
   enable_language(HIP)

@@ -11,6 +11,59 @@ namespace ctranslate2 {
     {
     }
 
+    template<>
+    bool LayerNorm::supports_fused_bias_residual<Device::CPU>(DataType) const {
+      return false;
+    }
+
+    template<>
+    bool LayerNorm::supports_fused_bias_residual<Device::CUDA>(DataType) const {
+      return false;
+    }
+
+    template<>
+    bool LayerNorm::try_fused_bias_residual<Device::CPU>(const StorageView&,
+                                                          const StorageView&,
+                                                          const StorageView&,
+                                                          const StorageView&,
+                                                          const StorageView&,
+                                                          StorageView&) const {
+      return false;
+    }
+
+    template<>
+    bool LayerNorm::try_fused_bias_residual<Device::CUDA>(const StorageView&,
+                                                           const StorageView&,
+                                                           const StorageView&,
+                                                           const StorageView&,
+                                                           const StorageView&,
+                                                           StorageView&) const {
+      return false;
+    }
+
+    bool LayerNorm::supports_fused_bias_residual(Device device, DataType dtype) const {
+      bool supported = false;
+      DEVICE_DISPATCH(device, supported = supports_fused_bias_residual<D>(dtype));
+      return supported;
+    }
+
+    bool LayerNorm::try_fused_bias_residual(const StorageView& beta,
+                                             const StorageView& gamma,
+                                             const StorageView& input,
+                                             const StorageView& bias,
+                                             const StorageView& residual,
+                                             StorageView& output) const {
+      bool supported = false;
+      DEVICE_DISPATCH(input.device(),
+                      supported = try_fused_bias_residual<D>(beta,
+                                                             gamma,
+                                                             input,
+                                                             bias,
+                                                             residual,
+                                                             output));
+      return supported;
+    }
+
     void LayerNorm::operator()(const StorageView& beta,
                                const StorageView& gamma,
                                const StorageView& input,

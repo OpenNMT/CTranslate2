@@ -352,9 +352,21 @@ namespace ctranslate2 {
       }
       if (_quantized_gemm) {
         const auto device = input.device();
+
+        if (!affected_by_tp
+            && qscale
+            && _output_type == input.dtype()
+            && _gemm_op.try_weight_only_int8(input,
+                                              *weight,
+                                              *qscale,
+                                              output,
+                                              _activation_type,
+                                              bias,
+                                              residual))
+          return;
+
         StorageView qinput(_weight.dtype(), device);
         StorageView qinput_scale(_qscale->dtype(), device);
-        StorageView qoutput(DataType::INT32, device);
         const StorageView* pinput = &input;
 
         if (affected_by_tp) {
@@ -389,6 +401,7 @@ namespace ctranslate2 {
           _quantize_op(input, qinput, qinput_scale);
         }
 
+        StorageView qoutput(DataType::INT32, device);
         _gemm_op(qinput, *weight, qoutput, compensation);
         _dequantize_op(qoutput,
                        qinput_scale,
@@ -441,6 +454,25 @@ namespace ctranslate2 {
       }
     }
 
+    void Dense::forward_with_post_layer_norm(const StorageView& input,
+                                             const StorageView& residual,
+                                             const LayerNorm& layer_norm,
+                                             StorageView& output) const {
+      const StorageView* weight = _partial_weight.empty() ? &_weight : &_partial_weight;
+      const StorageView* bias = _partial_bias.empty() ? _bias : &_partial_bias;
+      if (layer_norm.supports_fused_bias_residual(input.device(), input.dtype())
+          && !_quantized_gemm
+          && !_qzero
+          && !_activation_type
+          && bias) {
+        _gemm_op(input, *weight, output);
+        if (layer_norm.apply_fused_bias_residual(output, *bias, residual, output))
+          return;
+      }
+      (*this)(input, output, &residual);
+      layer_norm(output, output);
+    }
+
 
     LayerNorm::LayerNorm(const models::Model& model, const std::string& scope)
       : _beta(model.get_variable_if_exists(scope + "/beta"))
@@ -469,6 +501,25 @@ namespace ctranslate2 {
         const ops::RMSNorm norm_op(_epsilon, _use_residual);
         norm_op(_gamma, input, output);
       }
+    }
+
+    bool LayerNorm::apply_fused_bias_residual(const StorageView& input,
+                                              const StorageView& bias,
+                                              const StorageView& residual,
+                                              StorageView& output) const {
+      if (!_beta)
+        return false;
+
+      return ops::LayerNorm(-1, _epsilon).try_fused_bias_residual(*_beta,
+                                                                  _gamma,
+                                                                  input,
+                                                                  bias,
+                                                                  residual,
+                                                                  output);
+    }
+
+    bool LayerNorm::supports_fused_bias_residual(Device device, DataType dtype) const {
+      return _beta && ops::LayerNorm(-1, _epsilon).supports_fused_bias_residual(device, dtype);
     }
 
 

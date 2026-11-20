@@ -76,7 +76,9 @@ namespace ctranslate2 {
                                 StorageView* cached_values,
                                 const Padder* queries_padder,
                                 const Padder* values_padder,
-                                dim_t& beam_size) const;
+                                dim_t& beam_size,
+                                bool use_interleaved_beam_layout = false,
+                                bool* interleaved_beam_layout = nullptr) const;
 
     private:
       static void split_heads(StorageView& x,

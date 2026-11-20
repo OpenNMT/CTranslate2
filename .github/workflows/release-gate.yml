@@ -1,0 +1,64 @@
+name: release-gate
+
+on:
+  workflow_call:
+
+jobs:
+  release-gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-22.04
+            device: cpu
+            artifact: python-wheels-Linux-auto64
+            wheel: "*-cp312-cp312-manylinux*x86_64.whl"
+          - os: ubuntu-22.04-arm
+            device: cpu
+            artifact: python-wheels-Linux-aarch64
+            wheel: "*-cp312-cp312-manylinux*aarch64.whl"
+          - os: macos-15
+            device: cpu
+            artifact: python-wheels-macOS-arm64
+            wheel: "*-cp312-cp312-macosx*arm64.whl"
+          # Disabled: the 4.9.0 baseline crashes on t5gemma_generation with
+          # "MPS pointer is not backed by a registered Metal buffer".
+          # - os: macos-15
+          #   device: mps
+          #   artifact: python-wheels-macOS-arm64
+          #   wheel: "*-cp312-cp312-macosx*arm64.whl"
+          - os: windows-2022
+            device: cpu
+            artifact: python-wheels-Windows-auto64
+            wheel: "*-cp312-cp312-win_amd64.whl"
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Verify Apple Silicon and execute a Metal kernel
+        if: ${{ matrix.device == 'mps' }}
+        shell: bash
+        run: |
+          test "$(uname -m)" = "arm64"
+          system_profiler SPHardwareDataType SPDisplaysDataType | tee runner-hardware.txt
+          swift python/tools/check_metal.swift | tee metal-probe.txt
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Download candidate wheels
+        uses: actions/download-artifact@v8
+        with:
+          name: ${{ matrix.artifact }}
+          path: candidate-wheels
+
+      - name: Run release gate
+        shell: bash
+        env:
+          CT2_VERBOSE: "1"
+          CANDIDATE_WHEEL_PATTERN: ${{ matrix.wheel }}
+        run: >-
+          python tools/release-gates/run_gate.py
+          --candidate-wheel-pattern "candidate-wheels/$CANDIDATE_WHEEL_PATTERN"
+          --limit 20 --bleu-limit 500 --device ${{ matrix.device }}

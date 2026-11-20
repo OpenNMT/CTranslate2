@@ -51,6 +51,53 @@ export CT2_CUDA_CACHING_ALLOCATOR_CONFIG=8,3,7,6291455
 
 See the description of each parameter in the [allocator implementation](https://github.com/NVIDIA/cub/blob/main/cub/util_allocator.cuh).
 
+```{attention}
+**Apple Metal (experimental).** The `CT2_MPS_*` variables below configure the experimental Apple Metal (MPS) backend. It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`. It remains an explicit runtime opt-in with `device="mps"`; `device="auto"` continues to select CPU. The variables and their defaults may change.
+```
+
+## `CT2_MPS_MAX_COMPUTE_OPS`
+
+Set the maximum number of compute operations encoded before the current MPS
+command buffer is committed without waiting. The default is `16`.
+
+## `CT2_MPS_MAX_BLIT_OPS`
+
+Set the maximum number of copy/blit operations encoded before the current MPS
+command buffer is committed without waiting. The default is `64`.
+
+## `CT2_MPS_MAX_INFLIGHT_COMMAND_BUFFERS`
+
+Set the maximum number of unfinished MPS command buffers. The default is `8`,
+which keeps useful CPU/GPU overlap while bounding Metal temporary resources on
+unified-memory systems. Increasing this value can help large-memory devices,
+but should be validated with cold, end-to-end inference rather than GEMM-only
+benchmarks.
+
+## `CT2_MPS_PROFILE`
+
+Print aggregated MPS execution counters at process exit, including command
+buffers, dispatches, synchronization points, GEMM paths, TopK calls, copies,
+allocations, and buffer lookups. Profiling is disabled by default.
+
+This is an unstable debugging interface and its output may change without
+notice.
+
+## `CT2_MPS_LOG_GEMM`
+
+Log each MPS GEMM shape, transpose and stride configuration, and selected
+execution path. This option is intended for debugging and benchmarking.
+
+This is an unstable debugging interface and its output may change without
+notice.
+
+## `CT2_MPS_LOG_SYNC`
+
+Log each MPS synchronization together with its reason and host-visible byte
+count.
+
+This is an unstable debugging interface and its output may change without
+notice.
+
 ## `CT2_FORCE_CPU_ISA`
 
 Force CTranslate2 to select a specific instruction set architecture (ISA). Possible values are:

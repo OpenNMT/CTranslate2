@@ -103,6 +103,33 @@ static Translator default_translator(Device device = Device::CPU) {
   return Translator(default_model_dir(), device);
 }
 
+#ifdef CT2_WITH_MPS
+TEST(TranslatorTest, MPSFloat32GreedyMatchesCPU) {
+  const std::vector<std::string> input = {"آ", "ت", "ز", "م", "و", "ن"};
+  TranslationOptions options;
+  options.beam_size = 1;
+  options.max_decoding_length = 12;
+
+  Translator cpu(default_model_dir(), Device::CPU, ComputeType::FLOAT32);
+  Translator mps(default_model_dir(), Device::MPS, ComputeType::FLOAT32);
+  const auto expected = cpu.translate_batch({input}, options)[0].output();
+  const auto output = mps.translate_batch({input}, options)[0].output();
+  EXPECT_EQ(output, expected);
+}
+
+TEST(TranslatorTest, MPSFloat16GreedyMatchesCPU) {
+  const std::vector<std::string> input = {"آ", "ت", "ز", "م", "و", "ن"};
+  TranslationOptions options;
+  options.beam_size = 1;
+  options.max_decoding_length = 12;
+  Translator cpu(default_model_dir(), Device::CPU, ComputeType::FLOAT32);
+  Translator mps(default_model_dir(), Device::MPS, ComputeType::FLOAT16);
+  const auto expected = cpu.translate_batch({input}, options)[0].output();
+  const auto output = mps.translate_batch({input}, options)[0].output();
+  EXPECT_EQ(output, expected);
+}
+#endif
+
 TEST_P(SearchVariantTest, SetMaxDecodingLength) {
   Translator translator = default_translator();
   TranslationOptions options;
@@ -715,7 +742,7 @@ TEST_P(BiasedDecodingDeviceFPTest, NonZeroTimestepDiverge) {
 INSTANTIATE_TEST_SUITE_P(CPU, BiasedDecodingDeviceFPTest,
                          ::testing::Values(FloatType{Device::CPU, DataType::FLOAT32}),
                          fp_test_name);
-#ifdef CT2_WITH_CUDA
+#if defined(CT2_WITH_CUDA) || defined(CT2_USE_HIP)
 INSTANTIATE_TEST_SUITE_P(CUDA, BiasedDecodingDeviceFPTest,
                          ::testing::Values(FloatType{Device::CUDA, DataType::FLOAT32},
                                            FloatType{Device::CUDA, DataType::FLOAT16}),

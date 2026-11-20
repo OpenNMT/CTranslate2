@@ -914,6 +914,27 @@ namespace ctranslate2 {
         spdlog::info(" - Selected compute type: {}",
                      compute_type_to_str(model->effective_compute_type()));
 
+#ifdef CT2_WITH_MPS
+        if (device == Device::MPS)
+          spdlog::warn("The Apple Metal (MPS) backend is experimental.");
+
+#if defined(__APPLE__) && (defined(__aarch64__) || defined(__arm64__))
+        if (device == Device::CPU)
+          spdlog::warn("Tip: experimental MPS backend is available and often 2x+ faster than CPU "
+                       "on Apple Silicon (varies by workload and hardware). Try device=\"mps\".");
+#endif
+
+        if (device == Device::MPS
+            && (model->requested_compute_type() == ComputeType::INT8
+                || model->requested_compute_type() == ComputeType::INT8_FLOAT16)
+            && model->effective_compute_type() == ComputeType::FLOAT16) {
+          spdlog::warn("Requested {} on MPS resolves to float16 because native INT8 "
+                       "is slower and can produce different decoding decisions on current "
+                       "Apple GPUs.",
+                       compute_type_to_str(model->requested_compute_type()));
+        }
+#endif
+
         if (model->requested_compute_type() == ComputeType::DEFAULT
             && model->effective_compute_type() != model->saved_compute_type())
           spdlog::warn("The compute type inferred from the saved model is {}, "

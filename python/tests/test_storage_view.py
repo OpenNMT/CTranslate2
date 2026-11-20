@@ -47,15 +47,28 @@ def test_storageview_cpu(dtype, name):
     assert test_utils.array_equal(x, y)
 
 
-def test_storageview_to_device():
+@test_utils.on_available_devices
+def test_storageview_to_device(device):
     x = np.ones(10, dtype="float32")
     cx = ctranslate2.StorageView.from_array(x)
 
     assert cx.device == "cpu"
     assert cx.dtype == ctranslate2.DataType.float32
 
-    cpu_x = cx.to_device(ctranslate2.Device.cpu)
+    device_x = cx.to_device(getattr(ctranslate2.Device, device))
+    assert device_x.device == device
+
+    cpu_x = device_x.to_device(ctranslate2.Device.cpu)
     assert test_utils.array_equal(x, np.array(cpu_x))
+
+
+@test_utils.require_mps
+def test_storageview_mps_does_not_expose_cuda_array_interface():
+    x = np.arange(4, dtype=np.float32)
+    storage = ctranslate2.StorageView.from_array(x).to_device(ctranslate2.Device.mps)
+
+    assert storage.device == "mps"
+    assert not hasattr(storage, "__cuda_array_interface__")
 
 
 @test_utils.require_cuda

@@ -1,0 +1,10 @@
+faster-whisper==1.0.2
+requests==2.34.2
+jiwer==4.0.0
+datasets==5.1.0
+soundfile==0.14.0
+transformers==5.22.2
+torch==2.15.0
+sacrebleu==2.6.0
+sentencepiece==0.2.3
+sacremoses==0.2.0

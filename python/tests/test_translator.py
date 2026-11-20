@@ -23,6 +23,12 @@ def _get_model_path():
     )
 
 
+def _get_int8_model_path():
+    return os.path.join(
+        test_utils.get_data_dir(), "models", "v2", "aren-transliteration-i8"
+    )
+
+
 def _get_model_path_with_vmap(tmp_dir, tokens):
     model_dir = str(tmp_dir.join("model"))
     shutil.copytree(_get_model_path(), model_dir)
@@ -103,8 +109,14 @@ def test_compute_type():
 
 
 @pytest.mark.parametrize("max_batch_size", [0, 1])
-def test_batch_translation(max_batch_size):
-    translator = _get_transliterator()
+@pytest.mark.parametrize(
+    "device,compute_type",
+    [("cpu", "float32")] + ([("mps", "float16")] if test_utils.has_mps() else []),
+)
+def test_batch_translation(max_batch_size, device, compute_type):
+    translator = ctranslate2.Translator(
+        _get_model_path(), device=device, compute_type=compute_type
+    )
     output = translator.translate_batch(
         [["آ", "ت", "ز", "م", "و", "ن"], ["آ", "ت", "ش", "ي", "س", "و", "ن"]],
         max_batch_size=max_batch_size,
@@ -132,6 +144,45 @@ def test_batch_translation(max_batch_size):
     assert output[0][0]["score"] < 0
     assert "attention" not in output[0][0]
     assert output[1][0]["tokens"] == ["a", "c", "h", "i", "s", "o", "n"]
+
+
+@test_utils.require_mps
+def test_mps_is_explicit_opt_in():
+    translator = ctranslate2.Translator(_get_model_path(), device="auto")
+    assert translator.device == "cpu"
+
+
+@pytest.mark.parametrize("requested_compute_type", ["int8", "int8_float16"])
+@test_utils.require_mps
+def test_mps_int8_requests_use_float16_path(requested_compute_type):
+    source = [["آ", "ت", "ز", "م", "و", "ن"]]
+    options = dict(beam_size=1, max_decoding_length=12)
+    float16 = ctranslate2.Translator(
+        _get_model_path(), device="mps", compute_type="float16"
+    )
+    requested = ctranslate2.Translator(
+        _get_model_path(), device="mps", compute_type=requested_compute_type
+    )
+
+    assert requested.compute_type == "float16"
+    expected = float16.translate_batch(source, **options)[0].hypotheses[0]
+    output = requested.translate_batch(source, **options)[0].hypotheses[0]
+    assert output == expected
+
+
+@test_utils.require_mps
+def test_mps_stored_int8_model_is_converted_once():
+    translator = ctranslate2.Translator(
+        _get_int8_model_path(), device="mps", compute_type="int8"
+    )
+
+    assert translator.compute_type == "float16"
+    result = translator.translate_batch(
+        [["آ", "ت", "ز", "م", "و", "ن"]],
+        beam_size=1,
+        max_decoding_length=12,
+    )[0]
+    assert result.hypotheses[0] == ["a", "t", "z", "m", "o", "n"]
 
 
 def test_batch_translation_async():

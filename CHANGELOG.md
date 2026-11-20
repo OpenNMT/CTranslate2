@@ -1,12 +1,35 @@
-## [Unreleased]
+## [v4.9.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.0) (2026-11-10)
 
 ### New features
 
+* Add an experimental Apple Metal (MPS) backend for Apple Silicon GPUs, selected with `device="mps"` (#2077) by [@TBO22](https://github.com/TBO22). It is included in Apple Silicon Python wheels and can be enabled in source builds with `-DWITH_MPS=ON`; `device="auto"` continues to select CPU on Apple Silicon
+* Include `gfx1031`, `gfx1032`, `gfx1035`, and `gfx1103` targets in the ROCm wheels (#2142) by [@jordimas](https://github.com/jordimas)
+
 ### Fixes and improvements
 
-* Fix the eole converter scale for relative position keys (#2134) by [@maksimcialehin](https://github.com/maksimcialehin)
+* Scale rotary embeddings in float32 before the dtype conversion to preserve precision in FP16 and BF16 models (#2146) by [@Kyozzz](https://github.com/Kyozzz)
+* Replace the deprecated `FindCUDA` CMake module with native CMake CUDA support (#2067) by [@gaborlukacs](https://github.com/gaborlukacs)
+* Bump the CI MKL to 2025.3 and reuse shared build scripts (#2145) by [@jordimas](https://github.com/jordimas)
+* Add performance and accuracy regression tests to CI (#2147) by [@jordimas](https://github.com/jordimas)
 
-## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-24)
+## [v4.8.5](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.5) (2026-11-02)
+
+### New features
+
+* Cache Drama 3 prompt prefixes with LRU eviction, cache controls, and hit/miss diagnostics (#2133, #2144) by [@jordimas](https://github.com/jordimas)
+* Add native CPU reference-audio encoding for Drama 3 voice cloning (#2141) by [@jordimas](https://github.com/jordimas)
+
+### Fixes and improvements
+
+* Preserve FP32 attention scores through softmax to fix CUDA alignment precision with FP16 and BF16 models (#2143) by [@jordimas](https://github.com/jordimas)
+* Improve Drama 3 prefill performance by increasing the default chunk size from 16 to 128, and fuse gated-delta projections during GPU decoding (#2133) by [@jordimas](https://github.com/jordimas)
+* Fix caching allocator shutdown crashes when the allocating thread exits (#2136) by [@jordimas](https://github.com/jordimas)
+* Fix FP16 overflow in CUDA attention score accumulation (#2131) by [@jordimas](https://github.com/jordimas)
+* Fix the eole converter scale for relative position keys (#2138) by [@maksimcialehin](https://github.com/maksimcialehin)
+* Add a Windows ROCm/HIP build guide and document AMD GPU support (#2041) by T0nd3 and [@jordimas](https://github.com/jordimas)
+* Add CUDA build instructions for NVIDIA Jetson devices (#2019) by [@vimalk78](https://github.com/vimalk78)
+
+## [v4.8.4](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.8.4) (2026-10-25)
 
 ### New features
 
