@@ -2256,6 +2256,12 @@ class Gemma2Loader(ModelLoader):
             pre_post_layer_norm=True,
         )
 
+        # Queries are scaled by query_pre_attn_scalar, which differs from head_dim
+        # in Gemma 2 27B.
+        queries_scale = np.float32(model.config.query_pre_attn_scalar**-0.5)
+        for layer_spec in spec.decoder.layer:
+            layer_spec.self_attention.queries_scale = queries_scale
+
         self.set_decoder(spec.decoder, model.model)
         self.set_linear(spec.decoder.projection, model.lm_head)
         spec.decoder.embeddings.multiply_by_sqrt_depth = model.config.hidden_size**0.5
@@ -2570,9 +2576,14 @@ class Gemma3Loader(ModelLoader):
         # Store layer_types for use in set_decoder
         self._layer_types = layer_types
 
+        # Queries are scaled by query_pre_attn_scalar, which differs from head_dim
+        # in Gemma 3 27B.
+        queries_scale = np.float32(text_config.query_pre_attn_scalar**-0.5)
+
         # Override per-layer settings for global vs local attention
         for i, layer_type in enumerate(layer_types):
             layer = spec.decoder.layer[i]
+            layer.self_attention.queries_scale = queries_scale
             if layer_type == "full_attention":
                 layer.self_attention.rotary_base = np.dtype("float32").type(rope_theta)
                 layer.self_attention.sliding_window = np.dtype("int32").type(0)
