@@ -2256,9 +2256,18 @@ class Gemma2Loader(ModelLoader):
             pre_post_layer_norm=True,
         )
 
+        # Queries are scaled by query_pre_attn_scalar, which differs from head_dim
+        # in Gemma 2 27B.
+        queries_scale = np.float32(model.config.query_pre_attn_scalar**-0.5)
+        for layer_spec in spec.decoder.layer:
+            layer_spec.self_attention.queries_scale = queries_scale
+
         self.set_decoder(spec.decoder, model.model)
         self.set_linear(spec.decoder.projection, model.lm_head)
         spec.decoder.embeddings.multiply_by_sqrt_depth = model.config.hidden_size**0.5
+        final_softcap = getattr(model.config, "final_logit_softcapping", None)
+        if final_softcap is not None and final_softcap > 0:
+            spec.decoder.final_logit_softcapping = np.float32(final_softcap)
         return spec
 
     def get_vocabulary(self, model, tokenizer):
@@ -2505,6 +2514,21 @@ class Gemma3Loader(ModelLoader):
         rope_local_base_freq = getattr(
             text_config, "rope_local_base_freq", 10_000
         )  # Local: 10k
+        rope_parameters = getattr(text_config, "rope_parameters", None) or {}
+        global_rope = rope_parameters.get("full_attention", {})
+        local_rope = rope_parameters.get("sliding_attention", {})
+        rope_theta = global_rope.get("rope_theta", rope_theta)
+        rope_local_base_freq = local_rope.get("rope_theta", rope_local_base_freq)
+        global_scaling = global_rope or getattr(text_config, "rope_scaling", None) or {}
+        global_rope_type = global_scaling.get(
+            "rope_type", global_scaling.get("type", "default")
+        )
+        if global_rope_type not in ("default", "linear"):
+            raise NotImplementedError(
+                "Unsupported Gemma 3 full-attention RoPE: %s" % global_rope_type
+            )
+        if local_rope.get("rope_type", "default") != "default":
+            raise NotImplementedError("Unsupported Gemma 3 sliding-attention RoPE")
 
         # Get sliding window configuration
         sliding_window = getattr(text_config, "sliding_window", 1024)
@@ -2567,12 +2591,24 @@ class Gemma3Loader(ModelLoader):
         # Store layer_types for use in set_decoder
         self._layer_types = layer_types
 
+        # Queries are scaled by query_pre_attn_scalar, which differs from head_dim
+        # in Gemma 3 27B.
+        queries_scale = np.float32(text_config.query_pre_attn_scalar**-0.5)
+
         # Override per-layer settings for global vs local attention
         for i, layer_type in enumerate(layer_types):
             layer = spec.decoder.layer[i]
+            layer.self_attention.queries_scale = queries_scale
             if layer_type == "full_attention":
                 layer.self_attention.rotary_base = np.dtype("float32").type(rope_theta)
                 layer.self_attention.sliding_window = np.dtype("int32").type(0)
+                if global_rope_type == "linear":
+                    layer.self_attention.rotary_scaling_type = np.int8(
+                        attention_spec.RotaryScalingType.Linear
+                    )
+                    layer.self_attention.rotary_scaling_factor = np.float32(
+                        global_scaling["factor"]
+                    )
             elif layer_type == "sliding_attention":
                 layer.self_attention.rotary_base = np.dtype("float32").type(
                     rope_local_base_freq
@@ -2584,6 +2620,9 @@ class Gemma3Loader(ModelLoader):
         text_model = getattr(model.model, "language_model", model.model)
         self.set_decoder(spec.decoder, text_model, quant_type)
         self.set_linear(spec.decoder.projection, model.lm_head)
+        final_softcap = getattr(text_config, "final_logit_softcapping", None)
+        if final_softcap is not None and final_softcap > 0:
+            spec.decoder.final_logit_softcapping = np.float32(final_softcap)
         return spec
 
     def get_vocabulary(self, model, tokenizer):
@@ -4545,6 +4584,9 @@ class T5GemmaLoader(ModelLoader):
 
         # Tie_word_embeddings
         self.set_linear(spec.decoder.projection, model.model.decoder.embed_tokens)
+        final_softcap = getattr(decoder_config, "final_logit_softcapping", None)
+        if final_softcap is not None and final_softcap > 0:
+            spec.decoder.final_logit_softcapping = np.float32(final_softcap)
         return spec
 
     def set_vocabulary(self, spec, tokens):
