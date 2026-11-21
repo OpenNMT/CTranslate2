@@ -3554,15 +3554,19 @@ class Phi3Loader(ModelLoader):
         )
         max_position_embeddings = getattr(model.config, "max_position_embeddings", 0)
         rope_scaling = getattr(model.config, "rope_scaling", None)
-        if rope_scaling:
-            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_scaling["type"])
+        # transformers 4.x uses rope_scaling["type"]; 5.x uses rope_parameters["rope_type"].
+        rope_type = rope_scaling and (
+            rope_scaling.get("type") or rope_scaling.get("rope_type")
+        )
+        if rope_scaling and rope_type != "default":
+            rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
             rotary_scaling_factor = rope_scaling.get("factor", 1)
 
             if rotary_scaling_type is None:
                 raise NotImplementedError(
                     "RoPE scaling type '%s' is not yet implemented. "
                     "The following RoPE scaling types are currently supported: %s"
-                    % (rope_scaling["type"], ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
+                    % (rope_type, ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
                 )
         else:
             rotary_scaling_type = None
@@ -3667,14 +3671,20 @@ class Phi3Loader(ModelLoader):
                 layer.self_attn.o_proj,
                 quant_type=quant_type,
             )
-            if (
-                layer.self_attn.rotary_emb.long_factor is not None
-                and layer.self_attn.rotary_emb.short_factor is not None
-            ):
+            # transformers <= 4.47 keeps rotary_emb on each attention layer; >= 4.48 moved it
+            # to the model, and >= 5.0 stores the factors in config.rope_parameters
+            # (config.rope_scaling was used before).
+            rotary_emb = getattr(layer.self_attn, "rotary_emb", None)
+            rope = (
+                getattr(module.config, "rope_scaling", None)
+                or getattr(module.config, "rope_parameters", None)
+                or {}
+            )
+            long_factor = getattr(rotary_emb, "long_factor", rope.get("long_factor"))
+            short_factor = getattr(rotary_emb, "short_factor", rope.get("short_factor"))
+            if long_factor is not None and short_factor is not None:
                 self.set_rotary_embeddings(
-                    layer_spec.self_attention,
-                    layer.self_attn.rotary_emb.long_factor,
-                    layer.self_attn.rotary_emb.short_factor,
+                    layer_spec.self_attention, long_factor, short_factor
                 )
 
             # Handle gate_up_proj differently for AWQ vs regular models
