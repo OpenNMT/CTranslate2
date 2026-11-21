@@ -10,7 +10,6 @@ import test_utils
 
 import ctranslate2
 
-
 # Converters that broke with Transformers 5 still work with Transformers 4.
 try:
     _TRANSFORMERS_5 = int(importlib.metadata.version("transformers").split(".")[0]) >= 5
