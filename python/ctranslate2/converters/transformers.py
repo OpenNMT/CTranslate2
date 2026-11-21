@@ -3617,7 +3617,9 @@ class Phi3Loader(ModelLoader):
             rotary_interleave=False,
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
-            rotary_base=getattr(model.config, "rope_theta", 10000),
+            # transformers 5.x moved rope_theta into rope_parameters.
+            rotary_base=getattr(model.config, "rope_theta", None)
+            or (rope_scaling or {}).get("rope_theta", 10000),
             original_max_position_embeddings=original_max_position_embeddings,
             max_position_embeddings=max_position_embeddings,
             num_heads_kv=num_heads_kv,
