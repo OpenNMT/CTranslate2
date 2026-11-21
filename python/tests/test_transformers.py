@@ -12,7 +12,10 @@ import ctranslate2
 
 
 # Converters that broke with Transformers 5 still work with Transformers 4.
-_TRANSFORMERS_5 = int(importlib.metadata.version("transformers").split(".")[0]) >= 5
+try:
+    _TRANSFORMERS_5 = int(importlib.metadata.version("transformers").split(".")[0]) >= 5
+except importlib.metadata.PackageNotFoundError:
+    _TRANSFORMERS_5 = False
 
 
 @pytest.fixture
