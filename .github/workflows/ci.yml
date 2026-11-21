@@ -72,6 +72,15 @@ jobs:
           CT2_USE_MKL: 1
         run: |
           tests/ctranslate2_test tests/data
+      # The full suite needs a GEMM backend; this build has no fallback besides
+      # ruy, whose float32 beta path is not usable here. Limit this run to the
+      # allocator tests, which is what exercising CT2_USE_MKL=0 is about.
+      - name: Test without the MKL backend
+        if: matrix.backend == 'mkl'
+        env:
+          CT2_USE_MKL: 0
+        run: |
+          tests/ctranslate2_test tests/data --gtest_filter='AllocatorTest.*'
       - name: Test DNNL
         if: matrix.backend == 'dnnl'
         run: |
