@@ -3597,7 +3597,9 @@ class Phi3Loader(ModelLoader):
             model.config, "partial_rotary_factor", None
         ) or rope_scaling.get("partial_rotary_factor", 1.0)
         head_dim = model.config.hidden_size // num_heads
-        rotary_dim = int(head_dim * partial_rotary_factor) if partial_rotary_factor < 1 else 0
+        rotary_dim = (
+            int(head_dim * partial_rotary_factor) if partial_rotary_factor < 1 else 0
+        )
 
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
             num_layers,
