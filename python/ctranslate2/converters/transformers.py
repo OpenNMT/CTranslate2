@@ -3553,12 +3553,10 @@ class Phi3Loader(ModelLoader):
             model.config, "original_max_position_embeddings", 0
         )
         max_position_embeddings = getattr(model.config, "max_position_embeddings", 0)
-        rope_scaling = getattr(model.config, "rope_scaling", None)
-        # transformers 4.x uses rope_scaling["type"]; 5.x uses rope_parameters["rope_type"].
-        rope_type = rope_scaling and (
-            rope_scaling.get("type") or rope_scaling.get("rope_type")
-        )
-        if rope_scaling and rope_type != "default":
+        # transformers 4.x: rope_scaling["type"]; 5.x: rope_parameters["rope_type"].
+        rope_scaling = getattr(model.config, "rope_scaling", None) or {}
+        rope_type = rope_scaling.get("type") or rope_scaling.get("rope_type")
+        if rope_type not in (None, "default"):
             rotary_scaling_type = _SUPPORTED_ROPE_SCALING.get(rope_type)
             rotary_scaling_factor = rope_scaling.get("factor", 1)
 
@@ -3594,16 +3592,11 @@ class Phi3Loader(ModelLoader):
             quant_group_size = None
             quant_bits = None
 
-        # Phi-4-mini rotates only a fraction of each head. transformers 4.x exposes it as
-        # config.partial_rotary_factor; 5.x stores it in config.rope_parameters.
-        partial_rotary_factor = (
-            getattr(model.config, "partial_rotary_factor", None)
-            or (rope_scaling or {}).get("partial_rotary_factor")
-            or 1.0
-        )
-        head_dim = getattr(model.config, "head_dim", None) or (
-            model.config.hidden_size // num_heads
-        )
+        # Phi-4-mini rotates only part of each head (5.x keeps the factor in rope_scaling).
+        partial_rotary_factor = getattr(
+            model.config, "partial_rotary_factor", None
+        ) or rope_scaling.get("partial_rotary_factor", 1.0)
+        head_dim = model.config.hidden_size // num_heads
         rotary_dim = int(head_dim * partial_rotary_factor) if partial_rotary_factor < 1 else 0
 
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
@@ -3617,9 +3610,8 @@ class Phi3Loader(ModelLoader):
             rotary_interleave=False,
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
-            # transformers 5.x moved rope_theta into rope_parameters.
             rotary_base=getattr(model.config, "rope_theta", None)
-            or (rope_scaling or {}).get("rope_theta", 10000),
+            or rope_scaling.get("rope_theta", 10000),
             original_max_position_embeddings=original_max_position_embeddings,
             max_position_embeddings=max_position_embeddings,
             num_heads_kv=num_heads_kv,
@@ -3664,6 +3656,7 @@ class Phi3Loader(ModelLoader):
 
     def set_decoder(self, spec, module, quant_type=common_spec.Quantization.CT2):
         spec.scale_embeddings = False
+        rope_scaling = getattr(module.config, "rope_scaling", None) or {}
         self.set_embeddings(spec.embeddings, module.embed_tokens)
         self.set_layer_norm(spec.layer_norm, module.norm)
 
@@ -3685,21 +3678,15 @@ class Phi3Loader(ModelLoader):
                 layer.self_attn.o_proj,
                 quant_type=quant_type,
             )
-            # transformers <= 4.47 keeps rotary_emb on each attention layer; >= 4.48 moved it
-            # to the model, and >= 5.0 stores the factors in config.rope_parameters
-            # (config.rope_scaling was used before).
+            # transformers <= 4.47 keeps rotary_emb on each attention layer; later
+            # versions only have the factors in the config.
             rotary_emb = getattr(layer.self_attn, "rotary_emb", None)
-            rope = (
-                getattr(module.config, "rope_scaling", None)
-                or getattr(module.config, "rope_parameters", None)
-                or {}
-            )
-            long_factor = getattr(rotary_emb, "long_factor", rope.get("long_factor"))
-            short_factor = getattr(rotary_emb, "short_factor", rope.get("short_factor"))
-            if long_factor is not None and short_factor is not None:
-                self.set_rotary_embeddings(
-                    layer_spec.self_attention, long_factor, short_factor
-                )
+            factors = [
+                getattr(rotary_emb, name, rope_scaling.get(name))
+                for name in ("long_factor", "short_factor")
+            ]
+            if None not in factors:
+                self.set_rotary_embeddings(layer_spec.self_attention, *factors)
 
             # Handle gate_up_proj differently for AWQ vs regular models
             if quant_type == common_spec.Quantization.CT2:
