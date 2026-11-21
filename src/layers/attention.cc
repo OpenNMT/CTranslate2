@@ -3,7 +3,6 @@
 #include "ctranslate2/ops/split.h"
 #include "ctranslate2/ops/fused_attention.h"
 #include "ctranslate2/ops/rms_norm.h"
-#include "ctranslate2/ops/tanh.h"
 #include "ctranslate2/utils.h"
 
 
@@ -216,14 +215,10 @@ namespace ctranslate2 {
                                dim_t beam_size,
                                Alibi* alibi,
                                StorageView* position_bias,
-                               bool interleaved_queries,
-                               float attn_logit_softcapping,
-                               dim_t sliding_window) {
+                               bool interleaved_queries) {
       PROFILE("dot_product_attention");
 
-      if (attn_logit_softcapping <= 0.f
-          && sliding_window <= 0
-          && !relative_position_keys
+      if (!relative_position_keys
           && !relative_asymmetric_position_keys
           && !relative_position_values
           && !relative_attention_bias
@@ -265,9 +260,7 @@ namespace ctranslate2 {
                               beam_size,
                               alibi,
                               position_bias,
-                              false,
-                              attn_logit_softcapping,
-                              sliding_window);
+                              false);
         transpose_op(standard_output, output);
         return;
       }
@@ -353,24 +346,18 @@ namespace ctranslate2 {
                                                                     scores.size()));
       }
 
-      if (attn_logit_softcapping > 0.f) {
-        ops::Mul()(scores, StorageView(1.f / attn_logit_softcapping).to(scores.dtype()), scores);
-        ops::Tanh()(scores, scores);
-        ops::Mul()(scores, StorageView(attn_logit_softcapping).to(scores.dtype()), scores);
-      }
-
       if (alibi)
         alibi->apply(scores, queries_scale);
 
       StorageView attn(scores.dtype(), scores.device());
       if (attention && !return_normalized_attention) {
-        ops::SoftMax()(scores, values_lengths, attn, sliding_window);
+        ops::SoftMax()(scores, values_lengths, attn);
         if (fp32_scores)
           scores = scores.to(values.dtype());
         save_attention(*attention, std::move(scores), beam_size);
       } else {
         attn = std::move(scores);
-        ops::SoftMax()(attn, values_lengths, attn, sliding_window);
+        ops::SoftMax()(attn, values_lengths, attn);
       }
 
       if (fp32_scores)
@@ -675,11 +662,9 @@ namespace ctranslate2 {
             tmp = std::move(*cached_values);
             concat_op({&tmp, &values_proj}, *cached_values);
 
-            if (!prefilling && _sliding_window > 0 && cached_keys->dim(_cache_time_dim) > _sliding_window) {
+            if (!prefilling && _sliding_window > 0 && cached_keys->shape()[2] > _sliding_window) {
               // only for generation
-              const ops::Slide slide_op(_cache_time_dim,
-                                       cached_keys->dim(_cache_time_dim) - _sliding_window,
-                                       _sliding_window);
+              const ops::Slide slide_op(2, 1, cached_keys->shape()[2] - 1);
               slide_op(*cached_keys, tmp);
               *cached_keys = std::move(tmp);
               slide_op(*cached_values, tmp);
@@ -715,15 +700,11 @@ namespace ctranslate2 {
                             beam_size,
                             _alibi,
                             position_bias,
-                            interleaved_beam_layout,
-                            _attn_logit_softcapping,
-                            _self_attention && _is_decoder ? _sliding_window : 0);
+                            interleaved_beam_layout);
 
-      if (prefilling && cached_keys && cached_keys->dim(_cache_time_dim) > _sliding_window) {
+      if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
         // set only last sliding_window tokens to cached_keys and cached_values after computing attention
-        const ops::Slide slide_op(_cache_time_dim,
-                                 cached_keys->dim(_cache_time_dim) - _sliding_window,
-                                 _sliding_window);
+        const ops::Slide slide_op(2, cached_keys->shape()[2] - _sliding_window, _sliding_window);
         StorageView tmp(dtype, device);
         slide_op(*cached_keys, tmp);
         *cached_keys = std::move(tmp);

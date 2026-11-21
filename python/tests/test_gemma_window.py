@@ -8,81 +8,6 @@ import ctranslate2
 
 
 @test_utils.only_on_linux
-@pytest.mark.parametrize("architecture", ["Gemma2", "Gemma3", "Mistral"])
-@pytest.mark.parametrize("num_key_value_heads", [1, 2, 4])
-@pytest.mark.parametrize("window", [5, 8])
-def test_windowed_scoring(architecture, num_key_value_heads, window, tmp_dir):
-    import torch
-    import transformers
-    from ctranslate2.converters import transformers as converters
-
-    torch.manual_seed(42)
-    loader = getattr(converters, architecture + "Loader")()
-    model_class = getattr(transformers, loader.architecture_name)
-    config_class = (
-        transformers.Gemma3TextConfig
-        if architecture == "Gemma3"
-        else model_class.config_class
-    )
-    config = config_class(
-        vocab_size=64,
-        hidden_size=32,
-        intermediate_size=64,
-        num_hidden_layers=4,
-        num_attention_heads=4,
-        num_key_value_heads=num_key_value_heads,
-        head_dim=8,
-        query_pre_attn_scalar=9,
-        sliding_window=window,
-        max_position_embeddings=256,
-        attn_logit_softcapping=0.8 if architecture == "Gemma2" else None,
-        final_logit_softcapping=0.7 if architecture == "Gemma2" else None,
-    )
-    if architecture == "Gemma3":
-        config.layer_types = ["sliding_attention", "full_attention"] * 2
-    config._attn_implementation = "eager"
-    model = model_class(config).eval()
-    sequences = [
-        [2] + torch.randint(4, 64, (length - 1,)).tolist()
-        for length in (5, 8, 9, 10, 17, 24, 40)
-    ]
-    expected = []
-    with torch.no_grad():
-        for ids in sequences:
-            logits = model(input_ids=torch.tensor([ids]), use_cache=False).logits
-            expected.append(
-                logits[0, :-1]
-                .log_softmax(-1)
-                .gather(1, torch.tensor(ids[1:])[:, None])[:, 0]
-                .numpy()
-            )
-        spec = loader.get_model_spec(model)
-    tokens = ["<pad>", "<eos>", "<bos>", "<unk>"] + [str(i) for i in range(4, 64)]
-    loader.set_vocabulary(spec, tokens)
-    spec.config.bos_token = "<bos>"
-    spec.config.eos_token = "<eos>"
-    spec.config.unk_token = "<unk>"
-    spec.config.layer_norm_epsilon = config.rms_norm_eps
-    assert spec.revision == (9 if architecture == "Gemma2" else 8)
-    spec.validate()
-    assert spec.revision == (9 if architecture == "Gemma2" else 8)
-    spec.optimize(quantization="float32")
-    spec.save(str(tmp_dir))
-    generator = ctranslate2.Generator(
-        str(tmp_dir), device="cpu", compute_type="float32", intra_threads=1
-    )
-    for batch in [[i] for i in range(len(sequences))] + [[6, 0], [3, 1, 0]]:
-        actual = generator.score_batch(
-            [[tokens[token] for token in sequences[i]] for i in batch],
-            max_input_length=0,
-        )
-        for i, result in zip(batch, actual):
-            np.testing.assert_allclose(
-                result.log_probs, expected[i], atol=2e-5, rtol=2e-5
-            )
-
-
-@test_utils.only_on_linux
 @pytest.mark.parametrize("scalar", [128, 144])
 def test_gemma2_27b_query_scale(scalar, tmp_dir):
     import torch
@@ -230,9 +155,6 @@ def test_t5gemma_final_softcap(cap, tmp_dir):
         config.decoder.final_logit_softcapping = cap
         loader = T5GemmaLoader()
         spec = loader.get_model_spec(model)
-    # A decoder's causal window must not be applied to bidirectional encoders.
-    for layer in spec.encoder.layer:
-        layer.self_attention.sliding_window = np.int32(2)
     tokens = ["<pad>", "<eos>", "<bos>", "<unk>"] + [str(i) for i in range(4, 64)]
     loader.set_vocabulary(spec, tokens)
     spec.config.bos_token = "<bos>"

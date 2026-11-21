@@ -39,8 +39,6 @@ class MultiHeadAttentionSpec(model_spec.LayerSpec):
         merged_encoder_attention=False,
     ):
         self.queries_scale = model_spec.OPTIONAL
-        self.attn_logit_softcapping = model_spec.OPTIONAL
-        self.sliding_window = model_spec.OPTIONAL
         self.rotary_scaling_type = model_spec.OPTIONAL
         self.rotary_scaling_factor = model_spec.OPTIONAL
 

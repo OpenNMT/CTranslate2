@@ -38,7 +38,7 @@ namespace ctranslate2 {
     }
 
     size_t TransformerModel::current_spec_revision() const {
-      return 8;
+      return 7;
     }
 
     bool TransformerModel::is_linear_weight(const std::string& variable_name) const {
@@ -95,7 +95,7 @@ namespace ctranslate2 {
 
 
     size_t TransformerDecoderModel::current_spec_revision() const {
-      return 9;
+      return 8;
     }
 
     void TransformerDecoderModel::initialize(ModelReader& model_reader) {
@@ -128,7 +128,7 @@ namespace ctranslate2 {
 
 
     size_t TransformerEncoderModel::current_spec_revision() const {
-      return 2;
+      return 1;
     }
 
     std::unique_ptr<SequenceEncoderReplica>

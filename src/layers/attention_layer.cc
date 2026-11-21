@@ -138,7 +138,6 @@ namespace ctranslate2 {
                                             _num_heads * ScopedMPISetter::getNRanks()) / ScopedMPISetter::getNRanks()
                       : model.get_attribute_with_default<int32_t>(scope + "/num_heads_kv", _num_heads)))
       , _sliding_window(model.get_attribute_with_default<int32_t>(scope + "/sliding_window", 0))
-      , _attn_logit_softcapping(model.get_attribute_with_default<float>(scope + "/attn_logit_softcapping", 0.f))
     {
     }
 
