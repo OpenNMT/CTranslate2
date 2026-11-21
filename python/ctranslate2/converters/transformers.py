@@ -3678,8 +3678,7 @@ class Phi3Loader(ModelLoader):
                 layer.self_attn.o_proj,
                 quant_type=quant_type,
             )
-            # transformers <= 4.47 keeps rotary_emb on each attention layer; later
-            # versions only have the factors in the config.
+            # The factors are on rotary_emb in older transformers, only in the config in newer ones.
             rotary_emb = getattr(layer.self_attn, "rotary_emb", None)
             factors = [
                 getattr(rotary_emb, name, rope_scaling.get(name))
