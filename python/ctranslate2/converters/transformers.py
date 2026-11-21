@@ -3594,6 +3594,18 @@ class Phi3Loader(ModelLoader):
             quant_group_size = None
             quant_bits = None
 
+        # Phi-4-mini rotates only a fraction of each head. transformers 4.x exposes it as
+        # config.partial_rotary_factor; 5.x stores it in config.rope_parameters.
+        partial_rotary_factor = (
+            getattr(model.config, "partial_rotary_factor", None)
+            or (rope_scaling or {}).get("partial_rotary_factor")
+            or 1.0
+        )
+        head_dim = getattr(model.config, "head_dim", None) or (
+            model.config.hidden_size // num_heads
+        )
+        rotary_dim = int(head_dim * partial_rotary_factor) if partial_rotary_factor < 1 else 0
+
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
             num_layers,
             num_heads,
@@ -3601,7 +3613,7 @@ class Phi3Loader(ModelLoader):
             pre_norm=True,
             ffn_glu=True,
             rms_norm=True,
-            rotary_dim=0,
+            rotary_dim=rotary_dim,
             rotary_interleave=False,
             rotary_scaling_type=rotary_scaling_type,
             rotary_scaling_factor=rotary_scaling_factor,
