@@ -434,6 +434,12 @@ jobs:
             artifact_pattern: python-wheels-Linux-auto64
             wheel_pattern: "*cp312*manylinux*x86_64.whl"
 
+          # Run the tests with the latest Transformers 4.x release.
+          - os: ubuntu-22.04
+            artifact_pattern: python-wheels-Linux-auto64
+            wheel_pattern: "*cp312*manylinux*x86_64.whl"
+            transformers: "4.57.6"
+
           - os: ubuntu-22.04-arm
             artifact_pattern: python-wheels-Linux-aarch64
             wheel_pattern: "*cp312*manylinux*_aarch64.whl"
@@ -466,6 +472,8 @@ jobs:
 
       - name: Prepare test environment
         shell: bash
+        env:
+          TRANSFORMERS_VERSION: ${{ matrix.transformers }}
         run: |
           ./python/tools/prepare_test_environment.sh
 

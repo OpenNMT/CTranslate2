@@ -144,6 +144,11 @@ def test_transformers_translation(
     expected_tokens,
     kwargs,
 ):
+    if "t5gemma-2" in model:
+        transformers = pytest.importorskip("transformers")
+        if not hasattr(transformers, "T5Gemma2ForConditionalGeneration"):
+            pytest.skip("T5Gemma2 is not available in this Transformers version")
+
     converter = ctranslate2.converters.TransformersConverter(model)
     output_dir = str(tmp_dir.join("ctranslate2_model"))
     output_dir = converter.convert(output_dir)
