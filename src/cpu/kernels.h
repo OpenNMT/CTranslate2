@@ -70,7 +70,8 @@ namespace ctranslate2 {
                  float* output,
                  dim_t batch_size,
                  dim_t depth,
-                 bool log);
+                 bool log,
+                 dim_t window_size = 0);
 
     template <CpuIsa ISA>
     void layer_norm(const float* input,

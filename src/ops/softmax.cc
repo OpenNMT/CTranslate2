@@ -26,6 +26,11 @@ namespace ctranslate2 {
     }
 
     void SoftMax::operator()(const StorageView& x, const StorageView* lengths, StorageView& y) const {
+      operator()(x, lengths, y, 0);
+    }
+
+    void SoftMax::operator()(const StorageView& x, const StorageView* lengths, StorageView& y,
+                             dim_t window_size) const {
       PROFILE(_log ? "LogSoftMax" : "SoftMax");
       y.resize_as(x);
 
@@ -43,7 +48,7 @@ namespace ctranslate2 {
                                       + std::to_string(batch_size));
       }
 
-      DEVICE_AND_FLOAT_DISPATCH("SoftMax", x.device(), x.dtype(), (compute<D, T>(x, lengths, y)));
+      DEVICE_AND_FLOAT_DISPATCH("SoftMax", x.device(), x.dtype(), (compute<D, T>(x, lengths, y, window_size)));
     }
 
   }

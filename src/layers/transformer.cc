@@ -681,12 +681,8 @@ namespace ctranslate2 {
         (*_layernorm_embedding)(layer_in, layer_in);
 
       const dim_t batch_size = layer_in.dim(0);
-      dim_t max_time;
-
-      if (_sliding_window > 0 && layer_in.dim(1) > _sliding_window) {
-        max_time = _sliding_window;
-      } else
-        max_time = layer_in.dim(1);
+      const dim_t max_time = layer_in.dim(1);
+      const bool chunked = _sliding_window > 0 && max_time > _sliding_window && !_use_flash_attention;
 
       const bool allow_padding_removal = Padder::allow_padding_removal(_device, _compute_type);
 
@@ -702,7 +698,7 @@ namespace ctranslate2 {
       bool multi_query = _layers.front()->get_self_attention().multi_query();
 
       if (lengths) {
-        if (allow_padding_removal) {
+        if (allow_padding_removal && !chunked) {
           input_padder = std::make_unique<Padder>(*lengths, max_time);
           input_padder->remove_padding(layer_in);
         }
@@ -763,23 +759,44 @@ namespace ctranslate2 {
       StorageView* position_bias_ptr = _shared_position_bias ? &position_bias : nullptr;
 
       std::vector<StorageView> layer_ins;
+      // Scoring normally does not cache, but chunks must see all preceding chunks.
+      std::vector<StorageView> scoring_keys(_layers.size(), StorageView(dtype, device));
+      std::vector<StorageView> scoring_values(_layers.size(), StorageView(dtype, device));
+      StorageView lengths_cpu;
+      if (chunked && lengths)
+        lengths_cpu = lengths->to(Device::CPU);
 
       while (true) {
         dim_t prompt_size = layer_in.dim(1);
-        if (_sliding_window == 0 || prompt_size <= _sliding_window || _use_flash_attention) {
+        // Padding removal changes [batch, time, depth] to [tokens, depth].
+        // Never interpret that depth dimension as a prompt length.
+        if (!chunked || prompt_size <= _sliding_window) {
           layer_ins.push_back(std::move(layer_in));
           break;
         }
         if (layer_in.dim(1) > _sliding_window) {
           StorageView tmp(dtype, device);
+          StorageView remaining(dtype, device);
           const ops::Split split_op(1, {_sliding_window, prompt_size - _sliding_window});
-          split_op(layer_in, tmp, layer_in);
+          split_op(layer_in, tmp, remaining);
+          layer_in = std::move(remaining);
           layer_ins.push_back(std::move(tmp));
         }
       }
 
       for (size_t i = 0; i < layer_ins.size(); ++i) {
         StorageView* layer_in_chunk = &layer_ins[i];
+        std::unique_ptr<StorageView> chunk_mask;
+        if (chunked) {
+          StorageView chunk_lengths({batch_size}, DataType::INT32);
+          for (dim_t b = 0; b < batch_size; ++b)
+            chunk_lengths.at<int32_t>(b) = std::max<dim_t>(0, std::min<dim_t>(
+              layer_in_chunk->dim(1), lengths_cpu.at<int32_t>(b) - dim_t(i) * _sliding_window));
+          chunk_mask = std::make_unique<StorageView>(MultiHeadAttention::prepare_length_mask(
+            chunk_lengths.to(device),
+            _tensor_parallel ? SAFE_DIVIDE(_num_heads, ScopedMPISetter::getNRanks()) : _num_heads,
+            layer_in_chunk->dim(1), true, multi_query));
+        }
         for (size_t l = 0; l < _layers.size(); ++l) {
           StorageView* cached_self_attn_keys = nullptr;
           StorageView* cached_self_attn_values = nullptr;
@@ -794,6 +811,9 @@ namespace ctranslate2 {
               cached_attn_keys = &state.at("memory_keys_" + l_str);
               cached_attn_values = &state.at("memory_values_" + l_str);
             }
+          } else if (chunked) {
+            cached_self_attn_keys = &scoring_keys[l];
+            cached_self_attn_values = &scoring_values[l];
           }
 
           std::unique_ptr<StorageView> heads_to_select = get_layer_alignment_heads(l, batch_size);
@@ -801,30 +821,17 @@ namespace ctranslate2 {
           if (attention && heads_to_select)
             layer_attention = std::make_unique<StorageView>(dtype, device);
 
-          dim_t offset = _sliding_window * i + step;
-          offset = offset < 0 ? 0 : offset;
-          if (i > 0) {
-            auto max_tokens = _sliding_window + layer_in_chunk->dim(1);
-            StorageView tmp_lengths = StorageView(Shape{layer_in_chunk->dim(0)}, int32_t(max_tokens), device);
-            int num_heads = _num_heads;
-            if (_tensor_parallel) {
-              num_heads = SAFE_DIVIDE(num_heads, ScopedMPISetter::getNRanks());
-            }
-            StorageView lengths_mask = layers::MultiHeadAttention::prepare_length_mask(
-              tmp_lengths,
-              num_heads,
-              max_tokens,
-              /*mask_future=*/true,
-              multi_query);
-
-            const ops::Slide slide_lengths_op(2, _sliding_window, layer_in_chunk->dim(1));
-            // reuse tmp_lengths
-            slide_lengths_op(lengths_mask, tmp_lengths);
-            input_lengths_mask = std::make_unique<StorageView>(std::move(tmp_lengths));
+          const dim_t offset = _sliding_window * i + std::max<dim_t>(0, step);
+          std::unique_ptr<StorageView> layer_mask;
+          if (chunked) {
+            const dim_t cached_length = cached_self_attn_keys && !cached_self_attn_keys->empty()
+              ? cached_self_attn_keys->dim(cached_self_attn_keys->rank() == 3 ? 1 : 2) : 0;
+            layer_mask = std::make_unique<StorageView>(DataType::INT32, device);
+            ops::Add()(*chunk_mask, StorageView(int32_t(cached_length)), *layer_mask);
           }
 
           (*_layers[l])(*layer_in_chunk,
-                        input_lengths_mask.get(),
+                        chunked ? layer_mask.get() : input_lengths_mask.get(),
                         memory,
                         memory_lengths_mask.get(),
                         cached_self_attn_keys,
@@ -845,8 +852,14 @@ namespace ctranslate2 {
             ops::Gather(1, 1)(*layer_attention, *heads_to_select, alignment_heads.back());
           }
         }
-        layer_in = std::move(*layer_in_chunk);
       }
+      if (chunked && step < 0) {
+        std::vector<const StorageView*> chunks;
+        for (const auto& chunk : layer_ins)
+          chunks.emplace_back(&chunk);
+        ops::Concat(1)(chunks, layer_in);
+      } else
+        layer_in = std::move(layer_ins.back());
 
       if (step == 0) {
         // The memory is no longer needed as its projections were cached in the first step.

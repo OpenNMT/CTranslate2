@@ -13,12 +13,14 @@ namespace ctranslate2 {
                                const dim_t rows,
                                const dim_t cols,
                                const int32_t* lengths,
-                               T* y);
+                               T* y,
+                               dim_t window_size);
 
     template <Device D, typename T>
     void SoftMax::compute(const StorageView& input,
                           const StorageView* lengths,
-                          StorageView& output) const {
+                          StorageView& output,
+                          dim_t window_size) const {
       const dim_t depth = input.dim(-1);
       const dim_t batch_size = input.size() / depth;
       softmax_kernel(cuda::get_cuda_stream(),
@@ -27,14 +29,15 @@ namespace ctranslate2 {
                      batch_size,
                      depth,
                      lengths ? lengths->data<int32_t>() : nullptr,
-                     output.data<T>());
+                     output.data<T>(),
+                     window_size);
     }
 
 #define DECLARE_IMPL(T)                                                 \
     template void                                                       \
     SoftMax::compute<Device::CUDA, T>(const StorageView& input,         \
                                       const StorageView* lengths,       \
-                                      StorageView& output) const;
+                                      StorageView& output, dim_t window_size) const;
 
     DECLARE_IMPL(float)
     DECLARE_IMPL(float16_t)
@@ -197,7 +200,8 @@ namespace at {
     cunn_SoftMaxForward(outscalar_t *output,
                         const scalar_t *input,
                         const index_t classes,
-                        const length_t *lengths)
+                        const length_t *lengths,
+                        const index_t window_size)
     {
       extern __shared__ unsigned char smem[];
       auto sdata = reinterpret_cast<accscalar_t*>(smem);
@@ -215,6 +219,13 @@ namespace at {
         for (index_t i = size + threadIdx.x; i < classes; i += blockDim.x)
           output[i] = 0.f;
       }
+
+      const index_t start = window_size > 0 && size > window_size ? size - window_size : 0;
+      for (index_t i = threadIdx.x; i < start; i += blockDim.x)
+        output[i] = 0.f;
+      input += start;
+      output += start;
+      size -= start;
 
       // find the max
       accscalar_t threadMax = ctranslate2::cuda::ilp_reduce(
@@ -245,14 +256,16 @@ namespace ctranslate2 {
                                     const dim_t rows,
                                     const dim_t cols,
                                     const int32_t* lengths,
-                                    T* y) {
+                                    T* y,
+                                    dim_t window_size) {
       const dim3 grid(rows);
       const dim3 block(cuda::get_block_size(cols));
       at::native::cunn_SoftMaxForward<T, float, T, cuda::index_t, int32_t, Epilogue>
         <<<grid, block, block.x * sizeof (float), stream>>>(y,
                                                             x,
                                                             cols,
-                                                            lengths);
+                                                            lengths,
+                                                            window_size);
     }
 
     template <typename T>
@@ -262,13 +275,14 @@ namespace ctranslate2 {
                                const dim_t rows,
                                const dim_t cols,
                                const int32_t* lengths,
-                               T* y) {
+                               T* y,
+                               dim_t window_size) {
       if (log_softmax)
         softmax_kernel_impl<cuda::device_type<T>, at::native::LogSoftMaxForwardEpilogue>(
-          stream, cuda::device_cast(x), rows, cols, lengths, cuda::device_cast(y));
+          stream, cuda::device_cast(x), rows, cols, lengths, cuda::device_cast(y), window_size);
       else
         softmax_kernel_impl<cuda::device_type<T>, at::native::SoftMaxForwardEpilogue>(
-          stream, cuda::device_cast(x), rows, cols, lengths, cuda::device_cast(y));
+          stream, cuda::device_cast(x), rows, cols, lengths, cuda::device_cast(y), window_size);
     }
 
   }

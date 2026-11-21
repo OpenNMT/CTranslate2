@@ -14,10 +14,13 @@ namespace ctranslate2 {
       void operator()(const StorageView& x, StorageView& y) const override;
       void operator()(const StorageView& x, const StorageView& lengths, StorageView& y) const;
       void operator()(const StorageView& x, const StorageView* lengths, StorageView& y) const;
+      void operator()(const StorageView& x, const StorageView* lengths, StorageView& y,
+                      dim_t window_size) const;
 
     private:
       template <Device D, typename T>
-      void compute(const StorageView& input, const StorageView* lengths, StorageView& output) const;
+      void compute(const StorageView& input, const StorageView* lengths, StorageView& output,
+                   dim_t window_size) const;
 
       bool _log;
     };

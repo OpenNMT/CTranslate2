@@ -7,6 +7,18 @@ import numpy as np
 from ctranslate2.specs import attention_spec, common_spec, model_spec
 
 
+def _uses_attention_softcapping(layers):
+    for layer in layers:
+        for name in ("self_attention", "attention"):
+            attention = getattr(layer, name, None)
+            cap = getattr(attention, "attn_logit_softcapping", model_spec.OPTIONAL)
+            if isinstance(cap, model_spec.Variable):
+                cap = cap.numpy()
+            if not isinstance(cap, str) and float(cap) > 0:
+                return True
+    return False
+
+
 class TransformerEncoderSpec(model_spec.LayerSpec):
     def __init__(
         self,
@@ -583,7 +595,11 @@ class TransformerSpec(model_spec.SequenceToSequenceModelSpec):
 
     @property
     def revision(self):
-        return 7
+        return (
+            8
+            if _uses_attention_softcapping(self.encoder.layer + self.decoder.layer)
+            else 7
+        )
 
     def get_default_config(self):
         return TransformerConfig()
@@ -746,7 +762,7 @@ class TransformerDecoderModelSpec(model_spec.LanguageModelSpec):
 
     @property
     def revision(self):
-        return 8
+        return 9 if _uses_attention_softcapping(self.decoder.layer) else 8
 
     def get_default_config(self):
         return TransformerDecoderModelConfig()
@@ -803,7 +819,7 @@ class TransformerEncoderModelSpec(model_spec.LanguageModelSpec):
 
     @property
     def revision(self):
-        return 1
+        return 2 if _uses_attention_softcapping(self.encoder.layer) else 1
 
     def get_default_config(self):
         return TransformerEncoderModelConfig()

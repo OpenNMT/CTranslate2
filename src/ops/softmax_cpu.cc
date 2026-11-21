@@ -8,7 +8,8 @@ namespace ctranslate2 {
     template <Device D, typename T>
     void SoftMax::compute(const StorageView& input,
                           const StorageView* lengths,
-                          StorageView& output) const {
+                          StorageView& output,
+                          dim_t window_size) const {
       const dim_t depth = input.dim(-1);
       const dim_t batch_size = input.size() / depth;
 
@@ -17,14 +18,15 @@ namespace ctranslate2 {
                                           output.data<T>(),
                                           batch_size,
                                           depth,
-                                          _log)));
+                                          _log,
+                                          window_size)));
     }
 
 #define DECLARE_IMPL(T)                                                 \
     template void                                                       \
     SoftMax::compute<Device::CPU, T>(const StorageView& input,          \
                                      const StorageView* lengths,        \
-                                     StorageView& output) const;
+                                      StorageView& output, dim_t window_size) const;
 
     DECLARE_IMPL(float)
 

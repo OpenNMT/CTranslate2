@@ -13,6 +13,8 @@ namespace ctranslate2 {
       , _cache_time_dim(1)
     {
       ERROR_CHECK((self_attention), "FlashAttention only supports the self-attention");
+      ERROR_CHECK((_attn_logit_softcapping <= 0.f),
+                  "FlashAttention does not support attention logit softcapping");
     }
 
     void FlashMultiHeadAttention::operator()(const StorageView& queries,

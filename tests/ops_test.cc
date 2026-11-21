@@ -975,6 +975,28 @@ TEST_P(OpDeviceFPTest, MaskedSoftMax) {
   expect_storage_eq(y.to_float32(), expected, error);
 }
 
+TEST_P(OpDeviceFPTest, SlidingWindowSoftMax) {
+  const Device device = GetParam().device;
+  const DataType dtype = GetParam().dtype;
+  const float error = GetParam().error;
+  StorageView x = StorageView({4, 5}, std::vector<float>(20, 0.f), device).to(dtype);
+  StorageView lengths({4}, std::vector<int32_t>{0, 1, 3, 5}, device);
+  StorageView expected({4, 5}, std::vector<float>{
+      0, 0, 0, 0, 0,
+      1, 0, 0, 0, 0,
+      0, .5, .5, 0, 0,
+      0, 0, 0, .5, .5}, device);
+  StorageView y(dtype, device);
+  ops::SoftMax()(x, &lengths, y, 2);
+  expect_storage_eq(y.to_float32(), expected, error);
+  ops::SoftMax()(x, &lengths, x, 2);
+  expect_storage_eq(x.to_float32(), expected, error);
+  StorageView unmasked = StorageView({1, 5}, std::vector<float>(5, 0.f), device).to(dtype);
+  StorageView expected_unmasked({1, 5}, std::vector<float>{0, 0, 0, .5, .5}, device);
+  ops::SoftMax()(unmasked, nullptr, unmasked, 2);
+  expect_storage_eq(unmasked.to_float32(), expected_unmasked, error);
+}
+
 TEST_P(OpDeviceFPTest, MaskedSoftMaxTriangular) {
   const Device device = GetParam().device;
   const DataType dtype = GetParam().dtype;

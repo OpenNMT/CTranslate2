@@ -2253,14 +2253,29 @@ class Gemma2Loader(ModelLoader):
             rotary_base=getattr(model.config, "rope_theta", 10000),
             num_heads_kv=num_heads_kv,
             head_dim=model.config.head_dim,
+            sliding_window=getattr(model.config, "sliding_window", None),
             pre_post_layer_norm=True,
         )
 
         # Queries are scaled by query_pre_attn_scalar, which differs from head_dim
         # in Gemma 2 27B.
         queries_scale = np.float32(model.config.query_pre_attn_scalar**-0.5)
-        for layer_spec in spec.decoder.layer:
+        window = getattr(model.config, "sliding_window", None)
+        layer_types = getattr(model.config, "layer_types", None)
+        attention_softcap = getattr(model.config, "attn_logit_softcapping", None)
+        if window:
+            spec.decoder.sliding_window = np.int32(window)
+        for i, layer_spec in enumerate(spec.decoder.layer):
             layer_spec.self_attention.queries_scale = queries_scale
+            if attention_softcap and attention_softcap > 0:
+                layer_spec.self_attention.attn_logit_softcapping = np.float32(
+                    attention_softcap
+                )
+            sliding = layer_types[i] == "sliding_attention" if layer_types else i % 2 == 0
+            if window:
+                layer_spec.self_attention.sliding_window = np.int32(
+                    window if sliding else 0
+                )
 
         self.set_decoder(spec.decoder, model.model)
         self.set_linear(spec.decoder.projection, model.lm_head)
@@ -2514,6 +2529,21 @@ class Gemma3Loader(ModelLoader):
         rope_local_base_freq = getattr(
             text_config, "rope_local_base_freq", 10_000
         )  # Local: 10k
+        rope_parameters = getattr(text_config, "rope_parameters", None) or {}
+        global_rope = rope_parameters.get("full_attention", {})
+        local_rope = rope_parameters.get("sliding_attention", {})
+        rope_theta = global_rope.get("rope_theta", rope_theta)
+        rope_local_base_freq = local_rope.get("rope_theta", rope_local_base_freq)
+        global_scaling = global_rope or getattr(text_config, "rope_scaling", None) or {}
+        global_rope_type = global_scaling.get(
+            "rope_type", global_scaling.get("type", "default")
+        )
+        if global_rope_type not in ("default", "linear"):
+            raise NotImplementedError(
+                "Unsupported Gemma 3 full-attention RoPE: %s" % global_rope_type
+            )
+        if local_rope.get("rope_type", "default") != "default":
+            raise NotImplementedError("Unsupported Gemma 3 sliding-attention RoPE")
 
         # Get sliding window configuration
         sliding_window = getattr(text_config, "sliding_window", 1024)
@@ -2587,6 +2617,13 @@ class Gemma3Loader(ModelLoader):
             if layer_type == "full_attention":
                 layer.self_attention.rotary_base = np.dtype("float32").type(rope_theta)
                 layer.self_attention.sliding_window = np.dtype("int32").type(0)
+                if global_rope_type == "linear":
+                    layer.self_attention.rotary_scaling_type = np.int8(
+                        attention_spec.RotaryScalingType.Linear
+                    )
+                    layer.self_attention.rotary_scaling_factor = np.float32(
+                        global_scaling["factor"]
+                    )
             elif layer_type == "sliding_attention":
                 layer.self_attention.rotary_base = np.dtype("float32").type(
                     rope_local_base_freq

@@ -24,7 +24,8 @@ namespace ctranslate2 {
     static void reference_softmax(const StorageView& input,
                                   const StorageView* lengths,
                                   StorageView& output,
-                                  bool log_output) {
+                                  bool log_output,
+                                  dim_t window_size) {
       StorageView input_cpu = input.to(Device::CPU);
       std::unique_ptr<StorageView> lengths_cpu;
       if (lengths)
@@ -39,14 +40,17 @@ namespace ctranslate2 {
         const dim_t valid = row_lengths
                             ? std::max<dim_t>(0, std::min<dim_t>(row_lengths[row], depth))
                             : depth;
+        const dim_t start = window_size > 0 ? std::max<dim_t>(0, valid - window_size) : 0;
+        for (dim_t i = 0; i < start; ++i)
+          y[row * depth + i] = T(0);
         float maximum = -std::numeric_limits<float>::infinity();
-        for (dim_t i = 0; i < valid; ++i)
+        for (dim_t i = start; i < valid; ++i)
           maximum = std::max(maximum, static_cast<float>(x[row * depth + i]));
         float sum = 0;
-        for (dim_t i = 0; i < valid; ++i)
+        for (dim_t i = start; i < valid; ++i)
           sum += std::exp(static_cast<float>(x[row * depth + i]) - maximum);
         const float log_sum = std::log(sum);
-        for (dim_t i = 0; i < valid; ++i) {
+        for (dim_t i = start; i < valid; ++i) {
           const float value = static_cast<float>(x[row * depth + i]) - maximum;
           y[row * depth + i] = static_cast<T>(log_output ? value - log_sum
                                                          : std::exp(value - log_sum));
@@ -61,9 +65,10 @@ namespace ctranslate2 {
     template <>                                                         \
     void SoftMax::compute<Device::MPS, T>(const StorageView& input,     \
                                           const StorageView* lengths,   \
-                                          StorageView& output) const {  \
-      if (use_reference_mps_softmax()) {                                \
-        reference_softmax<T>(input, lengths, output, _log);             \
+                                          StorageView& output,         \
+                                          dim_t window_size) const {  \
+      if (window_size > 0 || use_reference_mps_softmax()) {              \
+        reference_softmax<T>(input, lengths, output, _log, window_size); \
         return;                                                         \
       }                                                                 \
       const dim_t depth = input.dim(-1);                                \

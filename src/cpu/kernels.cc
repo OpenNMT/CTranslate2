@@ -405,7 +405,8 @@ namespace ctranslate2 {
                              float* output,
                              dim_t batch_size,
                              dim_t depth,
-                             bool log) {
+                             bool log,
+                             dim_t window_size) {
       using VecType = Vec<float, TARGET_ISA>;
 
       parallel_for(0, batch_size, 1, [&](dim_t begin, dim_t end) {
@@ -428,6 +429,11 @@ namespace ctranslate2 {
             }
           }
 
+          const dim_t start = window_size > 0 ? std::max<dim_t>(0, size - window_size) : 0;
+          std::fill(y, y + start, 0.f);
+          x += start;
+          y += start;
+          size -= start;
           const auto x_max = reduce_max<TARGET_ISA>(x, size);
           const auto vec_x_max = VecType::load(x_max);
 
