@@ -1415,13 +1415,17 @@ class GPTNeoXLoader(ModelLoader):
         return "GPTNeoXForCausalLM"
 
     def get_model_spec(self, model):
+        rotary_pct = getattr(model.config, "rotary_pct", None)
+        if rotary_pct is None:
+            rotary_pct = model.config.rope_parameters["partial_rotary_factor"]
+
         spec = transformer_spec.TransformerDecoderModelSpec.from_config(
             model.config.num_hidden_layers,
             model.config.num_attention_heads,
             pre_norm=True,
             activation=_SUPPORTED_ACTIVATIONS[model.config.hidden_act],
             rotary_dim=int(
-                model.config.rotary_pct
+                rotary_pct
                 * (model.config.hidden_size // model.config.num_attention_heads)
             ),
             rotary_interleave=False,
@@ -1430,7 +1434,10 @@ class GPTNeoXLoader(ModelLoader):
         )
 
         self.set_decoder(spec.decoder, model.gpt_neox, model.config.num_attention_heads)
-        self.set_linear(spec.decoder.projection, model.embed_out)
+        self.set_linear(
+            spec.decoder.projection,
+            model.embed_out if hasattr(model, "embed_out") else model.lm_head,
+        )
         return spec
 
     def get_vocabulary(self, model, tokenizer):
@@ -3973,7 +3980,9 @@ class BertLoader(ModelLoader):
         return "BertModel"
 
     def get_model_spec(self, model):
-        assert model.config.position_embedding_type == "absolute"
+        assert (
+            getattr(model.config, "position_embedding_type", "absolute") == "absolute"
+        )
 
         encoder_spec = transformer_spec.TransformerEncoderSpec(
             model.config.num_hidden_layers,
@@ -4052,7 +4061,9 @@ class XLMRobertaLoader(ModelLoader):
         return "XLMRobertaForSequenceClassification"
 
     def get_model_spec(self, model):
-        assert model.config.position_embedding_type == "absolute"
+        assert (
+            getattr(model.config, "position_embedding_type", "absolute") == "absolute"
+        )
 
         encoder_spec = transformer_spec.TransformerEncoderSpec(
             model.config.num_hidden_layers,
@@ -4216,7 +4227,9 @@ class CamembertLoader(ModelLoader):
         return "CamembertModel"
 
     def get_model_spec(self, model):
-        assert model.config.position_embedding_type == "absolute"
+        assert (
+            getattr(model.config, "position_embedding_type", "absolute") == "absolute"
+        )
 
         encoder_spec = transformer_spec.TransformerEncoderSpec(
             model.config.num_hidden_layers,
