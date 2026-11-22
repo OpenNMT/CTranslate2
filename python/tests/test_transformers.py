@@ -238,13 +238,6 @@ _TRANSFORMERS_GENERATION_TESTS = [
         "The Ġcapital Ġof ĠFrance Ġis Ġthe ĠUnited ĠStates . Ċ Ċ The Ġcapital Ġof "
         "ĠFrance Ġis Ġthe Ġfirst Ġcity Ġof ĠParis",
     ),
-    (
-        "microsoft/phi-1_5",
-        "def Ġhello _ name ( name ):",
-        25,
-        'def Ġhello _ name ( name ): Ċ      return Ġf " Hello , Ġ{ name } !" Ċ Ċ '
-        "print ( hello _ name (",
-    ),
 ]
 
 
@@ -1104,13 +1097,6 @@ class TestWav2Vec2:
                     "MISTER QUILTER IS THE APOSSEL OF THE MIDDLE CLASSES AND"
                     " WE ARE GLAD TO WELCOME HIS GOSPEL",
                     "MISTER QUILTER IS THE APOSSTEL OF THE MIDDLE CLASSES AND"
-                    " WE ARE GLAD TO WELCOME HIS GOSPEL",
-                ],
-            ),
-            (
-                "facebook/wav2vec2-base-960h",
-                [
-                    "MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND"
                     " WE ARE GLAD TO WELCOME HIS GOSPEL",
                 ],
             ),

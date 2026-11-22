@@ -4145,7 +4145,9 @@ class RobertaLoader(ModelLoader):
         return "RobertaModel"
 
     def get_model_spec(self, model):
-        assert model.config.position_embedding_type == "absolute"
+        assert (
+            getattr(model.config, "position_embedding_type", "absolute") == "absolute"
+        )
 
         encoder_spec = transformer_spec.TransformerEncoderSpec(
             model.config.num_hidden_layers,
