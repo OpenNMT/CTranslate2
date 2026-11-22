@@ -144,6 +144,11 @@ def test_transformers_translation(
     expected_tokens,
     kwargs,
 ):
+    if "t5gemma-2" in model:
+        transformers = pytest.importorskip("transformers")
+        if not hasattr(transformers, "T5Gemma2ForConditionalGeneration"):
+            pytest.skip("T5Gemma2 is not available in this Transformers version")
+
     converter = ctranslate2.converters.TransformersConverter(model)
     output_dir = str(tmp_dir.join("ctranslate2_model"))
     output_dir = converter.convert(output_dir)
@@ -225,6 +230,13 @@ _TRANSFORMERS_GENERATION_TESTS = [
         50,
         "<|im_start|> user Ċ What Ġis Ġthe Ġcapital Ġof ĠPortugal ? Ġ/ no _th ink Ċ <|im_end|> Ċ "
         "<|im_start|> assistant Ċ <think> ĊĊ </think> ĊĊ The Ġcapital Ġof ĠPortugal Ġis ĠLisbon .",
+    ),
+    (
+        "EleutherAI/pythia-14m",
+        "The Ġcapital Ġof ĠFrance Ġis",
+        20,
+        "The Ġcapital Ġof ĠFrance Ġis Ġthe ĠUnited ĠStates . Ċ Ċ The Ġcapital Ġof "
+        "ĠFrance Ġis Ġthe Ġfirst Ġcity Ġof ĠParis",
     ),
 ]
 
@@ -312,6 +324,7 @@ def test_transformers_marianmt_disable_unk(
         "distilbert-base-uncased",
         "distilbert-base-cased-distilled-squad",
         "typeform/distilbert-base-uncased-mnli",
+        "almanach/camembert-base",
     ],
 )
 def test_transformers_encoder(clear_transformers_cache, tmp_dir, device, model_name):
