@@ -42,7 +42,7 @@ The images include:
 * the translator executable, which is the image entrypoint:
 
 ```bash
-docker run --rm ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda11.2 --help
+docker run --rm ghcr.io/opennmt/ctranslate2:latest-ubuntu22.04-cuda12.8 --help
 ```
 
 To update to the new version that supports CUDA 12.
