@@ -1,4 +1,4 @@
-transformers==5.9.0.*;platform_system=='Linux'
+transformers==5.24.0.*;platform_system=='Linux'
 sentencepiece;platform_system=='Linux'
 protobuf;platform_system=='Linux'
 pytest

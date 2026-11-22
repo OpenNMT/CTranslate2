@@ -11,6 +11,11 @@ pip cache purge
 pip --no-cache-dir install -r python/tests/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
 pip uninstall -y ctranslate2
 
+# Optionally override the Transformers version (e.g. to also test the latest 4.x release).
+if [ -n "$TRANSFORMERS_VERSION" ]; then
+    pip --no-cache-dir install "transformers==$TRANSFORMERS_VERSION"
+fi
+
 # Download test data
 curl -o transliteration-aren-all.tar.gz https://opennmt-models.s3.amazonaws.com/transliteration-aren-all.tar.gz
 tar xf transliteration-aren-all.tar.gz -C tests/data/models/
