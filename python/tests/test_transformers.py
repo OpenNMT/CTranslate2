@@ -1,4 +1,3 @@
-import importlib.metadata
 import inspect
 import json
 import os
@@ -9,12 +8,6 @@ import pytest
 import test_utils
 
 import ctranslate2
-
-# Converters that broke with Transformers 5 still work with Transformers 4.
-try:
-    _TRANSFORMERS_5 = int(importlib.metadata.version("transformers").split(".")[0]) >= 5
-except importlib.metadata.PackageNotFoundError:
-    _TRANSFORMERS_5 = False
 
 
 @pytest.fixture
@@ -238,28 +231,19 @@ _TRANSFORMERS_GENERATION_TESTS = [
         "<|im_start|> user Ċ What Ġis Ġthe Ġcapital Ġof ĠPortugal ? Ġ/ no _th ink Ċ <|im_end|> Ċ "
         "<|im_start|> assistant Ċ <think> ĊĊ </think> ĊĊ The Ġcapital Ġof ĠPortugal Ġis ĠLisbon .",
     ),
-    pytest.param(
+    (
         "EleutherAI/pythia-14m",
         "The Ġcapital Ġof ĠFrance Ġis",
         20,
         "The Ġcapital Ġof ĠFrance Ġis Ġthe ĠUnited ĠStates . Ċ Ċ The Ġcapital Ġof "
         "ĠFrance Ġis Ġthe Ġfirst Ġcity Ġof ĠParis",
-        marks=pytest.mark.xfail(
-            _TRANSFORMERS_5,
-            strict=True,
-            reason="GPTNeoXConfig.rotary_pct removed in Transformers 5",
-        ),
     ),
-    pytest.param(
+    (
         "microsoft/phi-1_5",
         "def Ġhello _ name ( name ):",
         25,
         'def Ġhello _ name ( name ): Ċ      return Ġf " Hello , Ġ{ name } !" Ċ Ċ '
         "print ( hello _ name (",
-        marks=pytest.mark.xfail(
-            strict=True,
-            reason="PhiLoader expects the legacy PhiConfig (n_layer), not the native one",
-        ),
     ),
 ]
 
@@ -268,7 +252,7 @@ _TRANSFORMERS_GENERATION_TESTS = [
 @pytest.mark.parametrize(
     "model,start_tokens,max_length,expected_tokens",
     _TRANSFORMERS_GENERATION_TESTS,
-    ids=[getattr(args, "values", args)[0] for args in _TRANSFORMERS_GENERATION_TESTS],
+    ids=[args[0] for args in _TRANSFORMERS_GENERATION_TESTS],
 )
 def test_transformers_generation(
     clear_transformers_cache,
@@ -347,14 +331,7 @@ def test_transformers_marianmt_disable_unk(
         "distilbert-base-uncased",
         "distilbert-base-cased-distilled-squad",
         "typeform/distilbert-base-uncased-mnli",
-        pytest.param(
-            "almanach/camembert-base",
-            marks=pytest.mark.xfail(
-                _TRANSFORMERS_5,
-                strict=True,
-                reason="CamembertConfig.position_embedding_type removed in Transformers 5",
-            ),
-        ),
+        "almanach/camembert-base",
     ],
 )
 def test_transformers_encoder(clear_transformers_cache, tmp_dir, device, model_name):
@@ -1130,16 +1107,12 @@ class TestWav2Vec2:
                     " WE ARE GLAD TO WELCOME HIS GOSPEL",
                 ],
             ),
-            pytest.param(
+            (
                 "facebook/wav2vec2-base-960h",
                 [
                     "MISTER QUILTER IS THE APOSTLE OF THE MIDDLE CLASSES AND"
                     " WE ARE GLAD TO WELCOME HIS GOSPEL",
                 ],
-                marks=pytest.mark.xfail(
-                    strict=True,
-                    reason="Wav2Vec2 loader does not support the group-norm feature extractor",
-                ),
             ),
         ],
     )
