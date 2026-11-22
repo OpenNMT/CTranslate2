@@ -1,3 +1,25 @@
+## [v4.9.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.1) (2026-11-22)
+
+### New features
+
+* Add Blackwell targets to the CUDA 12 release builds (#2156) by [@arcusbuilds](https://github.com/arcusbuilds)
+
+### Fixes and improvements
+
+* Fix Gemma 2/3 softcapping, query scaling, and RoPE conversion (#2164) by [@jordimas](https://github.com/jordimas)
+* Fix Phi-3/Phi-4 conversion with Transformers 4.x and 5.x (#2169) by [@jordimas](https://github.com/jordimas)
+* Test with Transformers 5.24.0 and 4.x, fix converters, and add real-model conversion tests (#2170) by [@jordimas](https://github.com/jordimas)
+* Fix decoder output scaling for T5 and mT5 with Transformers 5 (#2161) by [@jvamvas](https://github.com/jvamvas)
+* Make `flash_attention` effective for the Whisper encoder (#2083) by [@nilsreck](https://github.com/nilsreck)
+* Fix MPS GPT-2 NaNs and T5Gemma2 beam expansion (#2155) by [@TBO22](https://github.com/TBO22)
+* Validate token ids used to disable logits during decoding (#2159) by [@jordimas](https://github.com/jordimas)
+* Strip debug info from the Python extension on Linux (#2162) by [@jordimas](https://github.com/jordimas)
+* Enable GPU test suites for HIP builds and add ROCm-specific Python tests (#2042) by [@T0nd3](https://github.com/T0nd3)
+* Fix CUDA test builds (#2158) by [@arcusbuilds](https://github.com/arcusbuilds)
+* Fix the thread sanitizer job dependency build step in CI (#2167) by [@3manifold](https://github.com/3manifold)
+* Simplify and improve release gates (#2151) by [@jordimas](https://github.com/jordimas)
+* Align Docker installation image tags in the documentation (#2168) by [@cloudgpuapp](https://github.com/cloudgpuapp)
+
 ## [v4.9.0](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.0) (2026-11-10)
 
 ### New features
