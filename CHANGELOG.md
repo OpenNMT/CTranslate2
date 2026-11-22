@@ -1,4 +1,4 @@
-## [v4.9.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.1) (2026-11-21)
+## [v4.9.1](https://github.com/OpenNMT/CTranslate2/releases/tag/v4.9.1) (2026-11-22)
 
 ### New features
 
@@ -8,6 +8,7 @@
 
 * Fix Gemma 2/3 softcapping, query scaling, and RoPE conversion (#2164) by [@jordimas](https://github.com/jordimas)
 * Fix Phi-3/Phi-4 conversion with Transformers 4.x and 5.x (#2169) by [@jordimas](https://github.com/jordimas)
+* Test with Transformers 5.24.0 and 4.x, fix converters, and add real-model conversion tests (#2170) by [@jordimas](https://github.com/jordimas)
 * Fix decoder output scaling for T5 and mT5 with Transformers 5 (#2161) by [@jvamvas](https://github.com/jvamvas)
 * Make `flash_attention` effective for the Whisper encoder (#2083) by [@nilsreck](https://github.com/nilsreck)
 * Fix MPS GPT-2 NaNs and T5Gemma2 beam expansion (#2155) by [@TBO22](https://github.com/TBO22)
