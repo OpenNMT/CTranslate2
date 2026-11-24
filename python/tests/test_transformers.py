@@ -1696,3 +1696,54 @@ def test_t5_loader_shares_the_first_relative_attention_bias():
         assert len(biases) == 3
         # T5 only defines the table in the first layer and shares it with the others.
         assert all(bias is biases[0] for bias in biases)
+
+
+@test_utils.only_on_linux
+def test_get_rotary_params_keeps_rope_theta_when_scaling_is_set():
+    import transformers
+
+    from ctranslate2.converters.transformers import LlamaLoader
+
+    loader = LlamaLoader()
+
+    config = transformers.LlamaConfig(
+        vocab_size=64,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        max_position_embeddings=16384,
+        rope_theta=500000.0,
+        rope_scaling={
+            "rope_type": "llama3",
+            "factor": 32.0,
+            "high_freq_factor": 4.0,
+            "low_freq_factor": 1.0,
+            "original_max_position_embeddings": 8192,
+        },
+    )
+
+    # Transformers 4.x keeps rope_theta at the top level of the config, outside
+    # rope_scaling, so the loader must fall back to it instead of its own default.
+    scaling_type, scaling_factor, rope_theta = loader.get_rotary_params(config, 10_000)
+
+    assert scaling_type is not None
+    assert scaling_factor == 32.0
+    assert rope_theta == 500000.0
+
+    config_without_scaling = transformers.LlamaConfig(
+        vocab_size=64,
+        hidden_size=64,
+        intermediate_size=128,
+        num_hidden_layers=2,
+        num_attention_heads=2,
+        rope_theta=123456.0,
+    )
+
+    scaling_type, scaling_factor, rope_theta = loader.get_rotary_params(
+        config_without_scaling, 10_000
+    )
+
+    assert scaling_type is None
+    assert scaling_factor == 1
+    assert rope_theta == 123456.0

@@ -355,7 +355,11 @@ class ModelLoader(abc.ABC):
                         % (rope_type, ", ".join(_SUPPORTED_ROPE_SCALING.keys()))
                     )
             rotary_scaling_factor = rope_scaling.get("factor", 1)
-            rope_theta = rope_scaling.get("rope_theta", default_rope_theta)
+            # Transformers 4.x keeps rope_theta at the top level of the config
+            # (not inside rope_scaling), so fall back to it before the default.
+            rope_theta = rope_scaling.get("rope_theta") or getattr(
+                config, "rope_theta", default_rope_theta
+            )
         else:
             rotary_scaling_type = None
             rotary_scaling_factor = 1
