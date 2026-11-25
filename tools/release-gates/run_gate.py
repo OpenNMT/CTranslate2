@@ -36,6 +36,9 @@ RULES = {
     "t5gemma_generation": {
         "tokens_per_sec": (0.10, True, True),
     },
+    "gemma_generation": {
+        "tokens_per_sec": (0.10, True, True),
+    },
 }
 
 

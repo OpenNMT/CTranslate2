@@ -41,8 +41,9 @@ def load_task_model(task, device, compute_type, model_dir=None):
     if not model_dir:
         raise ValueError(f"{task}: --model-dir is required")
     import ctranslate2
-    return ctranslate2.Translator(model_dir, device=device, compute_type=compute_type,
-                                 intra_threads=CPU_THREADS, inter_threads=1)
+    cls = ctranslate2.Generator if task == "gemma_generation" else ctranslate2.Translator
+    return cls(model_dir, device=device, compute_type=compute_type,
+               intra_threads=CPU_THREADS, inter_threads=1)
 
 
 def effective_compute_type(task, model):
@@ -82,6 +83,8 @@ def run_whisper_wer(limit=300, device="cpu", compute_type="default"):
 OPUS_MODEL = "Helsinki-NLP/opus-mt-en-de"
 T5GEMMA_MODEL = "jordimas/t5gemma-2-270m-270m"
 T5GEMMA_REVISION = "dfb6d0d619d8e6d42f279a6197abb90dec0137c1"
+GEMMA_MODEL = "unsloth/gemma-3-270m"  # ungated mirror of google/gemma-3-270m
+GEMMA_REVISION = "edcf1fe394ee1168e7c5538afd104cfb1f7947e6"
 
 
 def convert_opus_bleu(out_dir):
@@ -92,6 +95,12 @@ def convert_opus_bleu(out_dir):
 def convert_t5gemma_generation(out_dir):
     from ctranslate2.converters.transformers import TransformersConverter
     TransformersConverter(T5GEMMA_MODEL, revision=T5GEMMA_REVISION).convert(
+        out_dir, force=True, quantization="float32")
+
+
+def convert_gemma_generation(out_dir):
+    from ctranslate2.converters.transformers import TransformersConverter
+    TransformersConverter(GEMMA_MODEL, revision=GEMMA_REVISION).convert(
         out_dir, force=True, quantization="float32")
 
 
@@ -144,11 +153,34 @@ def run_t5gemma_generation(limit=50, device="cpu", *, model_dir, compute_type="d
             "compute_type": translator.compute_type}
 
 
+def run_gemma_generation(limit=50, device="cpu", *, model_dir, compute_type="default"):
+    import transformers
+    from datasets import load_dataset
+
+    samples = load_dataset("rajpurkar/squad", split="validation",
+                           revision=SQUAD_REVISION).shuffle(seed=42)[:limit]
+    prompts = [f"Context: {context} Question: {question} Answer:"
+               for context, question in zip(samples["context"], samples["question"])]
+    if not prompts:
+        raise ValueError("Generation requires at least one prompt")
+    tokenizer = transformers.AutoTokenizer.from_pretrained(GEMMA_MODEL, revision=GEMMA_REVISION)
+    inputs = [tokenizer.convert_ids_to_tokens(tokenizer.encode(p, truncation=True, max_length=512))
+              for p in prompts]
+    generator = load_task_model("gemma_generation", device, compute_type, model_dir)
+    results, elapsed = run_and_measure(
+        generator.generate_batch, inputs, warmup_size=8,
+        sampling_topk=1, max_length=64, max_batch_size=8)
+    return {"tokens_per_sec": sum(len(r.sequences[0]) for r in results) / elapsed,
+            "compute_type": generator.compute_type}
+
+
 TASKS = {"whisper_wer": run_whisper_wer, "opus_bleu": run_opus_bleu,
-         "t5gemma_generation": run_t5gemma_generation}
+         "t5gemma_generation": run_t5gemma_generation,
+         "gemma_generation": run_gemma_generation}
 
 CONVERTERS = {"opus_bleu": convert_opus_bleu,
-              "t5gemma_generation": convert_t5gemma_generation}
+              "t5gemma_generation": convert_t5gemma_generation,
+              "gemma_generation": convert_gemma_generation}
 
 
 if __name__ == "__main__":

@@ -305,6 +305,16 @@ jobs:
             python/tests/test_storage_view.py python/tests/test_translator.py \
             --junitxml=python-mps-results.xml
 
+      - name: Run release gate on MPS
+        if: ${{ !cancelled() && steps.build_python.outcome == 'success' }}
+        env:
+          CTRANSLATE2_ROOT: ${{ github.workspace }}/install-mps
+        run: |
+          python -m pip wheel --no-deps -w mps-wheel ./python
+          python tools/release-gates/run_gate.py \
+            --candidate-wheel-pattern "mps-wheel/*.whl" \
+            --limit 20 --bleu-limit 500 --device mps
+
       - name: Upload hardware details and test reports
         if: failure()
         uses: actions/upload-artifact@v4
