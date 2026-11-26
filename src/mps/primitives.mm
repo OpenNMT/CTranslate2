@@ -585,6 +585,12 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::MPS>::sqr(const T* x, T* y, dim_t size) {
+    primitives<Device::MPS>::mul(x, x, y, size);
+  }
+
+  template<>
+  template <typename T>
   void primitives<Device::MPS>::cos(const T* x, T* y, dim_t size) {
     if constexpr (is_mps_float_type_v<T>) {
       mps::unary(DataTypeToEnum<T>::value, mps::UnaryOp::COS, x, y, size);
@@ -1053,7 +1059,8 @@ namespace ctranslate2 {
   template void primitives<Device::MPS>::cos(const T*, T*, dim_t); \
   template void primitives<Device::MPS>::tanh(const T*, T*, dim_t); \
   template void primitives<Device::MPS>::exp(const T*, T*, dim_t); \
-  template void primitives<Device::MPS>::log(const T*, T*, dim_t);
+  template void primitives<Device::MPS>::log(const T*, T*, dim_t); \
+  template void primitives<Device::MPS>::sqr(const T*, T*, dim_t);
 
   MPS_DECLARE_FLOAT_IMPL(float)
   MPS_DECLARE_FLOAT_IMPL(float16_t)

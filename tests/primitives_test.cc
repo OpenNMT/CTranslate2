@@ -22,6 +22,14 @@ TEST_P(PrimitiveTest, IndexedFill) {
   expect_storage_eq(x, expected);
 }
 
+TEST(CPUPrimitiveTest, Sqr) {
+  StorageView x({1}, std::vector<float>{25});
+  StorageView y(x.shape(), float(0));
+  StorageView expected({1}, std::vector<float>{625});
+  primitives<Device::CPU>::sqr(x.data<float>(), y.data<float>(), x.size());
+  expect_storage_eq(y, expected);
+}
+
 TEST_P(PrimitiveTest, LogSumExp) {
   const Device device = GetParam();
   StorageView x({8}, std::vector<float>{0.6, 0.2, -1.2, 0.1, 0.3, 0.5, -1.3, 0.2}, device);

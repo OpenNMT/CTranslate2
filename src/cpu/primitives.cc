@@ -373,6 +373,17 @@ namespace ctranslate2 {
     CPU_ISA_DISPATCH((cpu::log<ISA>(x, y, size)));
   }
 
+
+  template<>
+  template<>
+  void primitives<Device::CPU>::sqr(const float* x, float* y, dim_t size) {
+#ifdef CT2_WITH_MKL
+    if (cpu::mayiuse_mkl())
+      return vsSqr(size, x, y);
+#endif
+    CPU_ISA_DISPATCH((cpu::sqr<ISA>(x, y, size)));
+  }
+
   template<>
   template<>
   void primitives<Device::CPU>::cos(const float* x, float* y, dim_t size) {

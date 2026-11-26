@@ -222,6 +222,11 @@ namespace ctranslate2 {
     }
 
     template<>
+    void sqr<TARGET_ISA>(const float* x, float* y, dim_t size) {
+      vectorized_unary_transform<TARGET_ISA>(x, y, size, Vec<float, TARGET_ISA>::sqr);
+    }
+
+    template<>
     void sin<TARGET_ISA>(const float* x, float* y, dim_t size) {
       vectorized_unary_transform<TARGET_ISA>(x, y, size, Vec<float, TARGET_ISA>::sin);
     }
