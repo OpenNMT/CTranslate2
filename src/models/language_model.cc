@@ -110,6 +110,11 @@ namespace ctranslate2 {
     {
     }
 
+    void DecoderReplica::set_alignment_heads(
+        const std::vector<std::pair<dim_t, dim_t>>& alignment_heads) {
+      _decoder->set_alignment_heads(alignment_heads);
+    }
+
     std::vector<ScoringResult>
     DecoderReplica::run_scoring(const std::vector<std::vector<std::string>>& tokens,
                                 const ScoringOptions& options) {
@@ -165,6 +170,7 @@ namespace ctranslate2 {
       decoding_options.sampling_temperature = options.sampling_temperature;
       decoding_options.num_hypotheses = options.num_hypotheses;
       decoding_options.return_scores = options.return_scores;
+      decoding_options.return_attention = options.return_attention;
       decoding_options.return_logits_vocab = options.return_logits_vocab;
       decoding_options.return_alternatives = options.return_alternatives;
       decoding_options.min_alternative_expansion_prob = options.min_alternative_expansion_prob;
@@ -251,9 +257,13 @@ namespace ctranslate2 {
 
         // Remove EOS token.
         if (!options.return_end_token) {
-          for (auto& sequence : result.hypotheses) {
-            while (!sequence.empty() && is_eos(sequence.back(), end_ids))
-              sequence.pop_back();
+          for (size_t h = 0; h < result.hypotheses.size(); ++h) {
+            while (!result.hypotheses[h].empty()
+                   && is_eos(result.hypotheses[h].back(), end_ids)) {
+              result.hypotheses[h].pop_back();
+              if (!result.attention.empty())
+                result.attention[h].pop_back();
+            }
           }
         }
 
@@ -269,6 +279,7 @@ namespace ctranslate2 {
         final_result.sequences = vocabulary.to_tokens(result.hypotheses);
         final_result.sequences_ids = std::move(result.hypotheses);
         final_result.scores = std::move(result.scores);
+        final_result.attention = std::move(result.attention);
         final_result.logits = std::move(result.logits_vocab);
         final_results.emplace_back(std::move(final_result));
       }
