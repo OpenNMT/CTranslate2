@@ -228,9 +228,16 @@ namespace ctranslate2 {
     else
       result.attention.clear();
 
-    if (keep_logits_vocab)
+    if (keep_logits_vocab) {
       result.logits_vocab = index_vector(result.logits_vocab, idx);
-    else
+      // These deep copies belong to the producing worker's Metal stream.
+      // Complete them before handing the result to a different caller thread.
+      for (const auto& hypothesis : result.logits_vocab)
+        if (!hypothesis.empty() && hypothesis.front().device() == Device::MPS) {
+          synchronize_stream(Device::MPS);
+          break;
+        }
+    } else
       result.logits_vocab.clear();
   }
 

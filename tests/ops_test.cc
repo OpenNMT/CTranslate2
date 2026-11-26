@@ -19,6 +19,54 @@
 #  include "mps/utils.h"
 #endif
 
+#ifdef CT2_WITH_MPS
+TEST(MPSPrimitiveTest, HalfWeightDenseRetainsFloatActivationsAndResults) {
+  for (dim_t rows : {1, 7, 9, 33})
+    for (dim_t depth : {13, 640, 2048})
+      for (bool bias : {false, true})
+        for (bool residual : {false, true}) {
+          SCOPED_TRACE(::testing::Message() << rows << ' ' << depth << ' '
+                                            << bias << ' ' << residual);
+          constexpr dim_t columns = 65;
+          StorageView input({rows, depth}), weight({columns, depth}, DataType::FLOAT16),
+            b({columns}, DataType::FLOAT16), r({rows, columns}), expected({rows, columns});
+          for (dim_t i = 0; i < input.size(); ++i)
+            input.data<float>()[i] = .21739f * std::sin(float(i) * .17f);
+          for (dim_t i = 0; i < weight.size(); ++i)
+            weight.data<float16_t>()[i] = float16_t(.031f * std::cos(float(i) * .13f));
+          for (dim_t i = 0; i < columns; ++i)
+            b.data<float16_t>()[i] = float16_t(float(i) * .003f);
+          for (dim_t i = 0; i < r.size(); ++i)
+            r.data<float>()[i] = std::sin(float(i) * .23f);
+          for (dim_t m = 0; m < rows; ++m)
+            for (dim_t n = 0; n < columns; ++n) {
+              double sum = 0;
+              for (dim_t k = 0; k < depth; ++k)
+                sum += double(input.data<float>()[m*depth+k])
+                  * float(weight.data<float16_t>()[n*depth+k]);
+              if (bias) sum += float(b.data<float16_t>()[n]);
+              if (residual) sum += r.data<float>()[m*columns+n];
+              expected.data<float>()[m*columns+n] = sum;
+            }
+          auto x = input.to(Device::MPS), w = weight.to(Device::MPS),
+            gb = b.to(Device::MPS), gr = r.to(Device::MPS);
+          StorageView output({rows, columns}, std::numeric_limits<float>::quiet_NaN(),
+                              Device::MPS);
+          mps::dense_f16_fp32(x.data<float>(), w.data<float16_t>(),
+                               bias ? gb.data<float16_t>() : nullptr,
+                               residual ? gr.data<float>() : nullptr,
+                               output.data<float>(), rows, columns, depth);
+          expect_storage_eq(output, expected, 1e-5f);
+        }
+  StorageView input({1, 1}, 1.0001f, Device::MPS),
+    weight({1, 1}, std::vector<float16_t>{float16_t(1)}, Device::MPS),
+    output({1, 1}, DataType::FLOAT32, Device::MPS);
+  mps::dense_f16_fp32(input.data<float>(), weight.data<float16_t>(), nullptr,
+                       nullptr, output.data<float>(), 1, 1, 1);
+  expect_storage_eq(output, StorageView({1, 1}, 1.0001f), 1e-7f);
+}
+#endif
+
 TEST(OpTest, Transpose1D) {
   StorageView x({4}, std::vector<float>{1, 2, 3, 4});
   StorageView y;

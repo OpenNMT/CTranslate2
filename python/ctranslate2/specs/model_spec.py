@@ -196,6 +196,11 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 % (quantization, ", ".join(ACCEPTED_MODEL_TYPES))
             )
 
+        decoder_layers = getattr(getattr(self, "decoder", None), "layer", [])
+        keep_norm_gamma = quantization == "float16" and bool(
+            decoder_layers and hasattr(decoder_layers[0].self_attention, "memory_kv")
+        )
+
         def _quantize(spec, name, value):
             if variable_filter is not None and not variable_filter(name):
                 return
@@ -203,6 +208,11 @@ class LayerSpec(FrozenAttr, metaclass=FrozenMeta):
                 return
 
             key = _split_scope(name)[-1]
+            if keep_norm_gamma and key == "gamma":
+                # T5Gemma2 normalization includes large learned unit offsets.
+                # Keep them exact for the mixed-precision Metal activation path.
+                setattr(spec, key, value.to("float32"))
+                return
             scale = None
             is_quantizable = hasattr(spec, "%s_scale" % key)
             is_convertible = value.dtype in ("float32", "float16", "bfloat16")

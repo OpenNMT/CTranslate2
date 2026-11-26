@@ -52,6 +52,13 @@ decoding decisions. Explicit `int8_float32` and `int8_bfloat16` requests retain
 the experimental native INT8 path. See [Quantization](quantization.md) for the
 exact type conversions and [Installation](installation.md) for a build example.
 
+T5Gemma2 with FP16 computation keeps activations, normalization, residuals and
+KV state in FP32. Native Metal projections read FP16 model matrices directly
+without allocating a full FP32 matrix copy. This avoids residual overflow and
+accumulated rounding errors at the cost of larger activation and cache buffers.
+Newly converted FP16 T5Gemma2 models retain their normalization scales in FP32.
+Other model and device paths keep their existing compute types.
+
 The MPS backend cannot be enabled together with CUDA or HIP in the same build.
 FlashAttention, AWQ INT4, INT16 GEMM, distributed collectives, and
 packed/shifted-u8 INT8 GEMM are not currently implemented on MPS.
