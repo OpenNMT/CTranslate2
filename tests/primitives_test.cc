@@ -83,10 +83,11 @@ TEST(MPSPrimitiveTest, PenalizePreviousTokensFloat16OddLength) {
 }
 #endif
 
-// The integer primitives run on the host. Building each operand queues a fill on
-// the device, so unless they wait for it the fill lands after their result, and
-// in the in-place case overwrites it.
-TEST_P(PrimitiveTest, IntegerHostLoopsWaitForPendingWork) {
+// Correctness of the integer primitives on every device. On MPS they run on the
+// host and building each operand queues a fill on the device, so unless they
+// wait for it the fill lands after their result, and in the in-place case
+// overwrites it. This also guards that synchronization.
+TEST_P(PrimitiveTest, IntegerPrimitives) {
   const Device device = GetParam();
   const auto queued = [device](int32_t value, const Shape& shape = {6}) {
     return StorageView(shape, value, device);
