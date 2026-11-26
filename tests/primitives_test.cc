@@ -81,14 +81,15 @@ TEST(MPSPrimitiveTest, PenalizePreviousTokensFloat16OddLength) {
                                                      scores.dim(1));
   expect_storage_eq(scores, expected);
 }
+#endif
 
 // The integer primitives run on the host. Building each operand queues a fill on
 // the device, so unless they wait for it the fill lands after their result, and
 // in the in-place case overwrites it.
-TEST(MPSPrimitiveTest, IntegerHostLoopsWaitForPendingWork) {
-  using P = primitives<Device::MPS>;
-  const auto queued = [](int32_t value, const Shape& shape = {6}) {
-    return StorageView(shape, value, Device::MPS);
+TEST_P(PrimitiveTest, IntegerHostLoopsWaitForPendingWork) {
+  const Device device = GetParam();
+  const auto queued = [device](int32_t value, const Shape& shape = {6}) {
+    return StorageView(shape, value, device);
   };
   const auto check = [](const char* name, const StorageView& got, int32_t expected) {
     SCOPED_TRACE(name);
@@ -96,6 +97,8 @@ TEST(MPSPrimitiveTest, IntegerHostLoopsWaitForPendingWork) {
   };
   const dim_t size = 6;
 
+  DEVICE_DISPATCH(device, SINGLE_ARG(
+  using P = primitives<D>;
   {
     StorageView x = queued(1);
     P::add(int32_t(1), x.data<int32_t>(), x.data<int32_t>(), size);
@@ -181,8 +184,8 @@ TEST(MPSPrimitiveTest, IntegerHostLoopsWaitForPendingWork) {
     P::transpose_4d(a.data<int32_t>(), dims, perm, b.data<int32_t>());
     check("transpose_4d", b, 7);
   }
+  ));
 }
-#endif
 
 INSTANTIATE_TEST_SUITE_P(CPU, PrimitiveTest, ::testing::Values(Device::CPU));
 #if defined(CT2_WITH_CUDA) || defined(CT2_USE_HIP)
