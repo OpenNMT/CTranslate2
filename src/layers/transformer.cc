@@ -681,10 +681,14 @@ namespace ctranslate2 {
         (*_layernorm_embedding)(layer_in, layer_in);
 
       const dim_t batch_size = layer_in.dim(0);
+      // Merged attention applies each layer's window to decoder keys only.
+      // Legacy chunking also mistakes packed token features for the time axis.
+      const dim_t sliding_window =
+          _layers.front()->has_merged_encoder_attention() ? 0 : _sliding_window;
       dim_t max_time;
 
-      if (_sliding_window > 0 && layer_in.dim(1) > _sliding_window) {
-        max_time = _sliding_window;
+      if (sliding_window > 0 && layer_in.dim(1) > sliding_window) {
+        max_time = sliding_window;
       } else
         max_time = layer_in.dim(1);
 
@@ -766,13 +770,13 @@ namespace ctranslate2 {
 
       while (true) {
         dim_t prompt_size = layer_in.dim(1);
-        if (_sliding_window == 0 || prompt_size <= _sliding_window || _use_flash_attention) {
+        if (sliding_window == 0 || prompt_size <= sliding_window || _use_flash_attention) {
           layer_ins.push_back(std::move(layer_in));
           break;
         }
-        if (layer_in.dim(1) > _sliding_window) {
+        if (layer_in.dim(1) > sliding_window) {
           StorageView tmp(dtype, device);
-          const ops::Split split_op(1, {_sliding_window, prompt_size - _sliding_window});
+          const ops::Split split_op(1, {sliding_window, prompt_size - sliding_window});
           split_op(layer_in, tmp, layer_in);
           layer_ins.push_back(std::move(tmp));
         }
@@ -801,10 +805,10 @@ namespace ctranslate2 {
           if (attention && heads_to_select)
             layer_attention = std::make_unique<StorageView>(dtype, device);
 
-          dim_t offset = _sliding_window * i + step;
+          dim_t offset = sliding_window * i + step;
           offset = offset < 0 ? 0 : offset;
           if (i > 0) {
-            auto max_tokens = _sliding_window + layer_in_chunk->dim(1);
+            auto max_tokens = sliding_window + layer_in_chunk->dim(1);
             StorageView tmp_lengths = StorageView(Shape{layer_in_chunk->dim(0)}, int32_t(max_tokens), device);
             int num_heads = _num_heads;
             if (_tensor_parallel) {
@@ -817,7 +821,7 @@ namespace ctranslate2 {
               /*mask_future=*/true,
               multi_query);
 
-            const ops::Slide slide_lengths_op(2, _sliding_window, layer_in_chunk->dim(1));
+            const ops::Slide slide_lengths_op(2, sliding_window, layer_in_chunk->dim(1));
             // reuse tmp_lengths
             slide_lengths_op(lengths_mask, tmp_lengths);
             input_lengths_mask = std::make_unique<StorageView>(std::move(tmp_lengths));
