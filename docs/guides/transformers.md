@@ -643,6 +643,13 @@ To convert a model:
 ct2-transformers-converter --model google/t5gemma-2-270m-270m --output_dir t5gemma2_270m_270m.ct2
 ```
 
+```{note}
+Reconvert T5Gemma and T5Gemma2 models to apply the corrected FP32 RMSNorm
+unit offset when loading BF16 or FP16 source weights. T5Gemma2 conversion also
+preserves the original decoder embedding scale and wrapped output projections.
+These conversion changes apply to every execution device.
+```
+
 Usage:
 
 ```python
