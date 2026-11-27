@@ -39,6 +39,23 @@ pip install transformers[torch]
 ct2-transformers-converter --model facebook/m2m100_418M --output_dir ct2_model
 ```
 
+```{note}
+Upgrading CTranslate2 does not update previously converted model files. Reconvert
+the following models with the indicated converter version:
+
+* **Gemma 2 and Gemma 3:** If converted before CTranslate2 4.9.1, reconvert with
+  4.9.1 or later to apply the query-scaling and output-logit fixes. Gemma 3 also
+  receives the RoPE fix.
+* **T5Gemma and T5Gemma2:** Reconvert with the first release containing the
+  [RMSNorm conversion fix](https://github.com/OpenNMT/CTranslate2/pull/2174).
+  T5Gemma also receives the output-logit fix introduced in 4.9.1. T5Gemma2
+  receives additional fixes for the decoder embedding scale and wrapped output
+  projections. These fixes apply to every execution device.
+
+The RMSNorm fix computes the unit offset in FP32 before export. Explicit FP16 or
+BF16 export can round the corrected weights again.
+```
+
 ## Special tokens in translation
 
 For other frameworks, the `Translator` methods implicitly add special tokens to the source input when required. For example, models converted from Fairseq or Marian will implicitly append `</s>` to the source tokens.
@@ -641,13 +658,6 @@ To convert a model:
 
 ```bash
 ct2-transformers-converter --model google/t5gemma-2-270m-270m --output_dir t5gemma2_270m_270m.ct2
-```
-
-```{note}
-Reconvert T5Gemma and T5Gemma2 models to apply the corrected FP32 RMSNorm
-unit offset when loading BF16 or FP16 source weights. T5Gemma2 conversion also
-preserves the original decoder embedding scale and wrapped output projections.
-These conversion changes apply to every execution device.
 ```
 
 Usage:
