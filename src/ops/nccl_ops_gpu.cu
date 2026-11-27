@@ -60,8 +60,6 @@ namespace ctranslate2 {
       NCCL_CHECK(ncclAllReduce(input.data<T>(), output.data<T>(),
                                data_size, ncclDataType, ncclOp,
                                comm, cuda::get_cuda_stream()));
-
-      cudaStreamSynchronize(cuda::get_cuda_stream());
 #endif
       (void)input;
       (void)output;
@@ -77,8 +75,6 @@ namespace ctranslate2 {
       NCCL_CHECK(ncclAllGather(input.data<T>(), output.data<T>(),
                                data_size, ncclDataType,
                                comm, cuda::get_cuda_stream()));
-
-      cudaStreamSynchronize(cuda::get_cuda_stream());
 #endif
       (void)input;
       (void)output;
