@@ -454,7 +454,10 @@ namespace ctranslate2 {
       T* scores, const int32_t* self_lengths, const int32_t* memory_lengths,
       dim_t rows, dim_t self_size, dim_t memory_size, dim_t query_size,
       dim_t offset, dim_t window, dim_t right_window) {
-    cpu::parallel_for(0, rows, 1, [&](dim_t begin, dim_t end) {
+    const dim_t depth = self_size + memory_size;
+    const T masked_value = T(-std::numeric_limits<float>::infinity());
+    cpu::parallel_for(0, rows, cpu::GRAIN_SIZE / std::max<dim_t>(depth, 1),
+                      [&](dim_t begin, dim_t end) {
       for (dim_t row = begin; row < end; ++row) {
         const dim_t length = self_lengths ? self_lengths[row] : self_size;
         // Padded encoder queries are discarded later. Keep a nonempty key
@@ -467,12 +470,14 @@ namespace ctranslate2 {
                 : length;
         const dim_t memory_end =
             memory_lengths ? memory_lengths[row] : memory_size;
-        for (dim_t col = 0; col < self_size + memory_size; ++col) {
-          if (col < self_size ? (col < first || col >= self_end)
-                              : col - self_size >= memory_end)
-            scores[row * (self_size + memory_size) + col] =
-                T(-std::numeric_limits<float>::infinity());
-        }
+        auto* row_scores = scores + row * depth;
+        // Only visit masked ranges. Scanning every valid encoder key adds
+        // work at every decoder step, even when no padding is present.
+        std::fill(row_scores, row_scores + std::min(first, self_size), masked_value);
+        std::fill(row_scores + std::clamp(self_end, dim_t(0), self_size),
+                  row_scores + self_size, masked_value);
+        std::fill(row_scores + self_size + std::clamp(memory_end, dim_t(0), memory_size),
+                  row_scores + depth, masked_value);
       }
     });
   }
