@@ -25,7 +25,29 @@ namespace ctranslate2 {
       // always enough to land back inside the input.
       // (Edge replication, which repeats the edge value, is a different mode.)
 
- 
+      Shape out_shape = input.shape();
+      out_shape.back() += _left + _right;
+      output.resize(std::move(out_shape));
+
+/*
+      const auto* src = input.data<T>();
+      auto* dst = output.data<T>();
+
+       cpu::parallel_for(0, outer_size, 1, [&](dim_t begin, dim_t end) {
+        for (dim_t i = begin; i < end; ++i) {
+          for (dim_t j = 0; j < inner_size; ++j) {
+            float sum = 0.f;
+            for (dim_t k = 0; k < axis_size; ++k) {
+              sum += src[i * axis_size * inner_size + k * inner_size + j];
+            }
+            dst[i * inner_size + j] = sum;
+            if (!get_sum)
+              dst[i * inner_size + j] /= float(axis_size);
+          }
+        }
+      });
+    }
+*/
     }
 
     template void Pad1D::compute<Device::CPU, float>(const StorageView&,

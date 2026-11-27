@@ -1,6 +1,7 @@
 #include "ctranslate2/ops/pad.h"
 
 #include <stdexcept>
+#include <string>
 
 namespace ctranslate2 {
   namespace ops {
@@ -9,13 +10,26 @@ namespace ctranslate2 {
       : _left(left)
       , _right(right)
       , _mode(mode) {
-      // TODO: validate left >= 0 and right >= 0.
     }
 
     void Pad1D::operator()(const StorageView& input, StorageView& output) const {
       PROFILE("Pad1D");
-      // TODO: validate rank/length (reflect requires left, right < length),
-      // and resize output.
+
+      if (!(input.rank() > 1))
+        throw std::invalid_argument("Pad1D only supports ranks > 1");
+
+      const dim_t length = input.shape().back();
+      if (!(_right < length))
+        throw std::invalid_argument("Pad1D: right padding (" + std::to_string(_right)
+                                    + ") must be smaller than the input length ("
+                                    + std::to_string(length) + ")");
+
+      if (!(_left < length))
+        throw std::invalid_argument("Pad1D: left padding (" + std::to_string(_left)
+                                    + ") must be smaller than the input length ("
+                                    + std::to_string(length) + ")");
+
+
       if (input.device() != Device::CPU || output.device() != Device::CPU)
         throw std::invalid_argument("Pad1D only supports CPU");
       if (input.dtype() != DataType::FLOAT32)
