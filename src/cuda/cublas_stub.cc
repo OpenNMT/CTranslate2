@@ -8,6 +8,12 @@
 #ifdef _WIN32
 #  include <windows.h>
 #  define CUBLAS_LIBNAME "cublas64_" STR(CUBLAS_VER_MAJOR) ".dll"
+// CUDA 13 moved the DLLs from bin to bin\x64.
+#  if CUBLAS_VER_MAJOR >= 13
+#    define CUBLAS_DLL_DIR "\\bin\\x64"
+#  else
+#    define CUBLAS_DLL_DIR "\\bin"
+#  endif
 #else
 #  include <dlfcn.h>
 #  define CUBLAS_LIBNAME "libcublas.so." STR(CUBLAS_VER_MAJOR)
@@ -55,7 +61,7 @@ namespace ctranslate2 {
 #ifdef _WIN32
       std::string cuda_path = read_string_from_env("CUDA_PATH");
       if (!cuda_path.empty()) {
-        cuda_path += "\\bin";
+        cuda_path += CUBLAS_DLL_DIR;
         SetDllDirectoryA(cuda_path.c_str());
       }
       void* handle = static_cast<void*>(LoadLibraryA(CUBLAS_LIBNAME));
