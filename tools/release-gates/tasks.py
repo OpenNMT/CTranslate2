@@ -168,8 +168,9 @@ def run_gemma_generation(limit=50, device="cpu", *, model_dir, compute_type="def
               for p in prompts]
     generator = load_task_model("gemma_generation", device, compute_type, model_dir)
     results, elapsed = run_and_measure(
+        # Throughput includes prompt tokens because generate_batch returns them by default.
         generator.generate_batch, inputs, warmup_size=8,
-        sampling_topk=1, max_length=64, max_batch_size=8)
+        sampling_topk=1, max_batch_size=8)
     return {"tokens_per_sec": sum(len(r.sequences[0]) for r in results) / elapsed,
             "compute_type": generator.compute_type}
 
