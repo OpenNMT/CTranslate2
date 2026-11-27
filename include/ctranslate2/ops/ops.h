@@ -54,3 +54,4 @@
 #include "gated_delta_net.h"
 #include "moe_topk.h"
 #include "snake.h"
+#include "pad.h"
