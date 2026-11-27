@@ -273,6 +273,7 @@ set(CUDA_SOURCES
   src/ops/dequantize_fp8_gpu.cu
   src/ops/moe_topk_gpu.cu
   src/ops/snake_gpu.cu
+  src/ops/pad_gpu.cu
   src/cuda/allocator.cc
   src/cuda/primitives.cu
   src/cuda/random.cu

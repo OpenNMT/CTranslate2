@@ -3,6 +3,8 @@
 #include <stdexcept>
 #include <string>
 
+#include "device_dispatch.h"
+
 namespace ctranslate2 {
   namespace ops {
 
@@ -30,12 +32,13 @@ namespace ctranslate2 {
                                     + std::to_string(length) + ")");
 
 
-      if (input.device() != Device::CPU || output.device() != Device::CPU)
-        throw std::invalid_argument("Pad1D only supports CPU");
+      if (output.device() != input.device() || output.device_index() != input.device_index())
+        throw std::invalid_argument("Pad1D requires input and output on the same device");
       if (input.dtype() != DataType::FLOAT32)
         throw std::invalid_argument("Pad1D only supports float32");
 
-      compute<Device::CPU, float>(input, output);
+      const ScopedDeviceSetter setter(input.device(), input.device_index());
+      DEVICE_DISPATCH(input.device(), (compute<D, float>(input, output)));
     }
 
   }

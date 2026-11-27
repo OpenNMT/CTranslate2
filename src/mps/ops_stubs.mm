@@ -10,6 +10,7 @@
 #include "ctranslate2/ops/gated_delta_net.h"
 #include "ctranslate2/ops/moe_topk.h"
 #include "ctranslate2/ops/nccl_ops.h"
+#include "ctranslate2/ops/pad.h"
 #include "ctranslate2/ops/snake.h"
 #include "type_dispatch.h"
 
@@ -125,6 +126,12 @@ namespace ctranslate2 {
                                                             StorageView&,
                                                             StorageView&) const {
       THROW_MPS(CausalDepthwiseConv1D)
+    }
+
+    template<>
+    void Pad1D::compute<Device::MPS, float>(const StorageView&,
+                                            StorageView&) const {
+      THROW_MPS(Pad1D)
     }
 
     template<>

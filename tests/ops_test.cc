@@ -2724,32 +2724,45 @@ TEST(OpTest, SnakeParallelChannelBoundaries) {
   expect_snake_reference(x, alpha, y);
 }
 
-TEST(OpTest, Pad1DReflect) {
+static void expect_pad1d(Device device, const StorageView& x, dim_t left, dim_t right,
+                         const StorageView& expected) {
+  StorageView y(DataType::FLOAT32, device);
+  ops::Pad1D(left, right)(x.to(device), y);
+  expect_storage_eq(y, expected);
+}
+
+TEST_P(OpDeviceTest, Pad1DReflect) {
+  const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
   StorageView x({2, 4}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
-  StorageView y;
-  ops::Pad1D(2, 1)(x, y);
   StorageView expected({2, 7}, std::vector<float>{3, 2, 1, 2, 3, 4, 3,
                                                   7, 6, 5, 6, 7, 8, 7});
-  expect_storage_eq(y, expected);
+  expect_pad1d(device, x, 2, 1, expected);
 }
 
-TEST(OpTest, Pad1DReflectChannels) {
+TEST_P(OpDeviceTest, Pad1DReflectChannels) {
+  const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
   StorageView x({1, 2, 3}, std::vector<float>{1, 2, 3, 4, 5, 6});
-  StorageView y;
-  ops::Pad1D(2, 2)(x, y);
   StorageView expected({1, 2, 7}, std::vector<float>{3, 2, 1, 2, 3, 2, 1,
                                                      6, 5, 4, 5, 6, 5, 4});
-  expect_storage_eq(y, expected);
+  expect_pad1d(device, x, 2, 2, expected);
 }
 
-TEST(OpTest, Pad1DReflectSileroShape) {
+TEST_P(OpDeviceTest, Pad1DReflectSileroShape) {
+  const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
   StorageView x({1, 576}, DataType::FLOAT32);
   for (dim_t i = 0; i < x.size(); ++i)
     x.data<float>()[i] = float(i);
-  StorageView y;
-  ops::Pad1D(128, 128)(x, y);
+  StorageView y(DataType::FLOAT32, device);
+  ops::Pad1D(128, 128)(x.to(device), y);
   ASSERT_EQ(y.shape(), (Shape{1, 832}));
-  const float* out = y.data<float>();
+  const StorageView host = y.to(Device::CPU);
+  const float* out = host.data<float>();
   EXPECT_EQ(out[0], 128.f);
   EXPECT_EQ(out[127], 1.f);
   EXPECT_EQ(out[128], 0.f);
@@ -2788,6 +2801,21 @@ TEST(OpTest, SnakeRejectsAliasingIncludingClearedOutput) {
   StorageView view({1, 1, 3}, y.data<float>() + 2);
   y.clear();
   EXPECT_THROW(ops::Snake()(view, alpha, y), std::invalid_argument);
+}
+
+TEST_P(OpDeviceTest, Pad1DReflectMatchesCpu) {
+  const Device device = GetParam();
+  if (device == Device::MPS)
+    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
+  // Many rows, so that the work is split across threads/blocks.
+  StorageView x({4, 3, 576}, DataType::FLOAT32);
+  for (dim_t i = 0; i < x.size(); ++i)
+    x.data<float>()[i] = float(i % 97 - 48) / 7;
+  StorageView expected, actual(DataType::FLOAT32, device);
+  ops::Pad1D(128, 100)(x, expected);
+  ASSERT_EQ(expected.shape(), (Shape{4, 3, 804}));
+  ops::Pad1D(128, 100)(x.to(device), actual);
+  expect_storage_eq(actual, expected);
 }
 
 TEST_P(OpDeviceTest, SnakeMatchesCpuAcrossBatchesAlphaLayoutsAndEmptyTime) {
