@@ -2724,6 +2724,40 @@ TEST(OpTest, SnakeParallelChannelBoundaries) {
   expect_snake_reference(x, alpha, y);
 }
 
+TEST(OpTest, Pad1DReflect) {
+  StorageView x({2, 4}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+  StorageView y;
+  ops::Pad1D(2, 1)(x, y);
+  StorageView expected({2, 7}, std::vector<float>{3, 2, 1, 2, 3, 4, 3,
+                                                  7, 6, 5, 6, 7, 8, 7});
+  expect_storage_eq(y, expected);
+}
+
+TEST(OpTest, Pad1DReflectChannels) {
+  StorageView x({1, 2, 3}, std::vector<float>{1, 2, 3, 4, 5, 6});
+  StorageView y;
+  ops::Pad1D(2, 2)(x, y);
+  StorageView expected({1, 2, 7}, std::vector<float>{3, 2, 1, 2, 3, 2, 1,
+                                                     6, 5, 4, 5, 6, 5, 4});
+  expect_storage_eq(y, expected);
+}
+
+TEST(OpTest, Pad1DReflectSileroShape) {
+  StorageView x({1, 576}, DataType::FLOAT32);
+  for (dim_t i = 0; i < x.size(); ++i)
+    x.data<float>()[i] = float(i);
+  StorageView y;
+  ops::Pad1D(128, 128)(x, y);
+  ASSERT_EQ(y.shape(), (Shape{1, 832}));
+  const float* out = y.data<float>();
+  EXPECT_EQ(out[0], 128.f);
+  EXPECT_EQ(out[127], 1.f);
+  EXPECT_EQ(out[128], 0.f);
+  EXPECT_EQ(out[703], 575.f);
+  EXPECT_EQ(out[704], 574.f);
+  EXPECT_EQ(out[831], 447.f);
+}
+
 TEST(OpTest, SnakeEmptyTime) {
   StorageView x({1, 2, 0}, DataType::FLOAT32);
   StorageView alpha({2}, std::vector<float>{1, 2});

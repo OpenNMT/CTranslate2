@@ -1,5 +1,7 @@
 #include "ctranslate2/ops/pad.h"
 
+#include "cpu/parallel.h"
+
 namespace ctranslate2 {
   namespace ops {
 
@@ -29,25 +31,31 @@ namespace ctranslate2 {
       out_shape.back() += _left + _right;
       output.resize(std::move(out_shape));
 
-/*
       const auto* src = input.data<T>();
       auto* dst = output.data<T>();
 
-       cpu::parallel_for(0, outer_size, 1, [&](dim_t begin, dim_t end) {
-        for (dim_t i = begin; i < end; ++i) {
-          for (dim_t j = 0; j < inner_size; ++j) {
-            float sum = 0.f;
-            for (dim_t k = 0; k < axis_size; ++k) {
-              sum += src[i * axis_size * inner_size + k * inner_size + j];
+      const dim_t n = input.dim(-1);
+      const dim_t out_len = n + _left + _right;
+      const dim_t outer = input.size() / n;
+      const dim_t grain_size = cpu::get_minimum_batch_copies_per_thread<T>(out_len);
+
+      // Loop based on the output
+      cpu::parallel_for(0, outer, grain_size, [&](dim_t begin, dim_t end) {
+        for (dim_t r = begin; r < end; ++r) {
+          const T* in = src + r * n;
+          T* out = dst + r * out_len;
+          for (dim_t p = 0; p < out_len; ++p) {
+            if (p < _left) {
+              out[p] = in[_left - p];
+            } else if (p >= _left + n) {
+              out[p] = in[2 * (n - 1) - (p - _left)];
+            } else {
+              // Middle: copy the input.
+              out[p] = in[p - _left];
             }
-            dst[i * inner_size + j] = sum;
-            if (!get_sum)
-              dst[i * inner_size + j] /= float(axis_size);
           }
         }
       });
-    }
-*/
     }
 
     template void Pad1D::compute<Device::CPU, float>(const StorageView&,
