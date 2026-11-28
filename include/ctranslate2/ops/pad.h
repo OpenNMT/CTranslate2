@@ -8,6 +8,7 @@ namespace ctranslate2 {
     // Scaffold only: 1-D padding along the last axis (reflect mode). Not implemented yet.
     class Pad1D : public Op {
     public:
+      // Only reflect is implemented; other common modes are constant (fill with a value), replicate (repeat the edge value) and circular (wrap around).
       enum class Mode {
         Reflect
       };
