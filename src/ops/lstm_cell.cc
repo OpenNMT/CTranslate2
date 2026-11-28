@@ -35,7 +35,7 @@ namespace ctranslate2 {
       if (x.device_index() != h_prev.device_index() || x.device_index() != c_prev.device_index()
           || x.device_index() != w_ih.device_index() || x.device_index() != w_hh.device_index()
           || x.device_index() != b_ih.device_index() || x.device_index() != b_hh.device_index()
-          || x.device_index() != h.device_index() || x.device() != c.device())
+          || x.device_index() != h.device_index() || x.device_index() != c.device_index())
         throw std::invalid_argument("LSTMCell requires all tensors to use the same device_index");
 
       const dim_t batch = x.dim(0);        // first dim of x [batch, input_size]
