@@ -2810,6 +2810,27 @@ TEST_P(OpDeviceTest, Pad1DReflectMatchesCpu) {
   expect_storage_eq(actual, expected);
 }
 
+TEST(OpTest, LSTMCell) {
+  // batch=1, input_size=2, hidden_size=2. Expected values computed with the
+  // reference formulas (gate order i, f, g, o).
+  StorageView x({1, 2}, std::vector<float>{1.f, -0.5f});
+  StorageView h_prev({1, 2}, std::vector<float>{0.2f, -0.1f});
+  StorageView c_prev({1, 2}, std::vector<float>{0.3f, 0.4f});
+  StorageView w_ih({8, 2}, std::vector<float>{0.1f, 0.05f, 0.2f, 0.15f, 0.3f, 0.25f, 0.4f, 0.35f,
+                                              0.5f, 0.45f, 0.6f, 0.55f, 0.7f, 0.65f, 0.8f, 0.75f});
+  StorageView w_hh({8, 2}, std::vector<float>{-0.06f, -0.03f, -0.04f, -0.01f, -0.02f, 0.01f, 0.f, 0.03f,
+                                              0.02f, 0.05f, 0.04f, 0.07f, 0.06f, 0.09f, 0.08f, 0.11f});
+  StorageView b_ih({8}, std::vector<float>{0.f, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f});
+  StorageView b_hh({8}, std::vector<float>{0.f, -0.02f, -0.04f, -0.06f, -0.08f, -0.1f, -0.12f, -0.14f});
+  StorageView h, c;
+  ops::LSTMCell()(x, h_prev, c_prev, w_ih, w_hh, b_ih, b_hh, h, c);
+
+  StorageView expected_h({1, 2}, std::vector<float>{0.15792993f, 0.20386474f});
+  StorageView expected_c({1, 2}, std::vector<float>{0.27992989f, 0.36100203f});
+  expect_storage_eq(h, expected_h, 1e-5f);
+  expect_storage_eq(c, expected_c, 1e-5f);
+}
+
 TEST(OpTest, Pad1DRejectsNonFloat32) {
   StorageView x({2, 4}, std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8});
   StorageView y;
