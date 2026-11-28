@@ -4,6 +4,7 @@
 #include <string>
 
 #include "device_dispatch.h"
+#include "storage_view_overlap.h"
 
 namespace ctranslate2 {
   namespace ops {
@@ -40,6 +41,8 @@ namespace ctranslate2 {
         throw std::invalid_argument("Pad1D requires input and output on the same device");
       if (input.dtype() != DataType::FLOAT32)
         throw std::invalid_argument("Pad1D only supports float32");
+      if (input_aliases_output(input, output))
+        throw std::invalid_argument("Pad1D output must not alias input");
 
       const ScopedDeviceSetter setter(input.device(), input.device_index());
       DEVICE_DISPATCH(input.device(), (compute<D, float>(input, output)));
