@@ -12,6 +12,10 @@ namespace ctranslate2 {
       : _left(left)
       , _right(right)
       , _mode(mode) {
+      if (_left < 0 || _right < 0)
+        throw std::invalid_argument("Pad1D: padding must be non-negative (left="
+                                    + std::to_string(_left) + ", right="
+                                    + std::to_string(_right) + ")");
     }
 
     void Pad1D::operator()(const StorageView& input, StorageView& output) const {
