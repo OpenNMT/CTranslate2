@@ -7,7 +7,8 @@ namespace ctranslate2 {
 
       // One thread per output element (grid-stride loop). Each row of the input has
       // `length` samples and each row of the output has `out_len = left + length + right`.
-      __global__ void pad_reflect_1d(const float* in, float* out,
+      template <typename T>
+      __global__ void pad_reflect_1d(const T* in, T* out,
                                      dim_t total, dim_t length, dim_t out_len, dim_t left) {
         for (dim_t i = dim_t(blockIdx.x) * blockDim.x + threadIdx.x; i < total;
              i += dim_t(blockDim.x) * gridDim.x) {
@@ -43,7 +44,7 @@ namespace ctranslate2 {
 
       const dim_t threads = 256;
       const dim_t blocks = std::min((output.size() + threads - 1) / threads, dim_t(65535));
-      pad_reflect_1d<<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
+      pad_reflect_1d<T><<<blocks, threads, 0, cuda::get_cuda_stream()>>>(
         input.data<T>(), output.data<T>(), output.size(), length, out_len, _left);
       CUDA_CHECK(cudaGetLastError());
     }

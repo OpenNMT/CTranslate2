@@ -2818,6 +2818,12 @@ TEST_P(OpDeviceTest, Pad1DReflectMatchesCpu) {
   expect_storage_eq(actual, expected);
 }
 
+TEST(OpTest, Pad1DRejectsNonFloat32) {
+  StorageView x({2, 4}, std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8});
+  StorageView y;
+  EXPECT_THROW(ops::Pad1D(1, 1)(x, y), std::invalid_argument);
+}
+
 TEST_P(OpDeviceTest, SnakeMatchesCpuAcrossBatchesAlphaLayoutsAndEmptyTime) {
   const Device device = GetParam();
   if (device == Device::MPS)
