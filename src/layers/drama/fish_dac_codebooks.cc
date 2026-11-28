@@ -3,6 +3,7 @@
 #include <cmath>
 #include <cstdint>
 #include <stdexcept>
+#include "ops/storage_view_overlap.h"
 
 namespace ctranslate2 {
   namespace layers {
@@ -48,13 +49,10 @@ namespace ctranslate2 {
       // Compute into fresh storage, so output cannot overwrite codes or weights
       // during computation. Reject overlapping caller storage rather than losing
       // ownership or silently changing a model parameter on assignment.
-      const auto out = reinterpret_cast<uintptr_t>(output.buffer());
-      const auto size = static_cast<uintptr_t>(
-          std::max(output.reserved_memory(), output.size() * output.item_size()));
+      const auto size = std::max(output.reserved_memory(), output.size() * output.item_size());
       auto overlaps = [&](const StorageView& value) {
-        const auto p = reinterpret_cast<uintptr_t>(value.buffer());
-        const auto n = static_cast<uintptr_t>(value.size() * value.item_size());
-        return out && p && size && n && (out <= p ? p - out < size : out - p < n);
+        return ops::byte_ranges_overlap(output.buffer(), size, value.buffer(),
+                                        value.size() * value.item_size());
       };
       if (&codes == &output || overlaps(codes))
         throw std::invalid_argument("FishDAC code output aliases input");

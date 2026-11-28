@@ -8,18 +8,15 @@
 #include "ops/drama/grouped_moe.h"
 #include <cstdint>
 #include <stdexcept>
+#include "ops/storage_view_overlap.h"
 
 namespace ctranslate2 {
   namespace layers {
     namespace {
 
       bool overlaps_output(const StorageView& input, const StorageView& output) {
-        if (input.empty() || !output.buffer() || output.reserved_memory() == 0)
-          return false;
-        const auto a = reinterpret_cast<uintptr_t>(input.buffer());
-        const auto b = reinterpret_cast<uintptr_t>(output.buffer());
-        return a <= b ? b - a < static_cast<uintptr_t>(input.size() * input.item_size())
-                      : a - b < static_cast<uintptr_t>(output.reserved_memory());
+        return ops::byte_ranges_overlap(input.buffer(), input.size() * input.item_size(),
+                                        output.buffer(), output.reserved_memory());
       }
 
     }

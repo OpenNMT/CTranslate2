@@ -23,9 +23,7 @@ namespace ctranslate2 {
                           input.dim(1) / 128 + (input.dim(1) % 128 != 0)})
         throw std::invalid_argument("DequantizeFP8 requires a matrix and 128x128 block scales");
       for (const auto* source : {&input, &scale_inv}) {
-        if (source == &output
-            || storage_views_overlap(*source, source->size() * source->item_size(),
-                                     output, output.reserved_memory()))
+        if (input_aliases_output(*source, output))
           throw std::invalid_argument("DequantizeFP8 output must not alias inputs");
       }
       const ScopedDeviceSetter device_setter(input.device(), input.device_index());

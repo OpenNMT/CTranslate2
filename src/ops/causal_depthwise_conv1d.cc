@@ -41,9 +41,7 @@ namespace ctranslate2 {
         if (!tensor)
           continue;
         for (const auto* mutable_tensor : {&history, &output}) {
-          if (tensor == mutable_tensor
-              || storage_views_overlap(*tensor, tensor->size() * tensor->item_size(), *mutable_tensor,
-                          mutable_tensor->reserved_memory()))
+          if (input_aliases_output(*tensor, *mutable_tensor))
             throw std::invalid_argument(
                 "CausalDepthwiseConv1D inputs must not alias history or output");
         }

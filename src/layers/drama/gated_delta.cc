@@ -10,20 +10,15 @@
 
 #include "ctranslate2/ops/causal_depthwise_conv1d.h"
 #include "ctranslate2/ops/gated_delta_net.h"
+#include "ops/storage_view_overlap.h"
 
 namespace ctranslate2 {
   namespace layers {
     namespace {
 
       bool overlaps(const StorageView& a, const StorageView& b) {
-        const auto an = std::max(a.reserved_memory(), a.size() * a.item_size());
-        const auto bn = std::max(b.reserved_memory(), b.size() * b.item_size());
-        if (!a.buffer() || !b.buffer() || !an || !bn)
-          return false;
-        const auto ap = reinterpret_cast<uintptr_t>(a.buffer());
-        const auto bp = reinterpret_cast<uintptr_t>(b.buffer());
-        return ap <= bp ? bp - ap < static_cast<uintptr_t>(an)
-                        : ap - bp < static_cast<uintptr_t>(bn);
+        return ops::byte_ranges_overlap(a.buffer(), std::max(a.reserved_memory(), a.size() * a.item_size()),
+                                        b.buffer(), std::max(b.reserved_memory(), b.size() * b.item_size()));
       }
 
       dim_t product(dim_t a, dim_t b) {
