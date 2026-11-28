@@ -764,6 +764,36 @@ namespace ctranslate2 {
       x.reshape({x.dim(0) * x.dim(1), x.dim(2), x.dim(3), x.dim(4)});
     }
 
+    // Merge self keys/values with encoder memory without first materializing
+    // the encoder's beam expansion. The output layout matches Tile + Concat.
+    static void merge_beamed_memory_cpu(const StorageView& self,
+                                        const StorageView& memory,
+                                        dim_t beam_size,
+                                        StorageView& output) {
+      const dim_t heads = self.dim(1);
+      const dim_t self_stride = self.dim(2) * self.dim(3);
+      const dim_t memory_stride = memory.dim(2) * memory.dim(3);
+      const dim_t output_stride = self_stride + memory_stride;
+      Shape shape(self.shape());
+      shape[2] += memory.dim(2);
+      output.resize(std::move(shape));
+      const auto* self_data = self.data<float>();
+      const auto* memory_data = memory.data<float>();
+      auto* output_data = output.data<float>();
+      cpu::parallel_for(
+        0, self.dim(0) * heads,
+        cpu::get_minimum_batch_copies_per_thread<float>(output_stride),
+        [&](dim_t begin, dim_t end) {
+          for (dim_t row = begin; row < end; ++row) {
+            const dim_t memory_row = (row / (beam_size * heads)) * heads + row % heads;
+            auto* dst = output_data + row * output_stride;
+            primitives<Device::CPU>::copy(self_data + row * self_stride, dst, self_stride);
+            primitives<Device::CPU>::copy(memory_data + memory_row * memory_stride,
+                                          dst + self_stride, memory_stride);
+          }
+        });
+    }
+
     void MultiHeadAttention::forward_merged(const StorageView& queries,
                                             const StorageView* memory,
                                             const StorageView* memory_lengths_mask,
@@ -874,19 +904,20 @@ namespace ctranslate2 {
       // their padding restored and always retain the encoder batch dimension.
       const dim_t beam_size = queries_proj.dim(0) / memory_keys.dim(0);
 
-      // Expand memory K/V from [batch, heads, src_len, d] to [batch*beam, heads, src_len, d].
-      if (beam_size > 1) {
-        replicate_batches(memory_keys, beam_size);
-        replicate_batches(memory_values, beam_size);
-      }
-
-      // Concatenate: self K/V (decoder steps) || memory K/V (src_len) along time dim.
-      // This matches HF: key_states = cat([self_keys, cross_keys], dim=2)
-      const ops::Concat time_concat(2);
       StorageView merged_keys(dtype, device);
       StorageView merged_values(dtype, device);
-      time_concat({&keys_proj, &memory_keys}, merged_keys);
-      time_concat({&values_proj, &memory_values}, merged_values);
+      if (device == Device::CPU && dtype == DataType::FLOAT32 && beam_size > 1) {
+        merge_beamed_memory_cpu(keys_proj, memory_keys, beam_size, merged_keys);
+        merge_beamed_memory_cpu(values_proj, memory_values, beam_size, merged_values);
+      } else {
+        if (beam_size > 1) {
+          replicate_batches(memory_keys, beam_size);
+          replicate_batches(memory_values, beam_size);
+        }
+        const ops::Concat time_concat(2);
+        time_concat({&keys_proj, &memory_keys}, merged_keys);
+        time_concat({&values_proj, &memory_values}, merged_values);
+      }
 
       // Decoder causal/window bounds and encoder padding are separate ranges;
       // summing their lengths would expose future decoder keys or source pads.

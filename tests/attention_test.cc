@@ -297,6 +297,70 @@ TEST_P(MergedAttentionTest, PaddedBatchWithBeams) {
   }
 }
 
+TEST_P(MergedAttentionTest, PaddedCausalPrefixWithWindow) {
+  const Device device = GetParam();
+  constexpr dim_t HEADS = 2, WIDTH = 6, BATCH = 2, BEAM = 3, QUERIES = 3, MEMORY = 5;
+  class UniformMergedModel : public models::Model {
+  public:
+    UniformMergedModel(Device device) {
+      std::vector<float> qkv(3 * WIDTH * WIDTH, 0.f);
+      std::vector<float> memory_kv(2 * WIDTH * WIDTH, 0.f);
+      std::vector<float> out(WIDTH * WIDTH, 0.f);
+      for (dim_t i = 0; i < WIDTH; ++i) {
+        qkv[2 * WIDTH * WIDTH + i * WIDTH + i] = 1.f;
+        memory_kv[WIDTH * WIDTH + i * WIDTH + i] = 1.f;
+        out[i * WIDTH + i] = 1.f;
+      }
+      register_variable("attn/linear_0/weight", StorageView({3 * WIDTH, WIDTH}, qkv));
+      register_variable("attn/linear_1/weight", StorageView({WIDTH, WIDTH}, out));
+      register_variable("attn/memory_kv/weight", StorageView({2 * WIDTH, WIDTH}, memory_kv));
+      register_variable("attn/sliding_window", StorageView(int32_t(2)));
+      set_compute_type(ComputeType::FLOAT32, device, 0, false);
+      set_device(device);
+    }
+  protected:
+    std::unique_ptr<Model> clone() const override { return nullptr; }
+  };
+  UniformMergedModel model(device);
+  layers::MultiHeadAttention attention(model, "attn", HEADS, /*self_attention=*/true);
+  std::vector<float> query_data(BATCH * BEAM * QUERIES * WIDTH);
+  std::vector<float> memory_data(BATCH * MEMORY * WIDTH);
+  std::vector<float> expected_data;
+  for (dim_t b = 0; b < BATCH; ++b) {
+    for (dim_t m = 0; m < MEMORY; ++m)
+      for (dim_t d = 0; d < WIDTH; ++d)
+        memory_data[(b * MEMORY + m) * WIDTH + d] =
+          (b == 0 ? (m < 2 ? float(2 * (m + 1)) : 1000.f) : float(10 * (m + 1)))
+          + 10 * d;
+    for (dim_t beam = 0; beam < BEAM; ++beam)
+      for (dim_t q = 0; q < QUERIES; ++q) {
+        float sum = b == 0 ? 6.f : 150.f;
+        const dim_t memory_count = b == 0 ? 2 : MEMORY;
+        dim_t count = memory_count;
+        for (dim_t key = std::max<dim_t>(0, q - 1); key <= q; ++key) {
+          sum += key + 1;
+          ++count;
+        }
+        for (dim_t d = 0; d < WIDTH; ++d) {
+          query_data[((b * BEAM + beam) * QUERIES + q) * WIDTH + d] = float(q + 1 + d);
+          expected_data.push_back((sum + d * (10 * memory_count + count - memory_count)) / count);
+        }
+      }
+  }
+  StorageView queries({BATCH * BEAM, QUERIES, WIDTH}, query_data, device);
+  StorageView memory({BATCH, MEMORY, WIDTH}, memory_data, device);
+  StorageView query_lengths({BATCH * BEAM}, int32_t(QUERIES), device);
+  StorageView memory_lengths({BATCH}, std::vector<int32_t>{2, 5}, device);
+  auto self_mask = layers::MultiHeadAttention::prepare_length_mask(
+    query_lengths, HEADS, QUERIES, /*mask_future=*/true);
+  auto memory_mask = layers::MultiHeadAttention::prepare_length_mask(
+    memory_lengths, HEADS, BEAM * QUERIES);
+  StorageView output(device);
+  attention.forward_merged(queries, &memory, &memory_mask, &self_mask, output,
+                           nullptr, nullptr, nullptr, nullptr, nullptr, nullptr, 0);
+  expect_storage_eq(output, StorageView({BATCH * BEAM, QUERIES, WIDTH}, expected_data, device), 1e-5);
+}
+
 INSTANTIATE_TEST_SUITE_P(CPU, MergedAttentionTest, ::testing::Values(Device::CPU));
 #ifdef CT2_WITH_CUDA
 INSTANTIATE_TEST_SUITE_P(CUDA, MergedAttentionTest,
