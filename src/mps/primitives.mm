@@ -464,6 +464,27 @@ namespace ctranslate2 {
                              mask);
   }
 
+  template <>
+  template <typename T>
+  void primitives<Device::MPS>::mask_merged_attention(
+      T* scores, const int32_t* self_lengths, const int32_t* memory_lengths,
+      dim_t rows, dim_t self_size, dim_t memory_size, dim_t query_size,
+      dim_t offset, dim_t window, dim_t right_window) {
+    mps::mask_merged_attention(DataTypeToEnum<T>::value, scores, self_lengths,
+                               memory_lengths, rows, self_size, memory_size,
+                               query_size, offset, window, right_window);
+  }
+
+  template void primitives<Device::MPS>::mask_merged_attention(
+      float*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t, dim_t,
+      dim_t, dim_t);
+  template void primitives<Device::MPS>::mask_merged_attention(
+      float16_t*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t,
+      dim_t, dim_t, dim_t);
+  template void primitives<Device::MPS>::mask_merged_attention(
+      bfloat16_t*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t,
+      dim_t, dim_t, dim_t);
+
   template<>
   template <typename T>
   void primitives<Device::MPS>::transpose_2d(const T* a, const dim_t* dims, T* b) {

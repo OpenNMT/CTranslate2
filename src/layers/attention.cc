@@ -215,10 +215,11 @@ namespace ctranslate2 {
                                dim_t beam_size,
                                Alibi* alibi,
                                StorageView* position_bias,
-                               bool interleaved_queries) {
+                               bool interleaved_queries,
+        dim_t bidirectional_window) {
       PROFILE("dot_product_attention");
 
-      if (!relative_position_keys
+      if (!bidirectional_window && !relative_position_keys
           && !relative_asymmetric_position_keys
           && !relative_position_values
           && !relative_attention_bias
@@ -260,7 +261,7 @@ namespace ctranslate2 {
                               beam_size,
                               alibi,
                               position_bias,
-                              false);
+                              false, bidirectional_window);
         transpose_op(standard_output, output);
         return;
       }
@@ -346,6 +347,17 @@ namespace ctranslate2 {
                                                                     scores.size()));
       }
 
+      if (bidirectional_window) {
+        DEVICE_AND_FLOAT_DISPATCH(
+            "BidirectionalAttentionMask", scores.device(), scores.dtype(),
+            (primitives<D>::mask_merged_attention(
+                scores.data<T>(),
+                values_lengths ? values_lengths->data<int32_t>() : nullptr,
+                nullptr, scores.size() / scores.dim(-1), scores.dim(-1), 0,
+                queries.dim(2), 0, (bidirectional_window + 1) / 2,
+                bidirectional_window / 2 + 1)));
+      }
+
       if (alibi)
         alibi->apply(scores, queries_scale);
 
@@ -408,6 +420,12 @@ namespace ctranslate2 {
                     || model.get_variable_if_exists(scope + "/memory_kv/weight_packed"))
                      ? std::make_unique<const Dense>(model, scope + "/memory_kv")
                      : nullptr)
+      , _bidirectional_window(
+          !is_decoder && self_attention
+              && (model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight")
+                  || model.get_variable_if_exists("decoder/layer_0/self_attention/memory_kv/weight_packed"))
+            ? _sliding_window
+            : 0)
     {
       if (_relative_position_keys)
         _maximum_relative_position = (_relative_position_keys->dim(0) - 1) / 2;
@@ -700,7 +718,7 @@ namespace ctranslate2 {
                             beam_size,
                             _alibi,
                             position_bias,
-                            interleaved_beam_layout);
+                            interleaved_beam_layout, _bidirectional_window);
 
       if (prefilling && cached_keys && cached_keys->shape()[2] > _sliding_window) {
         // set only last sliding_window tokens to cached_keys and cached_values after computing attention
@@ -744,6 +762,36 @@ namespace ctranslate2 {
       x.expand_dims(1);                         // [batch, 1, heads, time, d_head]
       ops::Tile(1, repeats)(x);                 // [batch, repeats, heads, time, d_head]
       x.reshape({x.dim(0) * x.dim(1), x.dim(2), x.dim(3), x.dim(4)});
+    }
+
+    // Merge self keys/values with encoder memory without first materializing
+    // the encoder's beam expansion. The output layout matches Tile + Concat.
+    static void merge_beamed_memory_cpu(const StorageView& self,
+                                        const StorageView& memory,
+                                        dim_t beam_size,
+                                        StorageView& output) {
+      const dim_t heads = self.dim(1);
+      const dim_t self_stride = self.dim(2) * self.dim(3);
+      const dim_t memory_stride = memory.dim(2) * memory.dim(3);
+      const dim_t output_stride = self_stride + memory_stride;
+      Shape shape(self.shape());
+      shape[2] += memory.dim(2);
+      output.resize(std::move(shape));
+      const auto* self_data = self.data<float>();
+      const auto* memory_data = memory.data<float>();
+      auto* output_data = output.data<float>();
+      cpu::parallel_for(
+        0, self.dim(0) * heads,
+        cpu::get_minimum_batch_copies_per_thread<float>(output_stride),
+        [&](dim_t begin, dim_t end) {
+          for (dim_t row = begin; row < end; ++row) {
+            const dim_t memory_row = (row / (beam_size * heads)) * heads + row % heads;
+            auto* dst = output_data + row * output_stride;
+            primitives<Device::CPU>::copy(self_data + row * self_stride, dst, self_stride);
+            primitives<Device::CPU>::copy(memory_data + memory_row * memory_stride,
+                                          dst + self_stride, memory_stride);
+          }
+        });
     }
 
     void MultiHeadAttention::forward_merged(const StorageView& queries,
@@ -856,57 +904,42 @@ namespace ctranslate2 {
       // their padding restored and always retain the encoder batch dimension.
       const dim_t beam_size = queries_proj.dim(0) / memory_keys.dim(0);
 
-      // Expand memory K/V from [batch, heads, src_len, d] to [batch*beam, heads, src_len, d].
-      if (beam_size > 1) {
-        replicate_batches(memory_keys, beam_size);
-        replicate_batches(memory_values, beam_size);
-      }
-
-      // Concatenate: self K/V (decoder steps) || memory K/V (src_len) along time dim.
-      // This matches HF: key_states = cat([self_keys, cross_keys], dim=2)
-      const ops::Concat time_concat(2);
       StorageView merged_keys(dtype, device);
       StorageView merged_values(dtype, device);
-      time_concat({&keys_proj, &memory_keys}, merged_keys);
-      time_concat({&values_proj, &memory_values}, merged_values);
-
-      // Build merged lengths mask.
-      // During prefix processing (training-style), both self_lengths_mask and
-      // memory_lengths_mask are provided; we add them to get the merged valid count.
-      // During single-step generation, self_lengths_mask is null; we create a
-      // full-coverage mask that allows attending to all merged keys.
-      const dim_t total_keys = merged_keys.dim(2);
-      const dim_t q_len = queries_proj.dim(2);
-
-      std::unique_ptr<StorageView> merged_lengths;
-      if (self_lengths_mask && memory_lengths_mask) {
-        // Normalise memory_lengths_mask shape to match self_lengths_mask if needed
-        // (beam search may produce different leading dims).
-        std::unique_ptr<StorageView> norm_mem_lengths;
-        const StorageView* mem_len_ptr = memory_lengths_mask;
-        if (memory_lengths_mask->shape() != self_lengths_mask->shape()) {
-          norm_mem_lengths = std::make_unique<StorageView>(*memory_lengths_mask);
-          norm_mem_lengths->reshape(self_lengths_mask->shape());
-          mem_len_ptr = norm_mem_lengths.get();
-        }
-        merged_lengths = std::make_unique<StorageView>(self_lengths_mask->dtype(), device);
-        merged_lengths->resize_as(*self_lengths_mask);
-        ops::Add()(*self_lengths_mask, *mem_len_ptr, *merged_lengths);
-      } else if (self_lengths_mask) {
-        merged_lengths = std::make_unique<StorageView>(*self_lengths_mask);
+      if (device == Device::CPU && dtype == DataType::FLOAT32 && beam_size > 1) {
+        merge_beamed_memory_cpu(keys_proj, memory_keys, beam_size, merged_keys);
+        merge_beamed_memory_cpu(values_proj, memory_values, beam_size, merged_values);
       } else {
-        // Single-step generation: no causal mask needed (only 1 query), and all
-        // merged keys are valid. Create a constant mask = total_keys for each query.
-        const dim_t batch_queries = queries_proj.dim(0) * _num_heads * q_len;
-        merged_lengths = std::make_unique<StorageView>(
-          Shape{batch_queries}, int32_t(total_keys), device);
+        if (beam_size > 1) {
+          replicate_batches(memory_keys, beam_size);
+          replicate_batches(memory_values, beam_size);
+        }
+        const ops::Concat time_concat(2);
+        time_concat({&keys_proj, &memory_keys}, merged_keys);
+        time_concat({&values_proj, &memory_values}, merged_values);
       }
 
+      // Decoder causal/window bounds and encoder padding are separate ranges;
+      // summing their lengths would expose future decoder keys or source pads.
+      const dim_t rows = queries_proj.dim(0) * _num_heads * queries_proj.dim(2);
+      if ((self_lengths_mask && self_lengths_mask->size() != rows) ||
+          (memory_lengths_mask && memory_lengths_mask->size() != rows))
+        throw std::invalid_argument(
+            "Merged attention length mask does not match query rows");
       StorageView context(dtype, device);
       const ops::MatMul keys_matmul(false, true, _queries_scale);
       keys_matmul(queries_proj, merged_keys, context);
+      DEVICE_AND_FLOAT_DISPATCH(
+          "MergedAttentionMask", device, dtype,
+          (primitives<D>::mask_merged_attention(
+              context.data<T>(),
+              self_lengths_mask ? self_lengths_mask->data<int32_t>() : nullptr,
+              memory_lengths_mask ? memory_lengths_mask->data<int32_t>()
+                                  : nullptr,
+              rows, keys_proj.dim(2), memory_keys.dim(2), queries_proj.dim(2),
+              offset, _sliding_window)));
       StorageView attn(dtype, device);
-      ops::SoftMax()(context, merged_lengths.get(), attn);
+      ops::SoftMax()(context, attn);
       const ops::MatMul values_matmul;
       values_matmul(attn, merged_values, context);
 

@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <functional>
+#include <limits>
 #include <numeric>
 #include <stdexcept>
 
@@ -446,6 +447,50 @@ namespace ctranslate2 {
       }
     }
   }
+
+  template <>
+  template <typename T>
+  void primitives<Device::CPU>::mask_merged_attention(
+      T* scores, const int32_t* self_lengths, const int32_t* memory_lengths,
+      dim_t rows, dim_t self_size, dim_t memory_size, dim_t query_size,
+      dim_t offset, dim_t window, dim_t right_window) {
+    const dim_t depth = self_size + memory_size;
+    const T masked_value = T(-std::numeric_limits<float>::infinity());
+    cpu::parallel_for(0, rows, cpu::GRAIN_SIZE / std::max<dim_t>(depth, 1),
+                      [&](dim_t begin, dim_t end) {
+      for (dim_t row = begin; row < end; ++row) {
+        const dim_t length = self_lengths ? self_lengths[row] : self_size;
+        // Padded encoder queries are discarded later. Keep a nonempty key
+        // range so their all-masked softmax cannot introduce NaNs into GEMM.
+        const dim_t first = window && !(right_window && row % query_size >= length)
+          ? std::max<dim_t>(0, offset + row % query_size + 1 - window) : 0;
+        const dim_t self_end =
+            right_window
+                ? std::min(length, offset + row % query_size + right_window)
+                : length;
+        const dim_t memory_end =
+            memory_lengths ? memory_lengths[row] : memory_size;
+        auto* row_scores = scores + row * depth;
+        // Only visit masked ranges. Scanning every valid encoder key adds
+        // work at every decoder step, even when no padding is present.
+        std::fill(row_scores, row_scores + std::min(first, self_size), masked_value);
+        std::fill(row_scores + std::clamp(self_end, dim_t(0), self_size),
+                  row_scores + self_size, masked_value);
+        std::fill(row_scores + self_size + std::clamp(memory_end, dim_t(0), memory_size),
+                  row_scores + depth, masked_value);
+      }
+    });
+  }
+
+  template void primitives<Device::CPU>::mask_merged_attention(
+      float*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t, dim_t,
+      dim_t, dim_t);
+  template void primitives<Device::CPU>::mask_merged_attention(
+      float16_t*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t,
+      dim_t, dim_t, dim_t);
+  template void primitives<Device::CPU>::mask_merged_attention(
+      bfloat16_t*, const int32_t*, const int32_t*, dim_t, dim_t, dim_t, dim_t,
+      dim_t, dim_t, dim_t);
 
   template<>
   template <typename T>
