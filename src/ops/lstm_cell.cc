@@ -42,8 +42,10 @@ namespace ctranslate2 {
       const dim_t input_size = x.dim(1);   // second dim of x
 
       if (batch != h_prev.dim(0) || batch != c_prev.dim(0))
-        throw std::invalid_argument("LSTMCell requires all inputs to use the same batch size");
+        throw std::invalid_argument("LSTMCell requires h_prev and c_prev to use the same batch size as x");
 
+      if (input_size != w_ih.dim(1))
+        throw std::invalid_argument("LSTMCell requires x and w_ih to use the same input size");
 
       // CPU only for now.
       compute<Device::CPU, float>(x, h_prev, c_prev, w_ih, w_hh, b_ih, b_hh, h, c);
