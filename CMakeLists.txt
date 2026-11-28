@@ -196,6 +196,8 @@ set(SOURCES
   src/ops/snake_cpu.cc
   src/ops/pad.cc
   src/ops/pad_cpu.cc
+  src/ops/lstm_cell.cc
+  src/ops/lstm_cell_cpu.cc
   src/ops/conv1d_cpu.cc
   src/ops/cos.cc
   src/ops/dequantize.cc
