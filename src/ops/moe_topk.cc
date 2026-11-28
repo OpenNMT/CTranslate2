@@ -32,10 +32,8 @@ namespace ctranslate2 {
           || router_logits.dim(1) > std::numeric_limits<int32_t>::max())
         throw std::invalid_argument(
             "MoeTopK expects [rows, experts] with 0 < k <= experts <= INT32_MAX");
-      const auto input_bytes = router_logits.size() * router_logits.item_size();
       for (const auto* output : {&expert_indices, &routing_weights}) {
-        if (&router_logits == output
-            || storage_views_overlap(router_logits, input_bytes, *output, output->reserved_memory()))
+        if (input_aliases_output(router_logits, *output))
           throw std::invalid_argument("MoeTopK outputs must not alias logits");
       }
       if (&expert_indices == &routing_weights

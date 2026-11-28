@@ -7,21 +7,16 @@
 #include <stdexcept>
 
 #include "ctranslate2/ops/conv_transpose1d.h"
+#include "ops/storage_view_overlap.h"
 
 namespace ctranslate2 {
   namespace layers {
     namespace {
 
       bool overlaps(const StorageView& source, const StorageView& output) {
-        const auto size = source.size() * source.item_size();
-        const auto capacity =
-            std::max(output.reserved_memory(), output.size() * output.item_size());
-        if (!source.buffer() || !output.buffer() || !size || !capacity)
-          return false;
-        const auto a = reinterpret_cast<uintptr_t>(source.buffer());
-        const auto b = reinterpret_cast<uintptr_t>(output.buffer());
-        return a <= b ? b - a < static_cast<uintptr_t>(size)
-                      : a - b < static_cast<uintptr_t>(capacity);
+        return ops::byte_ranges_overlap(
+            source.buffer(), source.size() * source.item_size(), output.buffer(),
+            std::max(output.reserved_memory(), output.size() * output.item_size()));
       }
 
       void require_finite(const StorageView& tensor) {

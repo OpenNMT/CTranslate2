@@ -5,18 +5,15 @@
 #include <cstdint>
 #include <stdexcept>
 #include <unordered_set>
+#include "ops/storage_view_overlap.h"
 
 namespace ctranslate2 {
   namespace layers {
     namespace {
 
       bool overlaps(const StorageView& a, const StorageView& b) {
-        if (!a.buffer() || !b.buffer() || !a.reserved_memory() || !b.reserved_memory())
-          return false;
-        const auto x = reinterpret_cast<uintptr_t>(a.buffer());
-        const auto y = reinterpret_cast<uintptr_t>(b.buffer());
-        return x <= y ? y - x < static_cast<uintptr_t>(a.reserved_memory())
-                      : x - y < static_cast<uintptr_t>(b.reserved_memory());
+        return ops::byte_ranges_overlap(a.buffer(), a.reserved_memory(),
+                                        b.buffer(), b.reserved_memory());
       }
 
     }
