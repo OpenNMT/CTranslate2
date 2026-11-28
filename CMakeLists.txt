@@ -194,6 +194,10 @@ set(SOURCES
   src/ops/moe_topk_cpu.cc
   src/ops/snake.cc
   src/ops/snake_cpu.cc
+  src/ops/pad.cc
+  src/ops/pad_cpu.cc
+  src/ops/lstm_cell.cc
+  src/ops/lstm_cell_cpu.cc
   src/ops/conv1d_cpu.cc
   src/ops/cos.cc
   src/ops/dequantize.cc
@@ -271,6 +275,7 @@ set(CUDA_SOURCES
   src/ops/dequantize_fp8_gpu.cu
   src/ops/moe_topk_gpu.cu
   src/ops/snake_gpu.cu
+  src/ops/pad_gpu.cu
   src/cuda/allocator.cc
   src/cuda/primitives.cu
   src/cuda/random.cu
@@ -870,6 +875,7 @@ if(WITH_MPS)
     src/ops/layer_norm_mps.mm
     src/ops/mean_mps.mm
     src/ops/median_filter_mps.mm
+    src/ops/pad_mps.mm
     src/ops/multinomial_mps.mm
     src/ops/quantize_mps.mm
     src/ops/rms_norm_mps.mm

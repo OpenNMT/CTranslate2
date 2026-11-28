@@ -743,6 +743,12 @@ namespace ctranslate2 {
 
   template<>
   template <typename T>
+  void primitives<Device::CUDA>::sqr(const T* x, T* y, dim_t size) {
+    cuda::unary_transform(x, y, size, cuda::sqr_func<cuda::device_type<T>>());
+  }
+
+  template<>
+  template <typename T>
   void cross_device_primitives<Device::CPU, Device::CUDA>::copy(const T* x, T* y, dim_t size) {
     CUDA_CHECK(cudaMemcpyAsync(y, x, size * sizeof (T), cudaMemcpyHostToDevice, cuda::get_cuda_stream()));
   }
@@ -842,7 +848,8 @@ namespace ctranslate2 {
   template void primitives<Device::CUDA>::cos(const T*, T*, dim_t);     \
   template void primitives<Device::CUDA>::tanh(const T*, T*, dim_t);    \
   template void primitives<Device::CUDA>::exp(const T*, T*, dim_t);     \
-  template void primitives<Device::CUDA>::log(const T*, T*, dim_t);
+  template void primitives<Device::CUDA>::log(const T*, T*, dim_t);     \
+  template void primitives<Device::CUDA>::sqr(const T*, T*, dim_t);
 
   DECLARE_FLOAT_IMPL(float)
   DECLARE_FLOAT_IMPL(float16_t)

@@ -133,6 +133,10 @@ namespace ctranslate2 {
         return log256_ps(a);
       }
 
+      static inline value_type sqr(value_type a) {
+        return _mm256_mul_ps(a, a);
+      }
+
       static inline value_type sin(value_type a) {
         return sin256_ps(a);
       }

@@ -2724,6 +2724,47 @@ TEST(OpTest, SnakeParallelChannelBoundaries) {
   expect_snake_reference(x, alpha, y);
 }
 
+static void expect_pad1d(Device device, const StorageView& x, dim_t left, dim_t right,
+                         const StorageView& expected) {
+  StorageView y(DataType::FLOAT32, device);
+  ops::Pad1D(left, right)(x.to(device), y);
+  expect_storage_eq(y, expected);
+}
+
+TEST_P(OpDeviceTest, Pad1DReflect) {
+  const Device device = GetParam();
+  StorageView x({2, 4}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
+  StorageView expected({2, 7}, std::vector<float>{3, 2, 1, 2, 3, 4, 3,
+                                                  7, 6, 5, 6, 7, 8, 7});
+  expect_pad1d(device, x, 2, 1, expected);
+}
+
+TEST_P(OpDeviceTest, Pad1DReflectChannels) {
+  const Device device = GetParam();
+  StorageView x({1, 2, 3}, std::vector<float>{1, 2, 3, 4, 5, 6});
+  StorageView expected({1, 2, 7}, std::vector<float>{3, 2, 1, 2, 3, 2, 1,
+                                                     6, 5, 4, 5, 6, 5, 4});
+  expect_pad1d(device, x, 2, 2, expected);
+}
+
+TEST_P(OpDeviceTest, Pad1DReflectSileroShape) {
+  const Device device = GetParam();
+  StorageView x({1, 576}, DataType::FLOAT32);
+  for (dim_t i = 0; i < x.size(); ++i)
+    x.data<float>()[i] = float(i);
+  StorageView y(DataType::FLOAT32, device);
+  ops::Pad1D(128, 128)(x.to(device), y);
+  ASSERT_EQ(y.shape(), (Shape{1, 832}));
+  const StorageView host = y.to(Device::CPU);
+  const float* out = host.data<float>();
+  EXPECT_EQ(out[0], 128.f);
+  EXPECT_EQ(out[127], 1.f);
+  EXPECT_EQ(out[128], 0.f);
+  EXPECT_EQ(out[703], 575.f);
+  EXPECT_EQ(out[704], 574.f);
+  EXPECT_EQ(out[831], 447.f);
+}
+
 TEST(OpTest, SnakeEmptyTime) {
   StorageView x({1, 2, 0}, DataType::FLOAT32);
   StorageView alpha({2}, std::vector<float>{1, 2});
@@ -2754,6 +2795,46 @@ TEST(OpTest, SnakeRejectsAliasingIncludingClearedOutput) {
   StorageView view({1, 1, 3}, y.data<float>() + 2);
   y.clear();
   EXPECT_THROW(ops::Snake()(view, alpha, y), std::invalid_argument);
+}
+
+TEST_P(OpDeviceTest, Pad1DReflectMatchesCpu) {
+  const Device device = GetParam();
+  // Many rows, so that the work is split across threads/blocks.
+  StorageView x({4, 3, 576}, DataType::FLOAT32);
+  for (dim_t i = 0; i < x.size(); ++i)
+    x.data<float>()[i] = float(i % 97 - 48) / 7;
+  StorageView expected, actual(DataType::FLOAT32, device);
+  ops::Pad1D(128, 100)(x, expected);
+  ASSERT_EQ(expected.shape(), (Shape{4, 3, 804}));
+  ops::Pad1D(128, 100)(x.to(device), actual);
+  expect_storage_eq(actual, expected);
+}
+
+TEST(OpTest, LSTMCell) {
+  // batch=1, input_size=2, hidden_size=2. Expected values computed with the
+  // reference formulas (gate order i, f, g, o).
+  StorageView x({1, 2}, std::vector<float>{1.f, -0.5f});
+  StorageView h_prev({1, 2}, std::vector<float>{0.2f, -0.1f});
+  StorageView c_prev({1, 2}, std::vector<float>{0.3f, 0.4f});
+  StorageView w_ih({8, 2}, std::vector<float>{0.1f, 0.05f, 0.2f, 0.15f, 0.3f, 0.25f, 0.4f, 0.35f,
+                                              0.5f, 0.45f, 0.6f, 0.55f, 0.7f, 0.65f, 0.8f, 0.75f});
+  StorageView w_hh({8, 2}, std::vector<float>{-0.06f, -0.03f, -0.04f, -0.01f, -0.02f, 0.01f, 0.f, 0.03f,
+                                              0.02f, 0.05f, 0.04f, 0.07f, 0.06f, 0.09f, 0.08f, 0.11f});
+  StorageView b_ih({8}, std::vector<float>{0.f, 0.01f, 0.02f, 0.03f, 0.04f, 0.05f, 0.06f, 0.07f});
+  StorageView b_hh({8}, std::vector<float>{0.f, -0.02f, -0.04f, -0.06f, -0.08f, -0.1f, -0.12f, -0.14f});
+  StorageView h, c;
+  ops::LSTMCell()(x, h_prev, c_prev, w_ih, w_hh, b_ih, b_hh, h, c);
+
+  StorageView expected_h({1, 2}, std::vector<float>{0.15792993f, 0.20386474f});
+  StorageView expected_c({1, 2}, std::vector<float>{0.27992989f, 0.36100203f});
+  expect_storage_eq(h, expected_h, 1e-5f);
+  expect_storage_eq(c, expected_c, 1e-5f);
+}
+
+TEST(OpTest, Pad1DRejectsNonFloat32) {
+  StorageView x({2, 4}, std::vector<int32_t>{1, 2, 3, 4, 5, 6, 7, 8});
+  StorageView y;
+  EXPECT_THROW(ops::Pad1D(1, 1)(x, y), std::invalid_argument);
 }
 
 TEST_P(OpDeviceTest, SnakeMatchesCpuAcrossBatchesAlphaLayoutsAndEmptyTime) {

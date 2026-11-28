@@ -319,6 +319,13 @@ struct MedianFilterArgs {
   ulong width;
 };
 
+struct Pad1DArgs {
+  ulong total;
+  ulong n;
+  ulong left;
+  ulong out_len;
+};
+
 struct TopPMaskArgs {
   uint batch_size;
   uint depth;
@@ -2176,6 +2183,24 @@ MEDIAN_FILTER_KERNEL(median_filter_f32, float, load_value<float>, store_value<fl
 MEDIAN_FILTER_KERNEL(median_filter_f16, half, load_value<half>, store_value<half>)
 MEDIAN_FILTER_KERNEL(median_filter_bf16, ushort, load_value_bf16, store_value_bf16)
 
+kernel void pad1d_f32(device const float* input [[buffer(0)]],
+                      device float* output [[buffer(1)]],
+                      constant Pad1DArgs& args [[buffer(2)]],
+                      uint gid [[thread_position_in_grid]]) {
+  const ulong index = (ulong)gid;
+  if (index >= args.total) return;
+  const ulong row = index / args.out_len;
+  const long p = long(index % args.out_len);
+  const long n = long(args.n);
+  long x = p - long(args.left);
+  if (x < 0) {
+    x = -x;                  // mirror around index 0
+  } else if (x >= n) {
+    x = 2 * (n - 1) - x;     // mirror around index n - 1
+  }
+  output[index] = input[row * args.n + ulong(x)];
+}
+
 #define ALIBI_ADD_KERNEL(NAME, TYPE, LOAD, STORE)                                      \
 kernel void NAME(device const TYPE* input [[buffer(0)]],                               \
                  device const TYPE* alibi [[buffer(1)]],                               \
@@ -3085,6 +3110,13 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
         uint64_t total;
         uint64_t depth;
         uint64_t width;
+      };
+
+      struct Pad1DArgs {
+        uint64_t total;
+        uint64_t n;
+        uint64_t left;
+        uint64_t out_len;
       };
 
       struct TopPMaskArgs {
@@ -5966,6 +5998,28 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
       run_1d(kernel_name("median_filter", dtype),
              total,
              {{input, bytes}, {output, bytes}},
+             &args,
+             sizeof(args),
+             2);
+    }
+
+    void pad1d(const float* input,
+               float* output,
+               dim_t rows,
+               dim_t length,
+               dim_t left,
+               dim_t right) {
+      StreamGuard stream_guard;
+      const dim_t out_len = length + left + right;
+      const uint64_t total = static_cast<uint64_t>(rows * out_len);
+      const Pad1DArgs args{total,
+                           static_cast<uint64_t>(length),
+                           static_cast<uint64_t>(left),
+                           static_cast<uint64_t>(out_len)};
+      run_1d("pad1d_f32",
+             total,
+             {{input, static_cast<size_t>(rows * length) * sizeof(float)},
+              {output, static_cast<size_t>(total) * sizeof(float)}},
              &args,
              sizeof(args),
              2);

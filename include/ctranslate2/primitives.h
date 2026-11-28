@@ -174,6 +174,9 @@ namespace ctranslate2 {
     static void log(const T* x, T* y, dim_t size);
 
     template <typename T>
+    static void sqr(const T* x, T* y, dim_t size);
+
+    template <typename T>
     static void cos(const T* x, T* y, dim_t size);
     template <typename T>
     static void sin(const T* x, T* y, dim_t size);

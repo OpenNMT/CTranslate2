@@ -107,6 +107,10 @@ namespace ctranslate2 {
         return log_ps(a);
       }
 
+      static inline value_type sqr(value_type a) {
+        return vmulq_f32(a, a);
+      }
+
       static inline value_type sin(value_type a) {
         return sin_ps(a);
       }

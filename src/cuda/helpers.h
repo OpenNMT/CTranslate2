@@ -332,6 +332,31 @@ namespace ctranslate2 {
       }
     };
 
+    template <typename T>
+    struct sqr_func {
+      __device__ T operator()(T x) const {
+        return x * x;
+      }
+    };
+
+#if !CUDA_CAN_USE_HALF
+    template<>
+    struct sqr_func<__half> {
+      __device__ __half operator()(__half x) const {
+        return __half(float(x) * float(x));
+      }
+    };
+#endif
+
+#if !CUDA_CAN_USE_BF16_MATH
+    template<>
+    struct sqr_func<__nv_bfloat16> {
+      __device__ __nv_bfloat16 operator()(__nv_bfloat16 x) const {
+        return __nv_bfloat16(float(x) * float(x));
+      }
+    };
+#endif
+
 #if CUDA_CAN_USE_HALF
     template<>
     struct sin_func<__half> {

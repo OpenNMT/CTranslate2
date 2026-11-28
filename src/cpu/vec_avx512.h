@@ -91,6 +91,10 @@ namespace ctranslate2 {
         return log512_ps(a);
       }
 
+      static inline value_type sqr(value_type a) {
+        return _mm512_mul_ps(a, a);
+      }
+
       static inline value_type sin(value_type a) {
         return sin512_ps(a);
       }

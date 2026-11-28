@@ -184,6 +184,15 @@ void benchmark_gated_delta_net(Device device) {
   BENCHMARK(gated_delta_net_op(query, key, value, log_decay, beta, state, y), 1000);
 }
 
+// Silero VAD v5/v6 (16 kHz): 512-sample chunk + 64-sample context, reflect-padded
+// by 64 on the right before the STFT.
+void benchmark_pad1d(Device device) {
+  StorageView x({1, 1, 576}, rand_vector(576), device);
+  StorageView y(device);
+  const ops::Pad1D pad_op(0, 64);
+  BENCHMARK(pad_op(x, y), 100000);
+}
+
 int main(int argc, char* argv[]) {
   if (argc < 3) {
     std::cerr << "usage: " << argv[0] << " op device [dtype]" << std::endl;
@@ -236,6 +245,8 @@ int main(int argc, char* argv[]) {
     benchmark_conv_transpose1d(device);
   else if (op == "gated_delta_net")
     benchmark_gated_delta_net(device);
+  else if (op == "pad1d")
+    benchmark_pad1d(device);
 
   return 0;
 }

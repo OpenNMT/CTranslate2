@@ -88,6 +88,10 @@ namespace ctranslate2 {
         return std::log(a);
       }
 
+      static inline value_type sqr(value_type a) {
+        return a * a;
+      }
+
       static inline value_type sin(value_type a) {
         return std::sin(a);
       }
