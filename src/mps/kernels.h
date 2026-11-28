@@ -424,6 +424,13 @@ namespace ctranslate2 {
                        dim_t depth,
                        dim_t width);
 
+    void pad1d(const float* input,
+               float* output,
+               dim_t rows,
+               dim_t length,
+               dim_t left,
+               dim_t right);
+
     void top_p_mask(DataType dtype,
                     const void* input,
                     const void* probabilities,

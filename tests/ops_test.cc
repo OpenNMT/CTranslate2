@@ -2733,8 +2733,6 @@ static void expect_pad1d(Device device, const StorageView& x, dim_t left, dim_t 
 
 TEST_P(OpDeviceTest, Pad1DReflect) {
   const Device device = GetParam();
-  if (device == Device::MPS)
-    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
   StorageView x({2, 4}, std::vector<float>{1, 2, 3, 4, 5, 6, 7, 8});
   StorageView expected({2, 7}, std::vector<float>{3, 2, 1, 2, 3, 4, 3,
                                                   7, 6, 5, 6, 7, 8, 7});
@@ -2743,8 +2741,6 @@ TEST_P(OpDeviceTest, Pad1DReflect) {
 
 TEST_P(OpDeviceTest, Pad1DReflectChannels) {
   const Device device = GetParam();
-  if (device == Device::MPS)
-    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
   StorageView x({1, 2, 3}, std::vector<float>{1, 2, 3, 4, 5, 6});
   StorageView expected({1, 2, 7}, std::vector<float>{3, 2, 1, 2, 3, 2, 1,
                                                      6, 5, 4, 5, 6, 5, 4});
@@ -2753,8 +2749,6 @@ TEST_P(OpDeviceTest, Pad1DReflectChannels) {
 
 TEST_P(OpDeviceTest, Pad1DReflectSileroShape) {
   const Device device = GetParam();
-  if (device == Device::MPS)
-    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
   StorageView x({1, 576}, DataType::FLOAT32);
   for (dim_t i = 0; i < x.size(); ++i)
     x.data<float>()[i] = float(i);
@@ -2805,8 +2799,6 @@ TEST(OpTest, SnakeRejectsAliasingIncludingClearedOutput) {
 
 TEST_P(OpDeviceTest, Pad1DReflectMatchesCpu) {
   const Device device = GetParam();
-  if (device == Device::MPS)
-    GTEST_SKIP() << "Pad1D is not implemented for MPS.";
   // Many rows, so that the work is split across threads/blocks.
   StorageView x({4, 3, 576}, DataType::FLOAT32);
   for (dim_t i = 0; i < x.size(); ++i)

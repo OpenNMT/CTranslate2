@@ -873,6 +873,7 @@ if(WITH_MPS)
     src/ops/layer_norm_mps.mm
     src/ops/mean_mps.mm
     src/ops/median_filter_mps.mm
+    src/ops/pad_mps.mm
     src/ops/multinomial_mps.mm
     src/ops/quantize_mps.mm
     src/ops/rms_norm_mps.mm
