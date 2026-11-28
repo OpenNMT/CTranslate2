@@ -42,10 +42,7 @@ namespace ctranslate2 {
       if (&state == &output || storage_views_overlap(state, output))
         throw std::invalid_argument("GatedDeltaNet state and output must not alias");
       for (const auto* input : inputs) {
-        const dim_t input_bytes = input->size() * input->item_size();
-        if (&output == input
-            || storage_views_overlap(*input, input_bytes, state, state.reserved_memory())
-            || storage_views_overlap(*input, input_bytes, output, output.reserved_memory()))
+        if (input_aliases_output(*input, state) || input_aliases_output(*input, output))
           throw std::invalid_argument("GatedDeltaNet inputs must not alias state or output");
       }
     }

@@ -20,9 +20,7 @@ namespace ctranslate2 {
       const dim_t channels = x.dim(1);
       if (alpha.shape() != Shape{channels} && alpha.shape() != Shape{1, channels, 1})
         throw std::invalid_argument("Snake alpha must have shape [channels] or [1, channels, 1]");
-      if (&y == &x || &y == &alpha
-          || storage_views_overlap(x, x.size() * x.item_size(), y, y.reserved_memory())
-          || storage_views_overlap(alpha, alpha.size() * alpha.item_size(), y, y.reserved_memory()))
+      if (input_aliases_output(x, y) || input_aliases_output(alpha, y))
         throw std::invalid_argument("Snake output must not alias inputs");
       const ScopedDeviceSetter setter(x.device(), x.device_index());
       DEVICE_DISPATCH(x.device(), (compute<D, float>(x, alpha, y)));

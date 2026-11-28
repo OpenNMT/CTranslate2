@@ -26,5 +26,12 @@ namespace ctranslate2 {
       return storage_views_overlap(a, a.reserved_memory(), b, b.reserved_memory());
     }
 
+    // True if `input` (by logical size) overlaps `output` (by its full allocation).
+    inline bool input_aliases_output(const StorageView& input, const StorageView& output) {
+      return &input == &output
+        || storage_views_overlap(input, input.size() * input.item_size(),
+                                 output, output.reserved_memory());
+    }
+
   }
 }
