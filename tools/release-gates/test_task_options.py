@@ -36,7 +36,8 @@ class TaskOptionsTest(unittest.TestCase):
             self.assertEqual(exited.exception.code, 0)
             self.assertEqual({call.args[2]: call.args[3] for call in evaluate.call_args_list},
                              {"whisper_wer": limit, "opus_bleu": 13,
-                              "t5gemma_generation": limit})
+                              "t5gemma_generation": limit,
+                              "gemma_generation": limit})
 
 
 class ComputeTypesTest(unittest.TestCase):
