@@ -5,6 +5,9 @@
 #include "ctranslate2/ops/activation.h"
 #include "cpu/backend.h"
 #include "dispatch.h"
+#ifdef CT2_WITH_MPS
+#  include "mps/kernels.h"
+#endif
 
 namespace ctranslate2 {
   namespace layers {
@@ -48,7 +51,8 @@ namespace ctranslate2 {
 
     Embeddings::Embeddings(const models::Model& model, const std::string& scope)
       : _embeddings(model.get_variable(scope + "/weight"))
-      , _output_type(get_default_float_type(model.effective_compute_type()))
+      , _output_type(model.use_float32_activations() ? DataType::FLOAT32
+                     : get_default_float_type(model.effective_compute_type()))
       , _qscale(model.get_variable_if_exists(scope + "/weight_scale"))
     {
     }
@@ -75,6 +79,10 @@ namespace ctranslate2 {
           _gather_op(*_qscale, ids, scale);
           ops::Dequantize()(gathered, scale, output);
         }
+      } else if (_embeddings.dtype() != _output_type) {
+        StorageView gathered(_embeddings.dtype(), output.device());
+        _gather_op(_embeddings, ids, gathered);
+        output = gathered.to(_output_type);
       } else {
         _gather_op(_embeddings, ids, output);
       }
@@ -281,7 +289,8 @@ namespace ctranslate2 {
       , _partial_bias(_weight.device(), _bias ? _bias->dtype() : DataType::FLOAT32)
       , _partial_qscale(_weight.device(), DataType::FLOAT32)
       , _partial_u8_shift_compensation(_weight.device(), DataType::INT32)
-      , _output_type(get_default_float_type(model.effective_compute_type()))
+      , _output_type(model.use_float32_activations() ? DataType::FLOAT32
+                     : get_default_float_type(model.effective_compute_type()))
       , _quant_method(model.quant_method())
       , _quantized_gemm(_weight.dtype() == DataType::INT16 || _weight.dtype() == DataType::INT8)
       , _gemm_op(/*alpha=*/1,
@@ -344,6 +353,32 @@ namespace ctranslate2 {
       const StorageView* compensation = (_partial_u8_shift_compensation.empty()
                                          ? _u8_shift_compensation
                                          : &_partial_u8_shift_compensation);
+
+#ifdef CT2_WITH_MPS
+      if (input.device() == Device::MPS && _output_type == DataType::FLOAT32
+          && weight->dtype() == DataType::FLOAT16 && !_packed_weight) {
+        const dim_t rows = input.size() / weight->dim(1);
+        StorageView promoted;
+        const StorageView* x = &input;
+        if (&input == &output || input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          x = &promoted;
+        }
+        Shape shape = input.shape();
+        shape.back() = weight->dim(0);
+        if (output.dtype() != DataType::FLOAT32)
+          output = StorageView(DataType::FLOAT32, input.device());
+        output.resize(std::move(shape));
+        mps::dense_f16_fp32(x->data<float>(), weight->data<float16_t>(),
+                           bias ? bias->data<float16_t>() : nullptr,
+                           residual ? residual->data<float>() : nullptr,
+                           output.data<float>(), rows,
+                           weight->dim(0), weight->dim(1));
+        if (_activation_type)
+          ops::get_activation_op(*_activation_type)(output, output);
+        return;
+      }
+#endif
 
       bool affected_by_tp = ScopedMPISetter::getNRanks() > 1 && _is_layer_out;
       if (affected_by_tp && ScopedMPISetter::getCurRank() != 0) {
@@ -478,6 +513,15 @@ namespace ctranslate2 {
       : _beta(model.get_variable_if_exists(scope + "/beta"))
       , _gamma(model.get_variable(scope + "/gamma"))
       , _use_residual(model.get_flag_with_default((scope + "/layer_norm_use_residual"), false)) {
+      _output_type = _gamma.dtype();
+      _float32_math = !_beta && model.use_float32_activations();
+      if (_float32_math) {
+        _output_type = DataType::FLOAT32;
+        if (_gamma.dtype() != DataType::FLOAT32) {
+          _float32_gamma = _gamma.to_float32();
+          synchronize_stream(_gamma.device());
+        }
+      }
       auto epsilon_it = model.config.find("layer_norm_epsilon");
       if (epsilon_it == model.config.end() || epsilon_it->is_null())
         _epsilon = _beta ? 1e-5 : 1e-6;
@@ -486,20 +530,36 @@ namespace ctranslate2 {
     }
 
     DataType LayerNorm::output_type() const {
-      return _gamma.dtype();
+      return _output_type;
     }
 
     dim_t LayerNorm::output_size() const {
       return _gamma.size();
     }
 
+    const StorageView& LayerNorm::gamma() const {
+      return _float32_gamma.empty() ? _gamma : _float32_gamma;
+    }
+
     void LayerNorm::operator()(const StorageView& input, StorageView& output) const {
+      if (_float32_math) {
+        StorageView promoted;
+        const StorageView* x = &input;
+        if (input.dtype() != DataType::FLOAT32) {
+          promoted = input.to_float32();
+          x = &promoted;
+        }
+        StorageView normalized(DataType::FLOAT32, input.device());
+        ops::RMSNorm(_epsilon, _use_residual)(gamma(), *x, normalized);
+        output = std::move(normalized);
+        return;
+      }
       if (_beta) {
         const ops::LayerNorm norm_op(-1, _epsilon);
-        norm_op(*_beta, _gamma, input, output);
+        norm_op(*_beta, gamma(), input, output);
       } else {
         const ops::RMSNorm norm_op(_epsilon, _use_residual);
-        norm_op(_gamma, input, output);
+        norm_op(gamma(), input, output);
       }
     }
 
@@ -510,8 +570,7 @@ namespace ctranslate2 {
       if (!_beta)
         return false;
 
-      return ops::LayerNorm(-1, _epsilon).try_fused_bias_residual(*_beta,
-                                                                  _gamma,
+      return ops::LayerNorm(-1, _epsilon).try_fused_bias_residual(*_beta, gamma(),
                                                                   input,
                                                                   bias,
                                                                   residual,

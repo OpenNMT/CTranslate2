@@ -80,6 +80,10 @@ namespace ctranslate2 {
         return _effective_compute_type;
       }
 
+      bool use_float32_activations() const {
+        return _device == Device::MPS && _float32_activations;
+      }
+
       dim_t preferred_size_multiple() const {
         return _preferred_size_multiple;
       }
@@ -194,6 +198,7 @@ namespace ctranslate2 {
       ComputeType _saved_compute_type = ComputeType::DEFAULT;
       ComputeType _requested_compute_type = ComputeType::DEFAULT;
       ComputeType _effective_compute_type = ComputeType::DEFAULT;
+      bool _float32_activations = false;
       dim_t _preferred_size_multiple = 1;
       std::unordered_map<std::string, std::shared_ptr<StorageView>> _variable_index;
       bool _use_flash_attention = false;

@@ -294,6 +294,7 @@ jobs:
           CMAKE_BUILD_PARALLEL_LEVEL: 5
         run: |
           python -m pip install -r python/install_requirements.txt pytest
+          python -m pip install 'transformers==5.24.0' 'torch==2.12' sentencepiece
           python -m pip install ./python
 
       - name: Test Python CPU selection and explicit MPS inference
@@ -303,6 +304,7 @@ jobs:
         run: |
           python -m pytest -v \
             python/tests/test_storage_view.py python/tests/test_translator.py \
+            python/tests/test_*t5gemma*.py \
             --junitxml=python-mps-results.xml
 
       - name: Upload hardware details and test reports

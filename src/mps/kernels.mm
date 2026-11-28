@@ -2797,7 +2797,9 @@ IM2COL_KERNEL(im2col_conv1d_f32, float)
 IM2COL_KERNEL(im2col_conv1d_f16, half)
 IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
 
-)METAL";
+)METAL"
+#include "mps/precise_dense_metal.h"
+;
 
       struct ElementwiseArgs {
         uint64_t size;
@@ -4416,6 +4418,8 @@ IM2COL_KERNEL(im2col_conv1d_bf16, ushort)
                             bias, residual, activation);
       return true;
     }
+
+    #include "mps/precise_dense_kernels.inc"
 
     void gemm(DataType dtype,
               bool transpose_a,

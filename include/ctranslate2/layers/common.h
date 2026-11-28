@@ -173,9 +173,13 @@ namespace ctranslate2 {
                                      const StorageView& residual,
                                      StorageView& output) const;
     private:
+      const StorageView& gamma() const;
       const StorageView* _beta;
       const StorageView& _gamma;
+      StorageView _float32_gamma;
       const bool _use_residual;
+      bool _float32_math = false;
+      DataType _output_type;
       float _epsilon;
     };
 
